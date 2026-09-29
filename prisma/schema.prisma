@@ -1,0 +1,133 @@
+// Esquema inicial — Sistema de Ventas y Distribución (Abarrotes)
+// Fuente de verdad del modelo de datos. Cambios aquí se coordinan con el equipo.
+// Referencia: docs/ARQUITECTURA_Y_ROADMAP.md
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  ADMIN
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING_CONFIRMATION
+  CONFIRMED
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum MovementType {
+  IN
+  OUT
+  ADJUSTMENT
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole  @default(CUSTOMER)
+  address      String?
+  createdAt    DateTime  @default(now())
+
+  orders             Order[]
+  inventoryMovements InventoryMovement[]
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  products Product[]
+}
+
+model Product {
+  id             String    @id @default(uuid())
+  name           String
+  description    String?
+  sku            String    @unique
+  price          Decimal   @db.Decimal(10, 2)
+  imageUrl       String?
+  active         Boolean   @default(true)
+  currentStock   Int       @default(0)
+  minStock       Int       @default(0)
+  expirationDate DateTime?
+  createdAt      DateTime  @default(now())
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  orderItems         OrderItem[]
+  inventoryMovements InventoryMovement[]
+  promotions         Promotion[]
+}
+
+model InventoryMovement {
+  id        String       @id @default(uuid())
+  type      MovementType
+  quantity  Int
+  reason    String?
+  createdAt DateTime     @default(now())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+}
+
+model Supply {
+  id          String   @id @default(uuid())
+  name        String
+  unit        String
+  quantity    Int      @default(0)
+  minQuantity Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model Order {
+  id              String      @id @default(uuid())
+  status          OrderStatus @default(PENDING_CONFIRMATION)
+  total           Decimal     @db.Decimal(10, 2)
+  deliveryAddress String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  customerId String
+  customer   User   @relation(fields: [customerId], references: [id])
+
+  items OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id])
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model Promotion {
+  id         String   @id @default(uuid())
+  promoPrice Decimal  @db.Decimal(10, 2)
+  startDate  DateTime
+  endDate    DateTime
+  active     Boolean  @default(true)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+}
