@@ -44,7 +44,9 @@ CLAUDE.md
 package.json      -> npm workspaces (un solo `npm install` en la raíz)
 ```
 
-El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`.
+El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`. App Android (versiones, cómo apuntarla a la API local): `apps/android/README.md`.
+
+**Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `PENDING_CONFIRMATION`), dentro de la misma transacción, y registra un `InventoryMovement` `OUT`. Quien implemente el cambio de estado a `CANCELLED` (Fase 3) debe devolver ese stock.
 
 ## 4. Modelo de datos inicial
 
