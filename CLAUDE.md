@@ -41,7 +41,7 @@ Documento de referencia completo con arquitectura, roadmap y prompts sugeridos: 
 ## Convenciones
 
 - **Commits**: Conventional Commits (`feat:`, `fix:`, `chore:`, `refactor:`). Un commit = un cambio lógico.
-- **Ramas**: `main` (estable) ← `develop` ← `feature/<nombre-corto>`. Nunca commitear directo a `main`.
+- **Ramas**: `main` (estable) ← `develop` ← `feature/<nombre-corto>`. Nunca commitear directo a `main`. `main` y `develop` solo reciben cambios por Pull Request: el hook `.githooks/pre-push` (se activa con `npm install`) bloquea el push directo a ambas.
 - **Nombres**: entidades y tablas en inglés (`Product`, `Order`), texto de UI en español.
 - **Módulos NestJS**: uno por dominio (`products`, `orders`, `inventory`, `promotions`, `auth`, `users`), cada uno con controller + service + DTOs propios. No mezclar dominios en un mismo módulo.
 - **Estados de pedido**: enum fijo — `PENDING_CONFIRMATION`, `CONFIRMED`, `OUT_FOR_DELIVERY`, `DELIVERED`, `CANCELLED`. No agregar estados nuevos sin actualizar los tres frontends y `docs/ARQUITECTURA_Y_ROADMAP.md`.

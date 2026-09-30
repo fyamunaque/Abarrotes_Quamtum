@@ -1,0 +1,3 @@
+# Los hooks son scripts de sh: con CRLF (core.autocrlf en Windows) no corren.
+.githooks/* text eol=lf
+.githooks/*.mjs text eol=lf
