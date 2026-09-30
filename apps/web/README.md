@@ -1,0 +1,56 @@
+# Web — Marketplace (Next.js)
+
+Tienda pública: catálogo con filtro por categoría y búsqueda, detalle de producto, carrito, login/registro y checkout contra la API de [`/apps/api`](../api/README.md). El dashboard `/admin` (Fase 3) vivirá en esta misma app.
+
+Next.js 16 (App Router, Turbopack), React 19, Tailwind CSS 4, Zustand. Los tipos de la API vienen de [`@abarrotes/shared-types`](../../packages/shared-types/src/index.ts).
+
+> Next.js 16 cambió varias APIs (`params`/`searchParams`/`cookies()` asíncronos, `error.tsx` recibe `retry()`, `middleware` pasó a `proxy`…). Antes de escribir código aquí, lee la guía correspondiente en `node_modules/next/dist/docs/` (ver `AGENTS.md`).
+
+## Correr en local
+
+```bash
+# 1. Dependencias: desde la raíz del monorepo
+npm install
+
+# 2. Configuración
+cp apps/web/.env.example apps/web/.env.local   # API_URL=http://localhost:3001
+
+# 3. La API tiene que estar corriendo (ver apps/api/README.md)
+npm run web:dev                                 # http://localhost:3000
+```
+
+## Páginas
+
+| Ruta | Qué hace |
+|---|---|
+| `/` | Catálogo. Filtros en la URL: `?categoria=<id>&q=<texto>&pagina=<n>` (se pueden compartir y funcionan sin JavaScript) |
+| `/productos/[id]` | Detalle del producto |
+| `/carrito` | Carrito: cambiar cantidades, quitar, total |
+| `/checkout` | Dirección de entrega y confirmación del pedido. Pide login |
+| `/checkout/confirmado` | Número, total y estado del pedido recién creado |
+| `/ingresar`, `/registro` | Login y registro. Aceptan `?next=/ruta` para volver adonde estaba el cliente |
+
+## Cómo funciona
+
+- **El navegador nunca llama a la API.** Las páginas (Server Components) y las Server Actions de Next.js la llaman desde el servidor con `API_URL`. Por eso la API no necesita CORS para la web.
+- **Sesión en cookies httpOnly** (`src/lib/session.ts`): access token, refresh token y un resumen del usuario (nombre, email, dirección). El JavaScript de la página no puede leerlas, así que un XSS no puede robar la sesión. Si el access token venció, se renueva solo con el refresh token al hacer el pedido.
+- **Catálogo cacheado 30 s** (`src/lib/api.ts`). Esas peticiones van **sin** token, porque la respuesta la comparten todos los visitantes. El stock real se valida al crear el pedido.
+- **Carrito con Zustand + localStorage** (`src/store/cart-store.ts`): sobrevive a recargas y es solo del navegador. No deja pedir más que el stock conocido ni más de 999 por producto. La lógica está en `src/lib/cart.ts` (funciones puras, con tests).
+- **Montos en céntimos enteros** (`src/lib/money.ts`): la API manda `"4.5"` y se suma en céntimos para no acumular errores de coma flotante. Se muestran como `S/ 4.50`.
+- **Pedido**: la Server Action `placeOrder` valida la forma del pedido (es un endpoint público) y envía solo `productId` y `quantity`; precios y total los calcula la API. Si falla (por ejemplo, stock insuficiente), el carrito se conserva y se muestra el mensaje de la API.
+
+## Scripts
+
+```bash
+npm run dev         # desarrollo
+npm run build       # build de producción
+npm run typecheck   # genera los tipos de rutas y corre tsc
+npm run lint
+npm test            # Vitest: lógica de src/lib
+```
+
+## Pendiente
+
+- Página "Mis pedidos" (el endpoint `GET /orders/mine` ya existe).
+- Tests de componentes y end-to-end (Playwright) una vez que haya una API de prueba con datos.
+- Sincronizar el carrito entre pestañas abiertas.

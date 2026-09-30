@@ -44,7 +44,11 @@ CLAUDE.md
 package.json      -> npm workspaces (un solo `npm install` en la raíz)
 ```
 
-El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`. App Android (versiones, cómo apuntarla a la API local): `apps/android/README.md`.
+El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`. App Android (versiones, cómo apuntarla a la API local): `apps/android/README.md`. Web (Next.js 16, páginas, sesión): `apps/web/README.md`.
+
+**Tipos compartidos:** `packages/shared-types` describe el JSON de la API (solo tipos, se importa con `import type`). La web los usa directamente; la API los verifica en `apps/api/src/shared-types.contract.spec.ts`, que falla si un DTO de entrada o un enum (`OrderStatus`, `UserRole`) deja de coincidir. Si cambias un DTO o el schema, actualiza también `shared-types`.
+
+**Sesión en la web:** Next.js llama a la API desde el servidor y guarda los tokens en cookies httpOnly; el navegador nunca ve los tokens ni llama a la API directamente. El `/admin` de la Fase 3 debe reutilizar `apps/web/src/lib/session.ts`.
 
 **Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `PENDING_CONFIRMATION`), dentro de la misma transacción, y registra un `InventoryMovement` `OUT`. Quien implemente el cambio de estado a `CANCELLED` (Fase 3) debe devolver ese stock.
 
