@@ -145,7 +145,7 @@ debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ## 7. Herramientas complementarias
 
 - **Probar la API mientras se desarrolla**: Insomnia o Postman (o archivos `.http` dentro del repo si prefieren algo más ligero, sin instalar nada aparte).
-- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`.
+- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`: tres jobs en paralelo (API con PostgreSQL efímero, que además aplica las migraciones y el seed sobre una base vacía; web; Android) en cada PR y push a `develop` y `main`.
 - **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), web en Vercel, app en Google Play Console (pago único de $25).
 - **Pagos** (Fase 6, para negocio real en Perú): Culqi o Izipay son las opciones locales más simples de integrar (tarjetas, y Culqi soporta Yape); Mercado Pago es la alternativa regional.
 - **Diseño de pantallas** (opcional): si quieren mockups antes de programar, Figma tiene plan gratuito suficiente para un equipo de 2-3.
