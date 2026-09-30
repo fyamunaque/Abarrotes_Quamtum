@@ -1,17 +1,15 @@
-import { Transform, Type } from 'class-transformer';
+import { Transform } from 'class-transformer';
 import {
   IsBoolean,
-  IsInt,
   IsOptional,
   IsString,
   IsUUID,
-  Max,
   MaxLength,
-  Min,
 } from 'class-validator';
+import { PaginationQueryDto } from '../../common/pagination';
 import { Trim } from '../../common/validation';
 
-export class ListProductsQueryDto {
+export class ListProductsQueryDto extends PaginationQueryDto {
   @IsOptional()
   @IsUUID()
   categoryId?: string;
@@ -30,17 +28,4 @@ export class ListProductsQueryDto {
   )
   @IsBoolean()
   includeInactive?: boolean;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page: number = 1;
-
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit: number = 20;
 }

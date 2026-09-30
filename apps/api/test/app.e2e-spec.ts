@@ -19,6 +19,10 @@ function createPrismaMock() {
       create: jest.fn(),
       update: jest.fn(),
     },
+    category: {
+      findMany: jest.fn().mockResolvedValue([{ id: 'c1', name: 'Abarrotes' }]),
+    },
+    $transaction: jest.fn(),
   };
 }
 
@@ -172,6 +176,57 @@ describe('API (e2e)', () => {
         .delete(`/products/${randomUUID()}`)
         .set('Authorization', await bearer(UserRole.CUSTOMER))
         .expect(403);
+    });
+  });
+
+  it('GET /categories es público', () => {
+    return request(app.getHttpServer())
+      .get('/categories')
+      .expect(200, [{ id: 'c1', name: 'Abarrotes' }]);
+  });
+
+  describe('/orders', () => {
+    const validOrder = {
+      deliveryAddress: 'Av. Siempre Viva 123',
+      items: [{ productId: randomUUID(), quantity: 2 }],
+    };
+
+    it('POST sin token responde 401', () => {
+      return request(app.getHttpServer())
+        .post('/orders')
+        .send(validOrder)
+        .expect(401);
+    });
+
+    it('POST no acepta precios enviados por el cliente', async () => {
+      await request(app.getHttpServer())
+        .post('/orders')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .send({
+          ...validOrder,
+          items: [{ ...validOrder.items[0], unitPrice: 0.01 }],
+        })
+        .expect(400);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('POST rechaza un pedido vacío', async () => {
+      await request(app.getHttpServer())
+        .post('/orders')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .send({ ...validOrder, items: [] })
+        .expect(400);
+    });
+
+    it('POST con token y datos válidos responde 201', async () => {
+      prisma.$transaction.mockResolvedValue({ id: 'order-1' });
+
+      await request(app.getHttpServer())
+        .post('/orders')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .send(validOrder)
+        .expect(201, { id: 'order-1' });
     });
   });
 

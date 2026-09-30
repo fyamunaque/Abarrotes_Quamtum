@@ -46,22 +46,35 @@ Las migraciones se guardan en `/prisma/migrations`, junto al schema.
 | POST | `/auth/login` | Público | `{ email, password }` → `{ accessToken, refreshToken, user }` |
 | POST | `/auth/refresh` | Público | `{ refreshToken }` → par nuevo + `user` |
 | GET | `/auth/me` | Autenticado | Perfil del usuario actual |
+| GET | `/categories` | Público | `[{ id, name }]` ordenadas por nombre |
 | GET | `/products` | Público | Lista paginada. Query: `categoryId`, `search` (nombre o SKU), `page` (1), `limit` (20, máx. 100), `includeInactive` (solo ADMIN/STAFF) |
 | GET | `/products/:id` | Público | Detalle (los inactivos solo los ve ADMIN/STAFF) |
 | POST | `/products` | ADMIN, STAFF | Crear. `currentStock` solo como stock inicial |
 | PATCH | `/products/:id` | ADMIN, STAFF | Editar (campos parciales; `null` borra los opcionales). El stock no se edita aquí: irá por `inventory` (Fase 4) |
 | DELETE | `/products/:id` | ADMIN, STAFF | Baja lógica (`active = false`); los pedidos históricos siguen apuntando al producto |
+| POST | `/orders` | Autenticado | `{ deliveryAddress, items: [{ productId, quantity }] }` → pedido en `PENDING_CONFIRMATION` a nombre del usuario del token |
+| GET | `/orders/mine` | Autenticado | Mis pedidos, del más reciente al más antiguo. Query: `page`, `limit` |
+
+### Cómo se crea un pedido
+
+`POST /orders` no acepta precios ni total: los toma de la base de datos al momento del pedido. En una sola transacción:
+
+1. Verifica que todos los productos existan y estén activos (si no, 400).
+2. Descuenta el stock de cada uno solo si alcanza (si no, 409 `Stock insuficiente para "..."` y no se guarda nada).
+3. Crea el pedido con sus líneas (`unitPrice` = precio vigente) y registra un `InventoryMovement` de tipo `OUT` por producto.
+
+Productos repetidos en `items` se suman en una sola línea. Pendiente para la Fase 3: al pasar un pedido a `CANCELLED`, devolver el stock (movimiento `IN`). Las promociones (Fase 5) todavía no afectan el precio.
 
 Respuesta de `GET /products`:
 
 ```json
 {
-  "data": [{ "id": "…", "name": "Arroz 1kg", "price": "4.50", "category": { "id": "…", "name": "Abarrotes" }, "…": "…" }],
+  "data": [{ "id": "…", "name": "Arroz 1kg", "price": "4.5", "category": { "id": "…", "name": "Abarrotes" }, "…": "…" }],
   "meta": { "total": 45, "page": 1, "limit": 20, "totalPages": 3 }
 }
 ```
 
-`price` llega como **string** (`"4.50"`): es un `Decimal` y así no se pierde precisión. Parsearlo en el cliente (`BigDecimal` en Kotlin).
+Los montos (`price`, `total`, `unitPrice`) llegan como **string** (`"4.5"`, sin ceros finales): son `Decimal` y así no se pierde precisión. Parsearlos en el cliente (`BigDecimal` en Kotlin) y formatear con 2 decimales al mostrar.
 
 Errores: formato estándar de NestJS `{ statusCode, message, error }` — 400 validación, 401 sin token o token inválido, 403 rol sin permiso, 404 no existe, 409 email/SKU duplicado.
 

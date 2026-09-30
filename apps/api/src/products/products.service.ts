@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { AuthUser, isStaff } from '../auth/auth.types';
+import { paginate, toSkipTake } from '../common/pagination';
 import { isPrismaError, PrismaErrorCode } from '../prisma/prisma-errors';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -22,7 +23,7 @@ export class ProductsService {
 
   /** Clientes y anónimos solo ven productos activos. */
   async findAll(query: ListProductsQueryDto, user?: AuthUser) {
-    const { categoryId, search, page, limit } = query;
+    const { categoryId, search } = query;
     const showInactive = query.includeInactive === true && isStaff(user);
 
     const where: Prisma.ProductWhereInput = { categoryId };
@@ -41,16 +42,12 @@ export class ProductsService {
         where,
         include: productInclude,
         orderBy: { name: 'asc' },
-        skip: (page - 1) * limit,
-        take: limit,
+        ...toSkipTake(query),
       }),
       this.prisma.product.count({ where }),
     ]);
 
-    return {
-      data,
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
-    };
+    return paginate(data, total, query);
   }
 
   async findOne(id: string, user?: AuthUser) {
