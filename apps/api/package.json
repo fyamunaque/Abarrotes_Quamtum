@@ -5,12 +5,12 @@
   "description": "API NestJS del Sistema Integral de Ventas y Distribución — Abarrotes",
   "scripts": {
     "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"scripts/**/*.ts\"",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\" \"../../prisma/seed.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
-    "lint": "eslint \"{src,test,scripts}/**/*.ts\"",
+    "lint": "eslint \"{src,test}/**/*.ts\"",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
@@ -22,7 +22,7 @@
   },
   "prisma": {
     "schema": "../../prisma/schema.prisma",
-    "seed": "ts-node scripts/seed.ts"
+    "seed": "ts-node --project tsconfig.json ../../prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",

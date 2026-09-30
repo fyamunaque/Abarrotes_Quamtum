@@ -12,20 +12,30 @@ npm install
 
 # 2. Configura el entorno
 cd apps/api
-cp .env.example .env        # completa DATABASE_URL, los dos JWT_*_SECRET y SEED_ADMIN_*
+cp .env.example .env        # completa DATABASE_URL y los dos JWT_*_SECRET
 
 # 3. PostgreSQL local con Docker (opcional)
 docker run -d --name abarrotes-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=abarrotes -p 5432:5432 postgres:16
 
-# 4. Crea las tablas y carga categorías base + admin inicial
+# 4. Crea las tablas y carga los datos de desarrollo
 npx prisma migrate dev --name init
-npm run prisma:seed
+npx prisma db seed          # imprime el email y la contraseña del admin de prueba
 
 # 5. Levanta la API en http://localhost:3001
 npm run start:dev
 ```
 
 Las migraciones se guardan en `/prisma/migrations`, junto al schema.
+
+### Datos de desarrollo (`/prisma/seed.ts`)
+
+`npx prisma db seed` (desde `apps/api`, donde está la configuración `prisma.seed`) carga:
+
+- 9 categorías base.
+- 4 productos de ejemplo con stock (SKU `DEMO-*`). Uno queda bajo su stock mínimo, para ver el aviso en el admin. Si ya existen no se tocan.
+- Un **ADMIN de prueba**: `admin@abarrotes.test` (o `SEED_ADMIN_EMAIL`). La contraseña es `SEED_ADMIN_PASSWORD` o, si no la defines, una generada al azar en cada corrida. Al terminar imprime ambas.
+
+Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**: un admin con la contraseña impresa en consola no debe existir en producción. El primer ADMIN de producción queda pendiente para cuando se prepare el despliegue (Fase 6).
 
 > Prisma está fijado en la v6: el schema usa `url = env("DATABASE_URL")` y el generador `prisma-client-js`, que Prisma 7 ya no acepta. Subir a la v7 implica cambiar el schema (coordinarlo con el equipo).
 

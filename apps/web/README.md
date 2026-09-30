@@ -33,7 +33,7 @@ npm run web:dev                                 # http://localhost:3000
 | `/admin/productos` | **Solo ADMIN/STAFF.** Productos (incluidos inactivos), búsqueda, desactivar/reactivar |
 | `/admin/productos/nuevo`, `/admin/productos/[id]` | Alta y edición. El stock inicial se carga al crear; después se ajusta por inventario |
 
-El primer ADMIN sale del seed de la API (`npm run prisma:seed`, ver `apps/api/README.md`). Con ese usuario, el enlace "Admin" aparece en el encabezado.
+Para entrar al admin en desarrollo, usa el ADMIN de prueba que crea `npx prisma db seed` (ver `apps/api/README.md`); el seed imprime su email y contraseña. Con ese usuario, el enlace "Admin" aparece en el encabezado.
 
 ## Cómo funciona
 
