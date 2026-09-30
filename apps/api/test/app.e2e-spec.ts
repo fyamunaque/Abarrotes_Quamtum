@@ -289,6 +289,117 @@ describe('API (e2e)', () => {
     });
   });
 
+  describe('tokens (Passport-JWT)', () => {
+    const payload = {
+      sub: randomUUID(),
+      email: 'u@example.com',
+      role: UserRole.ADMIN,
+    };
+
+    it('sin token responde 401 indicando que falta', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .expect(401);
+      expect(res.body.message).toBe('Falta el token de acceso');
+    });
+
+    it('rechaza un refresh token usado como access token', async () => {
+      const refresh = await jwtService.signAsync(payload, {
+        secret: process.env.JWT_REFRESH_SECRET,
+      });
+      await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${refresh}`)
+        .expect(401);
+    });
+
+    it('rechaza un token vencido', async () => {
+      const expired = await jwtService.signAsync(
+        { ...payload, exp: Math.floor(Date.now() / 1000) - 60 },
+        { secret: process.env.JWT_ACCESS_SECRET },
+      );
+      const res = await request(app.getHttpServer())
+        .get('/auth/me')
+        .set('Authorization', `Bearer ${expired}`)
+        .expect(401);
+      expect(res.body.message).toBe('Token de acceso inválido o expirado');
+    });
+
+    it('rechaza un token sin firma (alg: none)', async () => {
+      const b64 = (o: object) =>
+        Buffer.from(JSON.stringify(o)).toString('base64url');
+      const unsigned = `${b64({ alg: 'none', typ: 'JWT' })}.${b64(payload)}.`;
+      await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', `Bearer ${unsigned}`)
+        .send({})
+        .expect(401);
+    });
+  });
+
+  describe('/users', () => {
+    const staffUser = {
+      email: 'Cajera@Example.com',
+      password: 'clave-segura-123',
+      name: 'Cajera',
+      role: UserRole.STAFF,
+    };
+
+    it('POST sin token responde 401', () => {
+      return request(app.getHttpServer())
+        .post('/users')
+        .send(staffUser)
+        .expect(401);
+    });
+
+    it.each([UserRole.CUSTOMER, UserRole.STAFF])(
+      'POST como %s responde 403',
+      async (role) => {
+        await request(app.getHttpServer())
+          .post('/users')
+          .set('Authorization', await bearer(role))
+          .send(staffUser)
+          .expect(403);
+        expect(prisma.user.create).not.toHaveBeenCalled();
+      },
+    );
+
+    it('POST como ADMIN no permite crear CUSTOMER', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .send({ ...staffUser, role: UserRole.CUSTOMER })
+        .expect(400);
+      expect(res.body.message).toContain('role debe ser ADMIN o STAFF');
+    });
+
+    it('POST como ADMIN crea un STAFF sin exponer el hash', async () => {
+      prisma.user.create.mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: randomUUID(),
+          phone: null,
+          address: null,
+          createdAt: new Date(),
+          ...data,
+        }),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/users')
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .send(staffUser)
+        .expect(201);
+
+      const { data } = prisma.user.create.mock.calls[0][0];
+      expect(data).toMatchObject({
+        email: 'cajera@example.com',
+        role: UserRole.STAFF,
+      });
+      expect(res.body.role).toBe(UserRole.STAFF);
+      expect(res.body).not.toHaveProperty('passwordHash');
+    });
+  });
+
   describe('/auth', () => {
     const registration = {
       email: '  Cliente@Example.com ',
@@ -296,13 +407,33 @@ describe('API (e2e)', () => {
       name: 'Cliente',
     };
 
-    it('POST /register no deja elegir el rol', async () => {
-      await request(app.getHttpServer())
+    it('POST /register ignora el rol enviado y crea un CUSTOMER', async () => {
+      prisma.user.create.mockImplementation(({ data }) =>
+        Promise.resolve({
+          id: randomUUID(),
+          phone: null,
+          address: null,
+          createdAt: new Date(),
+          ...data,
+        }),
+      );
+
+      const res = await request(app.getHttpServer())
         .post('/auth/register')
         .send({ ...registration, role: UserRole.ADMIN })
-        .expect(400);
+        .expect(201);
 
-      expect(prisma.user.create).not.toHaveBeenCalled();
+      expect(prisma.user.create.mock.calls[0][0].data.role).toBe(
+        UserRole.CUSTOMER,
+      );
+      expect(res.body.user.role).toBe(UserRole.CUSTOMER);
+    });
+
+    it('POST /register sigue rechazando otros campos desconocidos', async () => {
+      await request(app.getHttpServer())
+        .post('/auth/register')
+        .send({ ...registration, isAdmin: true })
+        .expect(400);
     });
 
     it('POST /register crea un CUSTOMER y devuelve tokens sin el hash', async () => {

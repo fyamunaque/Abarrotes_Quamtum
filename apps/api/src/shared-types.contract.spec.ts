@@ -9,6 +9,7 @@ import { UpdateOrderStatusDto } from './orders/dto/update-order-status.dto';
 import { CreateProductDto } from './products/dto/create-product.dto';
 import { ListProductsQueryDto } from './products/dto/list-products-query.dto';
 import { UpdateProductDto } from './products/dto/update-product.dto';
+import { CreateStaffUserDto } from './users/dto/create-staff-user.dto';
 
 // Verificación en tiempo de compilación: si un DTO o un enum deja de coincidir con
 // @abarrotes/shared-types, este archivo no compila y ts-jest hace fallar el test.
@@ -46,6 +47,9 @@ describe('Contrato con @abarrotes/shared-types', () => {
 
   it('los DTOs de entrada coinciden con los requests compartidos', () => {
     expectTrue<SameShape<Fields<LoginDto>, Shared.LoginRequest>>();
+    expectTrue<
+      SameShape<Fields<CreateStaffUserDto>, Shared.CreateStaffUserRequest>
+    >();
     expectTrue<SameShape<Fields<RegisterDto>, Shared.RegisterRequest>>();
     expectTrue<
       SameShape<Fields<RefreshTokenDto>, Shared.RefreshTokenRequest>

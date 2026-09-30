@@ -1,56 +1,47 @@
 import {
-  CanActivate,
   ExecutionContext,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { Reflector } from '@nestjs/core';
-import { JwtService } from '@nestjs/jwt';
-import type { AuthenticatedRequest, JwtPayload } from '../auth.types';
+import { AuthGuard } from '@nestjs/passport';
+import type { AuthUser } from '../auth.types';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
+/**
+ * Guard global de Passport-JWT (ver JwtStrategy). Toda ruta exige un access token
+ * válido salvo las marcadas con @Public(); en esas, si llega un token válido igual se
+ * adjunta el usuario (por ejemplo, para que el staff vea productos inactivos).
+ */
 @Injectable()
-export class JwtAuthGuard implements CanActivate {
-  constructor(
-    private readonly jwtService: JwtService,
-    private readonly config: ConfigService,
-    private readonly reflector: Reflector,
-  ) {}
+export class JwtAuthGuard extends AuthGuard('jwt') {
+  constructor(private readonly reflector: Reflector) {
+    super();
+  }
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  handleRequest<TUser = AuthUser>(
+    err: unknown,
+    user: AuthUser | false,
+    info: unknown,
+    context: ExecutionContext,
+  ): TUser {
+    if (user) return user as TUser;
+
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
-    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const token = extractBearerToken(request);
+    // En rutas públicas, sin token o con uno inválido se atiende como anónimo.
+    if (isPublic) return undefined as TUser;
 
-    if (!token) {
-      if (isPublic) return true;
-      throw new UnauthorizedException('Falta el token de acceso');
-    }
-
-    try {
-      const payload = await this.jwtService.verifyAsync<JwtPayload>(token, {
-        secret: this.config.getOrThrow<string>('JWT_ACCESS_SECRET'),
-      });
-      request.user = {
-        id: payload.sub,
-        email: payload.email,
-        role: payload.role,
-      };
-    } catch {
-      // En rutas públicas un token inválido no bloquea: se atiende como anónimo.
-      if (!isPublic) {
-        throw new UnauthorizedException('Token de acceso inválido o expirado');
-      }
-    }
-    return true;
+    if (err instanceof Error) throw err;
+    // passport-jwt informa "No auth token" cuando no llega el header Authorization.
+    const missingToken =
+      info instanceof Error && info.message === 'No auth token';
+    throw new UnauthorizedException(
+      missingToken
+        ? 'Falta el token de acceso'
+        : 'Token de acceso inválido o expirado',
+    );
   }
-}
-
-function extractBearerToken(request: AuthenticatedRequest): string | undefined {
-  const [type, token] = request.headers.authorization?.split(' ') ?? [];
-  return type === 'Bearer' && token ? token : undefined;
 }

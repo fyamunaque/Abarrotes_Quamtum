@@ -6,12 +6,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService, JwtSignOptions } from '@nestjs/jwt';
-import { User } from '@prisma/client';
-import { compare, hash } from 'bcryptjs';
+import { User, UserRole } from '@prisma/client';
+import { hashPassword, verifyPassword } from '../common/password';
 import { isPrismaError, PrismaErrorCode } from '../prisma/prisma-errors';
 import { PublicUser, toPublicUser, UsersService } from '../users/users.service';
 import {
-  BCRYPT_ROUNDS,
   DEFAULT_ACCESS_EXPIRES_IN,
   DEFAULT_REFRESH_EXPIRES_IN,
 } from './auth.constants';
@@ -30,7 +29,7 @@ export class AuthService {
 
   // Si el email no existe igual se compara contra un hash, para que el tiempo de
   // respuesta no revele qué emails están registrados.
-  private readonly dummyHash = hash('dummy-password', BCRYPT_ROUNDS);
+  private readonly dummyHash = hashPassword('dummy-password');
 
   constructor(
     private readonly usersService: UsersService,
@@ -50,11 +49,12 @@ export class AuthService {
   }
 
   async register(dto: RegisterDto): Promise<AuthResponse> {
-    const passwordHash = await hash(dto.password, BCRYPT_ROUNDS);
+    const passwordHash = await hashPassword(dto.password);
     try {
-      // Sin `role`: el default del schema es CUSTOMER. ADMIN/STAFF se crean por
-      // seed o, más adelante, desde el módulo `users`.
+      // Rol forzado: nunca se toma del body. ADMIN/STAFF solo se crean con el seed
+      // o con POST /users (solo ADMIN).
       const user = await this.usersService.create({
+        role: UserRole.CUSTOMER,
         email: dto.email,
         passwordHash,
         name: dto.name,
@@ -72,7 +72,7 @@ export class AuthService {
 
   async login(dto: LoginDto): Promise<AuthResponse> {
     const user = await this.usersService.findByEmail(dto.email);
-    const passwordMatches = await compare(
+    const passwordMatches = await verifyPassword(
       dto.password,
       user?.passwordHash ?? (await this.dummyHash),
     );

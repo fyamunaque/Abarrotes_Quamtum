@@ -1,5 +1,10 @@
+import { applyDecorators } from '@nestjs/common';
 import { Transform } from 'class-transformer';
-import { ValidateIf } from 'class-validator';
+import { IsString, MaxLength, MinLength, ValidateIf } from 'class-validator';
+
+/** Regla única de contraseñas (registro y alta de staff). bcrypt ignora más de 72 bytes. */
+export const IsPassword = () =>
+  applyDecorators(IsString(), MinLength(8), MaxLength(72));
 
 /**
  * Campo opcional que, si viene, no puede ser `null`.

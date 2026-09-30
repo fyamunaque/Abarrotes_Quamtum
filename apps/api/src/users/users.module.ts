@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
+import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 
-// Por ahora solo expone el servicio que usa `auth`. El controller (gestión de
-// clientes y subusuarios) llega con el dashboard admin, en la Fase 3.
 @Module({
+  controllers: [UsersController],
   providers: [UsersService],
+  // `auth` lo usa para registrar, buscar y leer usuarios.
   exports: [UsersService],
 })
 export class UsersModule {}

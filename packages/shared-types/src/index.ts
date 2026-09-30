@@ -119,6 +119,18 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
+/** Roles que solo un ADMIN puede asignar. */
+export type StaffUserRole = Exclude<UserRole, 'CUSTOMER'>;
+
+/** POST /users (solo ADMIN): única forma de crear cuentas ADMIN o STAFF. Responde un PublicUser. */
+export interface CreateStaffUserRequest {
+  email: string;
+  password: string;
+  name: string;
+  phone?: string;
+  role: StaffUserRole;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;

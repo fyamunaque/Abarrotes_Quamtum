@@ -43,8 +43,13 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 
 - `Authorization: Bearer <accessToken>` en cada petición protegida.
 - **Todas las rutas requieren token salvo las marcadas como públicas.** Para nuevos endpoints: `@Public()` para abrirlos, `@Roles(UserRole.ADMIN, ...)` para restringirlos por rol.
-- Access token: 15 min (`JWT_ACCESS_EXPIRES_IN`). Refresh token: 7 días (`JWT_REFRESH_EXPIRES_IN`). Cuando el access token expira (401), el cliente llama a `POST /auth/refresh` y reemplaza ambos tokens.
-- El registro público siempre crea `CUSTOMER`. El primer `ADMIN` sale del seed; la gestión de `STAFF` llega con el módulo `users` (Fase 3).
+- Verificación con **Passport-JWT** (`src/auth/strategies/jwt.strategy.ts`): firma HS256 con `JWT_ACCESS_SECRET` y vencimiento. El guard global (`JwtAuthGuard`, que extiende `AuthGuard('jwt')`) deja pasar las rutas `@Public()`; si en ellas llega un token válido, igual adjunta el usuario.
+- El payload del token trae `sub` (id del usuario), `email` y `role`.
+- Access token: 15 min (`JWT_ACCESS_EXPIRES_IN`). Refresh token: 7 días (`JWT_REFRESH_EXPIRES_IN`), firmado con otro secreto. Cuando el access token expira (401), el cliente llama a `POST /auth/refresh` y reemplaza ambos tokens.
+- Contraseñas con bcrypt (`src/common/password.ts`, paquete `bcryptjs`: mismo algoritmo, sin compilación nativa).
+- **Quién crea qué cuenta:**
+  - `CUSTOMER`: registro público. Si el body trae `role`, se ignora; cualquier otro campo desconocido responde 400.
+  - `ADMIN` y `STAFF`: solo un ADMIN, con `POST /users`. En desarrollo, el primer ADMIN sale del seed.
 - El rol viaja dentro del access token: si cambia el rol de alguien, se aplica en su siguiente refresh (máx. 15 min).
 
 ## Endpoints
@@ -56,6 +61,7 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 | POST | `/auth/login` | Público | `{ email, password }` → `{ accessToken, refreshToken, user }` |
 | POST | `/auth/refresh` | Público | `{ refreshToken }` → par nuevo + `user` |
 | GET | `/auth/me` | Autenticado | Perfil del usuario actual |
+| POST | `/users` | ADMIN | `{ email, password, name, phone?, role: "ADMIN" \| "STAFF" }` → usuario creado (sin hash). `CUSTOMER` responde 400; email repetido, 409 |
 | GET | `/categories` | Público | `[{ id, name }]` ordenadas por nombre |
 | GET | `/products` | Público | Lista paginada. Query: `categoryId`, `search` (nombre o SKU), `page` (1), `limit` (20, máx. 100), `includeInactive` (solo ADMIN/STAFF) |
 | GET | `/products/:id` | Público | Detalle (los inactivos solo los ve ADMIN/STAFF) |

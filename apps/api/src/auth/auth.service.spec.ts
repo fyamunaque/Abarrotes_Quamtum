@@ -73,7 +73,7 @@ describe('AuthService', () => {
       const result = await service.register(dto);
 
       const data = usersService.create.mock.calls[0][0];
-      expect(data).not.toHaveProperty('role');
+      expect(data.role).toBe(UserRole.CUSTOMER);
       expect(data.passwordHash).not.toBe(dto.password);
       expect(await compare(dto.password, data.passwordHash)).toBe(true);
 
@@ -81,6 +81,16 @@ describe('AuthService', () => {
       expect(result.user.role).toBe(UserRole.CUSTOMER);
       expect(result.accessToken).toEqual(expect.any(String));
       expect(result.refreshToken).toEqual(expect.any(String));
+    });
+
+    it('fuerza CUSTOMER aunque el objeto traiga otro rol', async () => {
+      usersService.create.mockResolvedValue(buildUser());
+
+      // Simula un DTO manipulado: el tipo no lo permite, pero el servicio no debe
+      // depender de eso.
+      await service.register({ ...dto, role: UserRole.ADMIN } as never);
+
+      expect(usersService.create.mock.calls[0][0].role).toBe(UserRole.CUSTOMER);
     });
 
     it('responde 409 si el email ya existe', async () => {
