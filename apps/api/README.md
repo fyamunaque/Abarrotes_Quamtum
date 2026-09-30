@@ -14,18 +14,41 @@ npm install
 cd apps/api
 cp .env.example .env        # completa DATABASE_URL y los dos JWT_*_SECRET
 
-# 3. PostgreSQL local con Docker (opcional)
-docker run -d --name abarrotes-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=abarrotes -p 5432:5432 postgres:16
+# 3. Base de datos: ver "PostgreSQL local" más abajo
 
-# 4. Crea las tablas y carga los datos de desarrollo
-npx prisma migrate dev --name init
+# 4. Crea las tablas (aplica las migraciones de /prisma/migrations) y carga los datos de desarrollo
+npx prisma migrate dev
 npx prisma db seed          # imprime el email y la contraseña del admin de prueba
 
 # 5. Levanta la API en http://localhost:3001
 npm run start:dev
 ```
 
-Las migraciones se guardan en `/prisma/migrations`, junto al schema.
+Las migraciones se guardan en `/prisma/migrations`, junto al schema, y se suben al repo. Al cambiar el schema: `npx prisma migrate dev --name <descripcion>` genera la migración nueva (coordinarlo con el equipo, ver `CLAUDE.md`).
+
+### PostgreSQL local
+
+**Instalado en la PC** (instalador oficial): crea un usuario y una base solo para el proyecto, en vez de usar el superusuario `postgres`. Guarda esto en un archivo `setup-db.sql` fuera del repo, con una contraseña tuya:
+
+```sql
+-- CREATEDB: prisma migrate dev crea una base temporal ("shadow") para validar migraciones.
+CREATE ROLE abarrotes WITH LOGIN PASSWORD 'cambia-esta-clave' CREATEDB;
+CREATE DATABASE abarrotes OWNER abarrotes;
+```
+
+Ejecútalo con el superusuario (pide su contraseña). En PowerShell:
+
+```powershell
+& "C:\Program Files\PostgreSQL\18\bin\psql.exe" -U postgres -h localhost -f setup-db.sql
+```
+
+Y en `.env`: `DATABASE_URL="postgresql://abarrotes:cambia-esta-clave@localhost:5432/abarrotes?schema=public"`.
+
+**Con Docker**, en cambio:
+
+```bash
+docker run -d --name abarrotes-db -e POSTGRES_USER=abarrotes -e POSTGRES_PASSWORD=cambia-esta-clave -e POSTGRES_DB=abarrotes -p 5432:5432 postgres:18
+```
 
 ### Datos de desarrollo (`/prisma/seed.ts`)
 
