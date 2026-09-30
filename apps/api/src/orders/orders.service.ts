@@ -2,11 +2,14 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  NotFoundException,
 } from '@nestjs/common';
-import { MovementType, Prisma } from '@prisma/client';
+import { MovementType, OrderStatus, Prisma } from '@prisma/client';
 import { paginate, PaginationQueryDto, toSkipTake } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto, OrderItemDto } from './dto/create-order.dto';
+import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
+import { canTransition, ORDER_STATUS_LABELS } from './order-status';
 
 const orderInclude = {
   items: {
@@ -14,6 +17,12 @@ const orderInclude = {
       product: { select: { id: true, name: true, imageUrl: true } },
     },
   },
+} satisfies Prisma.OrderInclude;
+
+/** Para el dashboard: además de las líneas, quién hizo el pedido. */
+const adminOrderInclude = {
+  ...orderInclude,
+  customer: { select: { id: true, name: true, email: true, phone: true } },
 } satisfies Prisma.OrderInclude;
 
 @Injectable()
@@ -111,6 +120,78 @@ export class OrdersService {
       this.prisma.order.count({ where }),
     ]);
     return paginate(data, total, query);
+  }
+
+  /** Todos los pedidos (dashboard), opcionalmente filtrados por estado. */
+  async findAll(query: ListOrdersQueryDto) {
+    const where: Prisma.OrderWhereInput = { status: query.status };
+    const [data, total] = await Promise.all([
+      this.prisma.order.findMany({
+        where,
+        include: adminOrderInclude,
+        orderBy: { createdAt: 'desc' },
+        ...toSkipTake(query),
+      }),
+      this.prisma.order.count({ where }),
+    ]);
+    return paginate(data, total, query);
+  }
+
+  /**
+   * Cambia el estado si la transición está permitida. Al cancelar, devuelve el stock
+   * que descontó el pedido y registra la entrada en el inventario, todo en una
+   * transacción.
+   */
+  updateStatus(orderId: string, status: OrderStatus, staffUserId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const order = await tx.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+      if (!order) {
+        throw new NotFoundException('Pedido no encontrado');
+      }
+      if (!canTransition(order.status, status)) {
+        throw new BadRequestException(
+          `Un pedido ${ORDER_STATUS_LABELS[order.status]} no puede pasar a ${ORDER_STATUS_LABELS[status]}`,
+        );
+      }
+
+      // Solo actualiza si sigue en el estado leído: si dos personas lo cambian a la
+      // vez, la segunda recibe 409 en lugar de, por ejemplo, devolver stock dos veces.
+      const { count } = await tx.order.updateMany({
+        where: { id: orderId, status: order.status },
+        data: { status },
+      });
+      if (count === 0) {
+        throw new ConflictException(
+          'El pedido cambió mientras tanto. Recarga la página.',
+        );
+      }
+
+      if (status === OrderStatus.CANCELLED) {
+        for (const item of order.items) {
+          await tx.product.update({
+            where: { id: item.productId },
+            data: { currentStock: { increment: item.quantity } },
+          });
+        }
+        await tx.inventoryMovement.createMany({
+          data: order.items.map((item) => ({
+            productId: item.productId,
+            userId: staffUserId,
+            type: MovementType.IN,
+            quantity: item.quantity,
+            reason: `Cancelación del pedido ${order.id}`,
+          })),
+        });
+      }
+
+      return tx.order.findUniqueOrThrow({
+        where: { id: orderId },
+        include: adminOrderInclude,
+      });
+    });
   }
 }
 

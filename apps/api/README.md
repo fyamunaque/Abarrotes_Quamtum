@@ -54,6 +54,8 @@ Las migraciones se guardan en `/prisma/migrations`, junto al schema.
 | DELETE | `/products/:id` | ADMIN, STAFF | Baja lógica (`active = false`); los pedidos históricos siguen apuntando al producto |
 | POST | `/orders` | Autenticado | `{ deliveryAddress, items: [{ productId, quantity }] }` → pedido en `PENDING_CONFIRMATION` a nombre del usuario del token |
 | GET | `/orders/mine` | Autenticado | Mis pedidos, del más reciente al más antiguo. Query: `page`, `limit` |
+| GET | `/orders` | ADMIN, STAFF | Todos los pedidos con los datos del cliente. Query: `status`, `page`, `limit` |
+| PATCH | `/orders/:id/status` | ADMIN, STAFF | `{ status }` → cambia el estado si la transición está permitida (ver abajo) |
 
 ### Cómo se crea un pedido
 
@@ -63,7 +65,18 @@ Las migraciones se guardan en `/prisma/migrations`, junto al schema.
 2. Descuenta el stock de cada uno solo si alcanza (si no, 409 `Stock insuficiente para "..."` y no se guarda nada).
 3. Crea el pedido con sus líneas (`unitPrice` = precio vigente) y registra un `InventoryMovement` de tipo `OUT` por producto.
 
-Productos repetidos en `items` se suman en una sola línea. Pendiente para la Fase 3: al pasar un pedido a `CANCELLED`, devolver el stock (movimiento `IN`). Las promociones (Fase 5) todavía no afectan el precio.
+Productos repetidos en `items` se suman en una sola línea. Las promociones (Fase 5) todavía no afectan el precio.
+
+### Cambios de estado
+
+```
+PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED
+        └──────────────────┴───────────────┴──→ CANCELLED
+```
+
+- Solo se permiten esas transiciones (`src/orders/order-status.ts`); cualquier otra responde 400. `DELIVERED` y `CANCELLED` son finales.
+- **Cancelar devuelve el stock** de cada línea y registra un `InventoryMovement` `IN` a nombre de quien canceló, en la misma transacción.
+- Si dos personas cambian el mismo pedido a la vez, la segunda recibe 409 ("El pedido cambió mientras tanto"): así el stock nunca se devuelve dos veces.
 
 Respuesta de `GET /products`:
 

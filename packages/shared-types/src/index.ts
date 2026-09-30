@@ -70,6 +70,26 @@ export interface ListProductsQuery extends PaginationQuery {
   includeInactive?: boolean;
 }
 
+/**
+ * POST /products (ADMIN/STAFF). `null` en un campo opcional lo deja vacío.
+ * `currentStock` es solo el stock inicial.
+ */
+export interface CreateProductRequest {
+  name: string;
+  description?: string | null;
+  sku: string;
+  price: number;
+  imageUrl?: string | null;
+  active?: boolean;
+  currentStock?: number;
+  minStock?: number;
+  expirationDate?: ISODateString | null;
+  categoryId: string;
+}
+
+/** PATCH /products/:id: campos parciales. El stock no se edita aquí (módulo inventory). */
+export type UpdateProductRequest = Partial<Omit<CreateProductRequest, 'currentStock'>>;
+
 // ---------- Auth ----------
 
 export interface PublicUser {
@@ -136,6 +156,21 @@ export interface Order {
   updatedAt: ISODateString;
   customerId: string;
   items: OrderItem[];
+}
+
+/** Pedido tal como lo ve el staff (GET /orders): incluye los datos del cliente. */
+export interface AdminOrder extends Order {
+  customer: Pick<PublicUser, 'id' | 'name' | 'email' | 'phone'>;
+}
+
+/** Query de GET /orders (ADMIN/STAFF). */
+export interface ListOrdersQuery extends PaginationQuery {
+  status?: OrderStatus;
+}
+
+/** PATCH /orders/:id/status (ADMIN/STAFF). La API valida que el cambio esté permitido. */
+export interface UpdateOrderStatusRequest {
+  status: OrderStatus;
 }
 
 // ---------- Errores ----------

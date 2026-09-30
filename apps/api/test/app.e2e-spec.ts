@@ -22,6 +22,10 @@ function createPrismaMock() {
     category: {
       findMany: jest.fn().mockResolvedValue([{ id: 'c1', name: 'Abarrotes' }]),
     },
+    order: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+    },
     $transaction: jest.fn(),
   };
 }
@@ -227,6 +231,61 @@ describe('API (e2e)', () => {
         .set('Authorization', await bearer(UserRole.CUSTOMER))
         .send(validOrder)
         .expect(201, { id: 'order-1' });
+    });
+  });
+
+  describe('/orders (staff)', () => {
+    it('GET como CUSTOMER responde 403', async () => {
+      await request(app.getHttpServer())
+        .get('/orders')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .expect(403);
+    });
+
+    it('GET como STAFF filtra por estado', async () => {
+      await request(app.getHttpServer())
+        .get('/orders?status=CONFIRMED')
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .expect(200);
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { status: 'CONFIRMED' } }),
+      );
+    });
+
+    it('GET con un estado inexistente responde 400', async () => {
+      await request(app.getHttpServer())
+        .get('/orders?status=ENVIADO')
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .expect(400);
+    });
+
+    it('PATCH status como CUSTOMER responde 403', async () => {
+      await request(app.getHttpServer())
+        .patch(`/orders/${randomUUID()}/status`)
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .send({ status: 'CANCELLED' })
+        .expect(403);
+
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('PATCH status valida el estado', async () => {
+      await request(app.getHttpServer())
+        .patch(`/orders/${randomUUID()}/status`)
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .send({ status: 'ENVIADO' })
+        .expect(400);
+    });
+
+    it('PATCH status como ADMIN responde 200', async () => {
+      prisma.$transaction.mockResolvedValue({ id: 'o1', status: 'CONFIRMED' });
+
+      await request(app.getHttpServer())
+        .patch(`/orders/${randomUUID()}/status`)
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .send({ status: 'CONFIRMED' })
+        .expect(200, { id: 'o1', status: 'CONFIRMED' });
     });
   });
 
