@@ -12,8 +12,9 @@ export const metadata: Metadata = {
 
 export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
   // El rol se consulta a la API (GET /auth/me), no a la cookie: es la fuente de verdad.
-  // Igual, cada lectura y cada acción del admin vuelve a pasar por la API, que responde
-  // 403 a quien no sea staff.
+  // Este layout solo decide qué se ve: NO impide que las páginas se ejecuten (Next.js
+  // las renderiza en paralelo). Por eso cada página llama a getStaffUser() antes de leer
+  // datos, y la API vuelve a responder 403 a quien no sea staff.
   const user = await getCurrentUser();
   if (!user) redirect('/ingresar?next=/admin');
 

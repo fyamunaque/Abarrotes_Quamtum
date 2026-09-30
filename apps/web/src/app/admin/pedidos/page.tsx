@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { changeOrderStatus } from '@/app/actions/admin';
 import { ActionButton } from '@/components/admin/ActionButton';
-import { listOrders } from '@/lib/admin-api';
+import { getStaffUser, listOrders } from '@/lib/admin-api';
 import { formatDateTime } from '@/lib/dates';
 import { formatMoney } from '@/lib/money';
 import { firstParam, parsePage } from '@/lib/navigation';
@@ -36,6 +36,8 @@ function ordersHref(status: OrderStatus | undefined, page = 1): string {
 }
 
 export default async function AdminOrdersPage({ searchParams }: PageProps<'/admin/pedidos'>) {
+  // Sin rol de staff no se consulta nada; el layout muestra el aviso o manda al login.
+  if (!(await getStaffUser())) return null;
   const params = await searchParams;
   const statusParam = firstParam(params.estado);
   const status = isOrderStatus(statusParam) ? statusParam : undefined;

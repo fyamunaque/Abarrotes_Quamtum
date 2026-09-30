@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import { createProduct } from '@/app/actions/admin';
+import { getStaffUser } from '@/lib/admin-api';
 import { getCategories } from '@/lib/api';
 import { ProductForm } from '../ProductForm';
 
 export const metadata: Metadata = { title: 'Nuevo producto' };
 
 export default async function NewProductPage() {
+  if (!(await getStaffUser())) return null;
   const categories = await getCategories();
 
   return (

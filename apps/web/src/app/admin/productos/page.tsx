@@ -3,7 +3,7 @@ import Form from 'next/form';
 import Link from 'next/link';
 import { setProductActive } from '@/app/actions/admin';
 import { ActionButton } from '@/components/admin/ActionButton';
-import { listProductsForAdmin } from '@/lib/admin-api';
+import { getStaffUser, listProductsForAdmin } from '@/lib/admin-api';
 import { formatMoney } from '@/lib/money';
 import { firstParam, parsePage } from '@/lib/navigation';
 
@@ -20,6 +20,8 @@ function productsHref(search: string | undefined, page: number): string {
 }
 
 export default async function AdminProductsPage({ searchParams }: PageProps<'/admin/productos'>) {
+  // Sin rol de staff no se consulta nada; el layout muestra el aviso o manda al login.
+  if (!(await getStaffUser())) return null;
   const params = await searchParams;
   const search = firstParam(params.q)?.trim().slice(0, 100) || undefined;
   const page = parsePage(firstParam(params.pagina));
