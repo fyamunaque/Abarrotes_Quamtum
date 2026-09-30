@@ -48,9 +48,9 @@ El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-
 
 **Tipos compartidos:** `packages/shared-types` describe el JSON de la API (solo tipos, se importa con `import type`). La web los usa directamente; la API los verifica en `apps/api/src/shared-types.contract.spec.ts`, que falla si un DTO de entrada o un enum (`OrderStatus`, `UserRole`) deja de coincidir. Si cambias un DTO o el schema, actualiza también `shared-types`.
 
-**Sesión en la web:** Next.js llama a la API desde el servidor y guarda los tokens en cookies httpOnly; el navegador nunca ve los tokens ni llama a la API directamente. El `/admin` de la Fase 3 debe reutilizar `apps/web/src/lib/session.ts`.
+**Sesión en la web:** Next.js llama a la API desde el servidor y guarda los tokens en cookies httpOnly; el navegador nunca ve los tokens ni llama a la API directamente. `apps/web/src/proxy.ts` renueva el access token vencido antes de renderizar (los Server Components no pueden escribir cookies) y manda al login a quien entre a `/admin` sin sesión. El `/admin` confirma el rol con `GET /auth/me`, y cada lectura y acción vuelve a pasar por la API, que responde 403 si el rol no alcanza.
 
-**Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `PENDING_CONFIRMATION`), dentro de la misma transacción, y registra un `InventoryMovement` `OUT`. Quien implemente el cambio de estado a `CANCELLED` (Fase 3) debe devolver ese stock.
+**Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `PENDING_CONFIRMATION`) y registra un `InventoryMovement` `OUT`; pasar el pedido a `CANCELLED` lo devuelve con un movimiento `IN`. Ambas cosas ocurren dentro de una transacción. Transiciones permitidas: `apps/api/src/orders/order-status.ts`.
 
 ## 4. Modelo de datos inicial
 

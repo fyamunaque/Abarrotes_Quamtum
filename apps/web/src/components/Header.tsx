@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { logout } from '@/app/actions/auth';
 import { getSessionUser } from '@/lib/session';
+import { isStaffRole } from '@/lib/session-cookies';
 import { CartLink } from './CartLink';
 
 export async function Header() {
@@ -13,6 +14,12 @@ export async function Header() {
           Abarrotes
         </Link>
         <nav className="flex items-center gap-1 text-sm">
+          {/* Solo decide si mostrar el enlace; /admin vuelve a verificar el rol con la API. */}
+          {user && isStaffRole(user.role) && (
+            <Link href="/admin" className="rounded-xl px-3 py-2 font-medium hover:bg-stone-100">
+              Admin
+            </Link>
+          )}
           <CartLink />
           {user ? (
             <form action={logout} className="flex items-center gap-2">

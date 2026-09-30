@@ -7,12 +7,13 @@ import type {
   Product,
 } from '@abarrotes/shared-types';
 import { API_UNAVAILABLE_MESSAGE, apiErrorMessage } from './api-errors';
-
-// Solo en el servidor: el navegador nunca habla directo con la API.
-const API_URL = (process.env.API_URL ?? 'http://localhost:3001').replace(/\/+$/, '');
+import { API_URL } from './api-url';
 
 /** Segundos que se reutiliza una respuesta del catálogo antes de volver a pedirla. */
 const CATALOG_REVALIDATE_SECONDS = 30;
+
+/** Etiqueta del caché del catálogo: el admin la invalida (updateTag) al guardar cambios. */
+export const CATALOG_CACHE_TAG = 'catalog';
 
 export class ApiError extends Error {
   constructor(
@@ -44,7 +45,7 @@ export async function readApiError(response: Response): Promise<string> {
 async function getJson<T>(path: string): Promise<T> {
   // Sin token a propósito: estas respuestas se cachean y las comparten todos los visitantes.
   const response = await apiFetch(path, {
-    next: { revalidate: CATALOG_REVALIDATE_SECONDS },
+    next: { revalidate: CATALOG_REVALIDATE_SECONDS, tags: [CATALOG_CACHE_TAG] },
   });
   if (!response.ok) {
     throw new ApiError(await readApiError(response), response.status);

@@ -11,8 +11,40 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   CANCELLED: 'Cancelado',
 };
 
+export const ORDER_STATUSES = Object.keys(ORDER_STATUS_LABELS) as OrderStatus[];
+
+export function isOrderStatus(value: unknown): value is OrderStatus {
+  // hasOwn y no `in`: `in` aceptaría 'toString' y otros heredados de Object.prototype.
+  return typeof value === 'string' && Object.hasOwn(ORDER_STATUS_LABELS, value);
+}
+
 export function orderStatusLabel(status: string): string {
-  return ORDER_STATUS_LABELS[status as OrderStatus] ?? status;
+  return isOrderStatus(status) ? ORDER_STATUS_LABELS[status] : status;
+}
+
+/**
+ * Cambios permitidos. Copia de apps/api/src/orders/order-status.ts, que es la que
+ * manda: aquí solo decide qué botones mostrar.
+ */
+export const ORDER_STATUS_TRANSITIONS: Record<OrderStatus, readonly OrderStatus[]> = {
+  PENDING_CONFIRMATION: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['OUT_FOR_DELIVERY', 'CANCELLED'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'CANCELLED'],
+  DELIVERED: [],
+  CANCELLED: [],
+};
+
+/** Texto del botón que lleva un pedido a cada estado. */
+export const ORDER_STATUS_ACTION_LABELS: Record<OrderStatus, string> = {
+  PENDING_CONFIRMATION: 'Volver a pendiente',
+  CONFIRMED: 'Confirmar',
+  OUT_FOR_DELIVERY: 'Marcar en camino',
+  DELIVERED: 'Marcar entregado',
+  CANCELLED: 'Cancelar pedido',
+};
+
+export function nextOrderStatuses(status: OrderStatus): readonly OrderStatus[] {
+  return ORDER_STATUS_TRANSITIONS[status];
 }
 
 const MAX_ITEMS = 100;
