@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Un solo run por rama o PR: un push nuevo cancela el que estaba corriendo.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Base efímera del runner: solo vive durante este job.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: abarrotes
+          POSTGRES_PASSWORD: abarrotes-ci
+          POSTGRES_DB: abarrotes
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U abarrotes"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Valores de prueba, no secretos: la base y los tokens se descartan al terminar.
+      DATABASE_URL: postgresql://abarrotes:abarrotes-ci@localhost:5432/abarrotes?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret
+      JWT_REFRESH_SECRET: ci-refresh-secret
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Tipos compartidos
+        run: npm run typecheck -w packages/shared-types
+      - name: Lint
+        run: npm run lint -w apps/api
+      - name: Typecheck
+        working-directory: apps/api
+        run: npx tsc --noEmit -p tsconfig.json
+      - name: Tests unitarios
+        run: npm test -w apps/api
+      - name: Tests e2e
+        run: npm run test:e2e -w apps/api
+      - name: Build
+        run: npm run build -w apps/api
+      - name: Migraciones y seed sobre una base vacía
+        working-directory: apps/api
+        run: |
+          npx prisma migrate deploy
+          npx prisma db seed
+
+  web:
+    name: Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck -w apps/web
+      - name: Lint
+        run: npm run lint -w apps/web
+      - name: Tests
+        run: npm test -w apps/web
+      - name: Build
+        run: npm run build -w apps/web
+
+  android:
+    name: Android
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/android
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: 21
+      # Cachea Gradle y dependencias entre ejecuciones.
+      - uses: gradle/actions/setup-gradle@v6
+      - name: Tests unitarios y APK debug
+        run: ./gradlew testDebugUnitTest assembleDebug --console=plain

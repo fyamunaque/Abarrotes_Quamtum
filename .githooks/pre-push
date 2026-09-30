@@ -1,0 +1,21 @@
+#!/bin/sh
+# Bloquea el push directo a main y develop: se integran solo por Pull Request
+# (ver CLAUDE.md). GitHub no puede protegerlas en un repo privado con el plan
+# gratuito, así que esta es la barrera, en cada clon.
+#
+# Emergencia acordada con el equipo: git push --no-verify
+
+# git pasa una línea por referencia: <ref local> <sha local> <ref remota> <sha remoto>
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case "$remote_ref" in
+    refs/heads/main | refs/heads/develop)
+      branch="${remote_ref#refs/heads/}"
+      echo "✗ Push directo a '$branch' bloqueado." >&2
+      echo "  Sube tu rama feature/* y abre un Pull Request hacia '$branch'." >&2
+      echo "  (Solo en una emergencia acordada con el equipo: git push --no-verify)" >&2
+      exit 1
+      ;;
+  esac
+done
+
+exit 0

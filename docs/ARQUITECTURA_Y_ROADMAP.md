@@ -89,6 +89,7 @@ Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de
 ## 6. Flujo de trabajo con el equipo y con Claude Code
 
 - **Git**: `main` estable, `develop` como rama de integración, una rama `feature/<nombre>` por tarea. Pull request antes de mergear a `develop`, aunque sea entre ustedes mismos — obliga a revisar el diff.
+  - El repo es privado en el plan gratuito de GitHub, que no permite proteger ramas. En su lugar, el hook `.githooks/pre-push` bloquea en cada clon el push directo a `main` y `develop` (lo activa `npm install`, vía el script `prepare`). Es una barrera contra descuidos, no una restricción real: `git push --no-verify` la salta. Si pasan a GitHub Pro, configuren además la protección de ramas con PR y CI obligatorios.
 - **Tareas**: con un equipo tan chico, GitHub Projects (gratis, ligado directo a los issues del repo) alcanza — no hace falta Jira/Trello aparte.
 - **Cada quien con Claude Code en su propia rama**, para no pisarse cambios en el mismo archivo a la vez.
 - Empiecen cada sesión de Claude Code en la carpeta raíz del repo (para que cargue `CLAUDE.md`), y usen `/clear` al pasar de una tarea a otra sin relación.
@@ -145,7 +146,7 @@ debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ## 7. Herramientas complementarias
 
 - **Probar la API mientras se desarrolla**: Insomnia o Postman (o archivos `.http` dentro del repo si prefieren algo más ligero, sin instalar nada aparte).
-- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`.
+- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`: tres jobs en paralelo (API con PostgreSQL efímero, que además aplica las migraciones y el seed sobre una base vacía; web; Android) en cada PR y push a `develop` y `main`.
 - **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), web en Vercel, app en Google Play Console (pago único de $25).
 - **Pagos** (Fase 6, para negocio real en Perú): Culqi o Izipay son las opciones locales más simples de integrar (tarjetas, y Culqi soporta Yape); Mercado Pago es la alternativa regional.
 - **Diseño de pantallas** (opcional): si quieren mockups antes de programar, Figma tiene plan gratuito suficiente para un equipo de 2-3.
