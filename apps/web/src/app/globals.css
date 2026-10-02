@@ -31,6 +31,27 @@
 }
 
 /*
+ * Movimiento. La página tiene una sola animación: el swoosh del hero se dibuja una vez al
+ * cargar, justo después de que aparece el titular (200 ms de espera + 650 ms de trazo).
+ * Anima el stroke-dashoffset de una máscara con pathLength="1" y stroke-dasharray="1 2":
+ * en 1.01 no se ve nada (sin punto suelto en el inicio) y en 0 el trazo está completo.
+ * "both" lo mantiene oculto durante la espera. Con prefers-reduced-motion el componente
+ * usa motion-reduce:animate-none y el swoosh aparece ya dibujado.
+ */
+@theme {
+  --animate-draw-swoosh: draw-swoosh 650ms cubic-bezier(0.6, 0, 0.3, 1) 200ms both;
+
+  @keyframes draw-swoosh {
+    from {
+      stroke-dashoffset: 1.01;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+}
+
+/*
  * Paleta verde anterior: todavía la usan los componentes (brand-*, accent-600).
  * Se elimina cuando cada componente pase a los tokens de Neil's.
  */

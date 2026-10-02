@@ -69,7 +69,8 @@ Tailwind 4 no usa `tailwind.config`: los tokens están en `src/app/globals.css` 
 
 - **Tipografía** (con `next/font/google` en `src/app/layout.tsx`): `font-display` = Baloo 2 (600/700/800) para títulos y precios; `font-sans` = Inter (400/500/600), la fuente por defecto. `h1`–`h3` ya usan Baloo 2.
 - **Contraste** (WCAG AA pide 4,5:1 para texto normal y 3:1 para texto grande): blanco sobre `primary` da 3,3:1, y crema sobre `primary` o `primary` sobre crema dan 3,0:1. El naranja solo sirve para texto grande (≥ 24 px, o 19 px en negrita) o elementos gráficos. Para texto normal: blanco sobre `primary-dark` (5,1:1), `ink` sobre `primary` (5,9:1), o `accent` sobre crema (6,8:1).
-- **Logo**: `src/assets/neils-logo.jpg` (cabecera). `src/app/icon.png` y `apple-icon.png` son el favicon y el ícono de iOS.
+- **Logo**: `public/logo.png` (cabecera y hero de la portada). `src/app/icon.png` y `apple-icon.png` son el favicon y el ícono de iOS.
+- **Movimiento**: la página tiene una sola animación al cargar. El swoosh granate del hero (`src/components/HomeHero.tsx`) se dibuja de izquierda a derecha en 650 ms, 200 ms después de que aparece el titular, una sola vez (`animate-draw-swoosh` en `globals.css`). Con `prefers-reduced-motion` se muestra ya dibujado. No agreguen entradas animadas (fade, slide) a otras secciones.
 - Los componentes actuales todavía usan la paleta verde anterior (`brand-*`, `accent-600`), que sigue en `globals.css` hasta migrarlos.
 
 ## Scripts

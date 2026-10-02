@@ -1,6 +1,7 @@
 import type { Category } from '@abarrotes/shared-types';
 import Form from 'next/form';
 import Link from 'next/link';
+import { HomeHero } from '@/components/HomeHero';
 import { ProductCard } from '@/components/ProductCard';
 import { getCategories, getProducts } from '@/lib/api';
 import { catalogHref, firstParam, isUuid, parsePage } from '@/lib/navigation';
@@ -22,11 +23,12 @@ export default async function CatalogPage({ searchParams }: PageProps<'/'>) {
 
   return (
     <div className="flex flex-col gap-6">
+      <HomeHero />
       <section className="flex flex-col gap-4">
-        <h1 className="text-2xl font-bold">
+        <h2 className="text-2xl font-bold">
           {categoryName ?? 'Todos los productos'}
           {search && <span className="text-stone-500"> · “{search}”</span>}
-        </h1>
+        </h2>
         <SearchForm search={search} categoryId={categoryId} />
         <CategoryFilter categories={categories} selectedId={categoryId} search={search} />
       </section>
