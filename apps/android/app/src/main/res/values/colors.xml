@@ -2,4 +2,6 @@
 <resources>
     <!-- Naranja de marca de Neil's (token color-primary de la web), igual al fondo del logo. -->
     <color name="ic_launcher_background">#E8652F</color>
+    <!-- Crema de marca: fondo de la ventana mientras arranca la app. -->
+    <color name="neils_cream">#F9F3E7</color>
 </resources>

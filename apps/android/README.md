@@ -39,7 +39,7 @@ Solo la build **debug** permite HTTP sin TLS (`src/debug/res/xml/network_securit
 
 Android 17 bloquea el tráfico hacia la red local (`10.0.2.2`, `192.168.x.x`) de las apps sin el permiso `ACCESS_LOCAL_NETWORK`. El síntoma es un timeout de conexión aunque la API responda en el navegador de la PC. La build debug declara el permiso (`src/debug/AndroidManifest.xml`) y `MainActivity` lo pide antes de mostrar el catálogo. La release no lo declara, porque habla con la API pública por HTTPS.
 
-Si lo rechazaste, actívalo en *Ajustes → Apps → Abarrotes → Permisos → Dispositivos cercanos*, o desde la terminal. `adb` viene con el SDK pero no queda en el PATH; en Windows PowerShell:
+Si lo rechazaste, actívalo en *Ajustes → Apps → Neil's → Permisos → Dispositivos cercanos*, o desde la terminal. `adb` viene con el SDK pero no queda en el PATH; en Windows PowerShell:
 
 ```powershell
 & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" shell pm grant com.abarrotes.app android.permission.ACCESS_LOCAL_NETWORK

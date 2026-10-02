@@ -2,9 +2,11 @@ package com.abarrotes.app
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
@@ -20,7 +22,12 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        // La app es siempre clara (fondo crema): íconos oscuros en las barras del sistema
+        // aunque el teléfono esté en modo oscuro.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.light(CREAM_SCRIM, CREAM_SCRIM),
+        )
         // Se pide antes de mostrar la UI para que el catálogo no cargue sin red. Si la Activity
         // se recrea con el diálogo abierto, el resultado llega igual al callback.
         if (savedInstanceState == null && needsLocalNetworkPermission()) {
@@ -46,4 +53,9 @@ class MainActivity : ComponentActivity() {
         BuildConfig.DEBUG &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.CINNAMON_BUN &&
             checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) != PackageManager.PERMISSION_GRANTED
+
+    private companion object {
+        /** Crema de la marca (#F9F3E7) al 90 %: fondo de la barra de navegación de 3 botones. */
+        const val CREAM_SCRIM = 0xE6F9F3E7.toInt()
+    }
 }

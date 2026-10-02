@@ -29,6 +29,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -167,6 +168,11 @@ private fun CategoryChips(
     selectedId: String?,
     onSelected: (String?) -> Unit,
 ) {
+    // Seleccionado en tinta con texto crema (inverseSurface), igual que en la web.
+    val colors = FilterChipDefaults.filterChipColors(
+        selectedContainerColor = MaterialTheme.colorScheme.inverseSurface,
+        selectedLabelColor = MaterialTheme.colorScheme.inverseOnSurface,
+    )
     LazyRow(
         contentPadding = PaddingValues(horizontal = 16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -176,6 +182,7 @@ private fun CategoryChips(
                 selected = selectedId == null,
                 onClick = { onSelected(null) },
                 label = { Text("Todas") },
+                colors = colors,
             )
         }
         items(categories, key = { it.id }) { category ->
@@ -183,6 +190,7 @@ private fun CategoryChips(
                 selected = category.id == selectedId,
                 onClick = { onSelected(category.id) },
                 label = { Text(category.name) },
+                colors = colors,
             )
         }
     }

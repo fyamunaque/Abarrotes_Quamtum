@@ -36,7 +36,17 @@ import coil3.compose.AsyncImage
 @Composable
 fun CartActionButton(itemCount: Int, onClick: () -> Unit) {
     IconButton(onClick = onClick) {
-        BadgedBox(badge = { if (itemCount > 0) Badge { Text(itemCount.toString()) } }) {
+        BadgedBox(
+            badge = {
+                // Granate de marca con texto crema (6,8:1), como el contador de la web.
+                if (itemCount > 0) {
+                    Badge(
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                    ) { Text(itemCount.toString()) }
+                }
+            },
+        ) {
             Icon(Icons.Default.ShoppingCart, contentDescription = "Ver carrito")
         }
     }

@@ -32,6 +32,8 @@ import com.abarrotes.app.data.model.OrderSummary
 import com.abarrotes.app.ui.components.LoadingState
 import com.abarrotes.app.ui.components.MessageState
 import com.abarrotes.app.ui.orderStatusLabel
+import com.abarrotes.app.ui.theme.NeilsInk
+import com.abarrotes.app.ui.theme.NeilsPrimaryTint
 import com.abarrotes.app.ui.toSoles
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -146,8 +148,8 @@ private fun StatusChip(status: String) {
         "PENDING_CONFIRMATION" -> Color(0xFFFEF3C7) to Color(0xFF78350F)
         "CONFIRMED" -> Color(0xFFE0F2FE) to Color(0xFF0C4A6E)
         "OUT_FOR_DELIVERY" -> Color(0xFFEDE9FE) to Color(0xFF4C1D95)
-        "DELIVERED" -> Color(0xFFDCEDC8) to Color(0xFF0B3D0F)
-        else -> Color(0xFFE7E5E4) to Color(0xFF44403C)
+        "DELIVERED" -> NeilsPrimaryTint to NeilsInk
+        else -> Color(0xFFE3DBD0) to Color(0xFF493532) // ink/10 e ink/80 sobre crema
     }
     Surface(color = background, contentColor = content, shape = MaterialTheme.shapes.small) {
         Text(
