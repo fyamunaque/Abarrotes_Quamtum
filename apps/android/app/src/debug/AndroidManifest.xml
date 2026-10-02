@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Android 17 bloquea la red local (10.0.2.2 del emulador, 192.168.x.x) a las apps
+         sin este permiso. Solo la build debug habla con una API local; la release usa HTTPS
+         público y no lo necesita. MainActivity lo pide al abrir la app. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
     <application android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>
