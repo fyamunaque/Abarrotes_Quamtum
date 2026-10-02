@@ -11,3 +11,7 @@ coverage/
 .idea/
 .vscode/
 *.iml
+
+# Volcados de la JVM cuando Gradle o Android Studio se caen (p. ej. sin memoria)
+hs_err_pid*.log
+replay_pid*.log
