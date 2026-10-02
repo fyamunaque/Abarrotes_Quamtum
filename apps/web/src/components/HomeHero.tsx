@@ -1,7 +1,8 @@
 import Image from 'next/image';
+import { Swoosh } from './Swoosh';
 
 /**
- * Hero de la página principal. Su única animación es el swoosh bajo el titular
+ * Hero de la página principal. Su única animación al cargar es el swoosh bajo el titular
  * (animate-draw-swoosh, en globals.css); el resto de la página aparece sin transiciones.
  * Al filtrar o buscar, Next.js conserva la página montada, así que el trazo no se repite.
  */
@@ -16,7 +17,7 @@ export function HomeHero() {
             <br />
             directo a tu casa
           </h1>
-          <Swoosh className="mt-0.5 w-full" />
+          <Swoosh draw className="mt-0.5" />
         </div>
         <p className="max-w-md text-lg text-ink/80">
           Elige tus productos y haz tu pedido en línea. La tienda lo confirma antes de enviarlo.
@@ -32,48 +33,5 @@ export function HomeHero() {
         className="hidden w-64 rounded-2xl sm:block lg:w-80"
       />
     </section>
-  );
-}
-
-/**
- * El trazo granate del logo, redibujado en SVG: fino a la izquierda, sube hacia la derecha
- * y termina grueso y redondeado. Como es una forma rellena (no un trazo de grosor fijo), se
- * descubre con una máscara cuyo trazo recorre el centro de la forma y anima su dashoffset.
- */
-function Swoosh({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 480 32"
-      aria-hidden="true"
-      focusable="false"
-      className={`block h-auto overflow-visible ${className ?? ''}`}
-    >
-      <defs>
-        <mask
-          id="hero-swoosh-trazo"
-          maskUnits="userSpaceOnUse"
-          x="-10"
-          y="-10"
-          width="500"
-          height="52"
-        >
-          <path
-            d="M2 29C150 26.5 320 18 474 7"
-            fill="none"
-            stroke="white"
-            strokeWidth={18}
-            strokeLinecap="round"
-            pathLength={1}
-            strokeDasharray="1 2"
-            className="animate-draw-swoosh motion-reduce:animate-none"
-          />
-        </mask>
-      </defs>
-      <path
-        d="M2 29C140 25 300 13 468 3C476 2.4 481 6.5 477 10.5C430 15.5 330 19 230 23C140 26.5 60 29.5 2 29Z"
-        mask="url(#hero-swoosh-trazo)"
-        className="fill-accent"
-      />
-    </svg>
   );
 }

@@ -70,7 +70,6 @@ Tailwind 4 no usa `tailwind.config`: los tokens están en `src/app/globals.css` 
 - **Tipografía** (con `next/font/google` en `src/app/layout.tsx`): `font-display` = Baloo 2 (600/700/800) para títulos y precios; `font-sans` = Inter (400/500/600), la fuente por defecto. `h1`–`h3` ya usan Baloo 2.
 - **Contraste** (WCAG AA pide 4,5:1 para texto normal y 3:1 para texto grande): blanco sobre `primary` da 3,3:1, y crema sobre `primary` o `primary` sobre crema dan 3,0:1. El naranja solo sirve para texto grande (≥ 24 px, o 19 px en negrita) o elementos gráficos. Para texto normal: blanco sobre `primary-dark` (5,1:1), `ink` sobre `primary` (5,9:1), o `accent` sobre crema (6,8:1).
 - **Logo**: `public/logo.png` (cabecera y hero de la portada). `src/app/icon.png` y `apple-icon.png` son el favicon y el ícono de iOS.
-- **Movimiento**: la página tiene una sola animación al cargar. El swoosh granate del hero (`src/components/HomeHero.tsx`) se dibuja de izquierda a derecha en 650 ms, 200 ms después de que aparece el titular, una sola vez (`animate-draw-swoosh` en `globals.css`). Con `prefers-reduced-motion` se muestra ya dibujado. No agreguen entradas animadas (fade, slide) a otras secciones.
 - **Cómo se combinan**:
   - *Acción principal*: `bg-primary text-ink`; al pasar el mouse, `bg-primary-dark text-white`.
   - *Elemento seleccionado* (chip de categoría, menú del admin): `bg-ink text-cream`.
@@ -78,6 +77,12 @@ Tailwind 4 no usa `tailwind.config`: los tokens están en `src/app/globals.css` 
   - *Neutros*: `ink` con opacidad (`text-ink/60`, `border-ink/20`, `bg-ink/5`), nunca grises `stone-*`.
   - *Enlaces*: `text-primary-dark`.
   - *Errores y estados de pedido*: el rojo, ámbar, celeste y violeta de Tailwind, que son semánticos y coinciden con la app Android.
+- **Precio**: `<Price>` (`src/components/Price.tsx`) muestra Baloo 2 en negrita con el trazo del logo (`<Swoosh>`) debajo, del ancho del número.
+- **Movimiento** (`globals.css`, sección "Movimiento"). Al cargar, la página tiene una sola animación: el swoosh del hero se dibuja de izquierda a derecha en 650 ms, 200 ms después de que aparece el titular, y no se repite. Las demás responden a algo que hizo la persona:
+  - *Rebote del botón "Agregar"*: también del contador que lo reemplaza, cada vez que se suma un producto. Solo escala, sin fade.
+  - *Pulso del carrito de la cabecera*: cuando sube el contador, pero no al cargar el carrito guardado.
+
+  Se vuelven a disparar con `replayAnimation()` (`src/lib/motion.ts`). Todo elemento animado lleva `motion-reduce:animate-none`: con `prefers-reduced-motion` se muestra el estado final. No agreguen entradas animadas (fade, slide) a otras secciones.
 
 ## Scripts
 

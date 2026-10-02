@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { AddToCartButton } from '@/components/AddToCartButton';
+import { Price } from '@/components/Price';
 import { ProductImage } from '@/components/ProductImage';
 import { getProduct } from '@/lib/api';
 import { toCartProduct } from '@/lib/cart';
-import { formatMoney } from '@/lib/money';
 import { catalogHref } from '@/lib/navigation';
 
 export async function generateMetadata({
@@ -45,7 +45,7 @@ export default async function ProductPage({ params }: PageProps<'/productos/[id]
         <ProductImage src={product.imageUrl} alt={product.name} className="aspect-square" />
         <div className="flex flex-col gap-4">
           <h1 className="text-3xl font-bold">{product.name}</h1>
-          <p className="text-3xl font-bold text-primary-dark">{formatMoney(product.price)}</p>
+          <Price amount={product.price} size="lg" />
           <p className={inStock ? 'text-ink/70' : 'font-medium text-red-700'}>
             {inStock ? `Disponibles: ${product.currentStock}` : 'Agotado'}
           </p>
