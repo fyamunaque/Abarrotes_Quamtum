@@ -6,3 +6,8 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# Configuración local de IDEs (Android Studio / IntelliJ, VS Code)
+.idea/
+.vscode/
+*.iml
