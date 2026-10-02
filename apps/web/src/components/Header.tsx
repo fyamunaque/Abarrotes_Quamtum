@@ -1,5 +1,7 @@
+import Image from 'next/image';
 import Link from 'next/link';
 import { logout } from '@/app/actions/auth';
+import logo from '@/assets/neils-logo.jpg';
 import { getSessionUser } from '@/lib/session';
 import { isStaffRole } from '@/lib/session-cookies';
 import { CartLink } from './CartLink';
@@ -10,8 +12,15 @@ export async function Header() {
   return (
     <header className="border-b border-stone-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-        <Link href="/" className="text-xl font-bold text-brand-700">
-          Abarrotes
+        <Link href="/" className="shrink-0">
+          {/* width fija el tamaño pedido al optimizador (80 px de ancho, 44 de alto). */}
+          <Image
+            src={logo}
+            alt="Neil's Food Services"
+            width={80}
+            loading="eager"
+            className="h-11 w-auto rounded-lg"
+          />
         </Link>
         <nav className="flex items-center gap-1 text-sm">
           {/* Solo decide si mostrar el enlace; /admin vuelve a verificar el rol con la API. */}
