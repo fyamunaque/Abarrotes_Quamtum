@@ -13,6 +13,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,6 +31,7 @@ fun OrderPlacedScreen(
     total: BigDecimal,
     status: String,
     onContinue: () -> Unit,
+    onMyOrders: () -> Unit,
 ) {
     Scaffold { padding ->
         Column(
@@ -67,6 +69,10 @@ fun OrderPlacedScreen(
             Spacer(Modifier.height(24.dp))
             Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
                 Text("Seguir comprando")
+            }
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(onClick = onMyOrders, modifier = Modifier.fillMaxWidth()) {
+                Text("Ver mis pedidos")
             }
         }
     }

@@ -4,6 +4,7 @@ import com.abarrotes.app.data.OrderRepository
 import com.abarrotes.app.data.SessionRepository
 import com.abarrotes.app.data.model.OrderConfirmation
 import com.abarrotes.app.data.model.OrderLine
+import com.abarrotes.app.data.model.OrderSummary
 import com.abarrotes.app.data.remote.ApiException
 import com.abarrotes.app.data.session.Session
 import kotlinx.coroutines.Dispatchers
@@ -103,6 +104,8 @@ private class FakeOrderRepository : OrderRepository {
         lastLines = lines
         return error?.let { Result.failure(it) } ?: Result.success(confirmation)
     }
+
+    override suspend fun getMyOrders(): Result<List<OrderSummary>> = Result.success(emptyList())
 }
 
 private class FakeSessionRepository : SessionRepository {

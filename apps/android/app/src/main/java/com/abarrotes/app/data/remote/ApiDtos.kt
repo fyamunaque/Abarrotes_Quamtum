@@ -69,4 +69,17 @@ data class OrderDto(
     val status: String,
     val total: String,
     val deliveryAddress: String,
+    val createdAt: String? = null,
+    val items: List<OrderItemDto> = emptyList(),
 )
+
+@Serializable
+data class OrderItemDto(
+    val id: String,
+    val quantity: Int,
+    val unitPrice: String,
+    val product: OrderProductDto,
+)
+
+@Serializable
+data class OrderProductDto(val id: String, val name: String, val imageUrl: String? = null)

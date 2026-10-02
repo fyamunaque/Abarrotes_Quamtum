@@ -14,6 +14,8 @@ import com.abarrotes.app.ui.cart.CartScreen
 import com.abarrotes.app.ui.cart.CartViewModel
 import com.abarrotes.app.ui.catalog.CatalogScreen
 import com.abarrotes.app.ui.catalog.CatalogViewModel
+import com.abarrotes.app.ui.order.MyOrdersScreen
+import com.abarrotes.app.ui.order.MyOrdersViewModel
 import com.abarrotes.app.ui.order.OrderPlacedScreen
 import com.abarrotes.app.ui.product.ProductDetailScreen
 import com.abarrotes.app.ui.product.ProductDetailViewModel
@@ -38,6 +40,9 @@ object RegisterRoute
 @Serializable
 data class OrderPlacedRoute(val orderId: String, val total: String, val status: String)
 
+@Serializable
+object MyOrdersRoute
+
 @Composable
 fun AbarrotesNavHost(container: AppContainer) {
     val navController = rememberNavController()
@@ -55,6 +60,7 @@ fun AbarrotesNavHost(container: AppContainer) {
                 cartViewModel = cartViewModel,
                 onProductClick = { navController.navigate(ProductDetailRoute(it)) },
                 onCartClick = { navController.navigate(CartRoute) },
+                onMyOrdersClick = { navController.navigate(MyOrdersRoute) },
             )
         }
         composable<ProductDetailRoute> { entry ->
@@ -92,8 +98,9 @@ fun AbarrotesNavHost(container: AppContainer) {
         composable<RegisterRoute> {
             RegisterScreen(
                 viewModel = viewModel { AuthViewModel(container.authRepository) },
-                // Vuelve directo al carrito, saltándose el login.
-                onRegistered = { navController.popBackStack<CartRoute>(inclusive = false) },
+                // Saca registro y login de la pila: vuelve a la pantalla que pidió la
+                // sesión (carrito o "Mis pedidos"), sea cual sea.
+                onRegistered = { navController.popBackStack<LoginRoute>(inclusive = true) },
                 onBack = { navController.popBackStack() },
             )
         }
@@ -104,6 +111,18 @@ fun AbarrotesNavHost(container: AppContainer) {
                 total = BigDecimal(route.total),
                 status = route.status,
                 onContinue = { navController.popBackStack<CatalogRoute>(inclusive = false) },
+                onMyOrders = {
+                    navController.navigate(MyOrdersRoute) { popUpTo<CatalogRoute>() }
+                },
+            )
+        }
+        composable<MyOrdersRoute> {
+            MyOrdersScreen(
+                viewModel = viewModel {
+                    MyOrdersViewModel(container.orderRepository, container.authRepository)
+                },
+                onBack = { navController.popBackStack() },
+                onLoginClick = { navController.navigate(LoginRoute) },
             )
         }
     }

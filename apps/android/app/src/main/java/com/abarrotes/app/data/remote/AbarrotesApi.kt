@@ -31,6 +31,13 @@ interface AbarrotesApi {
 
     @POST("orders")
     suspend fun createOrder(@Body body: CreateOrderRequest): OrderDto
+
+    /** Pedidos del usuario del token, del más reciente al más antiguo. */
+    @GET("orders/mine")
+    suspend fun getMyOrders(
+        @Query("page") page: Int,
+        @Query("limit") limit: Int,
+    ): PageDto<OrderDto>
 }
 
 /**

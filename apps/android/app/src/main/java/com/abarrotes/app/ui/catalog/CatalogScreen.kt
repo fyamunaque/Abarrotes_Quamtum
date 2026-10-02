@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,6 +65,7 @@ fun CatalogScreen(
     cartViewModel: CartViewModel,
     onProductClick: (String) -> Unit,
     onCartClick: () -> Unit,
+    onMyOrdersClick: () -> Unit,
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val cart by cartViewModel.cart.collectAsStateWithLifecycle()
@@ -72,7 +74,12 @@ fun CatalogScreen(
         topBar = {
             TopAppBar(
                 title = { Text("Abarrotes") },
-                actions = { CartActionButton(cart.itemCount, onCartClick) },
+                actions = {
+                    IconButton(onClick = onMyOrdersClick) {
+                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Mis pedidos")
+                    }
+                    CartActionButton(cart.itemCount, onCartClick)
+                },
             )
         },
     ) { padding ->

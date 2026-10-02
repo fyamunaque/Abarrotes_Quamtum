@@ -1,10 +1,12 @@
 package com.abarrotes.app.data.remote
 
 import com.abarrotes.app.data.model.toDomain
+import com.abarrotes.app.data.model.toSummary
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.math.BigDecimal
+import java.time.Instant
 
 /** Verifica que la app entiende las respuestas reales de /apps/api. */
 class ApiParsingTest {
@@ -58,5 +60,35 @@ class ApiParsingTest {
     fun `usa un mensaje genérico si el cuerpo no es JSON`() {
         assertEquals("Tu sesión expiró. Inicia sesión de nuevo.", parseApiErrorMessage(json, "<html>", 401))
         assertEquals("El servidor tuvo un problema. Intenta en unos minutos.", parseApiErrorMessage(json, null, 502))
+    }
+
+    @Test
+    fun `parsea GET orders mine con fecha, líneas y campos extra`() {
+        // Forma exacta de la API (OrdersService.findMine).
+        val body = """
+            {
+              "data": [{
+                "id": "o1", "status": "OUT_FOR_DELIVERY", "total": "18.9",
+                "deliveryAddress": "Av. Arequipa 123", "createdAt": "2026-09-30T19:05:00.000Z",
+                "updatedAt": "2026-09-30T20:00:00.000Z", "customerId": "c1",
+                "items": [
+                  { "id": "i1", "quantity": 2, "unitPrice": "4.5", "orderId": "o1", "productId": "p1",
+                    "product": { "id": "p1", "name": "Arroz extra 1 kg", "imageUrl": null } },
+                  { "id": "i2", "quantity": 1, "unitPrice": "9.9", "orderId": "o1", "productId": "p2",
+                    "product": { "id": "p2", "name": "Aceite vegetal 1 L", "imageUrl": null } }
+                ]
+              }],
+              "meta": { "total": 1, "page": 1, "limit": 50, "totalPages": 1 }
+            }
+        """.trimIndent()
+
+        val order = json.decodeFromString<PageDto<OrderDto>>(body).data.single().toSummary()
+
+        assertEquals("OUT_FOR_DELIVERY", order.status)
+        assertEquals(BigDecimal("18.9"), order.total)
+        assertEquals(Instant.parse("2026-09-30T19:05:00Z"), order.createdAt)
+        assertEquals(listOf(2, 1), order.items.map { it.quantity })
+        assertEquals("Aceite vegetal 1 L", order.items[1].name)
+        assertEquals(BigDecimal("9.9"), order.items[1].unitPrice)
     }
 }
