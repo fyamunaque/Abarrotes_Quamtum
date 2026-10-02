@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Verde de marca, igual que ui/theme/Theme.kt y la web. -->
-    <color name="ic_launcher_background">#2E7D32</color>
+    <!-- Naranja de marca de Neil's (token color-primary de la web), igual al fondo del logo. -->
+    <color name="ic_launcher_background">#E8652F</color>
 </resources>
