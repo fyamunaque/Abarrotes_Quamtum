@@ -178,9 +178,13 @@ private fun CheckoutSection(
     onLogout: () -> Unit,
     onPlaceOrder: (String) -> Unit,
 ) {
-    // Se reinicia con la dirección guardada del usuario cuando inicia sesión.
-    var address by rememberSaveable(session?.userAddress) {
-        mutableStateOf(session?.userAddress.orEmpty())
+    var address by rememberSaveable { mutableStateOf("") }
+    // Propone la dirección guardada del usuario al iniciar sesión. No basta con
+    // rememberSaveable(session?.userAddress): al volver del login se restaura el valor
+    // guardado (vacío) sin comparar las entradas.
+    LaunchedEffect(session?.userAddress) {
+        val saved = session?.userAddress
+        if (address.isBlank() && !saved.isNullOrBlank()) address = saved
     }
 
     Column(
@@ -227,7 +231,10 @@ private fun CheckoutSection(
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onLogout) { Text("Cerrar sesión") }
+            TextButton(onClick = {
+                address = "" // la del siguiente usuario se propone al iniciar sesión
+                onLogout()
+            }) { Text("Cerrar sesión") }
         }
         Spacer(Modifier.height(8.dp))
     }
