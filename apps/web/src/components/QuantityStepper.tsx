@@ -9,13 +9,13 @@ interface QuantityStepperProps {
 
 export function QuantityStepper({ quantity, max, onChange, label }: QuantityStepperProps) {
   const button =
-    'flex h-9 w-9 items-center justify-center rounded-lg text-lg font-semibold text-brand-700 hover:bg-brand-100 disabled:text-stone-300 disabled:hover:bg-transparent';
+    'flex h-9 w-9 items-center justify-center rounded-lg text-lg font-semibold text-primary-dark hover:bg-primary-tint disabled:text-ink/30 disabled:hover:bg-transparent';
 
   return (
     <div
       role="group"
       aria-label={`Cantidad de ${label}`}
-      className="inline-flex items-center rounded-xl border border-stone-200 bg-white"
+      className="inline-flex items-center rounded-xl border-2 border-ink/10 bg-cream"
     >
       <button
         type="button"

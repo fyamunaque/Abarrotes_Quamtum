@@ -71,7 +71,13 @@ Tailwind 4 no usa `tailwind.config`: los tokens están en `src/app/globals.css` 
 - **Contraste** (WCAG AA pide 4,5:1 para texto normal y 3:1 para texto grande): blanco sobre `primary` da 3,3:1, y crema sobre `primary` o `primary` sobre crema dan 3,0:1. El naranja solo sirve para texto grande (≥ 24 px, o 19 px en negrita) o elementos gráficos. Para texto normal: blanco sobre `primary-dark` (5,1:1), `ink` sobre `primary` (5,9:1), o `accent` sobre crema (6,8:1).
 - **Logo**: `public/logo.png` (cabecera y hero de la portada). `src/app/icon.png` y `apple-icon.png` son el favicon y el ícono de iOS.
 - **Movimiento**: la página tiene una sola animación al cargar. El swoosh granate del hero (`src/components/HomeHero.tsx`) se dibuja de izquierda a derecha en 650 ms, 200 ms después de que aparece el titular, una sola vez (`animate-draw-swoosh` en `globals.css`). Con `prefers-reduced-motion` se muestra ya dibujado. No agreguen entradas animadas (fade, slide) a otras secciones.
-- Los componentes actuales todavía usan la paleta verde anterior (`brand-*`, `accent-600`), que sigue en `globals.css` hasta migrarlos.
+- **Cómo se combinan**:
+  - *Acción principal*: `bg-primary text-ink`; al pasar el mouse, `bg-primary-dark text-white`.
+  - *Elemento seleccionado* (chip de categoría, menú del admin): `bg-ink text-cream`.
+  - *Paneles y tarjetas*: `bg-cream border-2 border-ink/10`, sin sombra.
+  - *Neutros*: `ink` con opacidad (`text-ink/60`, `border-ink/20`, `bg-ink/5`), nunca grises `stone-*`.
+  - *Enlaces*: `text-primary-dark`.
+  - *Errores y estados de pedido*: el rojo, ámbar, celeste y violeta de Tailwind, que son semánticos y coinciden con la app Android.
 
 ## Scripts
 

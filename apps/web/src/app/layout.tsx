@@ -35,7 +35,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <CartHydrator />
         <Header />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
-        <footer className="border-t border-stone-200 py-6 text-center text-sm text-stone-500">
+        <footer className="border-t border-ink/10 py-6 text-center text-sm text-ink/60">
           Abarrotes · Pedidos en línea
         </footer>
       </body>

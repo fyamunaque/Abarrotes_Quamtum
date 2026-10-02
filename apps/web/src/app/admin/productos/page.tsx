@@ -35,14 +35,14 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
         <h1 className="text-2xl font-bold">Productos</h1>
         <Link
           href="/admin/productos/nuevo"
-          className="rounded-xl bg-brand-600 px-4 py-2 font-semibold text-white hover:bg-brand-700"
+          className="rounded-xl bg-primary px-4 py-2 font-semibold text-ink hover:bg-primary-dark hover:text-white"
         >
           Nuevo producto
         </Link>
       </div>
 
       {saved && (
-        <p role="status" className="rounded-xl bg-brand-50 p-3 text-sm text-brand-900">
+        <p role="status" className="rounded-xl bg-primary-tint/50 p-3 text-sm text-ink">
           Producto guardado.
         </p>
       )}
@@ -57,16 +57,16 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
           type="search"
           defaultValue={search}
           placeholder="Buscar por nombre o SKU"
-          className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2"
+          className="w-full rounded-xl border border-ink/20 bg-cream px-4 py-2"
         />
-        <button type="submit" className="rounded-xl border border-stone-300 bg-white px-4 py-2 font-medium">
+        <button type="submit" className="rounded-xl border border-ink/20 bg-cream px-4 py-2 font-medium">
           Buscar
         </button>
       </Form>
 
-      <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
+      <div className="overflow-x-auto rounded-2xl border-2 border-ink/10 bg-cream">
         <table className="w-full text-left text-sm">
-          <thead className="bg-stone-50 text-stone-600">
+          <thead className="bg-ink/3 text-ink/70">
             <tr>
               <th className="px-4 py-3 font-medium">Producto</th>
               <th className="px-4 py-3 font-medium">Categoría</th>
@@ -78,10 +78,10 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-stone-100">
+          <tbody className="divide-y divide-ink/5">
             {products.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-stone-600">
+                <td colSpan={6} className="px-4 py-10 text-center text-ink/70">
                   {search ? `Sin resultados para “${search}”.` : 'Todavía no hay productos.'}
                 </td>
               </tr>
@@ -89,10 +89,10 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
             {products.map((product) => {
               const lowStock = product.currentStock <= product.minStock;
               return (
-                <tr key={product.id} className={product.active ? '' : 'bg-stone-50 text-stone-500'}>
+                <tr key={product.id} className={product.active ? '' : 'bg-ink/3 text-ink/60'}>
                   <td className="px-4 py-3">
                     <p className="font-semibold">{product.name}</p>
-                    <p className="text-xs text-stone-500">{product.sku}</p>
+                    <p className="text-xs text-ink/60">{product.sku}</p>
                   </td>
                   <td className="px-4 py-3">{product.category.name}</td>
                   <td className="px-4 py-3 text-right tabular-nums">{formatMoney(product.price)}</td>
@@ -109,7 +109,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
                     <div className="flex items-start justify-end gap-2">
                       <Link
                         href={`/admin/productos/${product.id}`}
-                        className="rounded-lg border border-stone-300 px-3 py-1.5 text-sm font-semibold hover:border-brand-600"
+                        className="rounded-lg border border-ink/20 px-3 py-1.5 text-sm font-semibold hover:border-primary-dark"
                       >
                         Editar
                       </Link>
@@ -130,15 +130,15 @@ export default async function AdminProductsPage({ searchParams }: PageProps<'/ad
       {meta.totalPages > 1 && (
         <nav aria-label="Páginas" className="flex items-center justify-center gap-3 text-sm">
           {page > 1 && (
-            <Link href={productsHref(search, page - 1)} className="font-semibold text-brand-700">
+            <Link href={productsHref(search, page - 1)} className="font-semibold text-primary-dark">
               ← Anterior
             </Link>
           )}
-          <span className="text-stone-600">
+          <span className="text-ink/70">
             Página {meta.page} de {meta.totalPages}
           </span>
           {page < meta.totalPages && (
-            <Link href={productsHref(search, page + 1)} className="font-semibold text-brand-700">
+            <Link href={productsHref(search, page + 1)} className="font-semibold text-primary-dark">
               Siguiente →
             </Link>
           )}

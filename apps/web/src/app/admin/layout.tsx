@@ -20,10 +20,10 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
 
   if (!isStaffRole(user.role)) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center">
+      <div className="rounded-2xl border-2 border-ink/10 bg-cream p-10 text-center">
         <h1 className="text-xl font-bold">No tienes acceso a la administración</h1>
-        <p className="mt-2 text-stone-600">Esta sección es solo para el personal de la tienda.</p>
-        <Link href="/" className="mt-5 inline-block font-semibold text-brand-700 hover:underline">
+        <p className="mt-2 text-ink/70">Esta sección es solo para el personal de la tienda.</p>
+        <Link href="/" className="mt-5 inline-block font-semibold text-primary-dark hover:underline">
           Volver a la tienda
         </Link>
       </div>
@@ -33,7 +33,7 @@ export default async function AdminLayout({ children }: LayoutProps<'/admin'>) {
   return (
     <div className="grid gap-6 md:grid-cols-[12rem_1fr]">
       <aside className="flex flex-col gap-3">
-        <p className="text-sm text-stone-500">
+        <p className="text-sm text-ink/60">
           {user.name} · {user.role === 'ADMIN' ? 'Administrador' : 'Personal'}
         </p>
         <AdminNav />

@@ -18,7 +18,7 @@ export function AddToCartButton({ product, size = 'md' }: AddToCartButtonProps) 
 
   if (product.stock <= 0) {
     return (
-      <span className={`inline-block rounded-xl bg-stone-100 font-medium text-stone-500 ${padding}`}>
+      <span className={`inline-block rounded-xl bg-ink/5 font-medium text-ink/60 ${padding}`}>
         Agotado
       </span>
     );
@@ -29,7 +29,7 @@ export function AddToCartButton({ product, size = 'md' }: AddToCartButtonProps) 
       <button
         type="button"
         onClick={() => add(product)}
-        className={`rounded-xl bg-brand-600 font-semibold text-white hover:bg-brand-700 ${padding}`}
+        className={`rounded-xl bg-primary font-semibold text-ink hover:bg-primary-dark hover:text-white ${padding}`}
       >
         Agregar al carrito
       </button>

@@ -12,7 +12,7 @@ export function TextField({ label, name, ...inputProps }: TextFieldProps) {
       <input
         name={name}
         {...inputProps}
-        className="rounded-xl border border-stone-300 px-4 py-2 text-base font-normal outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
+        className="rounded-xl border border-ink/20 px-4 py-2 text-base font-normal outline-none focus:border-primary-dark focus:ring-2 focus:ring-primary-tint"
       />
     </label>
   );
@@ -32,7 +32,7 @@ export function SubmitButton({ pending, children }: { pending: boolean; children
     <button
       type="submit"
       disabled={pending}
-      className="rounded-xl bg-brand-600 px-5 py-3 font-semibold text-white hover:bg-brand-700 disabled:cursor-not-allowed disabled:bg-stone-300"
+      className="rounded-xl bg-primary px-5 py-3 font-semibold text-ink hover:bg-primary-dark hover:text-white disabled:cursor-not-allowed disabled:bg-ink/15 disabled:text-ink/50"
     >
       {pending ? 'Un momento…' : children}
     </button>

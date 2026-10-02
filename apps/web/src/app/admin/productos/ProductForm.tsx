@@ -19,7 +19,7 @@ interface ProductFormProps {
 const initialState: ProductFormState = { error: null, fieldErrors: {} };
 
 const inputClass =
-  'rounded-xl border border-stone-300 px-4 py-2 font-normal outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200 aria-invalid:border-red-600';
+  'rounded-xl border border-ink/20 px-4 py-2 font-normal outline-none focus:border-primary-dark focus:ring-2 focus:ring-primary-tint aria-invalid:border-red-600';
 
 export function ProductForm({ action, categories, product }: ProductFormProps) {
   const [state, formAction, pending] = useActionState(action, initialState);
@@ -39,7 +39,7 @@ export function ProductForm({ action, categories, product }: ProductFormProps) {
   const activeDefault = state.values ? state.values.active === 'on' : (product?.active ?? true);
 
   return (
-    <form action={formAction} className="flex flex-col gap-5 rounded-2xl border border-stone-200 bg-white p-6">
+    <form action={formAction} className="flex flex-col gap-5 rounded-2xl border-2 border-ink/10 bg-cream p-6">
       <div className="grid gap-5 sm:grid-cols-2">
         <Field label="Nombre" field="name" error={errorFor('name')} className="sm:col-span-2">
           <input {...fieldProps('name')} required maxLength={150} defaultValue={value('name', product?.name ?? '')} />
@@ -89,8 +89,8 @@ export function ProductForm({ action, categories, product }: ProductFormProps) {
         ) : (
           <div className="flex flex-col gap-1 text-sm font-medium">
             Stock actual
-            <p className="rounded-xl bg-stone-50 px-4 py-2 font-normal">{product.currentStock}</p>
-            <p className="text-xs font-normal text-stone-500">
+            <p className="rounded-xl bg-ink/3 px-4 py-2 font-normal">{product.currentStock}</p>
+            <p className="text-xs font-normal text-ink/60">
               Se ajusta con movimientos de inventario (entradas, salidas, ajustes).
             </p>
           </div>
@@ -133,7 +133,7 @@ export function ProductForm({ action, categories, product }: ProductFormProps) {
         </Field>
 
         <label className="flex items-center gap-3 text-sm font-medium sm:col-span-2">
-          <input type="checkbox" name="active" defaultChecked={activeDefault} className="h-4 w-4 accent-brand-600" />
+          <input type="checkbox" name="active" defaultChecked={activeDefault} className="h-4 w-4 accent-primary-dark" />
           Visible en la tienda
         </label>
       </div>
@@ -148,11 +148,11 @@ export function ProductForm({ action, categories, product }: ProductFormProps) {
         <button
           type="submit"
           disabled={pending}
-          className="rounded-xl bg-brand-600 px-5 py-2.5 font-semibold text-white hover:bg-brand-700 disabled:cursor-wait disabled:bg-stone-300"
+          className="rounded-xl bg-primary px-5 py-2.5 font-semibold text-ink hover:bg-primary-dark hover:text-white disabled:cursor-wait disabled:bg-ink/15 disabled:text-ink/50"
         >
           {pending ? 'Guardando…' : isNew ? 'Crear producto' : 'Guardar cambios'}
         </button>
-        <Link href="/admin/productos" className="font-medium text-stone-600 hover:underline">
+        <Link href="/admin/productos" className="font-medium text-ink/70 hover:underline">
           Cancelar
         </Link>
       </div>

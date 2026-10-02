@@ -27,7 +27,7 @@ export default async function CatalogPage({ searchParams }: PageProps<'/'>) {
       <section className="flex flex-col gap-4">
         <h2 className="text-2xl font-bold">
           {categoryName ?? 'Todos los productos'}
-          {search && <span className="text-stone-500"> · “{search}”</span>}
+          {search && <span className="text-ink/60"> · “{search}”</span>}
         </h2>
         <SearchForm search={search} categoryId={categoryId} />
         <CategoryFilter categories={categories} selectedId={categoryId} search={search} />
@@ -67,11 +67,11 @@ function SearchForm({ search, categoryId }: { search?: string; categoryId?: stri
         defaultValue={search}
         placeholder="Buscar por nombre o código"
         maxLength={100}
-        className="w-full rounded-xl border border-stone-300 bg-white px-4 py-2 outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200"
+        className="w-full rounded-xl border border-ink/20 bg-cream px-4 py-2 outline-none focus:border-primary-dark focus:ring-2 focus:ring-primary-tint"
       />
       <button
         type="submit"
-        className="rounded-xl bg-brand-600 px-5 py-2 font-semibold text-white hover:bg-brand-700"
+        className="rounded-xl bg-primary px-5 py-2 font-semibold text-ink hover:bg-primary-dark hover:text-white"
       >
         Buscar
       </button>
@@ -91,8 +91,8 @@ function CategoryFilter({
   const chip = (active: boolean) =>
     `whitespace-nowrap rounded-full border px-4 py-1.5 text-sm font-medium ${
       active
-        ? 'border-brand-600 bg-brand-600 text-white'
-        : 'border-stone-300 bg-white hover:border-brand-600 hover:text-brand-700'
+        ? 'border-ink bg-ink text-cream'
+        : 'border-ink/20 bg-cream hover:border-primary-dark hover:text-primary-dark'
     }`;
 
   return (
@@ -128,12 +128,12 @@ function CategoryFilter({
 
 function EmptyResults({ search, hasFilters }: { search?: string; hasFilters: boolean }) {
   return (
-    <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-10 text-center">
+    <div className="rounded-2xl border-2 border-dashed border-ink/15 bg-cream p-10 text-center">
       <p className="text-lg font-medium">
         {search ? `No encontramos productos para “${search}”.` : 'No hay productos para mostrar.'}
       </p>
       {hasFilters && (
-        <Link href="/" className="mt-3 inline-block font-semibold text-brand-700 hover:underline">
+        <Link href="/" className="mt-3 inline-block font-semibold text-primary-dark hover:underline">
           Ver todos los productos
         </Link>
       )}
@@ -151,7 +151,7 @@ function Pagination({
   hrefFor: (page: number) => string;
 }) {
   if (totalPages <= 1) return null;
-  const link = 'rounded-xl border border-stone-300 bg-white px-4 py-2 font-medium hover:border-brand-600';
+  const link = 'rounded-xl border border-ink/20 bg-cream px-4 py-2 font-medium hover:border-primary-dark';
 
   return (
     <nav aria-label="Páginas" className="flex items-center justify-center gap-3">
@@ -160,7 +160,7 @@ function Pagination({
           ← Anterior
         </Link>
       )}
-      <span className="text-sm text-stone-600">
+      <span className="text-sm text-ink/70">
         Página {page} de {totalPages}
       </span>
       {page < totalPages && (

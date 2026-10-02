@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react';
 import type { ActionResult } from '@/lib/action-result';
 
 const tones = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700',
-  secondary: 'border border-stone-300 bg-white hover:border-brand-600 hover:text-brand-700',
-  danger: 'border border-red-200 bg-white text-red-700 hover:bg-red-50',
+  primary: 'bg-primary text-ink hover:bg-primary-dark hover:text-white',
+  secondary: 'border border-ink/20 bg-cream hover:border-primary-dark hover:text-primary-dark',
+  danger: 'border border-red-200 bg-cream text-red-700 hover:bg-red-50',
 } as const;
 
 interface ActionButtonProps {

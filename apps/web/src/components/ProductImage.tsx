@@ -6,7 +6,7 @@ interface ProductImageProps {
 
 export function ProductImage({ src, alt, className = '' }: ProductImageProps) {
   return (
-    <div className={`overflow-hidden rounded-xl bg-stone-100 ${className}`}>
+    <div className={`overflow-hidden rounded-xl bg-ink/5 ${className}`}>
       {src ? (
         // Las URLs las cargan administradores desde cualquier dominio; next/image
         // obligaría a declarar cada dominio en next.config.
@@ -15,7 +15,7 @@ export function ProductImage({ src, alt, className = '' }: ProductImageProps) {
       ) : (
         <div
           aria-hidden
-          className="flex h-full w-full items-center justify-center text-3xl text-stone-300"
+          className="flex h-full w-full items-center justify-center text-3xl text-ink/30"
         >
           🛒
         </div>

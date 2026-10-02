@@ -18,7 +18,7 @@ export default async function OrderPlacedPage({
   if (!isUuid(orderId) || !total || !Number.isFinite(Number(total))) redirect('/');
 
   return (
-    <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-2xl border border-stone-200 bg-white p-10 text-center">
+    <div className="mx-auto flex max-w-lg flex-col items-center gap-3 rounded-2xl border-2 border-ink/10 bg-cream p-10 text-center">
       <span aria-hidden className="text-5xl">
         ✅
       </span>
@@ -26,11 +26,11 @@ export default async function OrderPlacedPage({
       {/* Número corto para dictarlo por teléfono; el id completo queda en el dashboard. */}
       <p className="text-lg font-semibold">Pedido N.º {orderId.slice(0, 8).toUpperCase()}</p>
       <p>Total: {formatMoney(total)}</p>
-      <p className="text-stone-600">Estado: {orderStatusLabel(status)}</p>
-      <p className="text-sm text-stone-500">La tienda confirmará tu pedido antes de enviarlo.</p>
+      <p className="text-ink/70">Estado: {orderStatusLabel(status)}</p>
+      <p className="text-sm text-ink/60">La tienda confirmará tu pedido antes de enviarlo.</p>
       <Link
         href="/"
-        className="mt-4 rounded-xl bg-brand-600 px-5 py-2 font-semibold text-white hover:bg-brand-700"
+        className="mt-4 rounded-xl bg-primary px-5 py-2 font-semibold text-ink hover:bg-primary-dark hover:text-white"
       >
         Seguir comprando
       </Link>
