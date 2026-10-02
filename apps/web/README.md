@@ -54,6 +54,24 @@ Para entrar al admin en desarrollo, usa el ADMIN de prueba que crea `npx prisma 
 - **Sin caché**: las lecturas del admin llevan token y usan `cache: 'no-store'`. Al guardar un producto o cancelar un pedido, `updateTag('catalog')` refresca el catálogo público al instante.
 - **Estados de pedido**: los botones salen de `ORDER_STATUS_TRANSITIONS` (`src/lib/orders.ts`), copia de la regla de la API (`apps/api/src/orders/order-status.ts`), que es la que manda. Si cambian las transiciones, actualiza las dos.
 
+## Sistema de diseño (Neil's Food Services)
+
+Tailwind 4 no usa `tailwind.config`: los tokens están en `src/app/globals.css` (`@theme`). Cada uno genera utilidades (`bg-primary`, `text-ink`, `border-primary-tint`…) y además existe como variable CSS (`var(--color-primary)`). En los componentes usa los tokens, no colores hex.
+
+| Token | Valor | Uso previsto |
+|---|---|---|
+| `primary` | `#E8652F` | Color de marca (el naranja del logo) |
+| `primary-dark` | `#B54F25` | Hover y fondos con texto claro |
+| `accent` | `#A1241B` | Acentos (el rojo del logo) |
+| `cream` | `#F9F3E7` | Fondo base del sitio (en vez de blanco) |
+| `ink` | `#1D0605` | Texto base (en vez de gris) |
+| `primary-tint` | `#F6D9C6` | Fondos suaves, chips, selecciones |
+
+- **Tipografía** (con `next/font/google` en `src/app/layout.tsx`): `font-display` = Baloo 2 (600/700/800) para títulos y precios; `font-sans` = Inter (400/500/600), la fuente por defecto. `h1`–`h3` ya usan Baloo 2.
+- **Contraste** (WCAG AA pide 4,5:1 para texto normal y 3:1 para texto grande): blanco sobre `primary` da 3,3:1, y crema sobre `primary` o `primary` sobre crema dan 3,0:1. El naranja solo sirve para texto grande (≥ 24 px, o 19 px en negrita) o elementos gráficos. Para texto normal: blanco sobre `primary-dark` (5,1:1), `ink` sobre `primary` (5,9:1), o `accent` sobre crema (6,8:1).
+- **Logo**: `src/assets/neils-logo.jpg` (cabecera). `src/app/icon.png` y `apple-icon.png` son el favicon y el ícono de iOS.
+- Los componentes actuales todavía usan la paleta verde anterior (`brand-*`, `accent-600`), que sigue en `globals.css` hasta migrarlos.
+
 ## Scripts
 
 ```bash

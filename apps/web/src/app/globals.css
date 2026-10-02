@@ -1,6 +1,39 @@
 @import "tailwindcss";
 
-/* Mismos colores de marca que la app Android (ui/theme/Theme.kt). */
+/*
+ * Sistema de diseño de Neil's Food Services.
+ *
+ * En Tailwind 4 la configuración del tema vive aquí (@theme), no en tailwind.config.
+ * Cada --color-* genera sus utilidades (bg-primary, text-ink, border-primary-tint, ...)
+ * y queda disponible como variable CSS (var(--color-primary)) para estilos propios.
+ * Los componentes usan estos tokens: no escriban colores hex sueltos.
+ * "static" emite todas las variables aunque todavía ninguna clase las use.
+ */
+@theme static {
+  --color-primary: #e8652f;
+  --color-primary-dark: #b54f25;
+  --color-accent: #a1241b;
+  --color-cream: #f9f3e7;
+  --color-ink: #1d0605;
+  --color-primary-tint: #f6d9c6;
+}
+
+/*
+ * Tipografía. app/layout.tsx carga Baloo 2 (600/700/800) e Inter (400/500/600) con
+ * next/font y define --font-baloo y --font-inter en <html>.
+ *   font-display -> Baloo 2: headlines y precios.
+ *   font-sans    -> Inter: cuerpo y UI. Es la fuente por defecto de todo el sitio.
+ * "inline" hace que las utilidades usen directamente las variables de next/font.
+ */
+@theme inline {
+  --font-display: var(--font-baloo), ui-rounded, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * Paleta verde anterior: todavía la usan los componentes (brand-*, accent-600).
+ * Se elimina cuando cada componente pase a los tokens de Neil's.
+ */
 @theme {
   --color-brand-50: #f1f8f1;
   --color-brand-100: #dcedc8;
@@ -11,6 +44,18 @@
   --color-accent-600: #e65100;
 }
 
-body {
-  @apply bg-stone-50 text-stone-900 antialiased;
+@layer base {
+  /* Fondo crema y texto tinta de la marca, no blanco ni gris genérico. */
+  body {
+    background-color: var(--color-cream);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+  }
 }
