@@ -6,7 +6,7 @@ import { isStaffRole } from '@/lib/session-cookies';
 import { AdminNav } from './AdminNav';
 
 export const metadata: Metadata = {
-  title: { default: 'Administración', template: '%s · Admin · Abarrotes' },
+  title: { default: 'Administración', template: "%s · Admin · Neil's" },
   robots: { index: false },
 };
 

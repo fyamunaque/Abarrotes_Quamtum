@@ -22,10 +22,10 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Abarrotes — Tienda online',
-    template: '%s · Abarrotes',
+    default: "Neil's Food Services — Tienda online",
+    template: "%s · Neil's Food Services",
   },
-  description: 'Compra tus abarrotes en línea y recíbelos en casa.',
+  description: "Compra tus abarrotes en línea en Neil's Food Services y recíbelos en casa.",
 };
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
@@ -36,7 +36,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         <Header />
         <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">{children}</main>
         <footer className="border-t border-ink/10 py-6 text-center text-sm text-ink/60">
-          Abarrotes · Pedidos en línea
+          Neil&apos;s Food Services. Abarrotes con entrega a domicilio.
         </footer>
       </body>
     </html>
