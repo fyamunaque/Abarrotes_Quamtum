@@ -56,13 +56,15 @@ Documento de referencia completo con arquitectura, roadmap y prompts sugeridos: 
 
 ## Comandos frecuentes
 
+Desde la raíz del repo. Funcionan igual en bash y en Windows PowerShell 5.1, que no acepta `&&`: no encadenes comandos con `&&` en la documentación ni en instrucciones para el equipo. Si PowerShell responde que "la ejecución de scripts está deshabilitada", escribe `npm.cmd` en vez de `npm` (y `npx.cmd` en vez de `npx`).
+
 ```bash
 # Backend
-cd apps/api && npm run start:dev
+npm run api:dev
 
 # Web
-cd apps/web && npm run dev
+npm run web:dev
 
 # Migraciones de base de datos (después de editar prisma/schema.prisma)
-cd apps/api && npx prisma migrate dev --name <nombre_descriptivo>
+npm run prisma:migrate -w apps/api -- --name <nombre_descriptivo>
 ```

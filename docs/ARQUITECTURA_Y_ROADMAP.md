@@ -37,7 +37,7 @@ Un solo repositorio con las tres apps facilita compartir tipos y mantener sincro
   /shared-types   -> tipos TypeScript compartidos entre /web y /api
 /prisma
   schema.prisma
-  seed.ts         -> datos de desarrollo: `cd apps/api && npx prisma db seed`
+  seed.ts         -> datos de desarrollo: `npm run prisma:seed -w apps/api`
   /migrations     -> generadas por `prisma migrate dev`
 /docs
   ARQUITECTURA_Y_ROADMAP.md

@@ -12,13 +12,13 @@ Versiones: AGP 9.4 (requiere Gradle 9.6+), Gradle 9.8, Kotlin 2.4, Compose BOM 2
 
 ## Correr la demo
 
-1. **API**: con PostgreSQL encendido (en Windows es un servicio que arranca solo), desde la raíz del repo:
+1. **API**: con PostgreSQL encendido (en Windows es un servicio que arranca solo), desde la raíz del repo (sirve en bash y en PowerShell):
 
    ```bash
-   cd apps/api && npm run start:dev
+   npm run api:dev
    ```
 
-   Comprueba que responde en http://localhost:3001/health.
+   Si PowerShell dice que "la ejecución de scripts está deshabilitada", usa `npm.cmd run api:dev`. Comprueba que responde en http://localhost:3001/health.
 
 2. **Proyecto**: en Android Studio, *File → Open…* y elige la carpeta **`apps/android`**, no la raíz del monorepo (la raíz no es un proyecto Gradle). Espera a que termine la sincronización de Gradle.
 
@@ -39,10 +39,10 @@ Solo la build **debug** permite HTTP sin TLS (`src/debug/res/xml/network_securit
 
 Android 17 bloquea el tráfico hacia la red local (`10.0.2.2`, `192.168.x.x`) de las apps sin el permiso `ACCESS_LOCAL_NETWORK`. El síntoma es un timeout de conexión aunque la API responda en el navegador de la PC. La build debug declara el permiso (`src/debug/AndroidManifest.xml`) y `MainActivity` lo pide antes de mostrar el catálogo. La release no lo declara, porque habla con la API pública por HTTPS.
 
-Si lo rechazaste, actívalo en *Ajustes → Apps → Abarrotes → Permisos → Dispositivos cercanos*, o desde la terminal:
+Si lo rechazaste, actívalo en *Ajustes → Apps → Abarrotes → Permisos → Dispositivos cercanos*, o desde la terminal. `adb` viene con el SDK pero no queda en el PATH; en Windows PowerShell:
 
-```bash
-adb shell pm grant com.abarrotes.app android.permission.ACCESS_LOCAL_NETWORK
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" shell pm grant com.abarrotes.app android.permission.ACCESS_LOCAL_NETWORK
 ```
 
 ### Recorrido sugerido
@@ -50,9 +50,9 @@ adb shell pm grant com.abarrotes.app android.permission.ACCESS_LOCAL_NETWORK
 1. Catálogo → filtrar por categoría o buscar → abrir un producto → *Agregar al carrito*.
 2. Carrito → *Inicia sesión para pedir* → *Regístrate* (crea un cliente nuevo) → vuelve al carrito.
 3. Dirección de entrega → *Generar pedido* → confirmación → *Ver mis pedidos*.
-4. En la web (`/admin/pedidos`, con el admin del seed) confirma o envía el pedido y actualiza "Mis pedidos" en la app: el estado cambia.
+4. En la web (`npm run web:dev` desde la raíz → http://localhost:3000/admin/pedidos, con el admin del seed) confirma o envía el pedido y actualiza "Mis pedidos" en la app: el estado cambia.
 
-Desde la terminal:
+Desde la terminal, dentro de `apps/android` (bash o PowerShell; Gradle usa el JDK de `JAVA_HOME`, 17 o superior):
 
 ```bash
 ./gradlew assembleDebug        # APK en app/build/outputs/apk/debug/
