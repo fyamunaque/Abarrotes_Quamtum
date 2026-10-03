@@ -13,9 +13,11 @@ Plataforma de venta y reparto de abarrotes con tres canales conectados a una mis
 | **Panel admin** (`apps/web`, ruta `/admin`) | Pedidos con filtro y avance de estado, cancelación con devolución de stock, alta y edición de productos | Next.js 16 |
 | **API** (`apps/api`) | Autenticación JWT con roles (`CUSTOMER`, `STAFF`, `ADMIN`), productos, categorías y pedidos con control de stock | NestJS, Prisma, PostgreSQL |
 
-Los pedidos siguen siempre los mismos estados: pendiente de confirmación → confirmado → en reparto → entregado (o cancelado).
+Los pedidos siguen siempre los mismos estados: pendiente de confirmación → confirmado → en camino → entregado (o cancelado).
 
 ## Correr la demo
+
+> **Guía paso a paso para Windows**, con el recorrido para presentar y la solución de los problemas conocidos: [`docs/DEMO.md`](docs/DEMO.md).
 
 Requisitos: Node.js 20 o superior, PostgreSQL y, para la app, Android Studio Quail 4 o superior.
 
@@ -48,6 +50,7 @@ docs                  Arquitectura y hoja de ruta
 
 ## Documentación
 
+- [Guía de la demo](docs/DEMO.md): cómo correrla en Windows y qué hacer si algo falla.
 - [Arquitectura y hoja de ruta](docs/ARQUITECTURA_Y_ROADMAP.md): decisiones de diseño y fases del proyecto.
 - READMEs de cada parte: [API](apps/api/README.md), [web](apps/web/README.md) (incluye el sistema de diseño de la marca) y [Android](apps/android/README.md).
 - [CLAUDE.md](CLAUDE.md): convenciones del repo (commits, ramas, módulos).
