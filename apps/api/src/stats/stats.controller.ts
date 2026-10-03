@@ -25,7 +25,7 @@ import {
   SALES_REPORT,
   TOP_PRODUCTS_REPORT,
 } from './stats.tokens';
-import { storeDay } from './store-time';
+import { storeDay } from '../common/store-time';
 
 /**
  * Estadísticas del dashboard, solo para ADMIN y STAFF. El controller traduce el query a un

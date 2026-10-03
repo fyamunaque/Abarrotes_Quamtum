@@ -1,35 +1,15 @@
 import { Type } from 'class-transformer';
-import {
-  IsInt,
-  IsOptional,
-  Max,
-  Min,
-  Validate,
-  ValidatorConstraint,
-  ValidatorConstraintInterface,
-} from 'class-validator';
-import { isValidDay } from '../store-time';
-
-/** Día real con formato AAAA-MM-DD ("2026-02-30" no pasa). */
-@ValidatorConstraint({ name: 'isDay' })
-class IsDayConstraint implements ValidatorConstraintInterface {
-  validate(value: unknown): boolean {
-    return typeof value === 'string' && isValidDay(value);
-  }
-
-  defaultMessage(): string {
-    return '$property debe ser una fecha AAAA-MM-DD';
-  }
-}
+import { IsInt, IsOptional, Max, Min } from 'class-validator';
+import { IsDay } from '../../common/validation';
 
 /** Query de GET /stats/sales. Por defecto, los últimos 30 días (ver resolveDayRange). */
 export class DateRangeQueryDto {
   @IsOptional()
-  @Validate(IsDayConstraint)
+  @IsDay()
   from?: string;
 
   @IsOptional()
-  @Validate(IsDayConstraint)
+  @IsDay()
   to?: string;
 }
 

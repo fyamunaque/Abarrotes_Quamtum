@@ -3,7 +3,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { Clock, ReportProvider } from '../report-provider';
 import { CLOCK } from '../stats.tokens';
-import { addDays, daysBetween, storeDay, utcMidnight } from '../store-time';
+import {
+  addDays,
+  daysBetween,
+  storeDay,
+  utcMidnight,
+} from '../../common/store-time';
 
 export interface ExpiringRange {
   days: number;

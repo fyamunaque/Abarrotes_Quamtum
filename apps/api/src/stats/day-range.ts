@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import type { DayRange } from './report-provider';
-import { addDays, daysBetween, storeDayStart } from './store-time';
+import { addDays, daysBetween, storeDayStart } from '../common/store-time';
 
 /**
  * Pedidos que cuentan como venta: los que la tienda aceptó. Los pendientes todavía pueden

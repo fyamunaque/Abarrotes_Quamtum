@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { SALE_STATUSES, utcBounds } from '../day-range';
 import type { DayRange, ReportProvider } from '../report-provider';
-import { eachDay, STORE_TIME_ZONE } from '../store-time';
+import { eachDay, STORE_TIME_ZONE } from '../../common/store-time';
 
 interface DailySalesRow {
   day: string;
