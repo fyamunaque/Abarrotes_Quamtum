@@ -42,6 +42,7 @@ class CatalogViewModel(private val repository: CatalogRepository) : ViewModel() 
     private var current: Filters? = null
     private var currentPage = 0
     private var loadMoreJob: Job? = null
+    private var categoriesJob: Job? = null
 
     private data class Filters(val query: String, val categoryId: String?, val attempt: Int)
 
@@ -119,12 +120,16 @@ class CatalogViewModel(private val repository: CatalogRepository) : ViewModel() 
                         canLoadMore = page.page < page.totalPages,
                     )
                 }
+                // La API ya responde: si las categorías fallaron antes (p. ej. con el
+                // emulador recién encendido, cuando aún no había red), se vuelven a pedir.
+                if (_state.value.categories.isEmpty()) loadCategories()
             }
             .onFailure { e -> _state.update { it.copy(isLoading = false, error = e.message) } }
     }
 
     private fun loadCategories() {
-        viewModelScope.launch {
+        if (categoriesJob?.isActive == true) return
+        categoriesJob = viewModelScope.launch {
             // Sin categorías el catálogo igual funciona; solo no se muestran los filtros.
             repository.getCategories().onSuccess { categories ->
                 _state.update { it.copy(categories = categories) }
