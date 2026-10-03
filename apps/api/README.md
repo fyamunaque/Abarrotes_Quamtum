@@ -95,6 +95,11 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 | GET | `/orders/mine` | Autenticado | Mis pedidos, del más reciente al más antiguo. Query: `page`, `limit` |
 | GET | `/orders` | ADMIN, STAFF | Todos los pedidos con los datos del cliente. Query: `status`, `page`, `limit` |
 | PATCH | `/orders/:id/status` | ADMIN, STAFF | `{ status }` → cambia el estado si la transición está permitida (ver abajo) |
+| GET | `/stats/overview` | ADMIN, STAFF | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio; pedidos por estado |
+| GET | `/stats/sales` | ADMIN, STAFF | Serie diaria para graficar. Query: `from`, `to` (`AAAA-MM-DD`; por defecto, los últimos 30 días; máx. 366) |
+| GET | `/stats/top-products` | ADMIN, STAFF | Más vendidos por unidades, con ingresos. Query: `limit` (5, máx. 50), `from`, `to` |
+| GET | `/stats/low-stock` | ADMIN, STAFF | Productos activos con `currentStock <= minStock`, los más críticos primero |
+| GET | `/stats/expiring` | ADMIN, STAFF | Productos activos con stock que vencen en los próximos días (incluye los ya vencidos). Query: `days` (7, máx. 365) |
 
 ### Cómo se crea un pedido
 
@@ -116,6 +121,15 @@ PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED
 - Solo se permiten esas transiciones (`src/orders/order-status.ts`); cualquier otra responde 400. `DELIVERED` y `CANCELLED` son finales.
 - **Cancelar devuelve el stock** de cada línea y registra un `InventoryMovement` `IN` a nombre de quien canceló, en la misma transacción.
 - Si dos personas cambian el mismo pedido a la vez, la segunda recibe 409 ("El pedido cambió mientras tanto"): así el stock nunca se devuelve dos veces.
+
+### Estadísticas (`src/stats`)
+
+- **Qué es una venta**: los pedidos que la tienda aceptó (`CONFIRMED`, `OUT_FOR_DELIVERY` y `DELIVERED`). Los pendientes todavía pueden rechazarse y los cancelados devuelven el stock, así que no cuentan. Se cambia en un solo lugar: `SALE_STATUSES` (`src/stats/day-range.ts`).
+- **Días de Lima**: todo se agrupa por día de `America/Lima`, no de UTC. Un pedido de las 22:00 cuenta para ese día, aunque en UTC ya sea el siguiente. `from` y `to` son días de calendario y ambos se incluyen.
+- **Serie sin huecos**: `GET /stats/sales` trae un punto por día del rango, en 0 los días sin ventas. `averageTicket` es `total / pedidos` redondeado a céntimos.
+- **Vencimientos**: `expirationDate` se guarda sin hora y se compara como fecha. `daysLeft` es 0 si vence hoy y negativo si ya venció.
+- **Diseño**: cada reporte es una clase propia que implementa `ReportProvider` (`getSummary(range)`) y se inyecta por token (`stats.tokens.ts`). El controller solo traduce el query a un rango, y `/stats/overview` compone los reportes de ventas y de pedidos por estado.
+- Las respuestas usan los tipos de `@abarrotes/shared-types` (`StatsOverview`, `SalesReport`, …).
 
 Respuesta de `GET /products`:
 

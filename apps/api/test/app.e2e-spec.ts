@@ -18,6 +18,7 @@ function createPrismaMock() {
       findUnique: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
+      fields: { minStock: { name: 'minStock' } },
     },
     category: {
       findMany: jest.fn().mockResolvedValue([{ id: 'c1', name: 'Abarrotes' }]),
@@ -25,8 +26,10 @@ function createPrismaMock() {
     order: {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
+      groupBy: jest.fn().mockResolvedValue([]),
     },
     $transaction: jest.fn(),
+    $queryRaw: jest.fn().mockResolvedValue([]),
   };
 }
 
@@ -485,6 +488,108 @@ describe('API (e2e)', () => {
 
       expect(res.body.email).toBe('usuario@example.com');
       expect(res.body).not.toHaveProperty('passwordHash');
+    });
+  });
+
+  describe('/stats', () => {
+    const paths = [
+      '/stats/overview',
+      '/stats/sales',
+      '/stats/top-products',
+      '/stats/low-stock',
+      '/stats/expiring',
+    ];
+
+    it('todas las rutas piden token', async () => {
+      for (const path of paths) {
+        await request(app.getHttpServer()).get(path).expect(401);
+      }
+    });
+
+    it('un CUSTOMER recibe 403 en todas las rutas', async () => {
+      const auth = await bearer(UserRole.CUSTOMER);
+      for (const path of paths) {
+        await request(app.getHttpServer())
+          .get(path)
+          .set('Authorization', auth)
+          .expect(403);
+      }
+    });
+
+    it('GET /overview como STAFF devuelve ventas por periodo y pedidos por estado', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        { day: '2026-10-01', orders: 2, total: '25.00' },
+      ]);
+      prisma.order.groupBy.mockResolvedValue([
+        { status: 'CONFIRMED', _count: { _all: 2 } },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/stats/overview')
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .expect(200);
+
+      expect(res.body.timeZone).toBe('America/Lima');
+      expect(Object.keys(res.body)).toEqual(
+        expect.arrayContaining(['today', 'week', 'month', 'ordersByStatus']),
+      );
+      expect(res.body.ordersByStatus).toEqual({
+        PENDING_CONFIRMATION: 0,
+        CONFIRMED: 2,
+        OUT_FOR_DELIVERY: 0,
+        DELIVERED: 0,
+        CANCELLED: 0,
+      });
+    });
+
+    it('GET /sales como ADMIN devuelve la serie diaria del rango', async () => {
+      prisma.$queryRaw.mockResolvedValue([
+        { day: '2026-10-02', orders: 1, total: '13.20' },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/stats/sales?from=2026-10-01&to=2026-10-03')
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .expect(200);
+
+      expect(res.body).toMatchObject({
+        from: '2026-10-01',
+        to: '2026-10-03',
+        total: '13.2',
+        orders: 1,
+      });
+      expect(res.body.daily).toHaveLength(3);
+    });
+
+    it.each([
+      ['/stats/sales?from=2026-10-05&to=2026-10-01', 'rango invertido'],
+      ['/stats/sales?from=2026-02-30', 'fecha imposible'],
+      ['/stats/sales?from=01-10-2026', 'formato distinto de AAAA-MM-DD'],
+      ['/stats/sales?from=2025-01-01&to=2026-10-01', 'más de 366 días'],
+      ['/stats/top-products?limit=0', 'limit menor que 1'],
+      ['/stats/top-products?limit=51', 'limit mayor que 50'],
+      ['/stats/expiring?days=abc', 'days no numérico'],
+      ['/stats/expiring?days=400', 'days mayor que 365'],
+    ])('GET %s responde 400 (%s)', async (path) => {
+      await request(app.getHttpServer())
+        .get(path)
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .expect(400);
+    });
+
+    it('GET /low-stock y /expiring como ADMIN responden 200', async () => {
+      const auth = await bearer(UserRole.ADMIN);
+      const lowStock = await request(app.getHttpServer())
+        .get('/stats/low-stock')
+        .set('Authorization', auth)
+        .expect(200);
+      const expiring = await request(app.getHttpServer())
+        .get('/stats/expiring?days=30')
+        .set('Authorization', auth)
+        .expect(200);
+
+      expect(lowStock.body).toEqual({ data: [] });
+      expect(expiring.body).toMatchObject({ days: 30, data: [] });
     });
   });
 });

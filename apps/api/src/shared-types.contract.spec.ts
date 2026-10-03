@@ -9,6 +9,11 @@ import { UpdateOrderStatusDto } from './orders/dto/update-order-status.dto';
 import { CreateProductDto } from './products/dto/create-product.dto';
 import { ListProductsQueryDto } from './products/dto/list-products-query.dto';
 import { UpdateProductDto } from './products/dto/update-product.dto';
+import {
+  DateRangeQueryDto,
+  ExpiringQueryDto,
+  TopProductsQueryDto,
+} from './stats/dto/stats-query.dto';
 import { CreateStaffUserDto } from './users/dto/create-staff-user.dto';
 
 // Verificación en tiempo de compilación: si un DTO o un enum deja de coincidir con
@@ -86,6 +91,19 @@ describe('Contrato con @abarrotes/shared-types', () => {
         keyof CreateProductDto & 'expirationDate',
         keyof Shared.CreateProductRequest & 'expirationDate'
       >
+    >();
+  });
+
+  it('los queries de estadísticas coinciden', () => {
+    // Las respuestas de /stats ya usan los tipos compartidos directamente (providers).
+    expectTrue<
+      SameShape<Partial<Fields<DateRangeQueryDto>>, Shared.DateRangeQuery>
+    >();
+    expectTrue<
+      SameShape<Partial<Fields<TopProductsQueryDto>>, Shared.TopProductsQuery>
+    >();
+    expectTrue<
+      SameShape<Partial<Fields<ExpiringQueryDto>>, Shared.ExpiringProductsQuery>
     >();
   });
 });

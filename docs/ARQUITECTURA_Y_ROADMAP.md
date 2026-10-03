@@ -80,6 +80,7 @@ Stock por producto, stock mínimo y alertas, entradas/salidas/ajustes, historial
 
 **Fase 5 — Estadísticas y promociones**
 Ventas por periodo, productos más/menos vendidos, stock bajo y por vencer, promociones creables desde el dashboard y visibles en app y web.
+*Avance:* la API ya tiene el módulo `stats` (`/stats/overview`, `/sales`, `/top-products`, `/low-stock` y `/expiring`, solo ADMIN/STAFF; ver `apps/api/README.md`). Falta la vista en el dashboard web y las promociones.
 
 **Fase 6 — Negocio real** *(no está en la propuesta original, pero la necesitan si el objetivo es un negocio funcional)*
 Pasarela de pago, notificaciones (push/email) de cambio de estado, despliegue a producción, publicación en Google Play. Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos — eso se integra después, vía un proveedor como Nubefact, no se construye desde cero.
@@ -142,6 +143,7 @@ InventoryMovement, que además actualicen currentStock en Product dentro de
 una transacción. Agrega un endpoint que devuelva productos con stock por
 debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ```
+> Los listados de stock bajo y por vencer ya existen en `GET /stats/low-stock` y `GET /stats/expiring`: el módulo `inventory` debería reutilizarlos en vez de duplicarlos.
 
 ## 7. Herramientas complementarias
 

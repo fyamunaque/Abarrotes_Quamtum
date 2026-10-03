@@ -185,6 +185,115 @@ export interface UpdateOrderStatusRequest {
   status: OrderStatus;
 }
 
+// ---------- Estadísticas (GET /stats/*, solo ADMIN/STAFF) ----------
+
+/** Día de calendario en la hora de la tienda (America/Lima): `"2026-10-01"`. */
+export type ISODay = string;
+
+/**
+ * Ventas de un periodo. Cuentan solo los pedidos que la tienda aceptó
+ * (CONFIRMED, OUT_FOR_DELIVERY y DELIVERED): ni pendientes ni cancelados.
+ */
+export interface SalesSummary {
+  from: ISODay;
+  to: ISODay;
+  total: Money;
+  orders: number;
+  /** total / orders, redondeado a céntimos; "0" si no hubo pedidos. */
+  averageTicket: Money;
+}
+
+export interface SalesPoint {
+  date: ISODay;
+  total: Money;
+  orders: number;
+}
+
+/** GET /stats/sales: el resumen del rango y un punto por día (los días sin ventas van en 0). */
+export interface SalesReport extends SalesSummary {
+  timeZone: string;
+  daily: SalesPoint[];
+}
+
+/** Query de GET /stats/sales y GET /stats/top-products. Por defecto, los últimos 30 días. */
+export interface DateRangeQuery {
+  from?: ISODay;
+  to?: ISODay;
+}
+
+/** GET /stats/overview. `ordersByStatus` cuenta todos los pedidos, de cualquier fecha. */
+export interface StatsOverview {
+  timeZone: string;
+  generatedAt: ISODateString;
+  today: SalesSummary;
+  /** Semana de lunes a hoy. */
+  week: SalesSummary;
+  /** Mes calendario hasta hoy. */
+  month: SalesSummary;
+  ordersByStatus: Record<OrderStatus, number>;
+}
+
+export interface TopProductsQuery extends DateRangeQuery {
+  /** 1 a 50; por defecto 5. */
+  limit?: number;
+}
+
+export interface TopProduct {
+  productId: string;
+  name: string;
+  sku: string;
+  quantity: number;
+  revenue: Money;
+}
+
+/** GET /stats/top-products: los más vendidos por unidades en el rango. */
+export interface TopProductsReport {
+  from: ISODay;
+  to: ISODay;
+  data: TopProduct[];
+}
+
+export interface LowStockProduct {
+  id: string;
+  name: string;
+  sku: string;
+  category: string;
+  currentStock: number;
+  minStock: number;
+  /** Unidades que faltan para llegar al mínimo (0 si está justo en el mínimo). */
+  shortage: number;
+}
+
+/** GET /stats/low-stock: productos activos con currentStock <= minStock, los más críticos primero. */
+export interface LowStockReport {
+  data: LowStockProduct[];
+}
+
+export interface ExpiringProductsQuery {
+  /** 1 a 365; por defecto 7. */
+  days?: number;
+}
+
+export interface ExpiringProduct {
+  id: string;
+  name: string;
+  sku: string;
+  currentStock: number;
+  expirationDate: ISODay;
+  /** Días hasta el vencimiento: 0 vence hoy, negativo ya venció. */
+  daysLeft: number;
+}
+
+/**
+ * GET /stats/expiring: productos activos con stock que vencen hasta `until`
+ * (hoy + `days`), incluidos los ya vencidos, los más próximos primero.
+ */
+export interface ExpiringProductsReport {
+  days: number;
+  until: ISODay;
+  data: ExpiringProduct[];
+}
+
 // ---------- Errores ----------
 
 /** Error estándar de NestJS. `message` es una lista cuando falla la validación. */
