@@ -86,6 +86,11 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 | GET | `/auth/me` | Autenticado | Perfil del usuario actual |
 | POST | `/users` | ADMIN | `{ email, password, name, phone?, role: "ADMIN" \| "STAFF" }` → usuario creado (sin hash). `CUSTOMER` responde 400; email repetido, 409 |
 | GET | `/categories` | Público | `[{ id, name }]` ordenadas por nombre |
+| GET | `/promotions` | ADMIN, STAFF | Lista paginada con el producto y el `status` de cada una. Query: `productId`, `status` (`SCHEDULED`, `ACTIVE`, `EXPIRED`, `DISABLED`), `page`, `limit` |
+| GET | `/promotions/:id` | ADMIN, STAFF | Detalle; 404 si no existe |
+| POST | `/promotions` | ADMIN, STAFF | `{ productId, promoPrice, startDate, endDate, active? }` (fechas `AAAA-MM-DD`) → promoción con su `status` (ver abajo) |
+| PATCH | `/promotions/:id` | ADMIN, STAFF | Cambia precio, fechas o `active` (el producto no); mismas reglas que al crear |
+| DELETE | `/promotions/:id` | ADMIN, STAFF | 204 |
 | GET | `/categories/:id` | Público | `{ id, name }`; 404 si no existe |
 | POST | `/categories` | ADMIN, STAFF | `{ name }` → categoría creada. Nombre repetido (sin distinguir mayúsculas): 409 |
 | PATCH | `/categories/:id` | ADMIN, STAFF | `{ name }` → renombra; mismas reglas que al crear |
@@ -126,6 +131,16 @@ PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED
 - **Patrón State** (`src/orders/states/`): cada estado es una clase (`PendingConfirmationState`, `ConfirmedState`, …) que implementa `OrderStateHandler` y declara a qué estados puede pasar. `PATCH` consulta el handler del estado actual antes de guardar: si la transición no vale, responde 400 con el motivo ("Un pedido entregado ya no puede cambiar de estado", "Un pedido pendiente de confirmación no puede pasar a entregado: solo puede pasar a confirmado o cancelado"). Pedir el mismo estado también es 400. `DELIVERED` y `CANCELLED` son finales.
 - **Cancelar devuelve el stock** de cada línea y registra un `InventoryMovement` `IN` a nombre de quien canceló, en la misma transacción.
 - Si dos personas cambian el mismo pedido a la vez, la segunda recibe 409 ("El pedido cambió mientras tanto"): así el stock nunca se devuelve dos veces.
+
+### Promociones (`src/promotions`)
+
+- **Fechas**: `startDate` y `endDate` son días de la tienda (hora de Lima) y ambos se incluyen. Una promoción del 1 al 7 empieza el 1 a las 00:00 y termina el 7 a las 23:59 de Lima.
+- **Estado**: no se guarda; se deduce de la fecha y del interruptor `active`. Es `DISABLED` si está apagada; si no, `SCHEDULED` antes de empezar, `ACTIVE` durante su periodo y `EXPIRED` después.
+- **Reglas**:
+  - El último día no puede ser anterior al primero (400).
+  - `promoPrice` tiene que ser menor al precio normal del producto (400).
+  - Dos promociones encendidas del mismo producto no pueden cruzarse en el tiempo (409): así siempre hay un único precio vigente.
+- **Una sola definición de "vigente"**: `activePromotionWhere()` en `promotion-rules.ts`.
 
 ### Estadísticas (`src/stats`)
 

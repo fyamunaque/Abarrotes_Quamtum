@@ -1,7 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test } from '@nestjs/testing';
-import { UserRole } from '@prisma/client';
+import { Prisma, UserRole } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
@@ -41,6 +41,15 @@ function createPrismaMock() {
     inventoryMovement: {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
+    },
+    promotion: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
     $transaction: jest.fn(),
     $queryRaw: jest.fn().mockResolvedValue([]),
@@ -163,6 +172,96 @@ describe('API (e2e)', () => {
         .set('Authorization', auth)
         .expect(204);
       expect(prisma.category.delete).toHaveBeenCalledWith({ where: { id } });
+    });
+  });
+
+  describe('/promotions', () => {
+    const productId = randomUUID();
+    const body = {
+      productId,
+      promoPrice: 3.9,
+      startDate: '2026-10-01',
+      endDate: '2026-10-07',
+    };
+
+    it('es solo para staff: sin token 401 y CUSTOMER 403', async () => {
+      await request(app.getHttpServer()).get('/promotions').expect(401);
+      await request(app.getHttpServer())
+        .post('/promotions')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .send(body)
+        .expect(403);
+      expect(prisma.promotion.create).not.toHaveBeenCalled();
+    });
+
+    it('POST como STAFF crea la promoción y responde los días y el estado', async () => {
+      prisma.product.findUnique.mockResolvedValue({
+        id: productId,
+        name: 'Arroz extra 1 kg',
+        price: new Prisma.Decimal('4.50'),
+      });
+      prisma.promotion.create.mockImplementation(
+        ({ data }: { data: Record<string, unknown> }) =>
+          Promise.resolve({
+            id: 'p1',
+            ...data,
+            promoPrice: new Prisma.Decimal('3.90'),
+            product: {
+              id: productId,
+              name: 'Arroz extra 1 kg',
+              sku: 'ARZ',
+              price: new Prisma.Decimal('4.50'),
+            },
+          }),
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/promotions')
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .send(body)
+        .expect(201);
+
+      expect(res.body).toMatchObject({
+        promoPrice: '3.9',
+        startDate: '2026-10-01',
+        endDate: '2026-10-07',
+        active: true,
+      });
+      expect(['SCHEDULED', 'ACTIVE', 'EXPIRED']).toContain(res.body.status);
+    });
+
+    it.each<[Record<string, unknown>, string]>([
+      [{ ...body, startDate: '01-10-2026' }, 'fecha con otro formato'],
+      [{ ...body, endDate: '2026-02-30' }, 'fecha imposible'],
+      [{ ...body, promoPrice: 0 }, 'precio en 0'],
+      [{ ...body, promoPrice: 3.999 }, 'más de dos decimales'],
+      [{ ...body, productId: 'arroz' }, 'productId que no es UUID'],
+      [{ ...body, descuento: 10 }, 'campo desconocido'],
+    ])('POST %o responde 400 (%s)', async (payload) => {
+      await request(app.getHttpServer())
+        .post('/promotions')
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .send(payload)
+        .expect(400);
+      expect(prisma.promotion.create).not.toHaveBeenCalled();
+    });
+
+    it('GET valida el estado y DELETE responde 204', async () => {
+      const auth = await bearer(UserRole.ADMIN);
+      await request(app.getHttpServer())
+        .get('/promotions?status=VIGENTE')
+        .set('Authorization', auth)
+        .expect(400);
+      await request(app.getHttpServer())
+        .get('/promotions?status=ACTIVE')
+        .set('Authorization', auth)
+        .expect(200);
+
+      prisma.promotion.findUnique.mockResolvedValue({ id: 'p1' });
+      await request(app.getHttpServer())
+        .delete(`/promotions/${randomUUID()}`)
+        .set('Authorization', auth)
+        .expect(204);
     });
   });
 

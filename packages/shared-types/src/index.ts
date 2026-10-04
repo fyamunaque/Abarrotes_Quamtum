@@ -201,6 +201,53 @@ export interface UpdateOrderStatusRequest {
   status: OrderStatus;
 }
 
+// ---------- Promociones (gestión solo ADMIN/STAFF) ----------
+
+/**
+ * Se deduce de la fecha y del interruptor `active`: DISABLED si está apagada; si no,
+ * SCHEDULED antes de empezar, ACTIVE durante su periodo y EXPIRED después.
+ */
+export type PromotionStatus = 'SCHEDULED' | 'ACTIVE' | 'EXPIRED' | 'DISABLED';
+
+/**
+ * Las fechas son días de la tienda (hora de Lima), ambos incluidos. Mientras está
+ * ACTIVE, los pedidos de ese producto se cobran a `promoPrice`.
+ */
+export interface Promotion {
+  id: string;
+  productId: string;
+  product: Pick<Product, 'id' | 'name' | 'sku' | 'price'>;
+  promoPrice: Money;
+  startDate: ISODay;
+  endDate: ISODay;
+  active: boolean;
+  status: PromotionStatus;
+}
+
+/**
+ * POST /promotions. `promoPrice` debe ser menor al precio normal (400) y dos promociones
+ * encendidas del mismo producto no pueden cruzarse en el tiempo (409).
+ */
+export interface CreatePromotionRequest {
+  productId: string;
+  promoPrice: number;
+  startDate: ISODay;
+  endDate: ISODay;
+  /** Por defecto true. */
+  active?: boolean;
+}
+
+/** PATCH /promotions/:id. El producto no se cambia. DELETE responde 204. */
+export type UpdatePromotionRequest = Partial<
+  Omit<CreatePromotionRequest, 'productId'>
+>;
+
+/** Query de GET /promotions, paginado. */
+export interface ListPromotionsQuery extends PaginationQuery {
+  productId?: string;
+  status?: PromotionStatus;
+}
+
 // ---------- Inventario (solo ADMIN/STAFF) ----------
 
 /** IN: entra stock (p. ej. al cancelar un pedido). OUT: sale (al crear un pedido). */

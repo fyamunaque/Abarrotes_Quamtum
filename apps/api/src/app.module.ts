@@ -9,6 +9,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProductsModule } from './products/products.module';
+import { PromotionsModule } from './promotions/promotions.module';
 import { StatsModule } from './stats/stats.module';
 import { UsersModule } from './users/users.module';
 
@@ -21,6 +22,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     CategoriesModule,
     ProductsModule,
+    PromotionsModule,
     OrdersModule,
     InventoryModule,
     StatsModule,
