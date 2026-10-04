@@ -122,6 +122,7 @@ Hecho:
 - `inventory`, con registro de movimientos y alertas;
 - en `orders`, el listado del dashboard y los cambios de estado con el patrón State;
 - `stats`, con un `ReportProvider` por reporte;
+- CORS para la app web (en `development`, cualquier `http://localhost:<puerto>`; además, los orígenes de `ALLOWED_ORIGINS`);
 - un job de CI.
 
 Pendiente:
@@ -137,11 +138,12 @@ Pendiente:
 - Riverpod y go_router;
 - el tema de Neil's (los mismos tokens y el mismo criterio de contraste que la web y Android, con Baloo 2 e Inter empaquetadas);
 - el flujo público `/`, `/login`, `/registro` y `/catalogo`;
-- `/admin` protegido por rol: solo admin y staff.
+- `/admin` protegido por rol: solo admin y staff;
+- ingreso y registro con Firebase Auth (email y contraseña). El rol sale de `GET /users/me`: un cliente termina en el catálogo, admin y staff en el panel. El SDK de Firebase guarda la cuenta y renueva el ID token, así que no hay JWT propio que guardar.
 
 Pendiente:
 
-1. Ingreso y registro con Firebase Auth, con la sesión y el rol desde `GET /users/me`.
+1. La config de la Web app de Firebase en `lib/firebase_options.dart`: hasta tenerla, en la web el ingreso dice que no está disponible. Android ya está configurado.
 2. Catálogo, carrito y pedidos contra Serverpod.
 3. Las secciones del panel.
 4. Cuando esté todo, retirar `apps/android` y `apps/web`.

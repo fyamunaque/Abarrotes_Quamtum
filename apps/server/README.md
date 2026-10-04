@@ -123,6 +123,25 @@ el body. Si deja pasar, la ruta tiene al usuario en `request.currentUser`. Las l
 que muestran más al staff (p. ej. productos inactivos) usan `optionalUser`: un token ausente o
 inválido cuenta como visitante.
 
+## CORS (la app web)
+
+La app Flutter web corre en otro origen (p. ej. `http://localhost:5006`) y llama a las rutas
+REST del 8082, así que el navegador primero manda un preflight `OPTIONS`. `corsMiddleware`
+(`lib/src/common/cors.dart`) se registra en `/` y envuelve a los middlewares de cada dominio:
+el preflight no trae token, y el de Firebase en `/users` lo rechazaría.
+
+- Con un origen permitido, responde el preflight con 204 y agrega
+  `Access-Control-Allow-Origin` a todas las respuestas, también a los errores (la app tiene que
+  poder leer un 401).
+- A un origen no permitido no le agrega nada: el navegador bloquea la respuesta. Sin `Origin`
+  (curl, la app Android) todo sigue igual.
+- Orígenes permitidos: en `development`, cualquier `http://localhost:<puerto>`. En staging y
+  producción, solo los de la variable `ALLOWED_ORIGINS`, separados por comas:
+
+  ```powershell
+  $env:ALLOWED_ORIGINS = 'https://tienda.pe,https://admin.tienda.pe'
+  ```
+
 ## Cómo se arma un dominio
 
 Cada dominio expone una lista de rutas `(path, ruta)` y su servicio (ver `lib/src/categories/`):
@@ -138,6 +157,8 @@ List<RouteEntry> categoriesRoutes(CategoriesService categories, FirebaseTokenVer
   `{statusCode, message, error}`.
 - `addRoutes` registra la lista en `server.dart`. Serverpod admite **una sola ruta por path**, así
   que las que comparten path se juntan en una que despacha según el método (`mergeByPath`).
+  Cada path responde además `OPTIONS`: sin eso, el router contesta 405 al preflight de CORS
+  antes de correr cualquier middleware.
 - `InputReader` valida el body o el query como el ValidationPipe de NestJS. Junta todos los
   errores en un 400 y rechaza las propiedades no permitidas.
 - Montos en céntimos en la base y como texto en el JSON (`formatMoney`: 450 → `"4.5"`). Los días
