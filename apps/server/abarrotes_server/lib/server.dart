@@ -3,6 +3,9 @@ import 'dart:io';
 import 'src/auth/firebase_authentication_handler.dart';
 import 'src/auth/firebase_token_verifier.dart';
 import 'src/auth/google_public_keys.dart';
+import 'src/categories/categories_routes.dart';
+import 'src/categories/categories_service.dart';
+import 'src/common/api_route.dart';
 import 'src/generated/serverpod.dart';
 import 'src/users/users_routes.dart';
 
@@ -23,7 +26,12 @@ void run(List<String> args) async {
     projectId: _firebaseProjectId(pod),
     keys: GooglePublicKeys(),
   );
+
+  // Un dominio por bloque de rutas.
   addUsersRoutes(pod.webServer, verifier: verifier);
+  addRoutes(pod.webServer, [
+    ...categoriesRoutes(const CategoriesService(), verifier),
+  ]);
 
   await pod.start();
 }
