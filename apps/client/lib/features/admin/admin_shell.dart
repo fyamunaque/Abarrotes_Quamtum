@@ -25,11 +25,15 @@ class AdminShell extends ConsumerWidget {
         title: const Row(
           children: [
             NeilsLogo(),
-            SizedBox(width: 12),
+            // El espacio se encoge con el título: en un teléfono angosto solo
+            // entra el logo.
             Flexible(
-              child: Text(
-                'Panel de la tienda',
-                overflow: TextOverflow.ellipsis,
+              child: Padding(
+                padding: EdgeInsets.only(left: 12),
+                child: Text(
+                  'Panel de la tienda',
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
             ),
           ],
@@ -39,10 +43,8 @@ class AdminShell extends ConsumerWidget {
             onPressed: () => context.go(Routes.home),
             child: const Text('Ir a la tienda'),
           ),
-          if (session case SignedIn(:final user)) ...[
-            UserName(user, showRole: true),
-            const SignOutButton(),
-          ],
+          if (session case SignedIn(:final user))
+            AccountActions(user, inPanel: true),
           const SizedBox(width: 8),
         ],
       ),

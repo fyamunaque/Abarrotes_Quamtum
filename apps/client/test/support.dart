@@ -55,4 +55,13 @@ class TestSession extends SessionNotifier {
   Session build() => initial;
 
   void set(Session session) => state = session;
+
+  /// Si se llamó a [signOut] (que aquí no toca Firebase).
+  bool signedOut = false;
+
+  @override
+  Future<void> signOut() async {
+    signedOut = true;
+    state = const SignedOut();
+  }
 }

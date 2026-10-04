@@ -60,15 +60,7 @@ class PublicScaffold extends ConsumerWidget {
                 child: const Text('Ingresar'),
               ),
             ],
-            SignedIn(:final user) => [
-              if (user.role.isStaff)
-                TextButton(
-                  onPressed: () => context.go(Routes.admin),
-                  child: const Text('Panel'),
-                ),
-              UserName(user),
-              const SignOutButton(),
-            ],
+            SignedIn(:final user) => [AccountActions(user)],
           },
           const SizedBox(width: 8),
         ],
