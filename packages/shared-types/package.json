@@ -2,7 +2,7 @@
   "name": "@abarrotes/shared-types",
   "version": "0.1.0",
   "private": true,
-  "description": "Tipos del contrato JSON de la API, compartidos entre apps/api y apps/web",
+  "description": "Tipos del contrato JSON de la API: los usa apps/api, y Serverpod (apps/server) responde con la misma forma",
   "types": "./src/index.ts",
   "exports": {
     ".": {

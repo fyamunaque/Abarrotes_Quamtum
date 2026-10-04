@@ -4,11 +4,13 @@ Guía técnica para el equipo. Complementa `CLAUDE.md` (que vive en la raíz del
 
 ## 1. Resumen del proyecto
 
-Plataforma centralizada de ecommerce para una tienda de abarrotes, con tres canales sobre un mismo backend:
+Plataforma centralizada de ecommerce para una tienda de abarrotes, sobre un mismo backend:
 
 - **App Android** — catálogo, carrito, pedidos y seguimiento para el cliente.
 - **Marketplace web** — el mismo flujo de compra desde navegador.
 - **Dashboard administrativo** — gestión de productos, pedidos, inventario, logística, estadísticas y promociones.
+
+Hoy el foco es **Dart y Flutter**: la app Flutter (`apps/client`) cubre los tres canales (Android y web, tienda y panel) contra el servidor Serverpod (`apps/server`). La web Next.js ya se retiró; la app Kotlin y la API NestJS quedan de respaldo hasta probar la app Flutter en un Android real.
 
 Todo se apoya en un **backend/API único** y una **base de datos central**, para que los tres canales muestren siempre la misma información (stock, precios, estado de pedidos).
 
@@ -17,12 +19,12 @@ Todo se apoya en un **backend/API único** y una **base de datos central**, para
 | Componente | Tecnología | Por qué |
 |---|---|---|
 | App Android | **Kotlin** + Jetpack Compose + Retrofit | Nativo, mejor rendimiento y acceso a APIs de Android que un framework híbrido; es la opción que ya eligieron. |
-| Web (marketplace + dashboard) | **Next.js** + TypeScript + Tailwind CSS | Un solo framework sirve la tienda pública y el panel admin (con rutas protegidas por rol); TypeScript comparte tipos con el backend. |
+| Web (marketplace + dashboard) | ~~Next.js~~, **retirada** | La reemplaza la app Flutter en la web (tienda y panel). Lo que tenía y faltaba en Flutter (la búsqueda, el carrito guardado, las 9 categorías, los títulos de pestaña) se pasó antes de borrarla. |
 | Backend / API | **NestJS** + TypeScript + Prisma ORM | Estructura modular por dominio (parecida a Spring, así que el paso desde POO en Java es directo), tipado fuerte, y — al ser TypeScript — el mismo lenguaje que la web. Con un equipo de 2-3 personas, no tener que cambiar de lenguaje entre web y backend ahorra tiempo real. |
 | Base de datos | **PostgreSQL** | Relacional, con transacciones ACID — importante cuando un pedido descuenta stock y genera un registro de venta a la vez. |
 | Auth | JWT (access + refresh token) | Roles `CUSTOMER`, `ADMIN`, `STAFF`; el mismo esquema de auth sirve para app, web y dashboard. |
 | Backend nuevo (en migración) | **Serverpod 4** (Dart) + **Firebase Auth** | Pedido del cliente. Vive en `apps/server` y va reemplazando a NestJS dominio por dominio. Las cuentas y contraseñas las maneja Firebase; el servidor verifica el ID token y guarda el rol en Postgres. Ver la sección 3. |
-| Cliente nuevo (en construcción) | **Flutter** + Riverpod + go_router | Pedido del cliente: una sola app para Android y web, en Dart como el backend. Vive en `apps/client` y convive con la app Kotlin y la web Next.js hasta reemplazarlas. |
+| Cliente nuevo (en construcción) | **Flutter** + Riverpod + go_router | Pedido del cliente: una sola app para Android y web, en Dart como el backend. Vive en `apps/client`. Ya reemplazó a la web Next.js; convive con la app Kotlin hasta reemplazarla. |
 
 **Nota sobre Python:** si alguien del equipo se siente más cómodo con Python, FastAPI es una alternativa igual de válida para el backend — la arquitectura (módulos por dominio, JWT, Prisma o SQLAlchemy) se traduce casi 1 a 1. Los prompts de la sección 6 están escritos para NestJS; si cambian a FastAPI, ajusten la referencia al framework y el resto de la guía se mantiene igual.
 
@@ -32,13 +34,12 @@ Un solo repositorio con las tres apps facilita compartir tipos y mantener sincro
 
 ```
 /apps
-  /android        -> app Kotlin nativa
-  /web            -> Next.js (marketplace público + /admin protegido por rol)
-  /api            -> NestJS
+  /android        -> app Kotlin nativa (respaldo, en retiro)
+  /api            -> NestJS (respaldo, en retiro)
   /server         -> Serverpod (Dart): abarrotes_server + cliente generado
   /client         -> Flutter (Android + web), la app nueva contra /server
 /packages
-  /shared-types   -> tipos TypeScript compartidos entre /web y /api
+  /shared-types   -> tipos TypeScript del contrato JSON de /api
 /prisma
   schema.prisma
   seed.ts         -> datos de desarrollo: `cd apps/api && npx prisma db seed`
@@ -49,11 +50,10 @@ CLAUDE.md
 package.json      -> npm workspaces (un solo `npm install` en la raíz)
 ```
 
-El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`. App Android (versiones, cómo apuntarla a la API local): `apps/android/README.md`. Web (Next.js 16, páginas, sesión): `apps/web/README.md`.
+El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`. App Android (versiones, cómo apuntarla a la API local): `apps/android/README.md`.
 
-**Tipos compartidos:** `packages/shared-types` describe el JSON de la API (solo tipos, se importa con `import type`). La web los usa directamente; la API los verifica en `apps/api/src/shared-types.contract.spec.ts`, que falla si un DTO de entrada o un enum (`OrderStatus`, `UserRole`) deja de coincidir. Si cambias un DTO o el schema, actualiza también `shared-types`.
+**Tipos compartidos:** `packages/shared-types` describe el JSON de la API (solo tipos, se importa con `import type`). Serverpod responde con la misma forma; la API los verifica en `apps/api/src/shared-types.contract.spec.ts`, que falla si un DTO de entrada o un enum (`OrderStatus`, `UserRole`) deja de coincidir. Si cambias un DTO o el schema, actualiza también `shared-types`.
 
-**Sesión en la web:** Next.js llama a la API desde el servidor y guarda los tokens en cookies httpOnly; el navegador nunca ve los tokens ni llama a la API directamente. `apps/web/src/proxy.ts` renueva el access token vencido antes de renderizar (los Server Components no pueden escribir cookies) y manda al login a quien entre a `/admin` sin sesión. El `/admin` confirma el rol con `GET /auth/me`, y cada lectura y acción vuelve a pasar por la API, que responde 403 si el rol no alcanza.
 
 **Serverpod (backend nuevo):** `apps/server` es un workspace de Dart con el servidor (`abarrotes_server`) y el cliente que genera Serverpod. Usa el mismo PostgreSQL pero **otra base**, `abarrotes_server`: Prisma y Serverpod borran las tablas que no reconocen, así que nunca comparten base. Cada dominio tiene su carpeta en `lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082), con el mismo JSON que la API NestJS. Ya están portados:
 
@@ -97,7 +97,7 @@ Repo, CI básico, PostgreSQL + Prisma con el schema inicial, y en NestJS: módul
 Registro e inicio de sesión, catálogo y categorías, detalle de producto, carrito, generación y consulta de pedidos, estados básicos.
 
 **Fase 2 — Marketplace web**
-Mismo flujo de compra en Next.js, reutilizando el backend ya construido en la Fase 0-1.
+Mismo flujo de compra en Next.js, reutilizando el backend ya construido en la Fase 0-1. *(Hecha y después retirada: hoy la web es la app Flutter.)*
 
 **Fase 3 — Dashboard admin**
 Productos y categorías, clientes, subusuarios y roles, gestión de todos los pedidos con cambio de estado.
@@ -131,14 +131,14 @@ Hecho:
 Pendiente:
 
 1. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
-2. Pasar el login de Android y web a Firebase.
+2. Pasar el login de la app Kotlin a Firebase (o retirarla, cuando la app Flutter esté probada en Android).
 3. Retirar `apps/api`.
 
 **App Flutter (Android + web)** *(pedido del cliente, en curso)*
-`apps/client` reemplazará a la app Kotlin y a la web Next.js; hasta entonces conviven. Ya tiene:
+`apps/client` ya reemplazó a la web Next.js, y reemplazará a la app Kotlin; hasta entonces conviven. Ya tiene:
 
 - Riverpod y go_router;
-- el tema de Neil's (los mismos tokens y el mismo criterio de contraste que la web y Android, con Baloo 2 e Inter empaquetadas);
+- el tema de Neil's (los mismos tokens y el mismo criterio de contraste que la app Kotlin, con Baloo 2 e Inter empaquetadas);
 - el flujo público `/`, `/login`, `/registro` y `/catalogo`;
 - `/admin` protegido por rol: solo admin y staff;
 - ingreso y registro con Firebase Auth (email y contraseña). El rol sale de `GET /users/me`: un cliente termina en el catálogo, admin y staff en el panel. El SDK de Firebase guarda la cuenta y renueva el ID token, así que no hay JWT propio que guardar;
@@ -147,7 +147,7 @@ Pendiente:
   - la tarjeta de producto, con el swoosh bajo el precio y "Agregar" que responde al toque;
   - el seguimiento de pedido, con colores por estado;
 - el flujo de compra contra Serverpod, con repositorios y Riverpod:
-  - el catálogo con filtro por categoría (en la URL) y el detalle de producto;
+  - el catálogo con búsqueda y filtro por categoría (en la URL) y el detalle de producto;
   - el carrito, guardado en el dispositivo;
   - el pedido, que sin cuenta pasa por el ingreso y vuelve al carrito;
   - "Mis pedidos", con el seguimiento de cada uno;
@@ -158,7 +158,7 @@ Pendiente:
 
 Pendiente:
 
-1. Cuando esté todo, retirar `apps/android` y `apps/web`.
+1. Probarla en un Android real y, entonces, retirar `apps/android` y `apps/api` (con `prisma/` y `packages/shared-types`).
 
 Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
 
@@ -193,7 +193,7 @@ carrito en memoria (ViewModel) con agregar/quitar/cambiar cantidad, y un
 botón para generar el pedido contra POST /orders.
 ```
 
-**Marketplace web (Fase 2):**
+**Marketplace web (Fase 2)** *(histórico: la web Next.js se retiró; hoy es la app Flutter)*:
 ```
 En /apps/web, crea las páginas públicas del marketplace con Next.js App
 Router: listado de productos con filtro por categoría, página de detalle,
@@ -202,7 +202,7 @@ en /apps/api. Reutiliza los tipos de /packages/shared-types si ya existen,
 o créalos ahí si no.
 ```
 
-**Dashboard admin (Fase 3):**
+**Dashboard admin (Fase 3)** *(histórico: hoy el panel está en la app Flutter)*:
 ```
 En /apps/web, agrega la sección /admin protegida por rol ADMIN/STAFF (usa
 el JWT del backend). Necesito una vista de pedidos con filtro por estado y
@@ -222,14 +222,13 @@ debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ## 7. Herramientas complementarias
 
 - **Probar la API mientras se desarrolla**: Insomnia o Postman (o archivos `.http` dentro del repo si prefieren algo más ligero, sin instalar nada aparte).
-- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`, con cinco jobs en paralelo en cada PR y push a `develop` y `main`:
+- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`, con cuatro jobs en paralelo en cada PR y push a `develop` y `main`:
 
 - API, con PostgreSQL efímero; además aplica las migraciones y el seed sobre una base vacía.
 - Serverpod, con PostgreSQL efímero: tests, migraciones y arranque del servidor con un chequeo de 401.
 - Cliente Flutter: formato, análisis, tests y build web.
-- Web.
 - Android.
-- **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), web en Vercel, app en Google Play Console (pago único de $25).
+- **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), la web de Flutter en Vercel, app en Google Play Console (pago único de $25).
 - **Pagos** (Fase 6, para negocio real en Perú): Culqi o Izipay son las opciones locales más simples de integrar (tarjetas, y Culqi soporta Yape); Mercado Pago es la alternativa regional.
 - **Diseño de pantallas** (opcional): si quieren mockups antes de programar, Figma tiene plan gratuito suficiente para un equipo de 2-3.
 

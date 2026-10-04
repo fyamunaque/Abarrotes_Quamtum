@@ -1,8 +1,8 @@
 # Cliente Flutter — Neil's Food Services
 
-App de la tienda para **Android y web**, hecha en Flutter. Por ahora convive con la app Kotlin
-(`apps/android`) y la web Next.js (`apps/web`). Cuando tenga todo lo que esas apps hacen, las
-reemplaza. Habla con el backend Serverpod de `apps/server`.
+App de la tienda para **Android y web**, hecha en Flutter. Ya reemplazó a la web Next.js, que se
+retiró. Por ahora convive con la app Kotlin (`apps/android`), que queda de respaldo hasta probar
+esta en un Android real. Habla con el backend Serverpod de `apps/server`.
 
 - Paquete Android: `com.quamtum.neils` (el registrado en Firebase).
 - Estado: [Riverpod](https://riverpod.dev). Rutas: [go_router](https://pub.dev/packages/go_router).
@@ -93,7 +93,7 @@ insuficiente: Aceite tiene 2 unidades").
 
 ## Tema
 
-Los tokens son los mismos de la web y la app Kotlin:
+Los tokens son los mismos de la app Kotlin (y de la web Next.js que se retiró):
 
 | Token | Color |
 |---|---|

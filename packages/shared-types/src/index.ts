@@ -1,6 +1,7 @@
 /**
- * Contrato JSON de /apps/api, compartido por /apps/web (y la API lo verifica en
- * apps/api/src/shared-types.contract.spec.ts).
+ * Contrato JSON de /apps/api (la API lo verifica en
+ * apps/api/src/shared-types.contract.spec.ts). Serverpod (/apps/server)
+ * responde con la misma forma, y la app Flutter la lee.
  *
  * Solo tipos: importar siempre con `import type`.
  */

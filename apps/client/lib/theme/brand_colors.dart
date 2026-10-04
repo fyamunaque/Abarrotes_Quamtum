@@ -1,7 +1,7 @@
 import 'package:flutter/painting.dart';
 
-/// Tokens de marca de Neil's Food Services: los mismos que la web
-/// (apps/web/src/app/globals.css) y la app Kotlin (ui/theme/Theme.kt).
+/// Tokens de marca de Neil's Food Services: los mismos que la app Kotlin
+/// (ui/theme/Theme.kt).
 abstract final class NeilsColors {
   static const primary = Color(0xFFE8652F);
   static const primaryDark = Color(0xFFB54F25);
