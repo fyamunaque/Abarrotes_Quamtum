@@ -9,6 +9,7 @@ import '../features/auth/register_screen.dart';
 import '../features/catalog/catalog_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/shared/not_found_screen.dart';
+import '../features/showcase/showcase_screen.dart';
 import '../session/session_provider.dart';
 import 'route_guard.dart';
 import 'routes.dart';
@@ -32,6 +33,12 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
       GoRoute(path: Routes.catalog, builder: (_, _) => const CatalogScreen()),
+      // Solo en debug: en los builds de release esta ruta no existe.
+      if (kDebugMode)
+        GoRoute(
+          path: Routes.showcase,
+          builder: (_, _) => const ShowcaseScreen(),
+        ),
       // Grupo /admin: un layout común; las secciones se agregan como subrutas
       // (p. ej. /admin/pedidos).
       ShellRoute(

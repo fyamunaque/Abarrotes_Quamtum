@@ -8,6 +8,9 @@ abstract final class Routes {
   /// Grupo protegido: solo admin y staff (ver route_guard.dart).
   static const admin = '/admin';
 
+  /// Vitrina de componentes con datos de ejemplo. Solo existe en debug.
+  static const showcase = '/vitrina';
+
   /// Si [path] es /admin o una de sus subrutas.
   static bool isAdmin(String path) =>
       path == admin || path.startsWith('$admin/');

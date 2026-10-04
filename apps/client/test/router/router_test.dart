@@ -6,8 +6,11 @@ import 'package:neils/app.dart';
 import 'package:neils/features/admin/admin_shell.dart';
 import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/catalog/catalog_screen.dart';
+import 'package:neils/features/catalog/product_card.dart';
 import 'package:neils/features/home/home_screen.dart';
+import 'package:neils/features/orders/order_tracker.dart';
 import 'package:neils/features/shared/not_found_screen.dart';
+import 'package:neils/features/showcase/showcase_screen.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
@@ -98,6 +101,16 @@ void main() {
 
     expect(find.byType(LoginScreen), findsOneWidget);
     expect(currentPath(router), '/login?from=%2Fadmin');
+  });
+
+  testWidgets('la vitrina existe en debug', (tester) async {
+    final router = await pumpApp(tester, const SignedOut());
+
+    await goTo(tester, router, '/vitrina');
+
+    expect(find.byType(ShowcaseScreen), findsOneWidget);
+    expect(find.byType(ProductCard), findsNWidgets(4));
+    expect(find.byType(OrderTracker), findsOneWidget);
   });
 
   testWidgets('una ruta inexistente muestra "No encontramos esta página"', (
