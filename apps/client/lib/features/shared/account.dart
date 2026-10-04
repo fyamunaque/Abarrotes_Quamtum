@@ -6,9 +6,9 @@ import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
 
-/// La cuenta en la barra. En pantallas anchas: el enlace al panel (admin y
-/// staff, fuera del panel), el primer nombre y "Salir". En un teléfono eso no
-/// entra junto al resto de la barra, así que va en un menú.
+/// La cuenta en la barra. En pantallas anchas: "Mis pedidos", el enlace al
+/// panel (admin y staff, fuera del panel), el primer nombre y "Salir". En un
+/// teléfono eso no entra junto al resto de la barra, así que va en un menú.
 class AccountActions extends StatelessWidget {
   const AccountActions(this.user, {super.key, this.inPanel = false});
 
@@ -31,6 +31,10 @@ class AccountActions extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        TextButton(
+          onPressed: () => context.go(Routes.myOrders),
+          child: const Text('Mis pedidos'),
+        ),
         if (panelLink)
           TextButton(
             onPressed: () => context.go(Routes.admin),
@@ -87,7 +91,7 @@ class _SignOutButton extends ConsumerWidget {
   }
 }
 
-enum _AccountAction { panel, signOut }
+enum _AccountAction { myOrders, panel, signOut }
 
 /// La cuenta en un teléfono: un ícono que abre el nombre, el correo y las
 /// acciones.
@@ -103,6 +107,7 @@ class _AccountMenu extends ConsumerWidget {
       tooltip: 'Tu cuenta',
       icon: const Icon(Icons.account_circle_outlined),
       onSelected: (action) => switch (action) {
+        _AccountAction.myOrders => context.go(Routes.myOrders),
         _AccountAction.panel => context.go(Routes.admin),
         _AccountAction.signOut => ref.read(sessionProvider.notifier).signOut(),
       },
@@ -116,6 +121,10 @@ class _AccountMenu extends ConsumerWidget {
           ),
         ),
         const PopupMenuDivider(),
+        const PopupMenuItem(
+          value: _AccountAction.myOrders,
+          child: Text('Mis pedidos'),
+        ),
         if (panelLink)
           const PopupMenuItem(
             value: _AccountAction.panel,

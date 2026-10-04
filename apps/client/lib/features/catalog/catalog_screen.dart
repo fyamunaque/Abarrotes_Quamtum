@@ -76,7 +76,7 @@ class _Products extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = productListProvider(categoryId);
     return switch (ref.watch(provider)) {
-      AsyncData(value: final list) when list.products.isEmpty => _Message(
+      AsyncData(value: final list) when list.items.isEmpty => _Message(
         categoryId == null
             ? 'Todavía no hay productos.'
             : 'No hay productos en esta categoría.',
@@ -86,7 +86,7 @@ class _Products extends ConsumerWidget {
         children: [
           ProductGrid(
             children: [
-              for (final product in list.products)
+              for (final product in list.items)
                 ProductCard(
                   key: ValueKey(product.id),
                   product: product,

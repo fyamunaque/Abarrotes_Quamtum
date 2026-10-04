@@ -10,6 +10,7 @@ import '../features/cart/cart_screen.dart';
 import '../features/catalog/catalog_screen.dart';
 import '../features/catalog/product_detail_screen.dart';
 import '../features/home/home_screen.dart';
+import '../features/orders/my_orders_screen.dart';
 import '../features/shared/not_found_screen.dart';
 import '../features/showcase/showcase_screen.dart';
 import '../session/session_provider.dart';
@@ -45,6 +46,11 @@ final routerProvider = Provider<GoRouter>((ref) {
             ProductDetailScreen(productId: state.pathParameters['id']!),
       ),
       GoRoute(path: Routes.cart, builder: (_, _) => const CartScreen()),
+      GoRoute(
+        path: Routes.myOrders,
+        builder: (_, state) =>
+            MyOrdersScreen(newOrderId: state.uri.queryParameters['nuevo']),
+      ),
       // Solo en debug: en los builds de release esta ruta no existe.
       if (kDebugMode)
         GoRoute(

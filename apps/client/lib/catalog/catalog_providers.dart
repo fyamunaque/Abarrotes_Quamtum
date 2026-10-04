@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../common/page_list.dart';
 import '../config/api_config.dart';
 import 'catalog_repository.dart';
 import 'category.dart';
@@ -22,40 +23,24 @@ final productProvider = FutureProvider.family<Product, String>(
 
 /// Los productos cargados de una categoría (null: todas), página a página.
 final productListProvider =
-    AsyncNotifierProvider.family<ProductListNotifier, ProductList, String?>(
-      ProductListNotifier.new,
-    );
+    AsyncNotifierProvider.family<
+      ProductListNotifier,
+      PageList<Product>,
+      String?
+    >(ProductListNotifier.new);
 
-/// Lo que se cargó hasta ahora y cuántos hay en total.
-class ProductList {
-  const ProductList(
-    this.products, {
-    required this.total,
-    this.loadingMore = false,
-  });
-
-  final List<Product> products;
-  final int total;
-
-  /// Si se está pidiendo la página siguiente.
-  final bool loadingMore;
-
-  bool get hasMore => products.length < total;
-}
-
-class ProductListNotifier extends AsyncNotifier<ProductList> {
+class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
   ProductListNotifier(this.categoryId);
 
   final String? categoryId;
   int _page = 1;
 
   @override
-  Future<ProductList> build() async {
+  Future<PageList<Product>> build() {
     _page = 1;
-    final page = await ref
+    return ref
         .watch(catalogRepositoryProvider)
         .products(categoryId: categoryId);
-    return ProductList(page.products, total: page.total);
   }
 
   /// Agrega la página siguiente al final. Si falla, la lista queda como
@@ -63,17 +48,13 @@ class ProductListNotifier extends AsyncNotifier<ProductList> {
   Future<void> loadMore() async {
     final current = state.value;
     if (current == null || !current.hasMore || current.loadingMore) return;
-    state = AsyncData(
-      ProductList(current.products, total: current.total, loadingMore: true),
-    );
+    state = AsyncData(current.withLoadingMore());
     try {
       final next = await ref
           .read(catalogRepositoryProvider)
           .products(categoryId: categoryId, page: _page + 1);
       _page++;
-      state = AsyncData(
-        ProductList([...current.products, ...next.products], total: next.total),
-      );
+      state = AsyncData(current.append(next));
     } catch (_) {
       state = AsyncData(current);
       rethrow;

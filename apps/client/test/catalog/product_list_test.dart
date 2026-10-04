@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/common/page_list.dart';
 
 import '../fakes.dart';
 
@@ -28,10 +29,12 @@ void main() {
     );
   });
 
-  Future<ProductList> load([String? categoryId]) =>
+  Future<PageList<Product>> load([String? categoryId]) =>
       container.read(productListProvider(categoryId).future);
 
-  List<String> ids(ProductList list) => [for (final p in list.products) p.id];
+  List<String> ids(PageList<Product> list) => [
+    for (final p in list.items) p.id,
+  ];
 
   test('carga la primera página y sabe si hay más', () async {
     final list = await load();

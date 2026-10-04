@@ -76,7 +76,7 @@ void main() {
       'categoryId': 'c-1',
     });
     expect(page.total, 41);
-    final oil = page.products.single;
+    final oil = page.items.single;
     expect(oil.name, 'Aceite vegetal 1 L');
     expect(oil.priceCents, 1090);
     expect(oil.promoPriceCents, 890);
@@ -99,8 +99,8 @@ void main() {
       }).products();
 
       expect(url.queryParameters, {'page': '1', 'limit': '20'});
-      expect(page.products.single.onSale, isFalse);
-      expect(page.products.single.finalPriceCents, 1090);
+      expect(page.items.single.onSale, isFalse);
+      expect(page.items.single.finalPriceCents, 1090);
     },
   );
 

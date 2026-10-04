@@ -13,6 +13,16 @@ abstract final class Routes {
   /// El detalle de un producto.
   static String product(String id) => '/producto/${Uri.encodeComponent(id)}';
 
+  /// Los pedidos de la cuenta: pide haber ingresado (ver route_guard.dart).
+  static const myOrders = '/mis-pedidos';
+
+  /// "Mis pedidos" con el aviso de un pedido recién hecho.
+  static String myOrdersWithNew(String orderId) =>
+      Uri(path: myOrders, queryParameters: {'nuevo': orderId}).toString();
+
+  /// Si [path] pide una cuenta (cualquier rol).
+  static bool needsAccount(String path) => path == myOrders;
+
   /// Grupo protegido: solo admin y staff (ver route_guard.dart).
   static const admin = '/admin';
 

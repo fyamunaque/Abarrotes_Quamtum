@@ -5,6 +5,10 @@ import 'package:neils/catalog/catalog_repository.dart';
 import 'package:neils/catalog/category.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/common/page_list.dart';
+import 'package:neils/orders/order.dart';
+import 'package:neils/orders/order_repository.dart';
+import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/users/user_repository.dart';
 
@@ -35,6 +39,77 @@ const milk = Product(
   category: dairy,
 );
 
+/// Los pedidos en memoria. Cobra el precio de hoy de los productos de
+/// [catalog], como el servidor.
+class FakeOrderRepository implements OrderRepository {
+  FakeOrderRepository(this.catalog, {this.pageSize = 10});
+
+  final FakeCatalogRepository catalog;
+  final int pageSize;
+
+  /// Los pedidos hechos, el más reciente primero.
+  final orders = <Order>[];
+
+  /// Si no es null, `place` falla con esto (p. ej. 409 sin stock).
+  ApiFailure? failure;
+
+  /// Los ID tokens con que se llamó a `place` y `mine`.
+  final tokens = <String>[];
+
+  @override
+  Future<Order> place(
+    String idToken, {
+    required String deliveryAddress,
+    required List<OrderLineRequest> lines,
+  }) async {
+    tokens.add(idToken);
+    if (failure case final failure?) throw failure;
+    final orderLines = [
+      for (final line in lines)
+        if (await catalog.product(line.productId) case final product)
+          OrderLine(
+            productId: product.id,
+            name: product.name,
+            quantity: line.quantity,
+            unitPriceCents: product.finalPriceCents,
+          ),
+    ];
+    final order = Order(
+      id: 'pedido-${orders.length + 1}',
+      status: OrderStatus.pendingConfirmation,
+      totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
+      deliveryAddress: deliveryAddress,
+      createdAt: DateTime.utc(2026, 10, 4, 15, 30),
+      lines: orderLines,
+    );
+    orders.insert(0, order);
+    return order;
+  }
+
+  @override
+  Future<PageList<Order>> mine(String idToken, {int page = 1}) async {
+    tokens.add(idToken);
+    return PageList(
+      orders.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: orders.length,
+    );
+  }
+
+  /// Lo que haría el staff desde el panel.
+  void setStatus(String id, OrderStatus status) {
+    final i = orders.indexWhere((order) => order.id == id);
+    final order = orders[i];
+    orders[i] = Order(
+      id: order.id,
+      status: status,
+      totalCents: order.totalCents,
+      deliveryAddress: order.deliveryAddress,
+      createdAt: order.createdAt,
+      lines: order.lines,
+    );
+  }
+}
+
 /// El catálogo en memoria, paginado como el servidor.
 class FakeCatalogRepository implements CatalogRepository {
   FakeCatalogRepository({
@@ -57,14 +132,14 @@ class FakeCatalogRepository implements CatalogRepository {
   Future<List<Category>> categories() async => categoryList;
 
   @override
-  Future<ProductPage> products({String? categoryId, int page = 1}) async {
+  Future<PageList<Product>> products({String? categoryId, int page = 1}) async {
     requests.add((categoryId, page));
     if (failure case final failure?) throw failure;
     final matching = [
       for (final product in productList)
         if (categoryId == null || product.category?.id == categoryId) product,
     ];
-    return ProductPage(
+    return PageList(
       matching.skip((page - 1) * pageSize).take(pageSize).toList(),
       total: matching.length,
     );
@@ -187,6 +262,9 @@ class FakeUserRepository implements UserRepository {
 
   /// Roles que no son customer, por uid.
   final roles = <String, UserRole>{};
+
+  /// Direcciones guardadas en el perfil, por uid.
+  final addresses = <String, String>{};
   final _profiles = <String, SessionUser>{};
 
   /// Si no es null, `me` falla con esto (p. ej. el servidor caído).
@@ -211,6 +289,7 @@ class FakeUserRepository implements UserRepository {
         name: account.name ?? account.email.split('@').first,
         email: account.email,
         role: roles[uid] ?? UserRole.customer,
+        address: addresses[uid],
       );
     });
   }

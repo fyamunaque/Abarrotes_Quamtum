@@ -1,4 +1,5 @@
 import '../common/api_client.dart';
+import '../common/page_list.dart';
 import 'catalog_repository.dart';
 import 'category.dart';
 import 'product.dart';
@@ -24,7 +25,7 @@ class HttpCatalogRepository implements CatalogRepository {
   }
 
   @override
-  Future<ProductPage> products({String? categoryId, int page = 1}) async {
+  Future<PageList<Product>> products({String? categoryId, int page = 1}) async {
     final json = await _api.get(
       '/products',
       query: {'page': '$page', 'limit': '$pageSize', 'categoryId': ?categoryId},
@@ -36,9 +37,7 @@ class HttpCatalogRepository implements CatalogRepository {
           'data': final List<Object?> data,
           'meta': {'total': final int total},
         } =>
-          ProductPage([
-            for (final p in data) Product.fromJson(p),
-          ], total: total),
+          PageList([for (final p in data) Product.fromJson(p)], total: total),
         _ => throw FormatException('No es una página de productos', json),
       },
     );

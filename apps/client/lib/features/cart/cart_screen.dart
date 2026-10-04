@@ -6,12 +6,17 @@ import '../../cart/cart.dart';
 import '../../cart/cart_provider.dart';
 import '../../common/money.dart';
 import '../../router/routes.dart';
+import '../../session/session.dart';
+import '../../session/session_provider.dart';
 import '../../theme/neils_theme.dart';
 import '../catalog/product_photo.dart';
 import '../shared/brand.dart';
+import '../shared/error_message.dart';
+import '../shared/press_scale.dart';
 import '../shared/quantity_stepper.dart';
 
-/// El carrito: cambiar cantidades, quitar productos y ver el total.
+/// El carrito: cambiar cantidades, quitar productos, ver el total y hacer el
+/// pedido.
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
 
@@ -32,6 +37,8 @@ class CartScreen extends ConsumerWidget {
               _CartLineTile(line, key: ValueKey(line.product.id)),
             const Divider(height: 32),
             _Total(cart),
+            const SizedBox(height: 24),
+            const _Checkout(),
           ],
         ],
       ),
@@ -135,6 +142,134 @@ class _Total extends StatelessWidget {
       ],
     );
   }
+}
+
+/// La dirección de entrega y "Confirmar pedido". Sin cuenta, lleva a ingresar
+/// y vuelve aquí.
+class _Checkout extends ConsumerStatefulWidget {
+  const _Checkout();
+
+  @override
+  ConsumerState<_Checkout> createState() => _CheckoutState();
+}
+
+class _CheckoutState extends ConsumerState<_Checkout> {
+  final _formKey = GlobalKey<FormState>();
+  final _address = TextEditingController();
+  bool _prefilled = false;
+  bool _busy = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _prefill(ref.read(sessionProvider));
+  }
+
+  /// Propone la dirección del perfil una vez, apenas se sabe la cuenta (al
+  /// abrir, o cuando la sesión termina de cargar).
+  void _prefill(Session session) {
+    if (_prefilled || session is! SignedIn) return;
+    _prefilled = true;
+    if (_address.text.isEmpty) _address.text = session.user.address ?? '';
+  }
+
+  @override
+  void dispose() {
+    _address.dispose();
+    super.dispose();
+  }
+
+  Future<void> _confirm() async {
+    if (_busy || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
+    try {
+      final order = await ref
+          .read(cartProvider.notifier)
+          .placeOrder(deliveryAddress: _address.text.trim());
+      if (mounted) context.go(Routes.myOrdersWithNew(order.id));
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = errorMessage(error, 'No se pudo hacer el pedido.'),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    ref.listen(sessionProvider, (_, session) => _prefill(session));
+    return switch (ref.watch(sessionProvider)) {
+      SessionLoading() => const SizedBox.shrink(),
+      SignedOut() => FilledButton(
+        onPressed: () => context.go(
+          Uri(
+            path: Routes.login,
+            queryParameters: {'from': Routes.cart},
+          ).toString(),
+        ),
+        child: const Text('Ingresar para confirmar'),
+      ),
+      SignedIn() => Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextFormField(
+              controller: _address,
+              decoration: const InputDecoration(
+                labelText: 'Dirección de entrega',
+                helperText: 'Calle, número y distrito',
+              ),
+              textCapitalization: TextCapitalization.sentences,
+              autofillHints: const [AutofillHints.fullStreetAddress],
+              validator: validateDeliveryAddress,
+            ),
+            if (_error case final error?) ...[
+              const SizedBox(height: 16),
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  error,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
+                  ),
+                ),
+              ),
+            ],
+            const SizedBox(height: 16),
+            PressScale(
+              enabled: !_busy,
+              child: FilledButton(
+                onPressed: _busy ? null : _confirm,
+                child: _busy
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Text('Confirmar pedido'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    };
+  }
+}
+
+/// El servidor guarda hasta 255 caracteres.
+String? validateDeliveryAddress(String? value) {
+  final address = value?.trim() ?? '';
+  if (address.isEmpty) return 'Escribe a dónde llevamos el pedido.';
+  if (address.length > 255) return 'Usa hasta 255 caracteres.';
+  return null;
 }
 
 class _EmptyCart extends StatelessWidget {
