@@ -4,6 +4,7 @@ abstract final class Routes {
   static const login = '/login';
   static const register = '/registro';
   static const catalog = '/catalogo';
+  static const cart = '/carrito';
 
   /// Grupo protegido: solo admin y staff (ver route_guard.dart).
   static const admin = '/admin';

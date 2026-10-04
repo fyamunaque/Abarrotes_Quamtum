@@ -6,6 +6,7 @@ import '../features/admin/admin_home_screen.dart';
 import '../features/admin/admin_shell.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
+import '../features/cart/cart_screen.dart';
 import '../features/catalog/catalog_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/shared/not_found_screen.dart';
@@ -33,6 +34,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
       GoRoute(path: Routes.catalog, builder: (_, _) => const CatalogScreen()),
+      GoRoute(path: Routes.cart, builder: (_, _) => const CartScreen()),
       // Solo en debug: en los builds de release esta ruta no existe.
       if (kDebugMode)
         GoRoute(

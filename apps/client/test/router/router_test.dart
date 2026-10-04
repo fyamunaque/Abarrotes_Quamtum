@@ -24,6 +24,7 @@ void main() {
 
   /// Arranca la app con [initial] como sesión y devuelve su router.
   Future<GoRouter> pumpApp(WidgetTester tester, Session initial) async {
+    useWideScreen(tester);
     session = TestSession(initial);
     await tester.pumpWidget(
       ProviderScope(

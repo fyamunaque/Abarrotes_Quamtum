@@ -36,6 +36,7 @@ void main() {
     String at = '/login',
     bool settle = true,
   }) async {
+    useWideScreen(tester);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

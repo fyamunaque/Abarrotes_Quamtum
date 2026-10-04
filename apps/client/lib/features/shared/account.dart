@@ -17,8 +17,10 @@ class AccountActions extends StatelessWidget {
   /// Dentro del panel: muestra el rol y no el enlace al panel.
   final bool inPanel;
 
-  /// Desde este ancho, la cuenta va en la barra; por debajo, en el menú.
-  static const wideFrom = 600.0;
+  /// Desde este ancho, la cuenta va en la barra; por debajo, en el menú. Con
+  /// el carrito y "Mis pedidos", una cuenta de staff con un nombre largo
+  /// necesita unos 700 px: 840 es el corte "expanded" de Material.
+  static const wideFrom = 840.0;
 
   @override
   Widget build(BuildContext context) {

@@ -6,6 +6,7 @@ import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import 'account.dart';
+import 'cart_button.dart';
 
 /// El logo de Neil's (naranja con letras crema).
 class NeilsLogo extends StatelessWidget {
@@ -26,9 +27,12 @@ class NeilsLogo extends StatelessWidget {
   }
 }
 
-/// Estructura de las pantallas públicas: barra con el logo, el catálogo y la
-/// cuenta (ingresar, o el nombre y salir), y el contenido centrado con un
-/// ancho cómodo en la web.
+/// Estructura de las pantallas públicas: barra con el logo, el catálogo, el
+/// carrito y la cuenta (ingresar, o el nombre y salir), y el contenido
+/// centrado con un ancho cómodo en la web.
+///
+/// Por debajo de [AccountActions.wideFrom] la barra se compacta: el catálogo
+/// pasa a ser un ícono y la cuenta va en un menú.
 class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({super.key, required this.child, this.maxWidth = 960});
 
@@ -38,6 +42,7 @@ class PublicScaffold extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
+    final compact = MediaQuery.sizeOf(context).width < AccountActions.wideFrom;
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 64,
@@ -46,10 +51,18 @@ class PublicScaffold extends ConsumerWidget {
           child: const NeilsLogo(),
         ),
         actions: [
-          TextButton(
-            onPressed: () => context.go(Routes.catalog),
-            child: const Text('Catálogo'),
-          ),
+          if (compact)
+            IconButton(
+              tooltip: 'Catálogo',
+              icon: const Icon(Icons.storefront_outlined),
+              onPressed: () => context.go(Routes.catalog),
+            )
+          else
+            TextButton(
+              onPressed: () => context.go(Routes.catalog),
+              child: const Text('Catálogo'),
+            ),
+          const CartButton(),
           ...switch (session) {
             // Mientras se sabe si hay una cuenta abierta, nada: así no
             // aparece "Ingresar" un instante.

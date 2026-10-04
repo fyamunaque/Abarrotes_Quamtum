@@ -36,6 +36,14 @@ void useBundledFonts() {
   });
 }
 
+/// Una ventana de escritorio (1280 × 900): la barra completa, sin el menú de
+/// la cuenta. El tamaño por defecto de los tests (800 × 600) ya es compacto.
+void useWideScreen(WidgetTester tester) {
+  tester.view.physicalSize = const Size(1280, 900);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+}
+
 SignedIn signedInAs(UserRole role) => SignedIn(
   SessionUser(
     id: 'u-${role.name}',

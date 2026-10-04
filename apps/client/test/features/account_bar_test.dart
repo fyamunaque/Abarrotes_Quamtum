@@ -36,13 +36,15 @@ void main() {
     await tester.pump();
   }
 
-  for (final width in [320.0, 375.0]) {
+  for (final width in [320.0, 375.0, 600.0]) {
     testWidgets('a $width px la barra pública entra: la cuenta va en un menú', (
       tester,
     ) async {
       await pumpAt(tester, width, const PublicScaffold(child: Text('x')));
       expect(tester.takeException(), isNull);
       expect(find.text('Salir'), findsNothing);
+      expect(find.byTooltip('Catálogo'), findsOneWidget);
+      expect(find.byTooltip('Carrito'), findsOneWidget);
 
       await tester.tap(find.byTooltip('Tu cuenta'));
       await tester.pumpAndSettle();
@@ -90,15 +92,40 @@ void main() {
     expect(find.text('Ingresar'), findsOneWidget);
   });
 
-  testWidgets('en pantallas anchas, el nombre y los botones en la barra', (
-    tester,
-  ) async {
-    await pumpAt(tester, 1024, const PublicScaffold(child: Text('x')));
+  testWidgets('sin sesión, a 320 px entran el catálogo, el carrito e '
+      '"Ingresar"', (tester) async {
+    tester.view.physicalSize = const Size(320, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
+        child: MaterialApp(
+          theme: neilsTheme(),
+          home: const PublicScaffold(child: Text('x')),
+        ),
+      ),
+    );
 
     expect(tester.takeException(), isNull);
-    expect(find.byTooltip('Tu cuenta'), findsNothing);
-    expect(find.text('Alejandra'), findsOneWidget);
-    expect(find.text('Panel'), findsOneWidget);
-    expect(find.text('Salir'), findsOneWidget);
+    expect(find.text('Ingresar'), findsOneWidget);
   });
+
+  for (final width in [840.0, 1024.0]) {
+    testWidgets('a $width px, el nombre y los botones en la barra', (
+      tester,
+    ) async {
+      await pumpAt(tester, width, const PublicScaffold(child: Text('x')));
+
+      expect(tester.takeException(), isNull);
+      expect(find.byTooltip('Tu cuenta'), findsNothing);
+      expect(find.text('Catálogo'), findsOneWidget);
+      expect(find.byTooltip('Carrito'), findsOneWidget);
+      expect(find.text('Alejandra'), findsOneWidget);
+      expect(find.text('Panel'), findsOneWidget);
+      expect(find.text('Salir'), findsOneWidget);
+    });
+  }
 }

@@ -26,4 +26,8 @@ class Product {
   int get finalPriceCents => promoPriceCents ?? priceCents;
 
   bool get inStock => stock > 0;
+
+  /// Cuántos se pueden pedir: el stock, y como mucho 999 (lo que el servidor
+  /// acepta por línea).
+  int get maxQuantity => stock.clamp(0, 999);
 }
