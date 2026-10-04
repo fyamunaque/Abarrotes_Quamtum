@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -6,13 +7,23 @@ import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'app.dart';
+import 'firebase_options.dart';
 
-void main() {
+Future<void> main() async {
   // En la web, URLs limpias (/catalogo) en lugar de /#/catalogo.
   usePathUrlStrategy();
   // Las fuentes van empaquetadas en assets/google_fonts: sin descargas.
   GoogleFonts.config.allowRuntimeFetching = false;
   LicenseRegistry.addLicense(_fontLicenses);
+
+  // Sin config para esta plataforma, la app arranca sin poder ingresar (ver
+  // authRepositoryProvider).
+  final firebase = DefaultFirebaseOptions.currentPlatform;
+  if (firebase != null) {
+    WidgetsFlutterBinding.ensureInitialized();
+    await Firebase.initializeApp(options: firebase);
+  }
+
   runApp(const ProviderScope(child: NeilsApp()));
 }
 

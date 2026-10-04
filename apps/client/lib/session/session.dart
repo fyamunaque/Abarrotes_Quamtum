@@ -24,9 +24,14 @@ class SessionUser {
   final UserRole role;
 }
 
-/// Quién usa la app: nadie ([SignedOut]) o una cuenta ([SignedIn]).
+/// Quién usa la app: nadie ([SignedOut]) o una cuenta ([SignedIn]). Al
+/// arrancar es [SessionLoading] hasta saber si quedó una cuenta abierta.
 sealed class Session {
   const Session();
+}
+
+final class SessionLoading extends Session {
+  const SessionLoading();
 }
 
 final class SignedOut extends Session {

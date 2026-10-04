@@ -45,5 +45,47 @@ void main() {
     test('una ruta que solo empieza parecido no está protegida', () {
       expect(redirect(const SignedOut(), '/administracion'), isNull);
     });
+
+    test('mientras la sesión carga no redirige', () {
+      expect(redirect(const SessionLoading(), '/admin'), isNull);
+      expect(redirect(const SessionLoading(), '/login'), isNull);
+    });
+  });
+
+  group('después de ingresar', () {
+    SessionUser user(UserRole role) => signedInAs(role).user;
+
+    test('un cliente va al catálogo; admin y staff al panel', () {
+      expect(routeAfterSignIn(user(UserRole.customer), null), '/catalogo');
+      expect(routeAfterSignIn(user(UserRole.admin), null), '/admin');
+      expect(routeAfterSignIn(user(UserRole.staff), null), '/admin');
+    });
+
+    test('admin y staff vuelven a la ruta del panel que pidieron', () {
+      expect(
+        routeAfterSignIn(user(UserRole.staff), '/admin/pedidos?estado=x'),
+        '/admin/pedidos?estado=x',
+      );
+    });
+
+    test('un cliente que venía del panel va al catálogo', () {
+      expect(routeAfterSignIn(user(UserRole.customer), '/admin'), '/catalogo');
+    });
+
+    test('from solo vale si es una ruta del panel de esta app', () {
+      for (final from in [
+        '/catalogo',
+        '/administracion',
+        'https://otro.com/admin',
+        '//otro.com/admin',
+        '',
+      ]) {
+        expect(
+          routeAfterSignIn(user(UserRole.admin), from),
+          '/admin',
+          reason: from,
+        );
+      }
+    });
   });
 }
