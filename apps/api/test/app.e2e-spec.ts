@@ -316,6 +316,47 @@ describe('API (e2e)', () => {
       );
       expect(updateMany).not.toHaveBeenCalled();
     });
+
+    it('GET filtra por estado y por rango de fechas (días de Lima), paginado', async () => {
+      const res = await request(app.getHttpServer())
+        .get(
+          '/orders?status=DELIVERED&from=2026-10-01&to=2026-10-31&page=2&limit=10',
+        )
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .expect(200);
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            status: 'DELIVERED',
+            createdAt: {
+              gte: new Date('2026-10-01T05:00:00.000Z'),
+              lt: new Date('2026-11-01T05:00:00.000Z'),
+            },
+          },
+          skip: 10,
+          take: 10,
+        }),
+      );
+      expect(res.body.meta).toEqual({
+        total: 0,
+        page: 2,
+        limit: 10,
+        totalPages: 0,
+      });
+    });
+
+    it.each([
+      ['/orders?from=2026-10-07&to=2026-10-01', 'rango invertido'],
+      ['/orders?from=2026-02-30', 'fecha imposible'],
+      ['/orders?to=31-10-2026', 'formato distinto de AAAA-MM-DD'],
+    ])('GET %s responde 400 (%s)', async (path) => {
+      await request(app.getHttpServer())
+        .get(path)
+        .set('Authorization', await bearer(UserRole.ADMIN))
+        .expect(400);
+      expect(prisma.order.findMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('tokens (Passport-JWT)', () => {

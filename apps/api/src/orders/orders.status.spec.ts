@@ -170,4 +170,54 @@ describe('OrdersService: cambios de estado', () => {
       }),
     );
   });
+
+  describe('filtro por fecha (días de Lima)', () => {
+    const list = (filters: { from?: string; to?: string }) =>
+      service.findAll(
+        Object.assign(new (class {})(), { page: 1, limit: 20, ...filters }),
+      );
+
+    it('incluye los dos días completos en hora de Lima', async () => {
+      await list({ from: '2026-10-01', to: '2026-10-07' });
+
+      expect(prisma.order.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            createdAt: {
+              gte: new Date('2026-10-01T05:00:00.000Z'),
+              lt: new Date('2026-10-08T05:00:00.000Z'),
+            },
+          },
+        }),
+      );
+      // El total de la paginación usa el mismo filtro.
+      expect(prisma.order.count).toHaveBeenCalledWith({
+        where: {
+          createdAt: {
+            gte: new Date('2026-10-01T05:00:00.000Z'),
+            lt: new Date('2026-10-08T05:00:00.000Z'),
+          },
+        },
+      });
+    });
+
+    it('acepta solo `from` o solo `to`', async () => {
+      await list({ from: '2026-10-01' });
+      await list({ to: '2026-10-01' });
+
+      expect(prisma.order.findMany.mock.calls[0][0].where.createdAt).toEqual({
+        gte: new Date('2026-10-01T05:00:00.000Z'),
+      });
+      expect(prisma.order.findMany.mock.calls[1][0].where.createdAt).toEqual({
+        lt: new Date('2026-10-02T05:00:00.000Z'),
+      });
+    });
+
+    it('rechaza un rango invertido con 400', async () => {
+      await expect(
+        list({ from: '2026-10-07', to: '2026-10-01' }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+      expect(prisma.order.findMany).not.toHaveBeenCalled();
+    });
+  });
 });

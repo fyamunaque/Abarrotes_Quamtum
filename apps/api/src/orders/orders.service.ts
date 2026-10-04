@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { MovementType, OrderStatus, Prisma } from '@prisma/client';
 import { paginate, PaginationQueryDto, toSkipTake } from '../common/pagination';
+import { addDays, storeDayStart } from '../common/store-time';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto, OrderItemDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
@@ -122,9 +123,12 @@ export class OrdersService {
     return paginate(data, total, query);
   }
 
-  /** Todos los pedidos (dashboard), opcionalmente filtrados por estado. */
+  /** Todos los pedidos (dashboard), opcionalmente filtrados por estado y por fecha. */
   async findAll(query: ListOrdersQueryDto) {
-    const where: Prisma.OrderWhereInput = { status: query.status };
+    const where: Prisma.OrderWhereInput = {
+      status: query.status,
+      createdAt: createdAtBetween(query.from, query.to),
+    };
     const [data, total] = await Promise.all([
       this.prisma.order.findMany({
         where,
@@ -193,6 +197,24 @@ export class OrdersService {
       });
     });
   }
+}
+
+/**
+ * Filtro de createdAt para un rango de días de la tienda (hora de Lima), ambos incluidos.
+ * Cualquiera de los dos puede faltar; sin ninguno, no filtra.
+ */
+function createdAtBetween(
+  from?: string,
+  to?: string,
+): Prisma.DateTimeFilter | undefined {
+  if (from && to && from > to) {
+    throw new BadRequestException('from no puede ser posterior a to');
+  }
+  if (!from && !to) return undefined;
+  return {
+    ...(from && { gte: storeDayStart(from) }),
+    ...(to && { lt: storeDayStart(addDays(to, 1)) }),
+  };
 }
 
 /** Un mismo producto repetido en el carrito se suma en una sola línea. */

@@ -175,9 +175,14 @@ export interface AdminOrder extends Order {
   customer: Pick<PublicUser, 'id' | 'name' | 'email' | 'phone'>;
 }
 
-/** Query de GET /orders (ADMIN/STAFF). */
+/**
+ * Query de GET /orders (ADMIN/STAFF). `from` y `to` son días de la tienda (hora de Lima),
+ * ambos incluidos; cualquiera puede faltar.
+ */
 export interface ListOrdersQuery extends PaginationQuery {
   status?: OrderStatus;
+  from?: ISODay;
+  to?: ISODay;
 }
 
 /** PATCH /orders/:id/status (ADMIN/STAFF). La API valida que el cambio esté permitido. */

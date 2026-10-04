@@ -93,7 +93,7 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 | DELETE | `/products/:id` | ADMIN, STAFF | Baja lógica (`active = false`); los pedidos históricos siguen apuntando al producto |
 | POST | `/orders` | Autenticado | `{ deliveryAddress, items: [{ productId, quantity }] }` → pedido en `PENDING_CONFIRMATION` a nombre del usuario del token |
 | GET | `/orders/mine` | Autenticado | Mis pedidos, del más reciente al más antiguo. Query: `page`, `limit` |
-| GET | `/orders` | ADMIN, STAFF | Todos los pedidos con los datos del cliente. Query: `status`, `page`, `limit` |
+| GET | `/orders` | ADMIN, STAFF | Todos los pedidos con los datos del cliente, del más reciente al más antiguo. Query: `status`, `from` y `to` (`AAAA-MM-DD`, días de Lima, ambos incluidos; cualquiera puede faltar), `page`, `limit` |
 | PATCH | `/orders/:id/status` | ADMIN, STAFF | `{ status }` → cambia el estado si la transición está permitida (ver abajo) |
 | GET | `/stats/overview` | ADMIN, STAFF | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio; pedidos por estado |
 | GET | `/stats/sales` | ADMIN, STAFF | Serie diaria para graficar. Query: `from`, `to` (`AAAA-MM-DD`; por defecto, los últimos 30 días; máx. 366) |
