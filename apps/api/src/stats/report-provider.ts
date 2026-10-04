@@ -13,10 +13,3 @@ export interface DayRange {
   from: string;
   to: string;
 }
-
-/** Fuente de la hora actual: inyectable para poder fijarla en los tests. */
-export interface Clock {
-  now(): Date;
-}
-
-export const systemClock: Clock = { now: () => new Date() };

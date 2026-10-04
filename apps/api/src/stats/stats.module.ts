@@ -6,10 +6,8 @@ import { OrderStatusReportProvider } from './providers/order-status-report.provi
 import { OverviewReportProvider } from './providers/overview-report.provider';
 import { SalesReportProvider } from './providers/sales-report.provider';
 import { TopProductsReportProvider } from './providers/top-products-report.provider';
-import { systemClock } from './report-provider';
 import { StatsController } from './stats.controller';
 import {
-  CLOCK,
   EXPIRING_PRODUCTS_REPORT,
   LOW_STOCK_REPORT,
   ORDER_STATUS_REPORT,
@@ -24,7 +22,6 @@ import {
   imports: [InventoryModule],
   controllers: [StatsController],
   providers: [
-    { provide: CLOCK, useValue: systemClock },
     { provide: SALES_REPORT, useClass: SalesReportProvider },
     { provide: ORDER_STATUS_REPORT, useClass: OrderStatusReportProvider },
     { provide: OVERVIEW_REPORT, useClass: OverviewReportProvider },

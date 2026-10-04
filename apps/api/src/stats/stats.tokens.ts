@@ -8,4 +8,3 @@ export const OVERVIEW_REPORT = Symbol('OVERVIEW_REPORT');
 export const TOP_PRODUCTS_REPORT = Symbol('TOP_PRODUCTS_REPORT');
 export const LOW_STOCK_REPORT = Symbol('LOW_STOCK_REPORT');
 export const EXPIRING_PRODUCTS_REPORT = Symbol('EXPIRING_PRODUCTS_REPORT');
-export const CLOCK = Symbol('CLOCK');

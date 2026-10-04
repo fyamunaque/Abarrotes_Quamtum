@@ -1,8 +1,8 @@
 import type { ExpiringProductsReport } from '@abarrotes/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
 import { ProductStockRepository } from '../../inventory/product-stock.repository';
-import type { Clock, ReportProvider } from '../report-provider';
-import { CLOCK } from '../stats.tokens';
+import { Clock, CLOCK } from '../../common/clock';
+import type { ReportProvider } from '../report-provider';
 import {
   addDays,
   daysBetween,

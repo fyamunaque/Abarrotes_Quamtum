@@ -4,8 +4,9 @@ import type {
   StatsOverview,
 } from '@abarrotes/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
-import type { Clock, DayRange, ReportProvider } from '../report-provider';
-import { CLOCK, ORDER_STATUS_REPORT, SALES_REPORT } from '../stats.tokens';
+import { Clock, CLOCK } from '../../common/clock';
+import type { DayRange, ReportProvider } from '../report-provider';
+import { ORDER_STATUS_REPORT, SALES_REPORT } from '../stats.tokens';
 import {
   startOfMonth,
   startOfWeek,

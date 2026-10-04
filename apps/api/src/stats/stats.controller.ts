@@ -16,9 +16,9 @@ import {
 } from './dto/stats-query.dto';
 import type { ExpiringRange } from './providers/expiring-products-report.provider';
 import type { TopProductsRange } from './providers/top-products-report.provider';
-import type { Clock, DayRange, ReportProvider } from './report-provider';
+import { Clock, CLOCK } from '../common/clock';
+import type { DayRange, ReportProvider } from './report-provider';
 import {
-  CLOCK,
   EXPIRING_PRODUCTS_REPORT,
   LOW_STOCK_REPORT,
   OVERVIEW_REPORT,
