@@ -22,51 +22,65 @@ class InventoryService {
   /// fila del producto queda bloqueada hasta el final, así dos movimientos
   /// simultáneos no leen el mismo stock. Devuelve el movimiento con su
   /// usuario y el producto ya con el stock nuevo.
+  ///
+  /// Con [transaction], el movimiento forma parte de esa transacción (p. ej.
+  /// la de cancelar un pedido) en vez de abrir una propia.
   Future<InventoryMovement> record(
     Session session,
     MovementInput input, {
     required User by,
+    Transaction? transaction,
   }) {
-    return session.db.transaction((transaction) async {
-      final product = await Product.db.findById(
-        session,
-        input.productId,
-        transaction: transaction,
-        lockMode: LockMode.forUpdate,
-      );
-      if (product == null) {
-        throw const ApiException.badRequest('El producto indicado no existe');
-      }
+    if (transaction != null) return _record(session, input, by, transaction);
+    return session.db.transaction(
+      (transaction) => _record(session, input, by, transaction),
+    );
+  }
 
-      final stock = product.currentStock + _delta(input);
-      if (stock < 0) {
-        throw ApiException.conflict(
-          'Stock insuficiente: ${product.name} tiene ${product.currentStock} '
-          'unidad${product.currentStock == 1 ? '' : 'es'}',
-        );
-      }
-      await Product.db.updateRow(
-        session,
-        product.copyWith(currentStock: stock),
-        columns: (product) => [product.currentStock],
-        transaction: transaction,
+  Future<InventoryMovement> _record(
+    Session session,
+    MovementInput input,
+    User by,
+    Transaction transaction,
+  ) async {
+    final product = await Product.db.findById(
+      session,
+      input.productId,
+      transaction: transaction,
+      lockMode: LockMode.forUpdate,
+    );
+    if (product == null) {
+      throw const ApiException.badRequest('El producto indicado no existe');
+    }
+
+    final stock = product.currentStock + _delta(input);
+    if (stock < 0) {
+      throw ApiException.conflict(
+        'Stock insuficiente: ${product.name} tiene ${product.currentStock} '
+        'unidad${product.currentStock == 1 ? '' : 'es'}',
       );
-      final movement = await InventoryMovement.db.insertRow(
-        session,
-        InventoryMovement(
-          type: input.type,
-          quantity: input.quantity,
-          reason: input.reason,
-          productId: product.id!,
-          userId: by.id!,
-        ),
-        transaction: transaction,
-      );
-      return movement.copyWith(
-        product: product.copyWith(currentStock: stock),
-        user: by,
-      );
-    });
+    }
+    await Product.db.updateRow(
+      session,
+      product.copyWith(currentStock: stock),
+      columns: (product) => [product.currentStock],
+      transaction: transaction,
+    );
+    final movement = await InventoryMovement.db.insertRow(
+      session,
+      InventoryMovement(
+        type: input.type,
+        quantity: input.quantity,
+        reason: input.reason,
+        productId: product.id!,
+        userId: by.id!,
+      ),
+      transaction: transaction,
+    );
+    return movement.copyWith(
+      product: product.copyWith(currentStock: stock),
+      user: by,
+    );
   }
 
   /// Historial de movimientos, del más reciente al más antiguo. Con
