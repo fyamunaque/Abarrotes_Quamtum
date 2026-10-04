@@ -64,6 +64,57 @@ jobs:
           npx prisma migrate deploy
           npx prisma db seed
 
+  server:
+    name: Server (Serverpod)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      # Base efímera del runner: solo vive durante este job.
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: abarrotes
+          POSTGRES_PASSWORD: abarrotes-ci
+          POSTGRES_DB: abarrotes_server
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U abarrotes"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # Valores de prueba, no secretos: reemplazan a config/passwords.yaml.
+      SERVERPOD_PASSWORD_database: abarrotes-ci
+      SERVERPOD_PASSWORD_serviceSecret: ci-service-secret
+      FIREBASE_PROJECT_ID: demo-abarrotes-ci
+    defaults:
+      run:
+        working-directory: apps/server/abarrotes_server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.5
+      - run: dart pub get
+      - name: Formato
+        run: dart format --output=none --set-exit-if-changed lib bin test
+      - name: Análisis
+        run: dart analyze --fatal-infos
+      # Los de integración crean y borran una base temporal por grupo.
+      - name: Tests unitarios y de integración
+        run: dart test
+      - name: Migraciones sobre una base vacía y arranque del servidor
+        run: |
+          dart run bin/main.dart --role maintenance --apply-migrations
+          dart run bin/main.dart > server.log 2>&1 &
+          for i in $(seq 1 90); do
+            curl -s -o /dev/null http://localhost:8082/users/me && break
+            sleep 1
+          done
+          status() { curl -s -o /dev/null -w '%{http_code}' "$@" http://localhost:8082/users/me; }
+          test "$(status)" = 401 || { cat server.log; exit 1; }
+          test "$(status -H 'Authorization: Bearer basura')" = 401 || { cat server.log; exit 1; }
+
   web:
     name: Web
     runs-on: ubuntu-latest
