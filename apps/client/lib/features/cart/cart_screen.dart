@@ -24,6 +24,7 @@ class CartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.watch(cartProvider);
     return PublicScaffold(
+      title: 'Carrito',
       maxWidth: 720,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

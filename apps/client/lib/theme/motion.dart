@@ -13,6 +13,9 @@ abstract final class NeilsMotion {
   /// La línea del seguimiento de pedido cuando el estado avanza.
   static const progress = Duration(milliseconds: 500);
 
+  /// El rebote del carrito de la barra cuando se agrega algo.
+  static const bump = Duration(milliseconds: 300);
+
   /// Si la persona pidió reducir las animaciones.
   static bool reduced(BuildContext context) =>
       MediaQuery.disableAnimationsOf(context);

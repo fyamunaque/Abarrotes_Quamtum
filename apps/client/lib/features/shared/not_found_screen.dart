@@ -12,6 +12,7 @@ class NotFoundScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return PublicScaffold(
+      title: 'Página no encontrada',
       child: Column(
         children: [
           Text('No encontramos esta página', style: text.headlineMedium),

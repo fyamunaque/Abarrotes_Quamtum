@@ -148,6 +148,8 @@ activo, cada animación salta a su estado final.
   animado que no responde a una acción.
 - **"Agregar"** en la tarjeta de producto (`PressScale`): se achica un poco mientras se presiona.
   El precio va subrayado con el mismo swoosh, quieto (`Swoosh`).
+- **El carrito de la barra** (`CartButton`): cuando sube el contador, el ícono da un rebote de
+  300 ms. Al quitar no se mueve.
 - **El seguimiento de pedido** (`OrderTracker`): cuando el estado avanza, la línea se llena
   hasta el paso nuevo en 500 ms, y el color pasa al del estado nuevo. Al mostrarse no se anima.
   Un pedido cancelado muestra los pasos apagados y el aviso: el servidor no guarda en qué paso
@@ -209,6 +211,10 @@ servidor devolvió su perfil.
 - mientras la sesión carga, la pantalla muestra un indicador.
 
 Si la sesión cambia (p. ej. "Salir"), el router vuelve a evaluar la ruta actual.
+
+**Título de la pestaña** (`PageTitle`): cada pantalla pone el suyo, p. ej. "Carrito · Neil's Food
+Services", el nombre del producto en el detalle o "Pedidos · Panel · Neil's Food Services" en el
+panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recibe en `title`.
 
 ## El panel (`/admin`)
 

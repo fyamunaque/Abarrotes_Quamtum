@@ -8,6 +8,7 @@ import '../../session/session_provider.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/account.dart';
 import '../shared/brand.dart';
+import '../shared/page_title.dart';
 
 /// Las secciones del panel, en el orden de la navegación.
 enum AdminSection {
@@ -98,77 +99,80 @@ class AdminShell extends ConsumerWidget {
       ),
     };
 
-    return Theme(
-      data: neilsAdminTheme(Theme.of(context)),
-      child: Scaffold(
-        appBar: AppBar(
-          toolbarHeight: 64,
-          title: const Row(
-            children: [
-              NeilsLogo(),
-              // El espacio se encoge con el título: en un teléfono angosto
-              // solo entra el logo.
-              Flexible(
-                child: Padding(
-                  padding: EdgeInsets.only(left: 12),
-                  child: Text(
-                    'Panel de la tienda',
-                    overflow: TextOverflow.ellipsis,
+    return PageTitle(
+      title: '${selected.label} · Panel',
+      child: Theme(
+        data: neilsAdminTheme(Theme.of(context)),
+        child: Scaffold(
+          appBar: AppBar(
+            toolbarHeight: 64,
+            title: const Row(
+              children: [
+                NeilsLogo(),
+                // El espacio se encoge con el título: en un teléfono angosto
+                // solo entra el logo.
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: 12),
+                    child: Text(
+                      'Panel de la tienda',
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => context.go(Routes.home),
+                child: const Text('Ir a la tienda'),
               ),
+              if (session case SignedIn(:final user))
+                AccountActions(user, inPanel: true),
+              const SizedBox(width: 8),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => context.go(Routes.home),
-              child: const Text('Ir a la tienda'),
-            ),
-            if (session case SignedIn(:final user))
-              AccountActions(user, inPanel: true),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: SafeArea(
-          child: wide
-              ? Row(
-                  children: [
-                    NavigationRail(
-                      selectedIndex: selected.index,
-                      onDestinationSelected: go,
-                      labelType: NavigationRailLabelType.all,
-                      destinations: [
-                        for (final section in AdminSection.values)
-                          NavigationRailDestination(
-                            icon: Icon(section.icon),
-                            selectedIcon: Icon(section.selectedIcon),
-                            label: Text(section.label),
-                          ),
-                      ],
-                    ),
-                    const VerticalDivider(width: 1),
-                    Expanded(child: content),
+          body: SafeArea(
+            child: wide
+                ? Row(
+                    children: [
+                      NavigationRail(
+                        selectedIndex: selected.index,
+                        onDestinationSelected: go,
+                        labelType: NavigationRailLabelType.all,
+                        destinations: [
+                          for (final section in AdminSection.values)
+                            NavigationRailDestination(
+                              icon: Icon(section.icon),
+                              selectedIcon: Icon(section.selectedIcon),
+                              label: Text(section.label),
+                            ),
+                        ],
+                      ),
+                      const VerticalDivider(width: 1),
+                      Expanded(child: content),
+                    ],
+                  )
+                : content,
+          ),
+          bottomNavigationBar: wide
+              ? null
+              : NavigationBar(
+                  selectedIndex: selected.index,
+                  onDestinationSelected: go,
+                  labelBehavior:
+                      NavigationDestinationLabelBehavior.onlyShowSelected,
+                  destinations: [
+                    for (final section in AdminSection.values)
+                      NavigationDestination(
+                        icon: Icon(section.icon),
+                        selectedIcon: Icon(section.selectedIcon),
+                        label: section.shortLabel,
+                        tooltip: section.label,
+                      ),
                   ],
-                )
-              : content,
+                ),
         ),
-        bottomNavigationBar: wide
-            ? null
-            : NavigationBar(
-                selectedIndex: selected.index,
-                onDestinationSelected: go,
-                labelBehavior:
-                    NavigationDestinationLabelBehavior.onlyShowSelected,
-                destinations: [
-                  for (final section in AdminSection.values)
-                    NavigationDestination(
-                      icon: Icon(section.icon),
-                      selectedIcon: Icon(section.selectedIcon),
-                      label: section.shortLabel,
-                      tooltip: section.label,
-                    ),
-                ],
-              ),
       ),
     );
   }

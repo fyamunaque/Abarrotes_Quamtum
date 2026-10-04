@@ -30,6 +30,10 @@ class CatalogScreen extends StatelessWidget {
       search: text == null || text.isEmpty ? null : text,
     );
     return PublicScaffold(
+      title: switch (query.search) {
+        final search? => '“$search” · Catálogo',
+        null => 'Catálogo',
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

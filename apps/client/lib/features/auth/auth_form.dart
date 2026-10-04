@@ -73,6 +73,7 @@ class _AuthFormState extends State<AuthForm> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return PublicScaffold(
+      title: widget.title,
       maxWidth: 420,
       child: Form(
         key: _formKey,

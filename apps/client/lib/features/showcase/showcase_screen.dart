@@ -42,6 +42,7 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     return PublicScaffold(
+      title: 'Vitrina',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

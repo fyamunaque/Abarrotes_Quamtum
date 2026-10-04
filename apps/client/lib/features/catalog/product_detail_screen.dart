@@ -25,6 +25,8 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = productProvider(productId);
     return PublicScaffold(
+      // El nombre del producto, cuando ya cargó.
+      title: ref.watch(provider).value?.name ?? 'Producto',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
