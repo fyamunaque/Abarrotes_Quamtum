@@ -95,8 +95,8 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 | POST | `/categories` | ADMIN, STAFF | `{ name }` → categoría creada. Nombre repetido (sin distinguir mayúsculas): 409 |
 | PATCH | `/categories/:id` | ADMIN, STAFF | `{ name }` → renombra; mismas reglas que al crear |
 | DELETE | `/categories/:id` | ADMIN, STAFF | 204. Si todavía tiene productos (también inactivos), 409: hay que moverlos antes |
-| GET | `/products` | Público | Lista paginada. Query: `categoryId`, `search` (nombre o SKU), `page` (1), `limit` (20, máx. 100), `includeInactive` (solo ADMIN/STAFF) |
-| GET | `/products/:id` | Público | Detalle (los inactivos solo los ve ADMIN/STAFF) |
+| GET | `/products` | Público | Lista paginada. Cada producto trae `promotion`: su promoción vigente o `null`. Query: `categoryId`, `search` (nombre o SKU), `onSale` (solo los que tienen promoción vigente), `page` (1), `limit` (20, máx. 100), `includeInactive` (solo ADMIN/STAFF) |
+| GET | `/products/:id` | Público | Detalle con `promotion` (los inactivos solo los ve ADMIN/STAFF) |
 | POST | `/products` | ADMIN, STAFF | Crear. `currentStock` solo como stock inicial |
 | PATCH | `/products/:id` | ADMIN, STAFF | Editar (campos parciales; `null` borra los opcionales). El stock no se edita aquí: irá por `inventory` (Fase 4) |
 | DELETE | `/products/:id` | ADMIN, STAFF | Baja lógica (`active = false`); los pedidos históricos siguen apuntando al producto |

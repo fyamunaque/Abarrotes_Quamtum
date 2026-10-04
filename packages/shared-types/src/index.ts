@@ -72,13 +72,28 @@ export interface Product {
   createdAt: ISODateString;
   categoryId: string;
   category: Category;
+  /** Promoción vigente: mientras dure, los pedidos se cobran a `promoPrice`. */
+  promotion: ProductPromotion | null;
 }
 
-/** Query de GET /products. `includeInactive` solo tiene efecto para ADMIN/STAFF. */
+/** La promoción vigente de un producto, tal como la ven el marketplace y la app. */
+export interface ProductPromotion {
+  id: string;
+  promoPrice: Money;
+  /** Días de la tienda (hora de Lima), ambos incluidos. */
+  startDate: ISODay;
+  endDate: ISODay;
+}
+
+/**
+ * Query de GET /products. `includeInactive` solo tiene efecto para ADMIN/STAFF;
+ * `onSale` deja solo los productos con una promoción vigente.
+ */
 export interface ListProductsQuery extends PaginationQuery {
   categoryId?: string;
   search?: string;
   includeInactive?: boolean;
+  onSale?: boolean;
 }
 
 /**

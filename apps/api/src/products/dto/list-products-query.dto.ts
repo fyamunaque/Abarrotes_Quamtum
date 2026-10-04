@@ -28,4 +28,12 @@ export class ListProductsQueryDto extends PaginationQueryDto {
   )
   @IsBoolean()
   includeInactive?: boolean;
+
+  /** Solo productos con una promoción vigente (sección de ofertas del marketplace). */
+  @IsOptional()
+  @Transform(
+    ({ value }: { value: unknown }) => value === 'true' || value === true,
+  )
+  @IsBoolean()
+  onSale?: boolean;
 }

@@ -309,7 +309,7 @@ describe('API (e2e)', () => {
       'POST como %s crea el producto',
       async (role) => {
         prisma.product.create.mockImplementation(({ data }) =>
-          Promise.resolve({ id: randomUUID(), ...data }),
+          Promise.resolve({ id: randomUUID(), ...data, promotions: [] }),
         );
 
         await request(app.getHttpServer())
@@ -345,7 +345,7 @@ describe('API (e2e)', () => {
     });
 
     it('PATCH acepta null para borrar un campo opcional', async () => {
-      prisma.product.update.mockResolvedValue({ id: 'p1' });
+      prisma.product.update.mockResolvedValue({ id: 'p1', promotions: [] });
 
       await request(app.getHttpServer())
         .patch(`/products/${randomUUID()}`)
