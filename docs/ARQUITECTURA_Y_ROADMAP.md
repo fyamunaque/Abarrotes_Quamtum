@@ -21,6 +21,7 @@ Todo se apoya en un **backend/API único** y una **base de datos central**, para
 | Backend / API | **NestJS** + TypeScript + Prisma ORM | Estructura modular por dominio (parecida a Spring, así que el paso desde POO en Java es directo), tipado fuerte, y — al ser TypeScript — el mismo lenguaje que la web. Con un equipo de 2-3 personas, no tener que cambiar de lenguaje entre web y backend ahorra tiempo real. |
 | Base de datos | **PostgreSQL** | Relacional, con transacciones ACID — importante cuando un pedido descuenta stock y genera un registro de venta a la vez. |
 | Auth | JWT (access + refresh token) | Roles `CUSTOMER`, `ADMIN`, `STAFF`; el mismo esquema de auth sirve para app, web y dashboard. |
+| Backend nuevo (en migración) | **Serverpod 4** (Dart) + **Firebase Auth** | Pedido del cliente. Vive en `apps/server` y va reemplazando a NestJS dominio por dominio. Las cuentas y contraseñas las maneja Firebase; el servidor verifica el ID token y guarda el rol en Postgres. Ver la sección 3. |
 
 **Nota sobre Python:** si alguien del equipo se siente más cómodo con Python, FastAPI es una alternativa igual de válida para el backend — la arquitectura (módulos por dominio, JWT, Prisma o SQLAlchemy) se traduce casi 1 a 1. Los prompts de la sección 6 están escritos para NestJS; si cambian a FastAPI, ajusten la referencia al framework y el resto de la guía se mantiene igual.
 
@@ -33,6 +34,7 @@ Un solo repositorio con las tres apps facilita compartir tipos y mantener sincro
   /android        -> app Kotlin nativa
   /web            -> Next.js (marketplace público + /admin protegido por rol)
   /api            -> NestJS
+  /server         -> Serverpod (Dart): abarrotes_server + cliente generado
 /packages
   /shared-types   -> tipos TypeScript compartidos entre /web y /api
 /prisma
@@ -51,6 +53,13 @@ El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-
 
 **Sesión en la web:** Next.js llama a la API desde el servidor y guarda los tokens en cookies httpOnly; el navegador nunca ve los tokens ni llama a la API directamente. `apps/web/src/proxy.ts` renueva el access token vencido antes de renderizar (los Server Components no pueden escribir cookies) y manda al login a quien entre a `/admin` sin sesión. El `/admin` confirma el rol con `GET /auth/me`, y cada lectura y acción vuelve a pasar por la API, que responde 403 si el rol no alcanza.
 
+**Serverpod (backend nuevo):** `apps/server` es un workspace de Dart con el servidor (`abarrotes_server`) y el cliente que genera Serverpod. Usa el mismo PostgreSQL pero **otra base**, `abarrotes_server`: Prisma y Serverpod borran las tablas que no reconocen, así que nunca comparten base. Cada dominio tiene su carpeta en `lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082). Por ahora solo `users` está portado:
+
+- `GET /users/me` devuelve el usuario del Firebase ID token; la primera vez lo crea como cliente.
+- `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
+
+El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
+
 **Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `PENDING_CONFIRMATION`) y registra un `InventoryMovement` `OUT`; pasar el pedido a `CANCELLED` lo devuelve con un movimiento `IN`. Ambas cosas ocurren dentro de una transacción. Transiciones permitidas: `apps/api/src/orders/order-status.ts`.
 
 ## 4. Modelo de datos inicial
@@ -58,6 +67,18 @@ El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-
 Ya armé un `schema.prisma` de partida con las entidades centrales: `User` (con rol), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con el enum de estados de la propuesta (`PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED`, con `CANCELLED` como ruta alterna), `OrderItem` y `Promotion`.
 
 Úsenlo como punto de partida, no como versión final — lo normal es que crezca (por ejemplo, direcciones múltiples por cliente, o historial de precios). Cualquier cambio al esquema pasa por `npx prisma migrate dev`, nunca editando la base directamente.
+
+**El mismo modelo en Serverpod** (`apps/server/abarrotes_server/lib/src/<dominio>/*.spy.yaml`) replica estas entidades y relaciones. Las claves foráneas usan `ON DELETE RESTRICT ON UPDATE CASCADE`, como las de Prisma. Diferencias a propósito:
+
+- `User` lleva `firebaseUid` (único) y **no** `passwordHash`: las contraseñas viven en Firebase.
+- Los montos se guardan en **céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal.
+- Los enums van en camelCase:
+  - roles: `customer`, `admin`, `staff`;
+  - estados: `pendingConfirmation`, `confirmed`, …;
+  - movimientos: `incoming`, `outgoing`, `adjustment`. `in` es palabra reservada de Dart.
+- Ids UUID v7 y tablas en plural (`users`, `orders`, …).
+
+Cambios al modelo de Serverpod: editar el `.spy.yaml`, correr `serverpod generate` y `serverpod create-migration`, y commitear la migración. Mientras convivan los dos backends, un cambio de modelo se refleja en ambos.
 
 ## 5. Hoja de ruta
 
@@ -83,6 +104,22 @@ Ventas por periodo, productos más/menos vendidos, stock bajo y por vencer, prom
 
 **Fase 6 — Negocio real** *(no está en la propuesta original, pero la necesitan si el objetivo es un negocio funcional)*
 Pasarela de pago, notificaciones (push/email) de cambio de estado, despliegue a producción, publicación en Google Play. Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos — eso se integra después, vía un proveedor como Nubefact, no se construye desde cero.
+
+**Migración a Serverpod + Firebase** *(pedido del cliente, en curso)*
+Hecho:
+
+- el proyecto en `apps/server`;
+- el modelo de datos completo con su migración inicial;
+- la verificación del Firebase ID token;
+- el dominio `users` (`GET /users/me`, `POST /users`);
+- un job de CI.
+
+Pendiente:
+
+1. Portar `categories`, `products`, `promotions`, `orders` (con su patrón State), `inventory` y `stats`.
+2. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
+3. Pasar el login de Android y web a Firebase.
+4. Retirar `apps/api`.
 
 Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
 
@@ -146,7 +183,12 @@ debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ## 7. Herramientas complementarias
 
 - **Probar la API mientras se desarrolla**: Insomnia o Postman (o archivos `.http` dentro del repo si prefieren algo más ligero, sin instalar nada aparte).
-- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`: tres jobs en paralelo (API con PostgreSQL efímero, que además aplica las migraciones y el seed sobre una base vacía; web; Android) en cada PR y push a `develop` y `main`.
+- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`, con cuatro jobs en paralelo en cada PR y push a `develop` y `main`:
+
+- API, con PostgreSQL efímero; además aplica las migraciones y el seed sobre una base vacía.
+- Serverpod, con PostgreSQL efímero: tests, migraciones y arranque del servidor con un chequeo de 401.
+- Web.
+- Android.
 - **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), web en Vercel, app en Google Play Console (pago único de $25).
 - **Pagos** (Fase 6, para negocio real en Perú): Culqi o Izipay son las opciones locales más simples de integrar (tarjetas, y Culqi soporta Yape); Mercado Pago es la alternativa regional.
 - **Diseño de pantallas** (opcional): si quieren mockups antes de programar, Figma tiene plan gratuito suficiente para un equipo de 2-3.
