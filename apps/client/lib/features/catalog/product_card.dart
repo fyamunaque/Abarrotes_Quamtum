@@ -8,12 +8,20 @@ import 'product_photo.dart';
 /// Un producto en una grilla: foto, nombre, precio subrayado con el swoosh de
 /// la marca y "Agregar". Toma el ancho que le dé la grilla.
 class ProductCard extends StatelessWidget {
-  const ProductCard({super.key, required this.product, required this.onAdd});
+  const ProductCard({
+    super.key,
+    required this.product,
+    required this.onAdd,
+    this.onTap,
+  });
 
   final Product product;
 
   /// Agrega una unidad al carrito.
   final VoidCallback onAdd;
+
+  /// Tocar la tarjeta (fuera de "Agregar"): abre el detalle.
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -34,46 +42,47 @@ class ProductCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         side: BorderSide(color: scheme.outlineVariant),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          AspectRatio(
-            aspectRatio: 4 / 3,
-            child: ProductPhoto(product.imageUrl),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  height: nameHeight,
-                  child: Text(
-                    product.name,
-                    style: nameStyle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+      child: InkWell(onTap: onTap, child: _content(nameStyle, nameHeight)),
+    );
+  }
+
+  Widget _content(TextStyle nameStyle, double nameHeight) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        AspectRatio(aspectRatio: 4 / 3, child: ProductPhoto(product.imageUrl)),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                height: nameHeight,
+                child: Text(
+                  product.name,
+                  style: nameStyle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(height: 6),
+              PriceTag(product),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: PressScale(
+                  enabled: product.inStock,
+                  child: FilledButton.tonalIcon(
+                    onPressed: product.inStock ? onAdd : null,
+                    icon: const Icon(Icons.add_shopping_cart, size: 18),
+                    label: Text(product.inStock ? 'Agregar' : 'Agotado'),
                   ),
                 ),
-                const SizedBox(height: 6),
-                PriceTag(product),
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: PressScale(
-                    enabled: product.inStock,
-                    child: FilledButton.tonalIcon(
-                      onPressed: product.inStock ? onAdd : null,
-                      icon: const Icon(Icons.add_shopping_cart, size: 18),
-                      label: Text(product.inStock ? 'Agregar' : 'Agotado'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

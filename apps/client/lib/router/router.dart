@@ -8,6 +8,7 @@ import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
 import '../features/catalog/catalog_screen.dart';
+import '../features/catalog/product_detail_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/shared/not_found_screen.dart';
 import '../features/showcase/showcase_screen.dart';
@@ -33,7 +34,16 @@ final routerProvider = Provider<GoRouter>((ref) {
             LoginScreen(from: state.uri.queryParameters['from']),
       ),
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
-      GoRoute(path: Routes.catalog, builder: (_, _) => const CatalogScreen()),
+      GoRoute(
+        path: Routes.catalog,
+        builder: (_, state) =>
+            CatalogScreen(categoryId: state.uri.queryParameters['categoria']),
+      ),
+      GoRoute(
+        path: '/producto/:id',
+        builder: (_, state) =>
+            ProductDetailScreen(productId: state.pathParameters['id']!),
+      ),
       GoRoute(path: Routes.cart, builder: (_, _) => const CartScreen()),
       // Solo en debug: en los builds de release esta ruta no existe.
       if (kDebugMode)

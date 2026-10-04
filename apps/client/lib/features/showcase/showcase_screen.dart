@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../catalog/product.dart';
 import '../../orders/order_status.dart';
 import '../catalog/product_card.dart';
+import '../catalog/product_grid.dart';
 import '../orders/order_tracker.dart';
 import '../shared/brand.dart';
 
@@ -54,7 +55,7 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
           const SizedBox(height: 32),
           Text('Tarjetas de producto', style: text.titleLarge),
           const SizedBox(height: 12),
-          _Grid(
+          ProductGrid(
             children: [
               for (final product in _products)
                 ProductCard(
@@ -91,32 +92,6 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
           ),
         ],
       ),
-    );
-  }
-}
-
-/// Grilla simple: columnas de al menos 200 px, todas del mismo ancho.
-class _Grid extends StatelessWidget {
-  const _Grid({required this.children});
-
-  final List<Widget> children;
-
-  static const _gap = 12.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final columns = (constraints.maxWidth / 200).floor().clamp(2, 4);
-        final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
-        return Wrap(
-          spacing: _gap,
-          runSpacing: _gap,
-          children: [
-            for (final child in children) SizedBox(width: width, child: child),
-          ],
-        );
-      },
     );
   }
 }

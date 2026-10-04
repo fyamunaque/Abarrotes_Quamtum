@@ -17,6 +17,18 @@ class ApiFailure implements Exception {
   String toString() => 'ApiFailure($status): $message';
 }
 
+/// Convierte una respuesta con [decode]. Si no tiene la forma esperada (un
+/// servidor de otra versión, un proxy que respondió HTML), un [ApiFailure].
+T decodeResponse<T>(T Function() decode) {
+  try {
+    return decode();
+  } on FormatException {
+    throw const ApiFailure('El servidor respondió algo inesperado.');
+  } on TypeError {
+    throw const ApiFailure('El servidor respondió algo inesperado.');
+  }
+}
+
 /// Las rutas REST del servidor (apps/server): arma la URL, manda el ID token
 /// de Firebase y convierte cada error en un [ApiFailure] en español.
 class ApiClient {

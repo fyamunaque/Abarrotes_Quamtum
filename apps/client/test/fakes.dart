@@ -1,8 +1,80 @@
 import 'dart:async';
 
 import 'package:neils/auth/auth_repository.dart';
+import 'package:neils/catalog/catalog_repository.dart';
+import 'package:neils/catalog/category.dart';
+import 'package:neils/catalog/product.dart';
+import 'package:neils/common/api_client.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/users/user_repository.dart';
+
+const groceries = Category(id: 'cat-abarrotes', name: 'Abarrotes');
+const dairy = Category(id: 'cat-lacteos', name: 'Lácteos');
+
+const rice = Product(
+  id: 'arroz',
+  name: 'Arroz extra 5 kg',
+  priceCents: 2490,
+  stock: 40,
+  category: groceries,
+  description: 'Grano largo, bolsa de 5 kg.',
+);
+const oil = Product(
+  id: 'aceite',
+  name: 'Aceite vegetal 1 L',
+  priceCents: 1090,
+  promoPriceCents: 890,
+  stock: 3,
+  category: groceries,
+);
+const milk = Product(
+  id: 'leche',
+  name: 'Leche evaporada 400 g',
+  priceCents: 420,
+  stock: 48,
+  category: dairy,
+);
+
+/// El catálogo en memoria, paginado como el servidor.
+class FakeCatalogRepository implements CatalogRepository {
+  FakeCatalogRepository({
+    this.categoryList = const [groceries, dairy],
+    this.productList = const [rice, oil, milk],
+    this.pageSize = 20,
+  });
+
+  final List<Category> categoryList;
+  final List<Product> productList;
+  final int pageSize;
+
+  /// Si no es null, `products` falla con esto.
+  Object? failure;
+
+  /// Cada pedido de productos: (categoría, página).
+  final requests = <(String?, int)>[];
+
+  @override
+  Future<List<Category>> categories() async => categoryList;
+
+  @override
+  Future<ProductPage> products({String? categoryId, int page = 1}) async {
+    requests.add((categoryId, page));
+    if (failure case final failure?) throw failure;
+    final matching = [
+      for (final product in productList)
+        if (categoryId == null || product.category?.id == categoryId) product,
+    ];
+    return ProductPage(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+    );
+  }
+
+  @override
+  Future<Product> product(String id) async =>
+      productList.where((product) => product.id == id).firstOrNull ??
+      (throw const ApiFailure('Producto no encontrado', status: 404));
+}
 
 /// Firebase Auth en memoria: cuentas por email y una abierta a la vez.
 class FakeAuthRepository implements AuthRepository {

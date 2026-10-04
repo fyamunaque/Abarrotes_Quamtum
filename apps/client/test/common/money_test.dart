@@ -10,4 +10,15 @@ void main() {
     expect(formatSoles(123456), 'S/ 1234.56');
     expect(formatSoles(-890), '-S/ 8.90');
   });
+
+  test('los montos del servidor en céntimos', () {
+    expect(parseCents('4.5'), 450);
+    expect(parseCents('8.90'), 890);
+    expect(parseCents('10'), 1000);
+    expect(parseCents('0.05'), 5);
+    expect(parseCents('-1.2'), -120);
+    for (final bad in ['', '4.555', '4,5', 'S/ 4.50', '.5']) {
+      expect(() => parseCents(bad), throwsFormatException, reason: bad);
+    }
+  });
 }

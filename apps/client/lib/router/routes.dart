@@ -6,6 +6,13 @@ abstract final class Routes {
   static const catalog = '/catalogo';
   static const cart = '/carrito';
 
+  /// El catálogo filtrado por una categoría (`?categoria=<id>`).
+  static String catalogOf(String categoryId) =>
+      Uri(path: catalog, queryParameters: {'categoria': categoryId}).toString();
+
+  /// El detalle de un producto.
+  static String product(String id) => '/producto/${Uri.encodeComponent(id)}';
+
   /// Grupo protegido: solo admin y staff (ver route_guard.dart).
   static const admin = '/admin';
 
