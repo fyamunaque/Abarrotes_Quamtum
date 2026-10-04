@@ -7,6 +7,7 @@ plugins {
 android {
     namespace = "com.quamtum.neils"
     compileSdk = flutter.compileSdkVersion
+    // El build.gradle.kts raíz lo reemplaza por el NDK 30 (ver ahí por qué).
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
