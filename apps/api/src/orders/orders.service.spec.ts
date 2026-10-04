@@ -7,7 +7,13 @@ const ARROZ = 'aaaaaaaa-0000-4000-8000-000000000001';
 const ACEITE = 'bbbbbbbb-0000-4000-8000-000000000002';
 
 function product(id: string, name: string, price: string, currentStock = 50) {
-  return { id, name, price: new Prisma.Decimal(price), currentStock };
+  return {
+    id,
+    name,
+    price: new Prisma.Decimal(price),
+    currentStock,
+    promotions: [] as { promoPrice: Prisma.Decimal }[],
+  };
 }
 
 describe('OrdersService', () => {
@@ -41,7 +47,9 @@ describe('OrdersService', () => {
     const prisma = {
       $transaction: jest.fn((fn: (client: typeof tx) => unknown) => fn(tx)),
     };
-    service = new OrdersService(prisma as unknown as PrismaService);
+    service = new OrdersService(prisma as unknown as PrismaService, {
+      now: () => new Date('2026-10-03T17:00:00Z'),
+    });
   });
 
   it('calcula precios y total en el servidor y suma productos repetidos', async () => {
@@ -116,5 +124,37 @@ describe('OrdersService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
 
     expect(tx.order.create).not.toHaveBeenCalled();
+  });
+
+  it('cobra el precio de la promoción vigente y el normal en lo demás', async () => {
+    const arroz = product(ARROZ, 'Arroz 1kg', '4.50');
+    arroz.promotions = [{ promoPrice: new Prisma.Decimal('3.90') }];
+    tx.product.findMany.mockResolvedValue([
+      arroz,
+      product(ACEITE, 'Aceite 1L', '9.90'),
+    ]);
+
+    await service.create('cliente-1', {
+      deliveryAddress: 'Av. Siempre Viva 123',
+      items: [
+        { productId: ARROZ, quantity: 2 },
+        { productId: ACEITE, quantity: 1 },
+      ],
+    });
+
+    const { data } = tx.order.create.mock.calls[0][0];
+    expect(data.total.toString()).toBe('17.7'); // 2 × 3.90 + 9.90
+    expect(
+      data.items.create.map((i: { unitPrice: Prisma.Decimal }) =>
+        i.unitPrice.toString(),
+      ),
+    ).toEqual(['3.9', '9.9']);
+    expect(
+      tx.product.findMany.mock.calls[0][0].include.promotions.where,
+    ).toEqual({
+      active: true,
+      startDate: { lte: new Date('2026-10-03T17:00:00Z') },
+      endDate: { gt: new Date('2026-10-03T17:00:00Z') },
+    });
   });
 });

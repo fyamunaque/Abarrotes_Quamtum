@@ -1,15 +1,18 @@
 import {
   BadRequestException,
   ConflictException,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { MovementType, OrderStatus, Prisma } from '@prisma/client';
+import { Clock, CLOCK } from '../common/clock';
 import { paginate, PaginationQueryDto, toSkipTake } from '../common/pagination';
 import { addDays, storeDayStart } from '../common/store-time';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto, OrderItemDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
+import { activePromotionWhere } from '../promotions/promotion-rules';
 import { orderStateOf } from './states';
 
 const orderInclude = {
@@ -28,7 +31,10 @@ const adminOrderInclude = {
 
 @Injectable()
 export class OrdersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CLOCK) private readonly clock: Clock,
+  ) {}
 
   /**
    * Crea el pedido en PENDING_CONFIRMATION y descuenta el stock en la misma
@@ -38,8 +44,16 @@ export class OrdersService {
     const quantities = mergeQuantities(dto.items);
 
     return this.prisma.$transaction(async (tx) => {
+      // Con su promoción vigente, si tiene: el pedido se cobra a ese precio.
       const products = await tx.product.findMany({
         where: { id: { in: [...quantities.keys()] }, active: true },
+        include: {
+          promotions: {
+            where: activePromotionWhere(this.clock.now()),
+            select: { promoPrice: true },
+            take: 1,
+          },
+        },
       });
       const productsById = new Map(products.map((p) => [p.id, p]));
 
@@ -56,13 +70,15 @@ export class OrdersService {
       // orden y no se interbloquean.
       const lines = [...quantities]
         .sort(([a], [b]) => a.localeCompare(b))
-        .map(([productId, quantity]) => ({
-          product: productsById.get(productId)!,
-          quantity,
-        }));
+        .map(([productId, quantity]) => {
+          const product = productsById.get(productId)!;
+          // Precio de la promoción vigente o, si no hay, el precio normal.
+          const unitPrice = product.promotions[0]?.promoPrice ?? product.price;
+          return { product, quantity, unitPrice };
+        });
 
       let total = new Prisma.Decimal(0);
-      for (const { product, quantity } of lines) {
+      for (const { product, quantity, unitPrice } of lines) {
         // Descuento condicional: si otro pedido se llevó el stock entre la lectura
         // y esta escritura, no se actualiza ninguna fila.
         const { count } = await tx.product.updateMany({
@@ -74,7 +90,7 @@ export class OrdersService {
             `Stock insuficiente para "${product.name}"`,
           );
         }
-        total = total.add(product.price.mul(quantity));
+        total = total.add(unitPrice.mul(quantity));
       }
 
       const order = await tx.order.create({
@@ -83,10 +99,10 @@ export class OrdersService {
           deliveryAddress: dto.deliveryAddress,
           total,
           items: {
-            create: lines.map(({ product, quantity }) => ({
+            create: lines.map(({ product, quantity, unitPrice }) => ({
               productId: product.id,
               quantity,
-              unitPrice: product.price,
+              unitPrice,
             })),
           },
         },

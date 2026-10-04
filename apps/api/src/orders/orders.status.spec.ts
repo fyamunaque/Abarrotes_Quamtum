@@ -53,7 +53,9 @@ describe('OrdersService: cambios de estado', () => {
         count: jest.fn().mockResolvedValue(0),
       },
     };
-    service = new OrdersService(prisma as unknown as PrismaService);
+    service = new OrdersService(prisma as unknown as PrismaService, {
+      now: () => new Date(),
+    });
   });
 
   it('avanza por el flujo normal y solo si el pedido sigue en el estado leído', async () => {

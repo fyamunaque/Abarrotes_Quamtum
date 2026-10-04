@@ -119,7 +119,7 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 2. Descuenta el stock de cada uno solo si alcanza (si no, 409 `Stock insuficiente para "..."` y no se guarda nada).
 3. Crea el pedido con sus líneas (`unitPrice` = precio vigente) y registra un `InventoryMovement` de tipo `OUT` por producto.
 
-Productos repetidos en `items` se suman en una sola línea. Las promociones (Fase 5) todavía no afectan el precio.
+Productos repetidos en `items` se suman en una sola línea. Si el producto tiene una promoción vigente, `unitPrice` es el precio promocional (ver "Promociones").
 
 ### Cambios de estado
 
