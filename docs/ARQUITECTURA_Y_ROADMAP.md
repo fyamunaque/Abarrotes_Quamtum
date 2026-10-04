@@ -53,10 +53,11 @@ El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-
 
 **Sesión en la web:** Next.js llama a la API desde el servidor y guarda los tokens en cookies httpOnly; el navegador nunca ve los tokens ni llama a la API directamente. `apps/web/src/proxy.ts` renueva el access token vencido antes de renderizar (los Server Components no pueden escribir cookies) y manda al login a quien entre a `/admin` sin sesión. El `/admin` confirma el rol con `GET /auth/me`, y cada lectura y acción vuelve a pasar por la API, que responde 403 si el rol no alcanza.
 
-**Serverpod (backend nuevo):** `apps/server` es un workspace de Dart con el servidor (`abarrotes_server`) y el cliente que genera Serverpod. Usa el mismo PostgreSQL pero **otra base**, `abarrotes_server`: Prisma y Serverpod borran las tablas que no reconocen, así que nunca comparten base. Cada dominio tiene su carpeta en `lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082). Por ahora solo `users` está portado:
+**Serverpod (backend nuevo):** `apps/server` es un workspace de Dart con el servidor (`abarrotes_server`) y el cliente que genera Serverpod. Usa el mismo PostgreSQL pero **otra base**, `abarrotes_server`: Prisma y Serverpod borran las tablas que no reconocen, así que nunca comparten base. Cada dominio tiene su carpeta en `lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082), con el mismo JSON que la API NestJS. Ya están portados:
 
-- `GET /users/me` devuelve el usuario del Firebase ID token; la primera vez lo crea como cliente.
-- `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
+- `users`: `GET /users/me` devuelve el usuario del Firebase ID token y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
+- `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra su promoción vigente.
+- `promotions`: CRUD para admin/staff, con el estado según la fecha.
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
@@ -111,12 +112,13 @@ Hecho:
 - el proyecto en `apps/server`;
 - el modelo de datos completo con su migración inicial;
 - la verificación del Firebase ID token;
-- el dominio `users` (`GET /users/me`, `POST /users`);
+- el dominio `users` (`GET /users/me`, `POST /users`) y el guard por rol;
+- `categories`, `products` y `promotions`, con las mismas reglas que en NestJS;
 - un job de CI.
 
 Pendiente:
 
-1. Portar `categories`, `products`, `promotions`, `orders` (con su patrón State), `inventory` y `stats`.
+1. Portar `orders` (con su patrón State y el cobro del precio promocional), `inventory` y `stats`.
 2. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
 3. Pasar el login de Android y web a Firebase.
 4. Retirar `apps/api`.

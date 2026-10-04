@@ -110,34 +110,73 @@ toma en cuenta.
 
 ### Proteger una ruta por rol
 
-`RoleGuard` es el equivalente a `@Roles(...)` de NestJS. Envuelve la ruta al registrarla, detrás
-de `firebaseAuthMiddleware`:
+`RoleGuard` es el equivalente a `@Roles(...)` de NestJS: envuelve una ruta y responde 401 (sin
+token o inválido), 503 (sin llaves de Google) o 403 (el rol no alcanza) antes de que la ruta lea
+el body. Si deja pasar, la ruta tiene al usuario en `request.currentUser`. Las lecturas públicas
+que muestran más al staff (p. ej. productos inactivos) usan `optionalUser`: un token ausente o
+inválido cuenta como visitante.
+
+## Cómo se arma un dominio
+
+Cada dominio expone una lista de rutas `(path, ruta)` y su servicio (ver `lib/src/categories/`):
 
 ```dart
-webServer.addRoute(RoleGuard({UserRole.admin, UserRole.staff}, MiRuta()), '/mi-ruta');
+List<RouteEntry> categoriesRoutes(CategoriesService categories, FirebaseTokenVerifier verifier) => [
+  ('/categories', ApiRoute(Method.get, (session, request) async => ...)),            // pública
+  ('/categories', RoleGuard(staffRoles, ApiRoute(Method.post, ...), verifier: verifier)),
+];
 ```
 
-Busca al usuario del token en `users` y responde 403 si no existe o si su rol no está en la
-lista, antes de que la ruta lea el body. Si lo deja pasar, la ruta tiene al usuario en
-`request.currentUser`.
+- `ApiRoute` es una ruta de un solo método. Un `ApiException` que lance se convierte en
+  `{statusCode, message, error}`.
+- `addRoutes` registra la lista en `server.dart`. Serverpod admite **una sola ruta por path**, así
+  que las que comparten path se juntan en una que despacha según el método (`mergeByPath`).
+- `InputReader` valida el body o el query como el ValidationPipe de NestJS. Junta todos los
+  errores en un 400 y rechaza las propiedades no permitidas.
+- Montos en céntimos en la base y como texto en el JSON (`formatMoney`: 450 → `"4.5"`). Los días
+  de la tienda (`AAAA-MM-DD`) se manejan en hora de Lima (`common/store_time.dart`).
+- Tests de integración: `serveRoutes` (en `test/support/`) monta las rutas igual que Serverpod,
+  con la sesión del test, y `TestClient` firma tokens de prueba por uid.
 
 ## Endpoints (servidor web, puerto 8082)
+
+El JSON tiene la misma forma que la API NestJS (`packages/shared-types`): precios como texto
+(`"4.5"`), listados `{data, meta}` con `?page=` y `?limit=` (1 a 100, por defecto 20) y fechas de
+promoción como días de Lima. Lo único distinto: los enums van como en los modelos de Serverpod
+(`customer`, `active`…).
 
 | Método y ruta | Quién | Qué hace |
 |---|---|---|
 | `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. |
 | `POST /users` | solo `admin` | Crea una cuenta `admin` o `staff` vinculada a un `firebaseUid` existente. Es la única forma de tener esos roles. |
+| `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
+| `POST /categories`, `PATCH /categories/:id` | admin, staff | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
+| `DELETE /categories/:id` | admin, staff | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
+| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con promoción vigente) e `includeInactive=true` (solo surte efecto para admin y staff). |
+| `GET /products/:id` | público | Un inactivo es 404, salvo para admin y staff. |
+| `POST /products` | admin, staff | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. |
+| `PATCH /products/:id` | admin, staff | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. |
+| `DELETE /products/:id` | admin, staff | Baja lógica (`active: false`); devuelve el producto. |
+| `GET /promotions`, `GET /promotions/:id` | admin, staff | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
+| `POST /promotions` | admin, staff | `{productId, promoPrice, startDate, endDate, active?}`, días `AAAA-MM-DD` ambos incluidos. |
+| `PATCH /promotions/:id` | admin, staff | Cambia precio, fechas o `active`; el producto no cambia. |
+| `DELETE /promotions/:id` | admin, staff | 204. |
 
-Respuesta de ambos: `{id, email, name, phone, role, address, createdAt}`, con `role` igual a
-`customer`, `admin` o `staff`. Body de `POST /users`:
-`{firebaseUid, email, name, role, phone?, address?}`.
+Cada producto trae su categoría y `promotion`, la promoción vigente o `null`. Reglas de las
+promociones (`lib/src/promotions/promotion_rules.dart`):
 
-Errores con la forma de la API NestJS (`{statusCode, message, error}`):
+- El estado sale de la fecha y del interruptor `active`; no se guarda.
+- `promoPrice` tiene que ser menor al precio normal (400).
+- Dos promociones encendidas del mismo producto no pueden cruzarse en el tiempo (409).
 
+Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}`. Errores comunes a
+todas las rutas, con la forma de la API NestJS (`{statusCode, message, error}`):
+
+- 400: body o query inválidos (con la lista de errores), o token sin email en `/users/me`.
 - 401: sin token o con uno inválido.
-- 403: quien llama no es admin.
-- 400: body inválido, o token sin email en `/users/me`.
-- 409: `firebaseUid` o email ya registrados.
+- 403: el rol no alcanza.
+- 404: no existe.
+- 409: conflicto (duplicados, categoría con productos, promociones que se cruzan).
 - 503: no se pudieron obtener las llaves de Google.
 
 ### Primer admin
