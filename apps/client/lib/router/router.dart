@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/admin/admin_home_screen.dart';
 import '../features/admin/admin_shell.dart';
+import '../features/admin/orders/admin_orders_screen.dart';
 import '../features/admin/shared/admin_page.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -70,7 +71,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           for (final section in AdminSection.values.skip(1))
             GoRoute(
               path: section.path,
-              builder: (_, _) => AdminPlaceholder(section.label),
+              builder: (_, _) => switch (section) {
+                AdminSection.orders => const AdminOrdersScreen(),
+                _ => AdminPlaceholder(section.label),
+              },
             ),
         ],
       ),

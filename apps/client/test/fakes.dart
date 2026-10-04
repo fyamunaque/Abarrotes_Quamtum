@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:neils/admin/orders/admin_order.dart';
+import 'package:neils/admin/orders/admin_orders_repository.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
 import 'package:neils/auth/auth_repository.dart';
@@ -39,6 +41,102 @@ const milk = Product(
   priceCents: 420,
   stock: 48,
   category: dairy,
+);
+
+/// Los pedidos del panel en memoria. Valida el cambio de estado como el
+/// servidor (`nextStatuses`), con su mismo mensaje.
+class FakeAdminOrdersRepository implements AdminOrdersRepository {
+  FakeAdminOrdersRepository(this.orders, {this.pageSize = 20});
+
+  final List<AdminOrder> orders;
+  final int pageSize;
+
+  /// Si no es null, el próximo cambio de estado falla con esto (p. ej. otra
+  /// persona ya lo cambió).
+  ApiFailure? failNext;
+
+  final changes = <(String, OrderStatus)>[];
+
+  @override
+  Future<PageList<AdminOrder>> list({int page = 1, OrderStatus? status}) async {
+    final matching = [
+      for (final order in orders)
+        if (status == null || order.order.status == status) order,
+    ];
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<AdminOrder> changeStatus(String id, OrderStatus status) async {
+    if (failNext case final failure?) {
+      failNext = null;
+      throw failure;
+    }
+    final i = orders.indexWhere((order) => order.id == id);
+    final current = orders[i];
+    if (!current.order.status.nextStatuses.contains(status)) {
+      throw ApiFailure(
+        'Un pedido ${current.order.status.label.toLowerCase()} no puede '
+        'pasar a ${status.label.toLowerCase()}',
+        status: 400,
+      );
+    }
+    changes.add((id, status));
+    return orders[i] = withStatus(current, status);
+  }
+
+  static AdminOrder withStatus(AdminOrder order, OrderStatus status) =>
+      AdminOrder(
+        order: Order(
+          id: order.order.id,
+          status: status,
+          totalCents: order.order.totalCents,
+          deliveryAddress: order.order.deliveryAddress,
+          createdAt: order.order.createdAt,
+          lines: order.order.lines,
+        ),
+        customerName: order.customerName,
+        customerEmail: order.customerEmail,
+        customerPhone: order.customerPhone,
+      );
+}
+
+/// Un pedido del panel para los tests.
+AdminOrder adminOrder(
+  String id,
+  OrderStatus status, {
+  String customer = 'Ana Quispe',
+  int day = 4,
+}) => AdminOrder(
+  order: Order(
+    id: id,
+    status: status,
+    totalCents: 3380,
+    deliveryAddress: 'Av. Arequipa 123, Lince',
+    createdAt: DateTime.utc(2026, 10, day, 15, 30),
+    lines: const [
+      OrderLine(
+        productId: 'arroz',
+        name: 'Arroz extra 5 kg',
+        quantity: 1,
+        unitPriceCents: 2490,
+      ),
+      OrderLine(
+        productId: 'aceite',
+        name: 'Aceite vegetal 1 L',
+        quantity: 1,
+        unitPriceCents: 890,
+      ),
+    ],
+  ),
+  customerName: customer,
+  customerEmail: 'ana@tienda.pe',
+  customerPhone: '987654321',
 );
 
 /// Los reportes del inicio del panel en memoria. Con [failing], ese reporte

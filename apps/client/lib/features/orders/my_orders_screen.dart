@@ -9,6 +9,7 @@ import '../../router/routes.dart';
 import '../../theme/brand_colors.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/brand.dart';
+import '../shared/date_format.dart';
 import '../shared/error_message.dart';
 import 'order_tracker.dart';
 
@@ -163,11 +164,7 @@ class _OrderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final localizations = MaterialLocalizations.of(context);
-    final created = order.createdAt.toLocal();
-    final date =
-        '${localizations.formatMediumDate(created)}, '
-        '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(created))}';
+    final date = formatDateTime(context, order.createdAt);
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: scheme.onSurfaceVariant,
     );
