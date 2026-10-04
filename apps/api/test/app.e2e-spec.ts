@@ -27,6 +27,11 @@ function createPrismaMock() {
     },
     category: {
       findMany: jest.fn().mockResolvedValue([{ id: 'c1', name: 'Abarrotes' }]),
+      findUnique: jest.fn(),
+      findFirst: jest.fn().mockResolvedValue(null),
+      create: jest.fn(),
+      update: jest.fn(),
+      delete: jest.fn(),
     },
     order: {
       findMany: jest.fn().mockResolvedValue([]),
@@ -82,6 +87,83 @@ describe('API (e2e)', () => {
     return request(app.getHttpServer())
       .get('/health')
       .expect(200, { status: 'ok' });
+  });
+
+  describe('/categories', () => {
+    const id = randomUUID();
+
+    it('GET y GET /:id son públicos', async () => {
+      prisma.category.findUnique.mockResolvedValue({ id, name: 'Bebidas' });
+
+      await request(app.getHttpServer())
+        .get('/categories')
+        .expect(200, [{ id: 'c1', name: 'Abarrotes' }]);
+      await request(app.getHttpServer())
+        .get(`/categories/${id}`)
+        .expect(200, { id, name: 'Bebidas' });
+    });
+
+    it('GET /:id responde 404 si no existe y 400 si el id no es UUID', async () => {
+      prisma.category.findUnique.mockResolvedValue(null);
+
+      await request(app.getHttpServer()).get(`/categories/${id}`).expect(404);
+      await request(app.getHttpServer()).get('/categories/bebidas').expect(400);
+    });
+
+    it('escribir pide token y rol de staff', async () => {
+      await request(app.getHttpServer())
+        .post('/categories')
+        .send({ name: 'Snacks' })
+        .expect(401);
+      await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .send({ name: 'Snacks' })
+        .expect(403);
+      expect(prisma.category.create).not.toHaveBeenCalled();
+    });
+
+    it('POST como STAFF crea la categoría con el nombre sin espacios', async () => {
+      prisma.category.create.mockImplementation(
+        ({ data }: { data: { name: string } }) =>
+          Promise.resolve({ id, ...data }),
+      );
+
+      await request(app.getHttpServer())
+        .post('/categories')
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .send({ name: '  Snacks  ' })
+        .expect(201, { id, name: 'Snacks' });
+    });
+
+    it('POST valida el nombre y rechaza campos desconocidos', async () => {
+      const auth = await bearer(UserRole.ADMIN);
+      for (const body of [{}, { name: '' }, { name: 'Snacks', extra: 1 }]) {
+        await request(app.getHttpServer())
+          .post('/categories')
+          .set('Authorization', auth)
+          .send(body)
+          .expect(400);
+      }
+    });
+
+    it('DELETE responde 204, o 409 si la categoría tiene productos', async () => {
+      const auth = await bearer(UserRole.ADMIN);
+      prisma.category.findUnique.mockResolvedValue({ id, name: 'Bebidas' });
+
+      prisma.product.count.mockResolvedValueOnce(2);
+      await request(app.getHttpServer())
+        .delete(`/categories/${id}`)
+        .set('Authorization', auth)
+        .expect(409);
+
+      prisma.product.count.mockResolvedValueOnce(0);
+      await request(app.getHttpServer())
+        .delete(`/categories/${id}`)
+        .set('Authorization', auth)
+        .expect(204);
+      expect(prisma.category.delete).toHaveBeenCalledWith({ where: { id } });
+    });
   });
 
   describe('/products', () => {

@@ -10,6 +10,8 @@ import { UpdateOrderStatusDto } from './orders/dto/update-order-status.dto';
 import { CreateProductDto } from './products/dto/create-product.dto';
 import { ListProductsQueryDto } from './products/dto/list-products-query.dto';
 import { UpdateProductDto } from './products/dto/update-product.dto';
+import { CreateCategoryDto } from './categories/dto/create-category.dto';
+import { UpdateCategoryDto } from './categories/dto/update-category.dto';
 import {
   DateRangeQueryDto,
   ExpiringQueryDto,
@@ -70,6 +72,15 @@ describe('Contrato con @abarrotes/shared-types', () => {
     >();
     expectTrue<
       SameShape<Partial<Fields<ListOrdersQueryDto>>, Shared.ListOrdersQuery>
+    >();
+  });
+
+  it('los DTOs de categorías coinciden', () => {
+    expectTrue<
+      SameShape<Fields<CreateCategoryDto>, Shared.CreateCategoryRequest>
+    >();
+    expectTrue<
+      SameShape<Fields<UpdateCategoryDto>, Shared.UpdateCategoryRequest>
     >();
   });
 

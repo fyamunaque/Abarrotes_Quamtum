@@ -47,6 +47,17 @@ export interface Category {
   name: string;
 }
 
+/**
+ * POST /categories (ADMIN/STAFF). El nombre no puede repetirse, sin distinguir mayúsculas
+ * (409). DELETE /categories/:id responde 204, o 409 si la categoría todavía tiene productos.
+ */
+export interface CreateCategoryRequest {
+  name: string;
+}
+
+/** PATCH /categories/:id (ADMIN/STAFF). */
+export type UpdateCategoryRequest = Partial<CreateCategoryRequest>;
+
 export interface Product {
   id: string;
   name: string;
