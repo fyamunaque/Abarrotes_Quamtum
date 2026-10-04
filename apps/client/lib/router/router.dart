@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/admin/admin_home_screen.dart';
 import '../features/admin/admin_shell.dart';
+import '../features/admin/inventory/admin_inventory_screen.dart';
 import '../features/admin/orders/admin_orders_screen.dart';
 import '../features/admin/products/admin_products_screen.dart';
 import '../features/admin/shared/admin_page.dart';
@@ -75,6 +76,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               builder: (_, _) => switch (section) {
                 AdminSection.orders => const AdminOrdersScreen(),
                 AdminSection.products => const AdminProductsScreen(),
+                AdminSection.inventory => const AdminInventoryScreen(),
                 _ => AdminPlaceholder(section.label),
               },
             ),

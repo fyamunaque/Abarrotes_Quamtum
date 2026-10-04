@@ -114,6 +114,16 @@ ThemeData neilsAdminTheme(ThemeData base) {
       side: BorderSide(color: scheme.outlineVariant),
       labelStyle: text.labelLarge?.copyWith(color: NeilsColors.ink),
     ),
+    // Como los chips: el segmento elegido en el tono claro, no en naranja.
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        backgroundColor: scheme.surfaceContainerLowest,
+        foregroundColor: NeilsColors.ink,
+        selectedBackgroundColor: NeilsColors.primaryTint,
+        selectedForegroundColor: NeilsColors.ink,
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+    ),
     dialogTheme: DialogThemeData(backgroundColor: NeilsColors.cream),
   );
 }

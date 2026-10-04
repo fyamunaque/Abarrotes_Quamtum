@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:neils/admin/inventory/inventory_repository.dart';
+import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_repository.dart';
 import 'package:neils/admin/products/admin_products_repository.dart';
@@ -257,6 +259,63 @@ class FakeAdminProductsRepository implements AdminProductsRepository {
     },
     category: [groceries, dairy].firstWhere((c) => c.id == input.categoryId),
   );
+}
+
+/// El inventario en memoria: el stock de [products] y su historial, el más
+/// reciente primero. Responde 409 si una salida o un ajuste deja el stock en
+/// negativo, como el servidor.
+class FakeInventoryRepository implements InventoryRepository {
+  FakeInventoryRepository(
+    List<Product> products, {
+    List<Movement> movements = const [],
+    this.pageSize = 20,
+  }) : stock = {for (final p in products) p.id: p.stock},
+       _products = {for (final p in products) p.id: p},
+       history = [...movements];
+
+  final Map<String, int> stock;
+  final Map<String, Product> _products;
+  final List<Movement> history;
+  final int pageSize;
+  final recorded = <MovementInput>[];
+
+  @override
+  Future<PageList<Movement>> movements({int page = 1}) async => PageList(
+    history.skip((page - 1) * pageSize).take(pageSize).toList(),
+    total: history.length,
+    page: page,
+    pageSize: pageSize,
+  );
+
+  @override
+  Future<Movement> record(MovementInput input) async {
+    final product = _products[input.productId]!;
+    final current = stock[product.id]!;
+    final change = input.type == MovementType.outgoing
+        ? -input.quantity
+        : input.quantity;
+    if (current + change < 0) {
+      throw ApiFailure(
+        'Stock insuficiente: ${product.name} tiene $current unidades',
+        status: 409,
+      );
+    }
+    recorded.add(input);
+    stock[product.id] = current + change;
+    final movement = Movement(
+      id: 'mov-${history.length + 1}',
+      type: input.type,
+      quantity: input.quantity,
+      reason: input.toJson()['reason'] as String?,
+      createdAt: DateTime.utc(2026, 10, 4, 16),
+      productId: product.id,
+      productName: product.name,
+      sku: product.sku,
+      userName: 'Ana Staff',
+    );
+    history.insert(0, movement);
+    return movement;
+  }
 }
 
 /// Los reportes del inicio del panel en memoria. Con [failing], ese reporte
