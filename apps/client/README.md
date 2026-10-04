@@ -242,6 +242,9 @@ toda la pantalla.
 
 ## Probar de punta a punta
 
+Para presentar la app (levantar todo en modo release y un guion de demo), ver
+[`docs/DEMO.md`](../../docs/DEMO.md).
+
 Con el servidor corriendo y la config de Firebase de la plataforma. La primera vez, correr
 `dart run bin/seed_dev.dart` (ver el README del servidor): deja productos, 40 pedidos de ejemplo
 de los últimos 30 días (así el inicio del panel tiene ventas) y productos en las alertas.
