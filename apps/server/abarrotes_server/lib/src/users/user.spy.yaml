@@ -1,0 +1,23 @@
+### Cuenta de la plataforma. La autenticación vive en Firebase: aquí se guarda
+### el uid de Firebase y el rol, nunca una contraseña.
+class: User
+table: users
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  ### uid de Firebase Auth (claim `sub` del ID token).
+  firebaseUid: String
+  email: String
+  name: String
+  phone: String?
+  role: UserRole, default=customer
+  address: String?
+  createdAt: DateTime, default=now
+  orders: List<Order>?, relation(name=user_orders)
+  inventoryMovements: List<InventoryMovement>?, relation(name=user_inventory_movements)
+indexes:
+  users_firebase_uid_idx:
+    fields: firebaseUid
+    unique: true
+  users_email_idx:
+    fields: email
+    unique: true

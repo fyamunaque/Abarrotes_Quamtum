@@ -1,0 +1,9 @@
+class: OrderItem
+table: order_items
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  quantity: int
+  ### Precio unitario cobrado, en céntimos (el promocional si había promoción).
+  unitPriceCents: int
+  order: Order?, relation(name=order_items, onDelete=Restrict, onUpdate=Cascade)
+  product: Product?, relation(name=product_order_items, onDelete=Restrict, onUpdate=Cascade)

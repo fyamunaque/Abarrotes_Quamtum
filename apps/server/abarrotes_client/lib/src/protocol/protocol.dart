@@ -12,6 +12,28 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
+import 'categories/category.dart' as _iwxpkdmg;
+import 'inventory/inventory_movement.dart' as _i976ojya;
+import 'inventory/movement_type.dart' as _i0rwgybl;
+import 'orders/order.dart' as _ia2sbmwd;
+import 'orders/order_item.dart' as _is46w9g4;
+import 'orders/order_status.dart' as _ishke5og;
+import 'products/product.dart' as _io8c7sps;
+import 'promotions/promotion.dart' as _i8z66r5b;
+import 'supplies/supply.dart' as _iae274dd;
+import 'users/user.dart' as _ih6cb19o;
+import 'users/user_role.dart' as _iyk67ys5;
+export 'categories/category.dart';
+export 'inventory/inventory_movement.dart';
+export 'inventory/movement_type.dart';
+export 'orders/order.dart';
+export 'orders/order_item.dart';
+export 'orders/order_status.dart';
+export 'products/product.dart';
+export 'promotions/promotion.dart';
+export 'supplies/supply.dart';
+export 'users/user.dart';
+export 'users/user_role.dart';
 export 'client.dart';
 
 class Protocol extends _isc.SerializationManager {
@@ -48,11 +70,157 @@ class Protocol extends _isc.SerializationManager {
       }
     }
 
+    if (t == _iwxpkdmg.Category) {
+      return _iwxpkdmg.Category.fromJson(data) as T;
+    }
+    if (t == _i976ojya.InventoryMovement) {
+      return _i976ojya.InventoryMovement.fromJson(data) as T;
+    }
+    if (t == _i0rwgybl.MovementType) {
+      return _i0rwgybl.MovementType.fromJson(data) as T;
+    }
+    if (t == _ia2sbmwd.Order) {
+      return _ia2sbmwd.Order.fromJson(data) as T;
+    }
+    if (t == _is46w9g4.OrderItem) {
+      return _is46w9g4.OrderItem.fromJson(data) as T;
+    }
+    if (t == _ishke5og.OrderStatus) {
+      return _ishke5og.OrderStatus.fromJson(data) as T;
+    }
+    if (t == _io8c7sps.Product) {
+      return _io8c7sps.Product.fromJson(data) as T;
+    }
+    if (t == _i8z66r5b.Promotion) {
+      return _i8z66r5b.Promotion.fromJson(data) as T;
+    }
+    if (t == _iae274dd.Supply) {
+      return _iae274dd.Supply.fromJson(data) as T;
+    }
+    if (t == _ih6cb19o.User) {
+      return _ih6cb19o.User.fromJson(data) as T;
+    }
+    if (t == _iyk67ys5.UserRole) {
+      return _iyk67ys5.UserRole.fromJson(data) as T;
+    }
+    if (t == _isc.getType<_iwxpkdmg.Category?>()) {
+      return (data != null ? _iwxpkdmg.Category.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_i976ojya.InventoryMovement?>()) {
+      return (data != null ? _i976ojya.InventoryMovement.fromJson(data) : null)
+          as T;
+    }
+    if (t == _isc.getType<_i0rwgybl.MovementType?>()) {
+      return (data != null ? _i0rwgybl.MovementType.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ia2sbmwd.Order?>()) {
+      return (data != null ? _ia2sbmwd.Order.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_is46w9g4.OrderItem?>()) {
+      return (data != null ? _is46w9g4.OrderItem.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ishke5og.OrderStatus?>()) {
+      return (data != null ? _ishke5og.OrderStatus.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_io8c7sps.Product?>()) {
+      return (data != null ? _io8c7sps.Product.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_i8z66r5b.Promotion?>()) {
+      return (data != null ? _i8z66r5b.Promotion.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_iae274dd.Supply?>()) {
+      return (data != null ? _iae274dd.Supply.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ih6cb19o.User?>()) {
+      return (data != null ? _ih6cb19o.User.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_iyk67ys5.UserRole?>()) {
+      return (data != null ? _iyk67ys5.UserRole.fromJson(data) : null) as T;
+    }
+    if (t == List<_io8c7sps.Product>) {
+      return (data as List)
+              .map((e) => deserialize<_io8c7sps.Product>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_io8c7sps.Product>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_io8c7sps.Product>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_is46w9g4.OrderItem>) {
+      return (data as List)
+              .map((e) => deserialize<_is46w9g4.OrderItem>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_is46w9g4.OrderItem>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_is46w9g4.OrderItem>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_i976ojya.InventoryMovement>) {
+      return (data as List)
+              .map((e) => deserialize<_i976ojya.InventoryMovement>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_i976ojya.InventoryMovement>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_i976ojya.InventoryMovement>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_i8z66r5b.Promotion>) {
+      return (data as List)
+              .map((e) => deserialize<_i8z66r5b.Promotion>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_i8z66r5b.Promotion>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_i8z66r5b.Promotion>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_ia2sbmwd.Order>) {
+      return (data as List).map((e) => deserialize<_ia2sbmwd.Order>(e)).toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_ia2sbmwd.Order>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_ia2sbmwd.Order>(e))
+                    .toList()
+              : null)
+          as T;
+    }
     return super.deserialize<T>(data, t);
   }
 
   static String? getClassNameForType(Type type) {
     return switch (type) {
+      _iwxpkdmg.Category => 'Category',
+      _i976ojya.InventoryMovement => 'InventoryMovement',
+      _i0rwgybl.MovementType => 'MovementType',
+      _ia2sbmwd.Order => 'Order',
+      _is46w9g4.OrderItem => 'OrderItem',
+      _ishke5og.OrderStatus => 'OrderStatus',
+      _io8c7sps.Product => 'Product',
+      _i8z66r5b.Promotion => 'Promotion',
+      _iae274dd.Supply => 'Supply',
+      _ih6cb19o.User => 'User',
+      _iyk67ys5.UserRole => 'UserRole',
       _ => null,
     };
   }
@@ -66,6 +234,30 @@ class Protocol extends _isc.SerializationManager {
       return (data['__className__'] as String).replaceFirst('abarrotes.', '');
     }
 
+    switch (data) {
+      case _iwxpkdmg.Category():
+        return 'Category';
+      case _i976ojya.InventoryMovement():
+        return 'InventoryMovement';
+      case _i0rwgybl.MovementType():
+        return 'MovementType';
+      case _ia2sbmwd.Order():
+        return 'Order';
+      case _is46w9g4.OrderItem():
+        return 'OrderItem';
+      case _ishke5og.OrderStatus():
+        return 'OrderStatus';
+      case _io8c7sps.Product():
+        return 'Product';
+      case _i8z66r5b.Promotion():
+        return 'Promotion';
+      case _iae274dd.Supply():
+        return 'Supply';
+      case _ih6cb19o.User():
+        return 'User';
+      case _iyk67ys5.UserRole():
+        return 'UserRole';
+    }
     return null;
   }
 
@@ -74,6 +266,39 @@ class Protocol extends _isc.SerializationManager {
     var dataClassName = data['className'];
     if (dataClassName is! String) {
       return super.deserializeByClassName(data);
+    }
+    if (dataClassName == 'Category') {
+      return deserialize<_iwxpkdmg.Category>(data['data']);
+    }
+    if (dataClassName == 'InventoryMovement') {
+      return deserialize<_i976ojya.InventoryMovement>(data['data']);
+    }
+    if (dataClassName == 'MovementType') {
+      return deserialize<_i0rwgybl.MovementType>(data['data']);
+    }
+    if (dataClassName == 'Order') {
+      return deserialize<_ia2sbmwd.Order>(data['data']);
+    }
+    if (dataClassName == 'OrderItem') {
+      return deserialize<_is46w9g4.OrderItem>(data['data']);
+    }
+    if (dataClassName == 'OrderStatus') {
+      return deserialize<_ishke5og.OrderStatus>(data['data']);
+    }
+    if (dataClassName == 'Product') {
+      return deserialize<_io8c7sps.Product>(data['data']);
+    }
+    if (dataClassName == 'Promotion') {
+      return deserialize<_i8z66r5b.Promotion>(data['data']);
+    }
+    if (dataClassName == 'Supply') {
+      return deserialize<_iae274dd.Supply>(data['data']);
+    }
+    if (dataClassName == 'User') {
+      return deserialize<_ih6cb19o.User>(data['data']);
+    }
+    if (dataClassName == 'UserRole') {
+      return deserialize<_iyk67ys5.UserRole>(data['data']);
     }
     return super.deserializeByClassName(data);
   }

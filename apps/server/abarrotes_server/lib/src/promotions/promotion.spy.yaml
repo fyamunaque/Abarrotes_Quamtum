@@ -1,0 +1,11 @@
+### Precio especial de un producto por un periodo. Las fechas son días de la
+### tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
+class: Promotion
+table: promotions
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  promoPriceCents: int
+  startDate: DateTime
+  endDate: DateTime
+  active: bool, default=true
+  product: Product?, relation(name=product_promotions, onDelete=Restrict, onUpdate=Cascade)

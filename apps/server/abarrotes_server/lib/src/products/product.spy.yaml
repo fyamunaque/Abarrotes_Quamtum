@@ -1,0 +1,24 @@
+### Producto del catálogo. Los montos se guardan en céntimos enteros.
+class: Product
+table: products
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  name: String
+  description: String?
+  sku: String
+  ### Precio en céntimos: 450 = S/ 4.50.
+  priceCents: int
+  imageUrl: String?
+  active: bool, default=true
+  currentStock: int, default=0
+  minStock: int, default=0
+  expirationDate: DateTime?
+  createdAt: DateTime, default=now
+  category: Category?, relation(name=category_products, onDelete=Restrict, onUpdate=Cascade)
+  orderItems: List<OrderItem>?, relation(name=product_order_items)
+  inventoryMovements: List<InventoryMovement>?, relation(name=product_inventory_movements)
+  promotions: List<Promotion>?, relation(name=product_promotions)
+indexes:
+  products_sku_idx:
+    fields: sku
+    unique: true
