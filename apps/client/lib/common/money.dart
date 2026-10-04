@@ -16,3 +16,19 @@ String formatSoles(int cents) {
   final decimals = (amount % 100).toString().padLeft(2, '0');
   return '${sign}S/ ${amount ~/ 100}.$decimals';
 }
+
+/// Un monto escrito por la persona ("24.90", "24,9", "24") en céntimos, o null
+/// si no lo es: acepta punto o coma y dos decimales como máximo, sin signo.
+int? parseSolesInput(String text) {
+  final normalized = text.trim().replaceAll(',', '.');
+  if (normalized.startsWith('-')) return null;
+  try {
+    return parseCents(normalized);
+  } on FormatException {
+    return null;
+  }
+}
+
+/// Un monto para un campo de texto: `24.90` (sin "S/", que va en el campo).
+String formatSolesInput(int cents) =>
+    '${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';

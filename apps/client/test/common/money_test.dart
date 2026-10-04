@@ -21,4 +21,20 @@ void main() {
       expect(() => parseCents(bad), throwsFormatException, reason: bad);
     }
   });
+
+  test('lo que escribe la persona: punto o coma, sin signo', () {
+    expect(parseSolesInput('24.90'), 2490);
+    expect(parseSolesInput(' 24,9 '), 2490);
+    expect(parseSolesInput('24'), 2400);
+    expect(parseSolesInput('0'), 0);
+    for (final bad in ['', '-5', '24.999', 'S/ 24', '24.9.0', 'abc']) {
+      expect(parseSolesInput(bad), isNull, reason: bad);
+    }
+  });
+
+  test('un monto para un campo de texto', () {
+    expect(formatSolesInput(2490), '24.90');
+    expect(formatSolesInput(5), '0.05');
+    expect(formatSolesInput(1000), '10.00');
+  });
 }

@@ -8,6 +8,7 @@ import '../../../orders/order_status.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
+import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/filter_chips.dart';
@@ -171,15 +172,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
         OrderTracker(status: status),
         const SizedBox(height: 16),
         if (_error case final error?) ...[
-          Semantics(
-            liveRegion: true,
-            child: Text(
-              error,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.error,
-              ),
-            ),
-          ),
+          FormError(error),
           const SizedBox(height: 12),
         ],
         if (next.isEmpty)
@@ -195,14 +188,11 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
                   child: Text(advance.actionLabel),
                 ),
               if (next.contains(OrderStatus.cancelled))
-                OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: theme.colorScheme.error,
-                  ),
+                DestructiveButton(
+                  label: OrderStatus.cancelled.actionLabel,
                   onPressed: _busy
                       ? null
                       : () => _change(order, OrderStatus.cancelled),
-                  child: Text(OrderStatus.cancelled.actionLabel),
                 ),
               if (_busy)
                 const Padding(

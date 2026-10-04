@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_repository.dart';
+import 'package:neils/admin/products/admin_products_repository.dart';
+import 'package:neils/admin/products/product_input.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
 import 'package:neils/auth/auth_repository.dart';
@@ -138,6 +140,124 @@ AdminOrder adminOrder(
   customerEmail: 'ana@tienda.pe',
   customerPhone: '987654321',
 );
+
+/// Los productos del panel en memoria, por nombre. Responde 409 a un SKU que
+/// ya existe, como el servidor.
+class FakeAdminProductsRepository implements AdminProductsRepository {
+  FakeAdminProductsRepository(List<Product> products, {this.pageSize = 20})
+    : products = [...products];
+
+  final List<Product> products;
+  final int pageSize;
+
+  /// Lo que se mandó al crear (`null` como id) o editar, en orden.
+  final sent = <(String?, ProductInput)>[];
+
+  /// Si no es null, la próxima escritura falla con esto.
+  ApiFailure? failNext;
+
+  @override
+  Future<PageList<Product>> list({
+    int page = 1,
+    String? search,
+    String? categoryId,
+  }) async {
+    final query = search?.trim().toLowerCase() ?? '';
+    final matching = [
+      for (final product in products)
+        if ((query.isEmpty ||
+                product.name.toLowerCase().contains(query) ||
+                product.sku.toLowerCase().contains(query)) &&
+            (categoryId == null || product.category?.id == categoryId))
+          product,
+    ]..sort((a, b) => a.name.compareTo(b.name));
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<Product> create(ProductInput input) async {
+    _check(null, input);
+    final product = _apply(
+      Product(
+        id: 'nuevo-${products.length + 1}',
+        name: '',
+        priceCents: 0,
+        stock: input.initialStock,
+      ),
+      input,
+    );
+    products.add(product);
+    return product;
+  }
+
+  @override
+  Future<Product> update(String id, ProductInput input) async {
+    _check(id, input);
+    final i = products.indexWhere((product) => product.id == id);
+    return products[i] = _apply(products[i], input);
+  }
+
+  @override
+  Future<Product> deactivate(String id) async {
+    if (failNext case final failure?) {
+      failNext = null;
+      throw failure;
+    }
+    final i = products.indexWhere((product) => product.id == id);
+    final product = products[i];
+    return products[i] = _apply(
+      product,
+      ProductInput(
+        name: product.name,
+        sku: product.sku,
+        priceCents: product.priceCents,
+        categoryId: product.category!.id,
+        minStock: product.minStock,
+        active: false,
+        description: product.description,
+        imageUrl: product.imageUrl,
+        expirationDate: product.expirationDate,
+      ),
+    );
+  }
+
+  void _check(String? id, ProductInput input) {
+    if (failNext case final failure?) {
+      failNext = null;
+      throw failure;
+    }
+    if (products.any((p) => p.sku == input.sku && p.id != id)) {
+      throw ApiFailure(
+        'Ya existe un producto con el SKU ${input.sku}',
+        status: 409,
+      );
+    }
+    sent.add((id, input));
+  }
+
+  static Product _apply(Product product, ProductInput input) => Product(
+    id: product.id,
+    name: input.name,
+    sku: input.sku,
+    priceCents: input.priceCents,
+    promoPriceCents: product.promoPriceCents,
+    stock: product.stock,
+    minStock: input.minStock,
+    active: input.active,
+    description: input.description,
+    imageUrl: input.imageUrl,
+    expirationDate: switch (input.expirationDate) {
+      final day? => DateTime.utc(day.year, day.month, day.day),
+      null => null,
+    },
+    category: [groceries, dairy].firstWhere((c) => c.id == input.categoryId),
+  );
+}
 
 /// Los reportes del inicio del panel en memoria. Con [failing], ese reporte
 /// falla.

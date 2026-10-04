@@ -23,6 +23,29 @@ class AdminColumn<T> {
   final bool numeric;
 }
 
+/// Cómo alinear una celda de varias líneas (un precio con el anterior tachado,
+/// el stock con su mínimo): a la derecha en las columnas numéricas de la
+/// tabla, a la izquierda en las tarjetas del teléfono.
+class AdminCellAlignment extends InheritedWidget {
+  const AdminCellAlignment({
+    super.key,
+    required this.alignment,
+    required super.child,
+  });
+
+  final CrossAxisAlignment alignment;
+
+  static CrossAxisAlignment of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<AdminCellAlignment>()
+          ?.alignment ??
+      CrossAxisAlignment.start;
+
+  @override
+  bool updateShouldNotify(AdminCellAlignment oldWidget) =>
+      alignment != oldWidget.alignment;
+}
+
 /// La tabla de las secciones del panel, página por página.
 ///
 /// - Con [value] cargando, un indicador; con error, el mensaje y
@@ -164,7 +187,14 @@ class _Table<T> extends StatelessWidget {
                 ),
                 child: DefaultTextStyle.merge(
                   style: theme.textTheme.bodyMedium,
-                  child: cells((column) => column.cell(row)),
+                  child: cells(
+                    (column) => column.numeric
+                        ? AdminCellAlignment(
+                            alignment: CrossAxisAlignment.end,
+                            child: column.cell(row),
+                          )
+                        : column.cell(row),
+                  ),
                 ),
               ),
             ),
