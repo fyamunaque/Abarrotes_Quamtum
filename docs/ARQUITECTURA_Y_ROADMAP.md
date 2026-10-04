@@ -74,6 +74,7 @@ Mismo flujo de compra en Next.js, reutilizando el backend ya construido en la Fa
 
 **Fase 3 — Dashboard admin**
 Productos y categorías, clientes, subusuarios y roles, gestión de todos los pedidos con cambio de estado.
+*Avance:* la API ya tiene el CRUD de categorías (lectura pública, escritura ADMIN/STAFF); el dashboard web todavía no tiene su pantalla.
 
 **Fase 4 — Inventario y logística**
 Stock por producto, stock mínimo y alertas, entradas/salidas/ajustes, historial de movimientos, vencimientos, insumos generales, control de despacho.
@@ -81,7 +82,7 @@ Stock por producto, stock mínimo y alertas, entradas/salidas/ajustes, historial
 
 **Fase 5 — Estadísticas y promociones**
 Ventas por periodo, productos más/menos vendidos, stock bajo y por vencer, promociones creables desde el dashboard y visibles en app y web.
-*Avance:* la API ya tiene el módulo `stats` (`/stats/overview`, `/sales`, `/top-products`, `/low-stock` y `/expiring`, solo ADMIN/STAFF; ver `apps/api/README.md`). Falta la vista en el dashboard web y las promociones.
+*Avance:* la API ya tiene el módulo `stats` (`/stats/overview`, `/sales`, `/top-products`, `/low-stock` y `/expiring`) y el módulo `promotions` (CRUD con estado según la fecha), ambos solo para ADMIN/STAFF; ver `apps/api/README.md`. Los productos traen su promoción vigente y los pedidos se cobran a ese precio. Faltan las pantallas: estadísticas y promociones en el dashboard web, y mostrar las ofertas en el marketplace y la app.
 
 **Fase 6 — Negocio real** *(no está en la propuesta original, pero la necesitan si el objetivo es un negocio funcional)*
 Pasarela de pago, notificaciones (push/email) de cambio de estado, despliegue a producción, publicación en Google Play. Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos — eso se integra después, vía un proveedor como Nubefact, no se construye desde cero.
