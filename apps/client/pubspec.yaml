@@ -30,6 +30,7 @@ environment:
 dependencies:
   firebase_auth: ^6.7.0
   firebase_core: ^4.15.0
+  fl_chart: ^1.2.0
   flutter:
     sdk: flutter
   flutter_localizations:

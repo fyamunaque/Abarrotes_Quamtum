@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:neils/admin/stats/stats.dart';
+import 'package:neils/admin/stats/stats_repository.dart';
 import 'package:neils/auth/auth_repository.dart';
 import 'package:neils/catalog/catalog_repository.dart';
 import 'package:neils/catalog/category.dart';
@@ -38,6 +40,53 @@ const milk = Product(
   stock: 48,
   category: dairy,
 );
+
+/// Los reportes del inicio del panel en memoria. Con [failing], ese reporte
+/// falla.
+class FakeStatsRepository implements StatsRepository {
+  FakeStatsRepository({
+    this.overviewData,
+    this.sales,
+    this.top = const [],
+    this.low = const [],
+    this.expiringItems = const [],
+  });
+
+  StatsOverview? overviewData;
+  SalesReport? sales;
+  List<TopProduct> top;
+  List<LowStockItem> low;
+  List<ExpiringItem> expiringItems;
+
+  /// 'overview', 'sales', 'top', 'low' o 'expiring'.
+  final failing = <String>{};
+  int calls = 0;
+
+  Future<T> _answer<T>(String report, T Function() data) async {
+    calls++;
+    if (failing.contains(report)) {
+      throw const ApiFailure('El servidor no está disponible.');
+    }
+    return data();
+  }
+
+  @override
+  Future<StatsOverview> overview() => _answer('overview', () => overviewData!);
+
+  @override
+  Future<SalesReport> sales30Days() => _answer('sales', () => sales!);
+
+  @override
+  Future<List<TopProduct>> topProducts({int limit = 5}) =>
+      _answer('top', () => top.take(limit).toList());
+
+  @override
+  Future<List<LowStockItem>> lowStock() => _answer('low', () => low);
+
+  @override
+  Future<List<ExpiringItem>> expiring({int days = 7}) =>
+      _answer('expiring', () => expiringItems);
+}
 
 /// Los pedidos en memoria. Cobra el precio de hoy de los productos de
 /// [catalog], como el servidor.
