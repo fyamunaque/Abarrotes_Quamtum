@@ -40,15 +40,6 @@ class HttpOrderRepository implements OrderRepository {
       idToken: idToken,
       fallback: 'No se pudieron cargar tus pedidos.',
     );
-    return decodeResponse(
-      () => switch (json) {
-        {
-          'data': final List<Object?> data,
-          'meta': {'total': final int total},
-        } =>
-          PageList([for (final o in data) Order.fromJson(o)], total: total),
-        _ => throw FormatException('No es una página de pedidos', json),
-      },
-    );
+    return decodeResponse(() => decodePage(json, Order.fromJson));
   }
 }

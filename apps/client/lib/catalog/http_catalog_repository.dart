@@ -31,16 +31,7 @@ class HttpCatalogRepository implements CatalogRepository {
       query: {'page': '$page', 'limit': '$pageSize', 'categoryId': ?categoryId},
       fallback: 'No se pudieron cargar los productos.',
     );
-    return decodeResponse(
-      () => switch (json) {
-        {
-          'data': final List<Object?> data,
-          'meta': {'total': final int total},
-        } =>
-          PageList([for (final p in data) Product.fromJson(p)], total: total),
-        _ => throw FormatException('No es una página de productos', json),
-      },
-    );
+    return decodeResponse(() => decodePage(json, Product.fromJson));
   }
 
   @override

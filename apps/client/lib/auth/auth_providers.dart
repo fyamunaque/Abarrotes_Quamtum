@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../common/api_client.dart';
 import '../config/api_config.dart';
 import '../firebase_options.dart';
 import '../users/http_user_repository.dart';
@@ -18,4 +19,13 @@ final authRepositoryProvider = Provider<AuthRepository>(
 /// El perfil y el rol desde el servidor.
 final userRepositoryProvider = Provider<UserRepository>(
   (ref) => HttpUserRepository(ref.watch(apiClientProvider)),
+);
+
+/// Las rutas que piden cuenta (las del panel), con el ID token de la cuenta
+/// abierta en cada llamada.
+final authedApiProvider = Provider<AuthedApi>(
+  (ref) => AuthedApi(
+    ref.watch(apiClientProvider),
+    () => ref.read(authRepositoryProvider).idToken(),
+  ),
 );

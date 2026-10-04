@@ -13,6 +13,10 @@ class Product {
     this.imageUrl,
     this.description,
     this.category,
+    this.sku = '',
+    this.active = true,
+    this.minStock = 0,
+    this.expirationDate,
   });
 
   /// Como lo manda el servidor (el `Product` de packages/shared-types, con la
@@ -38,10 +42,28 @@ class Product {
         category: json['category'] == null
             ? null
             : Category.fromJson(json['category']),
+        sku: json['sku'] as String? ?? '',
+        active: json['active'] as bool? ?? true,
+        minStock: json['minStock'] as int? ?? 0,
+        expirationDate: switch (json['expirationDate']) {
+          final String date => DateTime.parse(date),
+          _ => null,
+        },
       );
     }
     throw FormatException('No es un producto', json);
   }
+
+  // Lo que sigue lo usa el panel; la tienda solo ve productos activos.
+  final String sku;
+  final bool active;
+  final int minStock;
+
+  /// El día de vencimiento (en UTC, a las 00:00), si tiene.
+  final DateTime? expirationDate;
+
+  /// Si el stock llegó al mínimo (o está por debajo).
+  bool get lowStock => stock <= minStock;
 
   final String id;
   final String name;

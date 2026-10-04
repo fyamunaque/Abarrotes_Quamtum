@@ -60,14 +60,39 @@ class ApiClient {
   }) => _send(
     () => _client.post(
       _url(path, null),
-      headers: {
-        ..._headers(idToken),
-        'content-type': 'application/json; charset=utf-8',
-      },
+      headers: _jsonHeaders(idToken),
       body: jsonEncode(body),
     ),
     fallback,
   );
+
+  Future<Object?> patch(
+    String path,
+    Object? body, {
+    String? idToken,
+    required String fallback,
+  }) => _send(
+    () => _client.patch(
+      _url(path, null),
+      headers: _jsonHeaders(idToken),
+      body: jsonEncode(body),
+    ),
+    fallback,
+  );
+
+  Future<Object?> delete(
+    String path, {
+    String? idToken,
+    required String fallback,
+  }) => _send(
+    () => _client.delete(_url(path, null), headers: _headers(idToken)),
+    fallback,
+  );
+
+  Map<String, String> _jsonHeaders(String? idToken) => {
+    ..._headers(idToken),
+    'content-type': 'application/json; charset=utf-8',
+  };
 
   Uri _url(String path, Map<String, String>? query) {
     final url = Uri.parse('$_base$path');
@@ -125,4 +150,41 @@ class ApiClient {
       return null;
     }
   }
+}
+
+/// Las rutas del panel, que piden el ID token de Firebase en cada llamada.
+/// [idToken] lo pide a Firebase, que lo renueva solo antes de que venza.
+class AuthedApi {
+  AuthedApi(this._api, this._idToken);
+
+  final ApiClient _api;
+  final Future<String> Function() _idToken;
+
+  Future<Object?> get(
+    String path, {
+    Map<String, String>? query,
+    required String fallback,
+  }) async => _api.get(
+    path,
+    query: query,
+    idToken: await _idToken(),
+    fallback: fallback,
+  );
+
+  Future<Object?> post(
+    String path,
+    Object? body, {
+    required String fallback,
+  }) async =>
+      _api.post(path, body, idToken: await _idToken(), fallback: fallback);
+
+  Future<Object?> patch(
+    String path,
+    Object? body, {
+    required String fallback,
+  }) async =>
+      _api.patch(path, body, idToken: await _idToken(), fallback: fallback);
+
+  Future<Object?> delete(String path, {required String fallback}) async =>
+      _api.delete(path, idToken: await _idToken(), fallback: fallback);
 }
