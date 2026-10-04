@@ -123,6 +123,8 @@ jobs:
           expect 401 -X POST "$api/categories"
           expect 200 "$api/products?onSale=true"
           expect 401 "$api/promotions"
+          expect 401 -X POST "$api/inventory/movements"
+          expect 401 "$api/inventory/alerts/low-stock"
 
   web:
     name: Web
