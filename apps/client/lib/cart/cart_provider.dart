@@ -7,13 +7,19 @@ import '../common/api_client.dart';
 import '../orders/order.dart';
 import '../orders/orders_providers.dart';
 import 'cart.dart';
+import 'cart_storage.dart';
 
-/// El carrito. Vive solo en memoria: se vacía al cerrar o recargar la app.
+/// El carrito. Queda guardado en el dispositivo ([cartStorageProvider]): sigue
+/// ahí al recargar o volver a abrir la app.
 final cartProvider = NotifierProvider<CartNotifier, Cart>(CartNotifier.new);
 
 class CartNotifier extends Notifier<Cart> {
   @override
-  Cart build() => const Cart();
+  Cart build() {
+    final storage = ref.watch(cartStorageProvider);
+    listenSelf((_, cart) => storage.save(cart));
+    return storage.load();
+  }
 
   /// Suma [quantity] unidades de [product], o lo agrega. Nunca pasa de
   /// [Product.maxQuantity]. Devuelve cuántas quedaron en el carrito.

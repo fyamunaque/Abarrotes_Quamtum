@@ -148,7 +148,7 @@ Pendiente:
   - el seguimiento de pedido, con colores por estado;
 - el flujo de compra contra Serverpod, con repositorios y Riverpod:
   - el catálogo con filtro por categoría (en la URL) y el detalle de producto;
-  - el carrito, solo en memoria;
+  - el carrito, guardado en el dispositivo;
   - el pedido, que sin cuenta pasa por el ingreso y vuelve al carrito;
   - "Mis pedidos", con el seguimiento de cada uno;
 - el panel `/admin`, con un tema calmado (crema, tinta y el naranja solo en lo principal) y una tabla reutilizable que en el teléfono pasa a tarjetas:

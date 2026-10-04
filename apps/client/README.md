@@ -72,7 +72,7 @@ auth/                  AuthRepository (Firebase Auth) y los providers de los rep
 users/                 UserRepository: el perfil y el rol desde GET /users/me
 session/               Session y sessionProvider (quién ingresó y con qué rol)
 catalog/               Product, Category, CatalogRepository y sus providers
-cart/                  Cart y cartProvider (en memoria; también hace el pedido)
+cart/                  Cart, cartProvider (también hace el pedido) y CartStorage (dónde se guarda)
 orders/                Order, OrderStatus, OrderRepository y myOrdersProvider
 admin/                 los datos del panel, un dominio por carpeta (stats, orders, products,
                        inventory, promotions) y PagedNotifier
@@ -176,8 +176,10 @@ flutter run -d chrome   # y abrir /vitrina
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. |
 | `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario` y `/admin/promociones` (ver "El panel") |
 
-**Carrito** (`cart/cart_provider.dart`): vive solo en memoria, así que se vacía al cerrar o
-recargar la app.
+**Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
+SharedPreferences en Android, `localStorage` en la web), así que sigue ahí al recargar o volver a
+abrir la app. Se guarda lo necesario para mostrarlo; datos rotos o de otra versión dejan el
+carrito vacío.
 - La cantidad va de 1 al stock, y como mucho a 999, lo que el servidor acepta por línea.
 - Los precios son los del catálogo al agregar. El servidor cobra los del momento del pedido, el de
   la promoción vigente si la hay.

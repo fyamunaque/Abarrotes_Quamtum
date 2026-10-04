@@ -5,8 +5,10 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'cart/cart_storage.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -18,13 +20,22 @@ Future<void> main() async {
 
   // Sin config para esta plataforma, la app arranca sin poder ingresar (ver
   // authRepositoryProvider).
+  WidgetsFlutterBinding.ensureInitialized();
   final firebase = DefaultFirebaseOptions.currentPlatform;
   if (firebase != null) {
-    WidgetsFlutterBinding.ensureInitialized();
     await Firebase.initializeApp(options: firebase);
   }
+  // El carrito guardado se lee al abrir: así ya está en la primera pantalla.
+  final prefs = await SharedPreferences.getInstance();
 
-  runApp(const ProviderScope(child: NeilsApp()));
+  runApp(
+    ProviderScope(
+      overrides: [
+        cartStorageProvider.overrideWithValue(PrefsCartStorage(prefs)),
+      ],
+      child: const NeilsApp(),
+    ),
+  );
 }
 
 /// Licencias OFL de Baloo 2 e Inter, para la pantalla de licencias.
