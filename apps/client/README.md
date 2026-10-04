@@ -72,9 +72,14 @@ config/                URL del servidor (API_URL)
 auth/                  AuthRepository (Firebase Auth) y los providers de los repositorios
 users/                 UserRepository: el perfil y el rol desde GET /users/me
 session/               Session y sessionProvider (quién ingresó y con qué rol)
+catalog/               Product (montos en céntimos, como el servidor)
+orders/                OrderStatus (los estados del servidor, con los textos de la web)
+common/                formatSoles
 router/                rutas, guard de /admin y GoRouter
-theme/                 tokens de marca (brand_colors.dart) y ThemeData (neils_theme.dart)
-features/<sección>/    pantallas: home, auth, catalog, admin, shared
+theme/                 tokens de marca y de estados (brand_colors.dart), ThemeData
+                       (neils_theme.dart) y movimiento (motion.dart)
+features/<sección>/    pantallas y componentes: home, auth, catalog, orders, admin,
+                       showcase (la vitrina) y shared (logo, barra, swoosh, PressScale)
 ```
 
 Las pantallas no hablan con Firebase ni con HTTP: usan `sessionProvider`, que usa los
@@ -99,6 +104,48 @@ La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/go
 que la app no descarga nada:
 - **Baloo 2** (600/700/800) para títulos y precios (`NeilsText.price`).
 - **Inter** (400/500/600) para el resto.
+
+**Estados de pedido** (`OrderStatusColors`):
+
+| Estado | Color |
+|---|---|
+| Pendiente de confirmación | `#D98C21` |
+| Confirmado | `#3C7A5F` |
+| En camino | `#2E6F9E` |
+| Entregado | `#3C7A5F` |
+| Cancelado | `#8C3B33` |
+
+Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre crema
+no alcanza el contraste de un texto. El rojo de cancelado sí (6,8:1).
+
+## Movimiento
+
+Poco, y con un motivo. Las duraciones están en `theme/motion.dart`. Todo respeta "reducir
+animaciones" del sistema (Android: "Quitar animaciones"; web: `prefers-reduced-motion`): con eso
+activo, cada animación salta a su estado final.
+
+- **El swoosh de la portada** (`AnimatedSwoosh`, en `features/shared/swoosh.dart`): el trazo de
+  pincel del logo, en `accent`, se dibuja bajo "a la puerta de tu casa" al abrir la pantalla.
+  Dura 700 ms, una sola vez: no se repite aunque la pantalla se reconstruya. Es el único momento
+  animado que no responde a una acción.
+- **"Agregar"** en la tarjeta de producto (`PressScale`): se achica un poco mientras se presiona.
+  El precio va subrayado con el mismo swoosh, quieto (`Swoosh`).
+- **El seguimiento de pedido** (`OrderTracker`): cuando el estado avanza, la línea se llena
+  hasta el paso nuevo en 500 ms, y el color pasa al del estado nuevo. Al mostrarse no se anima.
+  Un pedido cancelado muestra los pasos apagados y el aviso: el servidor no guarda en qué paso
+  se canceló.
+
+## Vitrina (solo en debug)
+
+`/vitrina` muestra los componentes con datos de ejemplo: las tarjetas de producto (con
+promoción, sin stock, con un nombre largo) y el seguimiento, con un selector de estado para ver
+la animación. Sirve para revisarlos antes de que tengan pantallas con datos reales. La ruta se
+registra solo si `kDebugMode`: en los builds de release no existe, y el compilador la saca del
+JavaScript y del APK.
+
+```powershell
+flutter run -d chrome   # y abrir /vitrina
+```
 
 ## Sesión y rutas
 
@@ -154,7 +201,19 @@ Con el servidor corriendo y la config de Firebase de la plataforma:
   con la app completa.
 - `test/users/http_user_repository_test.dart`: `GET /users/me` con un cliente HTTP simulado.
 - `test/auth/auth_error_message_test.dart`: los mensajes de cada error de Firebase.
+- `test/features/account_bar_test.dart`: la barra con sesión entra en un teléfono de 320 y 375
+  px (la cuenta va en un menú).
+- `test/features/swoosh_test.dart` y `home_screen_test.dart`: la forma del trazo, que se dibuja
+  una vez y en menos de un segundo, y que con "reducir animaciones" aparece completo.
+- `test/features/product_card_test.dart`: precio, promoción, "Agotado", tarjetas de igual alto y
+  el achique de "Agregar" (que no ocurre con "reducir animaciones").
+- `test/features/order_tracker_test.dart`: cuánto se llena cada tramo por estado, la animación al
+  avanzar (a mitad de camino y al final), cancelado y el estado como texto.
 - `test/theme/theme_test.dart`: colores, contraste y fuentes del tema.
+
+Los tests de movimiento usan `MediaQueryData(disableAnimations: true)` para "reducir
+animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándose. Flutter da por
+terminada una animación en el frame siguiente a su duración: por eso avanzan un milisegundo más.
 
 Los tests que usan el tema llaman a `useBundledFonts()` (`test/support.dart`): fuentes desde los
 assets, sin red. Ese helper también esquiva un fallo del motor de pruebas de Windows: cargar
@@ -162,4 +221,5 @@ Baloo2-SemiBold y Baloo2-Bold en el mismo proceso lo cierra sin error. Por eso, 
 SemiBold se reemplaza por la ExtraBold. La app no cambia.
 
 Con poca RAM libre, `flutter test` puede cortar a mitad algún test ("did not complete", sin
-error): corre varios motores de prueba en paralelo. En ese caso, `flutter test --concurrency=1`.
+error): corre varios motores de prueba en paralelo. En ese caso, `flutter test --concurrency=1`,
+y sin `flutter run` abierto al mismo tiempo.

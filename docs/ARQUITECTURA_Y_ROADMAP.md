@@ -139,7 +139,13 @@ Pendiente:
 - el tema de Neil's (los mismos tokens y el mismo criterio de contraste que la web y Android, con Baloo 2 e Inter empaquetadas);
 - el flujo público `/`, `/login`, `/registro` y `/catalogo`;
 - `/admin` protegido por rol: solo admin y staff;
-- ingreso y registro con Firebase Auth (email y contraseña). El rol sale de `GET /users/me`: un cliente termina en el catálogo, admin y staff en el panel. El SDK de Firebase guarda la cuenta y renueva el ID token, así que no hay JWT propio que guardar.
+- ingreso y registro con Firebase Auth (email y contraseña). El rol sale de `GET /users/me`: un cliente termina en el catálogo, admin y staff en el panel. El SDK de Firebase guarda la cuenta y renueva el ID token, así que no hay JWT propio que guardar;
+- los componentes de marca, con movimiento que respeta "reducir animaciones":
+  - el swoosh del logo dibujándose en la portada;
+  - la tarjeta de producto, con el swoosh bajo el precio y "Agregar" que responde al toque;
+  - el seguimiento de pedido, con colores por estado.
+
+  La tarjeta y el seguimiento todavía no tienen datos reales: se ven en `/vitrina`, solo en debug.
 
 Pendiente:
 
