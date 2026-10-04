@@ -47,18 +47,9 @@ class UsersService {
     }
   }
 
-  /// El usuario de [firebaseUid] si es admin; si no, 403.
-  Future<User> requireAdmin(Session session, String firebaseUid) async {
-    final user = await _findByFirebaseUid(session, firebaseUid);
-    if (user == null || user.role != UserRole.admin) {
-      throw const ApiException.forbidden(
-        'Solo un administrador puede crear cuentas admin o staff',
-      );
-    }
-    return user;
-  }
-
   /// Crea una cuenta admin o staff. Es la única forma de tener esos roles.
+  /// La ruta ya pasó por `RoleGuard`; la regla se repite aquí por si el
+  /// servicio se usa desde otro lado.
   Future<User> createStaff(
     Session session, {
     required User admin,

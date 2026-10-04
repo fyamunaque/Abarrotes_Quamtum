@@ -31,15 +31,15 @@ void main() {
         keys: FakeKeys({'llave-1': google.public}),
         now: () => testNow,
       );
-      const users = UsersService();
-      // Las mismas piezas que addUsersRoutes, pero con la sesión del test.
-      final app = RelicApp()
-        ..use('/users', firebaseAuthMiddleware(verifier))
-        ..get('/users/me', (req) => MeRoute(users).handleCall(session, req))
-        ..post(
-          '/users',
-          (req) => CreateUserRoute(users).handleCall(session, req),
+      // Las mismas rutas (y guards) que addUsersRoutes, con la sesión del test.
+      final app = RelicApp()..use('/users', firebaseAuthMiddleware(verifier));
+      usersRoutes(const UsersService()).forEach((path, route) {
+        app.anyOf(
+          route.methods,
+          path,
+          (req) => route.handleCall(session, req),
         );
+      });
       server = await app.serve(port: 0);
     });
 

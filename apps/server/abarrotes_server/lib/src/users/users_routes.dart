@@ -2,6 +2,7 @@ import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_auth_middleware.dart';
 import '../auth/firebase_token_verifier.dart';
+import '../auth/role_guard.dart';
 import '../common/http_json.dart';
 import '../generated/protocol.dart';
 import 'create_user_request.dart';
@@ -14,9 +15,14 @@ void addUsersRoutes(
   UsersService users = const UsersService(),
 }) {
   webServer.addMiddleware(firebaseAuthMiddleware(verifier), '/users');
-  webServer.addRoute(MeRoute(users), '/users/me');
-  webServer.addRoute(CreateUserRoute(users), '/users');
+  usersRoutes(users).forEach((path, route) => webServer.addRoute(route, path));
 }
+
+/// Las rutas de usuarios por path, con sus guards de rol.
+Map<String, Route> usersRoutes(UsersService users) => {
+  '/users/me': MeRoute(users),
+  '/users': RoleGuard({UserRole.admin}, CreateUserRoute(users)),
+};
 
 /// GET /users/me: el usuario del token; la primera vez lo crea como cliente.
 class MeRoute extends Route {
@@ -35,8 +41,8 @@ class MeRoute extends Route {
       });
 }
 
-/// POST /users (solo admin): crea una cuenta admin o staff vinculada al
-/// `firebaseUid` recibido.
+/// POST /users: crea una cuenta admin o staff vinculada al `firebaseUid`
+/// recibido. Se registra detrás de `RoleGuard({UserRole.admin})`.
 class CreateUserRoute extends Route {
   CreateUserRoute(this._users) : super(methods: {Method.post});
 
@@ -45,15 +51,10 @@ class CreateUserRoute extends Route {
   @override
   Future<Result> handleCall(Session session, Request request) =>
       withApiErrors(() async {
-        // Como en NestJS: primero el rol (403) y después el body (400).
-        final admin = await _users.requireAdmin(
-          session,
-          request.firebaseIdentity.uid,
-        );
         final input = CreateUserRequest.parse(await readJsonBody(request));
         final user = await _users.createStaff(
           session,
-          admin: admin,
+          admin: request.currentUser,
           input: input,
         );
         return jsonResponse(201, userJson(user));

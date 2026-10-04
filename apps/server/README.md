@@ -104,6 +104,23 @@ Código en `lib/src/auth/`: `GooglePublicKeys` (llaves), `FirebaseTokenVerifier`
 `firebaseAuthMiddleware` (rutas REST) y `firebaseAuthenticationHandler`. Este último autentica
 también la sesión de Serverpod con el uid, para los endpoints que se agreguen después.
 
+No hay registro ni login propios: los hace Firebase. El "registro" en la tienda es la primera
+llamada a `GET /users/me`, que siempre crea un `customer`. Ningún rol que mande el cliente se
+toma en cuenta.
+
+### Proteger una ruta por rol
+
+`RoleGuard` es el equivalente a `@Roles(...)` de NestJS. Envuelve la ruta al registrarla, detrás
+de `firebaseAuthMiddleware`:
+
+```dart
+webServer.addRoute(RoleGuard({UserRole.admin, UserRole.staff}, MiRuta()), '/mi-ruta');
+```
+
+Busca al usuario del token en `users` y responde 403 si no existe o si su rol no está en la
+lista, antes de que la ruta lea el body. Si lo deja pasar, la ruta tiene al usuario en
+`request.currentUser`.
+
 ## Endpoints (servidor web, puerto 8082)
 
 | Método y ruta | Quién | Qué hace |
