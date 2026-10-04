@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../features/admin/admin_home_screen.dart';
 import '../features/admin/admin_shell.dart';
+import '../features/admin/shared/admin_page.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
 import '../features/cart/cart_screen.dart';
@@ -57,15 +58,20 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: Routes.showcase,
           builder: (_, _) => const ShowcaseScreen(),
         ),
-      // Grupo /admin: un layout común; las secciones se agregan como subrutas
-      // (p. ej. /admin/pedidos).
+      // Grupo /admin: un layout común con la navegación entre secciones.
       ShellRoute(
-        builder: (_, _, child) => AdminShell(child: child),
+        builder: (_, state, child) =>
+            AdminShell(location: state.uri.path, child: child),
         routes: [
           GoRoute(
             path: Routes.admin,
             builder: (_, _) => const AdminHomeScreen(),
           ),
+          for (final section in AdminSection.values.skip(1))
+            GoRoute(
+              path: section.path,
+              builder: (_, _) => AdminPlaceholder(section.label),
+            ),
         ],
       ),
     ],

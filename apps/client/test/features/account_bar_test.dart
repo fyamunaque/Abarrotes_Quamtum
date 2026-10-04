@@ -56,7 +56,11 @@ void main() {
     });
 
     testWidgets('a $width px la barra del panel entra', (tester) async {
-      await pumpAt(tester, width, const AdminShell(child: Text('x')));
+      await pumpAt(
+        tester,
+        width,
+        const AdminShell(location: '/admin', child: Text('x')),
+      );
       expect(tester.takeException(), isNull);
 
       await tester.tap(find.byTooltip('Tu cuenta'));

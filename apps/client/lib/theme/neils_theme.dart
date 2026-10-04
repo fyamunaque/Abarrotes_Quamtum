@@ -62,6 +62,62 @@ ThemeData neilsTheme() {
   );
 }
 
+/// El tema del panel (/admin): la misma marca, más calmada. Crema de fondo,
+/// texto en tinta, tarjetas claras con borde fino y sin sombra. Lo
+/// seleccionado (navegación, filtros) va en naranja muy claro; el `primary`
+/// queda para lo importante: el ítem activo, la acción principal de cada
+/// pantalla y la línea del gráfico.
+ThemeData neilsAdminTheme(ThemeData base) {
+  final scheme = base.colorScheme;
+  final text = base.textTheme;
+  final muted = scheme.onSurfaceVariant;
+  return base.copyWith(
+    cardTheme: CardThemeData(
+      color: scheme.surfaceContainerLowest,
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: scheme.outlineVariant),
+      ),
+    ),
+    dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
+    navigationRailTheme: NavigationRailThemeData(
+      backgroundColor: NeilsColors.cream,
+      indicatorColor: NeilsColors.primaryTint,
+      selectedIconTheme: IconThemeData(color: scheme.primary),
+      unselectedIconTheme: IconThemeData(color: muted),
+      selectedLabelTextStyle: text.labelLarge?.copyWith(color: scheme.primary),
+      unselectedLabelTextStyle: text.labelLarge?.copyWith(
+        color: muted,
+        fontWeight: FontWeight.w500,
+      ),
+    ),
+    navigationBarTheme: NavigationBarThemeData(
+      backgroundColor: scheme.surfaceContainerLow,
+      indicatorColor: NeilsColors.primaryTint,
+      iconTheme: WidgetStateProperty.resolveWith(
+        (states) => IconThemeData(
+          color: states.contains(WidgetState.selected) ? scheme.primary : muted,
+        ),
+      ),
+      labelTextStyle: WidgetStateProperty.resolveWith(
+        (states) => text.labelMedium?.copyWith(
+          color: states.contains(WidgetState.selected) ? scheme.primary : muted,
+        ),
+      ),
+    ),
+    chipTheme: base.chipTheme.copyWith(
+      backgroundColor: scheme.surfaceContainerLowest,
+      selectedColor: NeilsColors.primaryTint,
+      checkmarkColor: NeilsColors.ink,
+      side: BorderSide(color: scheme.outlineVariant),
+      labelStyle: text.labelLarge?.copyWith(color: NeilsColors.ink),
+    ),
+    dialogTheme: DialogThemeData(backgroundColor: NeilsColors.cream),
+  );
+}
+
 /// Baloo 2 (600/700/800) para títulos; Inter (400/500/600) para el resto.
 TextTheme neilsTextTheme() {
   final base = Typography.material2021().black;
