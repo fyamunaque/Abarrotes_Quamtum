@@ -150,13 +150,16 @@ Pendiente:
   - el catálogo con filtro por categoría (en la URL) y el detalle de producto;
   - el carrito, solo en memoria;
   - el pedido, que sin cuenta pasa por el ingreso y vuelve al carrito;
-  - "Mis pedidos", con el seguimiento de cada uno.
+  - "Mis pedidos", con el seguimiento de cada uno;
+- el panel `/admin`, con un tema calmado (crema, tinta y el naranja solo en lo principal) y una tabla reutilizable que en el teléfono pasa a tarjetas:
+  - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, el gráfico de ventas de 30 días, stock bajo, por vencer y el top 5;
+  - pedidos, con el stepper de estado (avanzar o cancelar);
+  - productos (crear, editar, dar de baja), inventario (entradas, salidas y ajustes) y promociones (crear, editar, eliminar).
 
 Pendiente:
 
 1. La config de la Web app de Firebase en `lib/firebase_options.dart`: hasta tenerla, en la web el ingreso dice que no está disponible. Android ya está configurado.
-2. Las secciones del panel.
-3. Cuando esté todo, retirar `apps/android` y `apps/web`.
+2. Cuando esté todo, retirar `apps/android` y `apps/web`.
 
 Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
 

@@ -84,9 +84,19 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
    dart run bin/main.dart --role maintenance --apply-migrations
    ```
 
-4. Opcional, para probar la app: un catálogo de ejemplo, con 5 categorías y 12 productos. Uno
-   tiene una promoción vigente por 30 días y otro está agotado; no llevan imágenes. Solo corre
-   en `development` y no hace nada si ya hay productos. No toca la base `abarrotes` de la demo.
+4. Opcional, para probar la app: datos de ejemplo. Solo corre en `development` y no toca la base
+   `abarrotes` de la demo.
+   - **El catálogo:** 5 categorías y 12 productos, sin imágenes. Uno tiene una promoción
+     vigente por 30 días y otro está agotado. No hace nada si ya hay productos.
+   - **Pedidos:** 40 pedidos de 1 a 3 productos, repartidos en los últimos 30 días, para que el
+     panel tenga ventas, top 5 y pedidos por estado. Los más viejos están entregados o
+     cancelados; los de los últimos días, pendientes, confirmados o en camino.
+     - Son de un cliente de ejemplo (`seed-cliente-demo`), que no es una cuenta de Firebase:
+       no se puede ingresar con él.
+     - No tocan el stock: son historia de ejemplo.
+     - No hace nada si ya hay pedidos.
+   - **Alertas:** el yogurt vence en 3 días y la leche en 10 (si no tenían fecha). El mínimo de
+     la lejía sube a 20, así queda en stock bajo junto con el azúcar agotado.
 
    ```powershell
    dart run bin/seed_dev.dart
