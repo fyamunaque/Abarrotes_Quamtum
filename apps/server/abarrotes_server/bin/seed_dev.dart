@@ -9,8 +9,8 @@ import 'package:abarrotes_server/src/generated/serverpod.dart';
 /// dart run bin/seed_dev.dart
 /// ```
 ///
-/// Se niega en cualquier otro modo. Cada parte se salta si ya hay datos: el
-/// catálogo si hay productos, y los pedidos si hay pedidos.
+/// Se niega en cualquier otro modo. El catálogo se completa (agrega lo que
+/// falta, sin tocar lo que ya hay) y los pedidos se saltan si ya hay pedidos.
 Future<void> main(List<String> args) async {
   final pod = Serverpod(args);
   if (pod.runMode != ServerpodRunMode.development) {
@@ -31,8 +31,8 @@ Future<void> main(List<String> args) async {
   stdout
     ..writeln(
       products == 0
-          ? 'Catálogo: la base ya tiene productos, no se agregó nada.'
-          : 'Catálogo: $products productos de ejemplo en 5 categorías.',
+          ? 'Catálogo: ya estaba completo, no se agregó nada.'
+          : 'Catálogo: se agregaron $products productos de ejemplo.',
     )
     ..writeln(
       orders == 0

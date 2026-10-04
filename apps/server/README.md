@@ -86,11 +86,13 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
 
 4. Opcional, para probar la app: datos de ejemplo. Solo corre en `development` y no toca la base
    `abarrotes` de la demo.
-   - **El catálogo:** 5 categorías y 12 productos, sin imágenes. Uno tiene una promoción
-     vigente por 30 días y otro está agotado. No hace nada si ya hay productos.
+   - **El catálogo:** 9 categorías (las de la web Next.js, ya retirada) y 25 productos, sin
+     imágenes. Uno tiene una promoción vigente por 30 días y otro está agotado. Completa lo que
+     falta: agrega las categorías y los productos (por SKU) que no están, y nunca toca uno que ya
+     existe, aunque se haya editado o dado de baja.
    - **Pedidos:** 40 pedidos de 1 a 3 productos, repartidos en los últimos 30 días, para que el
-     panel tenga ventas, top 5 y pedidos por estado. Los más viejos están entregados o
-     cancelados; los de los últimos días, pendientes, confirmados o en camino.
+     panel tenga ventas, top 5 y pedidos por estado. Los dos más recientes esperan confirmación,
+     dos están confirmados y dos en camino; los demás, entregados o cancelados.
      - Son de un cliente de ejemplo (`seed-cliente-demo`), que no es una cuenta de Firebase:
        no se puede ingresar con él.
      - No tocan el stock: son historia de ejemplo.

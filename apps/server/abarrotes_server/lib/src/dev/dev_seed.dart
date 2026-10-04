@@ -7,29 +7,60 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_rules.dart';
 
-/// Datos de ejemplo para probar la app contra el servidor local: categorías y
-/// productos de una bodega, uno con promoción vigente por 30 días y uno
-/// agotado. Sin imágenes: la app muestra su ícono.
+/// Datos de ejemplo para probar la app contra el servidor local: las
+/// categorías de una bodega con sus productos, uno con promoción vigente por
+/// 30 días y uno agotado. Sin imágenes: la app muestra su ícono.
 ///
-/// Solo agrega si no hay productos, así que correrlo dos veces no duplica
-/// nada. Devuelve cuántos productos creó (0 si ya había). Lo usa
-/// `bin/seed_dev.dart`, que se niega fuera de development.
+/// Completa lo que falta: agrega las categorías (por nombre) y los productos
+/// (por SKU) que no están, y nunca toca uno que ya existe, aunque se haya
+/// editado o dado de baja. Las categorías con su nombre de antes ("Lácteos",
+/// "Snacks") se renombran. Correrlo dos veces no duplica nada. Devuelve
+/// cuántos productos agregó. Lo usa `bin/seed_dev.dart`, que se niega fuera
+/// de development.
 Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
-  if (await Product.db.count(session) > 0) return 0;
-
   return session.db.transaction((transaction) async {
-    final categories = <String, Category>{};
-    for (final name in _catalog.keys) {
-      categories[name] = await Category.db.insertRow(
+    Future<Category?> categoryNamed(String name) => Category.db.findFirstRow(
+      session,
+      where: (category) => category.name.equals(name),
+      transaction: transaction,
+    );
+
+    for (final (before, after) in _renamedCategories) {
+      final old = await categoryNamed(before);
+      if (old != null && await categoryNamed(after) == null) {
+        await Category.db.updateRow(
+          session,
+          old.copyWith(name: after),
+          columns: (category) => [category.name],
+          transaction: transaction,
+        );
+      }
+    }
+
+    final categories = {
+      for (final category in await Category.db.find(
+        session,
+        transaction: transaction,
+      ))
+        category.name: category,
+    };
+    final skus = {
+      for (final product in await Product.db.find(
+        session,
+        transaction: transaction,
+      ))
+        product.sku,
+    };
+
+    var created = 0;
+    for (final MapEntry(key: name, value: products) in _catalog.entries) {
+      final category = categories[name] ??= await Category.db.insertRow(
         session,
         Category(name: name),
         transaction: transaction,
       );
-    }
-
-    var created = 0;
-    for (final MapEntry(key: category, value: products) in _catalog.entries) {
       for (final p in products) {
+        if (skus.contains(p.sku)) continue;
         final product = await Product.db.insertRow(
           session,
           Product(
@@ -39,7 +70,7 @@ Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
             priceCents: p.priceCents,
             currentStock: p.stock,
             minStock: 5,
-            categoryId: categories[category]!.id!,
+            categoryId: category.id!,
           ),
           transaction: transaction,
         );
@@ -67,8 +98,9 @@ Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
 
 /// Pedidos de ejemplo para el panel: 40 de un cliente de ejemplo, repartidos
 /// en los últimos 30 días, siempre los mismos (semilla fija).
-/// - Los viejos quedaron entregados (y alguno cancelado); los de los últimos
-///   días están pendientes, confirmados o en camino.
+/// - Los dos más recientes están pendientes, los dos siguientes confirmados
+///   y otros dos en camino; los demás, entregados (uno de cada ocho,
+///   cancelado).
 /// - Cobran el precio de hoy y no tocan el stock: son historia de ejemplo.
 /// - Deja también algo para las alertas: el yogurt vence en 3 días y la leche
 ///   en 10 (si no tenían fecha), y la lejía queda bajo su mínimo.
@@ -94,7 +126,6 @@ Future<int> seedDevOrders(Session session, {DateTime Function()? now}) async {
   if (products.isEmpty) return 0;
 
   final random = Random(42);
-  T pick<T>(List<T> options) => options[random.nextInt(options.length)];
 
   return session.db.transaction((transaction) async {
     final customer =
@@ -126,21 +157,14 @@ Future<int> seedDevOrders(Session session, {DateTime Function()? now}) async {
           minutes: random.nextInt(60),
         ),
       );
-      final status = switch (daysAgo) {
-        <= 1 => pick(const [
-          OrderStatus.pendingConfirmation,
-          OrderStatus.confirmed,
-          OrderStatus.outForDelivery,
-        ]),
-        <= 3 => pick(const [
-          OrderStatus.confirmed,
-          OrderStatus.outForDelivery,
-          OrderStatus.delivered,
-        ]),
-        _ =>
-          random.nextInt(8) == 0
-              ? OrderStatus.cancelled
-              : OrderStatus.delivered,
+      // Fijo, para que el panel siempre tenga de todo: los más recientes
+      // esperan acción y los viejos ya terminaron.
+      final status = switch (count - 1 - i) {
+        0 || 1 => OrderStatus.pendingConfirmation,
+        2 || 3 => OrderStatus.confirmed,
+        4 || 5 => OrderStatus.outForDelivery,
+        _ when i % 8 == 3 => OrderStatus.cancelled,
+        _ => OrderStatus.delivered,
       };
 
       final lines = [
@@ -241,6 +265,13 @@ _SeedProduct _product(
   promoPriceCents: promoPriceCents,
 );
 
+/// Las categorías que cambiaron de nombre: (antes, ahora). Son las 9 de la
+/// web Next.js, que ya se retiró.
+const _renamedCategories = [
+  ('Lácteos', 'Lácteos y huevos'),
+  ('Snacks', 'Snacks y dulces'),
+];
+
 final _catalog = <String, List<_SeedProduct>>{
   'Abarrotes': [
     _product(
@@ -261,7 +292,7 @@ final _catalog = <String, List<_SeedProduct>>{
     _product('Azúcar rubia 1 kg', 'AZU-1KG', 450, 0, 'Bolsa de 1 kg.'),
     _product('Fideos spaghetti 500 g', 'FID-500', 380, 60, 'Paquete de 500 g.'),
   ],
-  'Lácteos': [
+  'Lácteos y huevos': [
     _product(
       'Leche evaporada entera 400 g',
       'LEC-400',
@@ -271,6 +302,51 @@ final _catalog = <String, List<_SeedProduct>>{
     ),
     _product('Yogurt de fresa 1 L', 'YOG-1L', 750, 15, 'Botella de 1 L.'),
     _product('Queso fresco 500 g', 'QUE-500', 1450, 10, 'Pieza de 500 g.'),
+    _product(
+      'Huevos rosados, 15 unidades',
+      'HUE-15',
+      1290,
+      20,
+      'Bandeja de 15 huevos.',
+    ),
+  ],
+  'Carnes y embutidos': [
+    _product(
+      'Pechuga de pollo 1 kg',
+      'POL-1KG',
+      1890,
+      12,
+      'Pechuga sin hueso, 1 kg.',
+    ),
+    _product(
+      'Hot dog de pollo, 10 unidades',
+      'HOT-10',
+      890,
+      25,
+      'Paquete de 10 salchichas.',
+    ),
+    _product('Jamonada 250 g', 'JAM-250', 690, 15, 'Tajada fina, 250 g.'),
+  ],
+  'Frutas y verduras': [
+    _product('Plátano de seda 1 kg', 'PLA-1KG', 450, 30, 'Un kilo, aprox.'),
+    _product('Papa amarilla 1 kg', 'PAP-1KG', 390, 40, 'Bolsa de 1 kg.'),
+    _product('Cebolla roja 1 kg', 'CEB-1KG', 320, 35, 'Bolsa de 1 kg.'),
+  ],
+  'Panadería': [
+    _product(
+      'Pan francés, 10 unidades',
+      'PAN-10',
+      400,
+      30,
+      'Bolsa de 10 panes del día.',
+    ),
+    _product(
+      'Pan de molde blanco 600 g',
+      'MOL-600',
+      790,
+      18,
+      'Bolsa de 600 g.',
+    ),
   ],
   'Bebidas': [
     _product('Agua sin gas 2.5 L', 'AGU-2L5', 350, 30, 'Botella de 2.5 L.'),
@@ -286,13 +362,31 @@ final _catalog = <String, List<_SeedProduct>>{
     ),
     _product('Lejía 1 L', 'LEJ-1L', 390, 18, 'Botella de 1 L.'),
   ],
-  'Snacks': [
+  'Cuidado personal': [
+    _product('Jabón de tocador, pack de 3', 'JAB-3', 650, 25, 'Tres barras.'),
+    _product(
+      'Papel higiénico, 4 rollos',
+      'PHI-4',
+      590,
+      40,
+      'Paquete de 4 rollos dobles.',
+    ),
+    _product('Shampoo 400 ml', 'SHA-400', 1590, 12, 'Frasco de 400 ml.'),
+  ],
+  'Snacks y dulces': [
     _product(
       'Galletas de soda, paquete de 6',
       'GAL-6',
       290,
       35,
       'Seis paquetes individuales.',
+    ),
+    _product(
+      'Chocolate de leche 100 g',
+      'CHO-100',
+      450,
+      30,
+      'Tableta de 100 g.',
     ),
   ],
 };

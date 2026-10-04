@@ -29,9 +29,32 @@ void main() {
 
       final created = await seedDevData(session, now: () => testNow);
 
-      expect(created, 12);
-      expect(await Category.db.count(session), 5);
-      expect(await Product.db.count(session), 12);
+      expect(created, 25);
+      expect(
+        [for (final c in await Category.db.find(session)) c.name]..sort(),
+        [
+          'Abarrotes',
+          'Bebidas',
+          'Carnes y embutidos',
+          'Cuidado personal',
+          'Frutas y verduras',
+          'Limpieza',
+          'Lácteos y huevos',
+          'Panadería',
+          'Snacks y dulces',
+        ],
+      );
+      // Ninguna categoría queda vacía en la tienda.
+      for (final category in await Category.db.find(session)) {
+        expect(
+          await Product.db.count(
+            session,
+            where: (product) => product.categoryId.equals(category.id),
+          ),
+          greaterThanOrEqualTo(1),
+          reason: category.name,
+        );
+      }
       expect(
         await Product.db.count(
           session,
@@ -52,9 +75,50 @@ void main() {
       await seedDevData(session, now: () => testNow);
 
       expect(await seedDevData(session, now: () => testNow), 0);
-      expect(await Product.db.count(session), 12);
-      expect(await Category.db.count(session), 5);
+      expect(await Product.db.count(session), 25);
+      expect(await Category.db.count(session), 9);
+      expect(await Promotion.db.count(session), 1);
     });
+
+    test(
+      'completa una base con el catálogo viejo, sin tocar lo que hay',
+      () async {
+        final session = sessionBuilder.build();
+        final dairy = await Category.db.insertRow(
+          session,
+          Category(name: 'Lácteos'),
+        );
+        await Category.db.insertRow(session, Category(name: 'Snacks'));
+        // Un producto del seed que alguien editó y dio de baja.
+        await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Leche evaporada (editada)',
+            sku: 'LEC-400',
+            priceCents: 999,
+            currentStock: 3,
+            minStock: 1,
+            active: false,
+            categoryId: dairy.id!,
+          ),
+        );
+
+        expect(await seedDevData(session, now: () => testNow), 24);
+
+        final names = [for (final c in await Category.db.find(session)) c.name];
+        expect(names, hasLength(9));
+        expect(names, containsAll(['Lácteos y huevos', 'Snacks y dulces']));
+        expect(names, isNot(contains('Lácteos')));
+        final milk = (await Product.db.findFirstRow(
+          session,
+          where: (product) => product.sku.equals('LEC-400'),
+        ))!;
+        expect(milk.name, 'Leche evaporada (editada)');
+        expect(milk.priceCents, 999);
+        expect(milk.active, isFalse);
+        expect(milk.categoryId, dairy.id);
+      },
+    );
 
     group('pedidos de ejemplo', () {
       late Session session;
@@ -116,12 +180,16 @@ void main() {
             ),
             isTrue,
           );
+          // Todos los estados, y los dos más recientes esperan confirmación.
           expect(
             orders.map((o) => o.status).toSet(),
-            containsAll([
-              OrderStatus.delivered,
-              OrderStatus.pendingConfirmation,
-            ]),
+            OrderStatus.values.toSet(),
+          );
+          final newest = [...orders]
+            ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+          expect(
+            newest.take(2).map((o) => o.status),
+            everyElement(OrderStatus.pendingConfirmation),
           );
 
           final (status, sales) = await client.get(
