@@ -7,6 +7,8 @@ import 'src/categories/categories_routes.dart';
 import 'src/categories/categories_service.dart';
 import 'src/common/api_route.dart';
 import 'src/generated/serverpod.dart';
+import 'src/products/products_routes.dart';
+import 'src/products/products_service.dart';
 import 'src/promotions/promotions_routes.dart';
 import 'src/promotions/promotions_service.dart';
 import 'src/users/users_routes.dart';
@@ -33,6 +35,7 @@ void run(List<String> args) async {
   addUsersRoutes(pod.webServer, verifier: verifier);
   addRoutes(pod.webServer, [
     ...categoriesRoutes(const CategoriesService(), verifier),
+    ...productsRoutes(ProductsService(), verifier),
     ...promotionsRoutes(PromotionsService(), verifier),
   ]);
 
