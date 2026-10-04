@@ -1,14 +1,15 @@
-import { PrismaService } from '../../prisma/prisma.service';
+import { ProductStockRepository } from '../../inventory/product-stock.repository';
 import { ExpiringProductsReportProvider } from './expiring-products-report.provider';
 
 describe('ExpiringProductsReportProvider', () => {
   // 22:00 del 1 de octubre en Lima: en UTC ya es el 2, pero para la tienda "hoy" es el 1.
   const now = new Date('2026-10-02T03:00:00Z');
-  let findMany: jest.Mock;
+  let findExpiringBefore: jest.Mock;
   let provider: ExpiringProductsReportProvider;
 
   beforeEach(() => {
-    findMany = jest.fn().mockResolvedValue([
+    // La consulta vive en ProductStockRepository (ver su spec).
+    findExpiringBefore = jest.fn().mockResolvedValue([
       {
         id: 'p1',
         name: 'Yogur',
@@ -32,25 +33,18 @@ describe('ExpiringProductsReportProvider', () => {
       },
     ]);
     provider = new ExpiringProductsReportProvider(
-      { product: { findMany } } as unknown as PrismaService,
+      { findExpiringBefore } as unknown as ProductStockRepository,
       { now: () => now },
     );
   });
 
-  it('busca productos activos con stock que vencen hasta hoy + días, en hora de Lima', async () => {
+  it('pide a inventory lo que vence hasta hoy + días, contando "hoy" en hora de Lima', async () => {
     const report = await provider.getSummary({ days: 7 });
 
     expect(report.until).toBe('2026-10-08');
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          active: true,
-          currentStock: { gt: 0 },
-          // Hasta el 8 incluido: la fecha se guarda a medianoche UTC.
-          expirationDate: { lt: new Date('2026-10-09T00:00:00Z') },
-        },
-        orderBy: [{ expirationDate: 'asc' }, { name: 'asc' }],
-      }),
+    // Hasta el 8 incluido: la fecha se guarda a medianoche UTC.
+    expect(findExpiringBefore).toHaveBeenCalledWith(
+      new Date('2026-10-09T00:00:00Z'),
     );
   });
 

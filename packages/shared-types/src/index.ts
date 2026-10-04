@@ -190,6 +190,27 @@ export interface UpdateOrderStatusRequest {
   status: OrderStatus;
 }
 
+// ---------- Inventario (solo ADMIN/STAFF) ----------
+
+/** IN: entra stock (p. ej. al cancelar un pedido). OUT: sale (al crear un pedido). */
+export type MovementType = 'IN' | 'OUT' | 'ADJUSTMENT';
+
+export interface InventoryMovement {
+  id: string;
+  type: MovementType;
+  quantity: number;
+  reason: string | null;
+  createdAt: ISODateString;
+  product: Pick<Product, 'id' | 'name' | 'sku'>;
+  /** Quién lo originó: el cliente que hizo el pedido o el staff que lo canceló. */
+  user: Pick<PublicUser, 'id' | 'name'>;
+}
+
+/** Query de GET /inventory/movements: del más reciente al más antiguo, paginado. */
+export interface ListInventoryMovementsQuery extends PaginationQuery {
+  productId?: string;
+}
+
 // ---------- Estadísticas (GET /stats/*, solo ADMIN/STAFF) ----------
 
 /** Día de calendario en la hora de la tienda (America/Lima): `"2026-10-01"`. */

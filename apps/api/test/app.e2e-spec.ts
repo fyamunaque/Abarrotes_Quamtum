@@ -6,7 +6,12 @@ import { randomUUID } from 'crypto';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { configureApp } from '../src/app.setup';
+import { ProductStockRepository } from '../src/inventory/product-stock.repository';
 import { PrismaService } from '../src/prisma/prisma.service';
+import {
+  EXPIRING_PRODUCTS_REPORT,
+  LOW_STOCK_REPORT,
+} from '../src/stats/stats.tokens';
 
 // Sin base de datos: estos tests cubren HTTP, validación, autenticación y roles.
 function createPrismaMock() {
@@ -27,6 +32,10 @@ function createPrismaMock() {
       findMany: jest.fn().mockResolvedValue([]),
       count: jest.fn().mockResolvedValue(0),
       groupBy: jest.fn().mockResolvedValue([]),
+    },
+    inventoryMovement: {
+      findMany: jest.fn().mockResolvedValue([]),
+      count: jest.fn().mockResolvedValue(0),
     },
     $transaction: jest.fn(),
     $queryRaw: jest.fn().mockResolvedValue([]),
@@ -555,6 +564,79 @@ describe('API (e2e)', () => {
 
       expect(res.body.email).toBe('usuario@example.com');
       expect(res.body).not.toHaveProperty('passwordHash');
+    });
+  });
+
+  describe('/inventory/movements', () => {
+    const productId = randomUUID();
+
+    it('pide token y rechaza a un CUSTOMER', async () => {
+      await request(app.getHttpServer())
+        .get('/inventory/movements')
+        .expect(401);
+      await request(app.getHttpServer())
+        .get('/inventory/movements')
+        .set('Authorization', await bearer(UserRole.CUSTOMER))
+        .expect(403);
+    });
+
+    it('GET como STAFF pagina el historial de un producto', async () => {
+      prisma.product.findUnique.mockResolvedValue({ id: productId });
+      prisma.inventoryMovement.findMany.mockResolvedValue([
+        {
+          id: 'm1',
+          type: 'OUT',
+          quantity: 2,
+          reason: 'Pedido o1',
+          createdAt: new Date('2026-10-02T00:08:09Z'),
+          product: { id: productId, name: 'Arroz extra 1 kg', sku: 'ARZ' },
+          user: { id: 'u1', name: 'Cliente' },
+        },
+      ]);
+      prisma.inventoryMovement.count.mockResolvedValue(1);
+
+      const res = await request(app.getHttpServer())
+        .get(`/inventory/movements?productId=${productId}&page=1&limit=5`)
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .expect(200);
+
+      expect(res.body.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 5,
+        totalPages: 1,
+      });
+      expect(res.body.data[0]).toMatchObject({ type: 'OUT', quantity: 2 });
+      expect(prisma.inventoryMovement.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: { productId }, take: 5 }),
+      );
+    });
+
+    it('responde 400 si productId no es un UUID y 404 si el producto no existe', async () => {
+      const auth = await bearer(UserRole.ADMIN);
+      await request(app.getHttpServer())
+        .get('/inventory/movements?productId=arroz')
+        .set('Authorization', auth)
+        .expect(400);
+
+      prisma.product.findUnique.mockResolvedValue(null);
+      await request(app.getHttpServer())
+        .get(`/inventory/movements?productId=${productId}`)
+        .set('Authorization', auth)
+        .expect(404);
+    });
+
+    it('stats usa la misma instancia de ProductStockRepository que inventory', () => {
+      const repository = app.get(ProductStockRepository, { strict: false });
+      const lowStock = app.get<{ stock: unknown }>(LOW_STOCK_REPORT, {
+        strict: false,
+      });
+      const expiring = app.get<{ stock: unknown }>(EXPIRING_PRODUCTS_REPORT, {
+        strict: false,
+      });
+
+      expect(lowStock.stock).toBe(repository);
+      expect(expiring.stock).toBe(repository);
     });
   });
 

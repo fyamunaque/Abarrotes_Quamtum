@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { InventoryModule } from '../inventory/inventory.module';
 import { ExpiringProductsReportProvider } from './providers/expiring-products-report.provider';
 import { LowStockReportProvider } from './providers/low-stock-report.provider';
 import { OrderStatusReportProvider } from './providers/order-status-report.provider';
@@ -19,6 +20,8 @@ import {
 
 /** Cada reporte se registra bajo su token: para cambiar una estrategia basta con cambiar useClass. */
 @Module({
+  // Stock bajo y por vencer usan las consultas de inventory (ProductStockRepository).
+  imports: [InventoryModule],
   controllers: [StatsController],
   providers: [
     { provide: CLOCK, useValue: systemClock },

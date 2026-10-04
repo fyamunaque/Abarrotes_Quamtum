@@ -77,6 +77,7 @@ Productos y categorías, clientes, subusuarios y roles, gestión de todos los pe
 
 **Fase 4 — Inventario y logística**
 Stock por producto, stock mínimo y alertas, entradas/salidas/ajustes, historial de movimientos, vencimientos, insumos generales, control de despacho.
+*Avance:* la API ya tiene el módulo `inventory` con el historial de movimientos (`GET /inventory/movements`) y `ProductStockRepository`, con las consultas de stock bajo y por vencer que también usa `stats`. Falta registrar entradas, salidas y ajustes manuales, insumos y despacho.
 
 **Fase 5 — Estadísticas y promociones**
 Ventas por periodo, productos más/menos vendidos, stock bajo y por vencer, promociones creables desde el dashboard y visibles en app y web.
@@ -143,7 +144,7 @@ InventoryMovement, que además actualicen currentStock en Product dentro de
 una transacción. Agrega un endpoint que devuelva productos con stock por
 debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ```
-> Los listados de stock bajo y por vencer ya existen en `GET /stats/low-stock` y `GET /stats/expiring`: el módulo `inventory` debería reutilizarlos en vez de duplicarlos.
+> El módulo `inventory` ya existe, con el historial (`GET /inventory/movements`) y `ProductStockRepository`: las consultas de stock bajo y por vencer viven ahí y `GET /stats/low-stock` y `/stats/expiring` las reutilizan. Lo que falta de este prompt es registrar los movimientos; nuevos listados de stock deben usar ese repositorio en vez de repetir la consulta.
 
 ## 7. Herramientas complementarias
 

@@ -1,35 +1,22 @@
 import type { LowStockProduct, LowStockReport } from '@abarrotes/shared-types';
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ProductStockRepository } from '../../inventory/product-stock.repository';
 import type { ReportProvider } from '../report-provider';
 
 /**
- * Productos activos con currentStock <= minStock. Primero los más críticos: los que
- * tienen menos stock en proporción a su mínimo (agotados antes que casi en el mínimo).
+ * Productos activos con currentStock <= minStock. La consulta es la de inventory
+ * (ProductStockRepository); este reporte solo los ordena: primero los más críticos, los
+ * que tienen menos stock en proporción a su mínimo (agotados antes que casi en el mínimo).
  */
 @Injectable()
 export class LowStockReportProvider implements ReportProvider<
   void,
   LowStockReport
 > {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly stock: ProductStockRepository) {}
 
   async getSummary(): Promise<LowStockReport> {
-    const products = await this.prisma.product.findMany({
-      // Compara dos columnas de la misma fila (referencia de campo de Prisma).
-      where: {
-        active: true,
-        currentStock: { lte: this.prisma.product.fields.minStock },
-      },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        currentStock: true,
-        minStock: true,
-        category: { select: { name: true } },
-      },
-    });
+    const products = await this.stock.findLowStock();
 
     const data: LowStockProduct[] = products.map((product) => ({
       id: product.id,

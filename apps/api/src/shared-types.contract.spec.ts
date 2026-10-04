@@ -1,8 +1,9 @@
 import type * as Shared from '@abarrotes/shared-types';
-import { OrderStatus, UserRole } from '@prisma/client';
+import { MovementType, OrderStatus, UserRole } from '@prisma/client';
 import { LoginDto } from './auth/dto/login.dto';
 import { RefreshTokenDto } from './auth/dto/refresh-token.dto';
 import { RegisterDto } from './auth/dto/register.dto';
+import { ListMovementsQueryDto } from './inventory/dto/list-movements-query.dto';
 import { CreateOrderDto } from './orders/dto/create-order.dto';
 import { ListOrdersQueryDto } from './orders/dto/list-orders-query.dto';
 import { UpdateOrderStatusDto } from './orders/dto/update-order-status.dto';
@@ -37,6 +38,7 @@ describe('Contrato con @abarrotes/shared-types', () => {
   it('los enums de Prisma coinciden con los tipos compartidos', () => {
     expectTrue<SameShape<OrderStatus, Shared.OrderStatus>>();
     expectTrue<SameShape<UserRole, Shared.UserRole>>();
+    expectTrue<SameShape<MovementType, Shared.MovementType>>();
 
     const statuses: Record<Shared.OrderStatus, true> = {
       PENDING_CONFIRMATION: true,
@@ -90,6 +92,15 @@ describe('Contrato con @abarrotes/shared-types', () => {
       SameShape<
         keyof CreateProductDto & 'expirationDate',
         keyof Shared.CreateProductRequest & 'expirationDate'
+      >
+    >();
+  });
+
+  it('el query del historial de inventario coincide', () => {
+    expectTrue<
+      SameShape<
+        Partial<Fields<ListMovementsQueryDto>>,
+        Shared.ListInventoryMovementsQuery
       >
     >();
   });

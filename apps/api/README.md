@@ -95,6 +95,7 @@ Se puede correr las veces que haga falta. **No corre con `NODE_ENV=production`**
 | GET | `/orders/mine` | Autenticado | Mis pedidos, del más reciente al más antiguo. Query: `page`, `limit` |
 | GET | `/orders` | ADMIN, STAFF | Todos los pedidos con los datos del cliente, del más reciente al más antiguo. Query: `status`, `from` y `to` (`AAAA-MM-DD`, días de Lima, ambos incluidos; cualquiera puede faltar), `page`, `limit` |
 | PATCH | `/orders/:id/status` | ADMIN, STAFF | `{ status }` → cambia el estado si la transición está permitida (ver abajo) |
+| GET | `/inventory/movements` | ADMIN, STAFF | Historial de movimientos de stock (entradas, salidas y ajustes), del más reciente al más antiguo, con el producto y quién lo originó. Query: `productId` (opcional; 404 si no existe), `page`, `limit` |
 | GET | `/stats/overview` | ADMIN, STAFF | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio; pedidos por estado |
 | GET | `/stats/sales` | ADMIN, STAFF | Serie diaria para graficar. Query: `from`, `to` (`AAAA-MM-DD`; por defecto, los últimos 30 días; máx. 366) |
 | GET | `/stats/top-products` | ADMIN, STAFF | Más vendidos por unidades, con ingresos. Query: `limit` (5, máx. 50), `from`, `to` |
@@ -129,6 +130,7 @@ PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED
 - **Serie sin huecos**: `GET /stats/sales` trae un punto por día del rango, en 0 los días sin ventas. `averageTicket` es `total / pedidos` redondeado a céntimos.
 - **Vencimientos**: `expirationDate` se guarda sin hora y se compara como fecha. `daysLeft` es 0 si vence hoy y negativo si ya venció.
 - **Diseño**: cada reporte es una clase propia que implementa `ReportProvider` (`getSummary(range)`) y se inyecta por token (`stats.tokens.ts`). El controller solo traduce el query a un rango, y `/stats/overview` compone los reportes de ventas y de pedidos por estado.
+- **Stock bajo y por vencer** no tienen consulta propia en `stats`: usan `ProductStockRepository` de `src/inventory`, el único lugar de la API con esas consultas. `StatsModule` importa `InventoryModule`, así que los dos módulos comparten la misma instancia.
 - Las respuestas usan los tipos de `@abarrotes/shared-types` (`StatsOverview`, `SalesReport`, …).
 
 Respuesta de `GET /products`:

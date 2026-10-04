@@ -1,4 +1,4 @@
-import { PrismaService } from '../../prisma/prisma.service';
+import { ProductStockRepository } from '../../inventory/product-stock.repository';
 import { LowStockReportProvider } from './low-stock-report.provider';
 
 function product(sku: string, currentStock: number, minStock: number) {
@@ -13,32 +13,23 @@ function product(sku: string, currentStock: number, minStock: number) {
 }
 
 describe('LowStockReportProvider', () => {
-  const minStockField = { name: 'minStock' }; // referencia de campo de Prisma
-  let findMany: jest.Mock;
-  let provider: LowStockReportProvider;
+  // La consulta vive en ProductStockRepository (ver su spec): aquí solo se ordena.
+  const findLowStock = jest
+    .fn()
+    .mockResolvedValue([
+      product('CASI', 9, 10),
+      product('AGOTADO', 0, 5),
+      product('MITAD', 10, 20),
+      product('SIN-MINIMO', 0, 0),
+    ]);
+  const provider = new LowStockReportProvider({
+    findLowStock,
+  } as unknown as ProductStockRepository);
 
-  beforeEach(() => {
-    findMany = jest
-      .fn()
-      .mockResolvedValue([
-        product('CASI', 9, 10),
-        product('AGOTADO', 0, 5),
-        product('MITAD', 10, 20),
-        product('SIN-MINIMO', 0, 0),
-      ]);
-    provider = new LowStockReportProvider({
-      product: { findMany, fields: { minStock: minStockField } },
-    } as unknown as PrismaService);
-  });
-
-  it('compara currentStock con minStock de la misma fila, solo en productos activos', async () => {
+  it('usa la consulta de stock bajo de inventory', async () => {
     await provider.getSummary();
 
-    expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { active: true, currentStock: { lte: minStockField } },
-      }),
-    );
+    expect(findLowStock).toHaveBeenCalledTimes(1);
   });
 
   it('pone primero los más críticos y calcula lo que falta para el mínimo', async () => {

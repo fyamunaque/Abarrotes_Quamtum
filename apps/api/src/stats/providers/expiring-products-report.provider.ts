@@ -1,6 +1,6 @@
 import type { ExpiringProductsReport } from '@abarrotes/shared-types';
 import { Inject, Injectable } from '@nestjs/common';
-import { PrismaService } from '../../prisma/prisma.service';
+import { ProductStockRepository } from '../../inventory/product-stock.repository';
 import type { Clock, ReportProvider } from '../report-provider';
 import { CLOCK } from '../stats.tokens';
 import {
@@ -16,8 +16,10 @@ export interface ExpiringRange {
 
 /**
  * Productos activos con stock que vencen de hoy a hoy + `days`, incluidos los que ya
- * vencieron y siguen en el inventario (son los más urgentes). La fecha de vencimiento se
- * guarda sin hora (medianoche UTC) y se compara como día de calendario.
+ * vencieron y siguen en el inventario (son los más urgentes). La consulta es la de
+ * inventory (ProductStockRepository); este reporte calcula el rango en hora de Lima y los
+ * días que faltan. La fecha de vencimiento se guarda sin hora (medianoche UTC) y se
+ * compara como día de calendario.
  */
 @Injectable()
 export class ExpiringProductsReportProvider implements ReportProvider<
@@ -25,7 +27,7 @@ export class ExpiringProductsReportProvider implements ReportProvider<
   ExpiringProductsReport
 > {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly stock: ProductStockRepository,
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
@@ -33,21 +35,10 @@ export class ExpiringProductsReportProvider implements ReportProvider<
     const today = storeDay(this.clock.now());
     const until = addDays(today, days);
 
-    const products = await this.prisma.product.findMany({
-      where: {
-        active: true,
-        currentStock: { gt: 0 },
-        expirationDate: { lt: utcMidnight(addDays(until, 1)) },
-      },
-      select: {
-        id: true,
-        name: true,
-        sku: true,
-        currentStock: true,
-        expirationDate: true,
-      },
-      orderBy: [{ expirationDate: 'asc' }, { name: 'asc' }],
-    });
+    // Hasta `until` incluido: el límite es la medianoche UTC del día siguiente.
+    const products = await this.stock.findExpiringBefore(
+      utcMidnight(addDays(until, 1)),
+    );
 
     return {
       days,
