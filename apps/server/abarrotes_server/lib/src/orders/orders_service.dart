@@ -6,9 +6,15 @@ import '../common/pagination.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../inventory/inventory_service.dart';
+import '../promotions/promotion_rules.dart';
 import 'states/order_states.dart';
 
-/// Pedidos vistos desde el dashboard: listado y cambios de estado.
+/// Una línea del pedido tal como la manda el cliente: sin precios, que los
+/// pone el servidor.
+typedef OrderLineInput = ({UuidValue productId, int quantity});
+
+/// Pedidos: los del cliente (crear y ver los suyos) y los del dashboard
+/// (listado y cambios de estado).
 class OrdersService {
   OrdersService({
     this._inventory = const InventoryService(),
@@ -17,6 +23,140 @@ class OrdersService {
 
   final InventoryService _inventory;
   final DateTime Function() _now;
+
+  /// Crea el pedido de [customer] en `pendingConfirmation` y descuenta el
+  /// stock, todo en una transacción: si un producto no está disponible o no
+  /// alcanza, no se guarda nada.
+  ///
+  /// Cobra el precio de la promoción vigente, si la hay. Las líneas del mismo
+  /// producto se juntan. Cada salida queda en el historial de inventario a
+  /// nombre del cliente.
+  ///
+  /// Los productos se bloquean (FOR UPDATE) al leerlos, en orden por id y
+  /// antes de escribir nada: dos pedidos a la vez se ordenan ahí. Si se
+  /// bloquearan recién al descontar el stock, cada uno ya tendría la fila
+  /// tomada por la clave foránea de sus líneas y se trabarían (deadlock).
+  Future<Order> create(
+    Session session, {
+    required User customer,
+    required String deliveryAddress,
+    required List<OrderLineInput> lines,
+  }) {
+    final quantities = <UuidValue, int>{};
+    for (final line in lines) {
+      quantities.update(
+        line.productId,
+        (quantity) => quantity + line.quantity,
+        ifAbsent: () => line.quantity,
+      );
+    }
+    final productIds = quantities.keys.toList()
+      ..sort((a, b) => a.toString().compareTo(b.toString()));
+
+    return session.db.transaction((transaction) async {
+      final now = _now().toUtc();
+      final products = {
+        for (final product in await Product.db.find(
+          session,
+          where: (product) => product.id.inSet(productIds.toSet()),
+          orderBy: (product) => product.id,
+          include: Product.include(
+            promotions: Promotion.includeList(
+              where: (promotion) => activePromotionWhere(promotion, now),
+              limit: 1,
+            ),
+          ),
+          lockMode: LockMode.forUpdate,
+          transaction: transaction,
+        ))
+          product.id!: product,
+      };
+
+      // Inexistentes (por id) o dados de baja (por nombre).
+      final unavailable = [
+        for (final id in productIds)
+          if (products[id]?.active != true) products[id]?.name ?? id.toString(),
+      ];
+      if (unavailable.isNotEmpty) {
+        throw ApiException.badRequest(
+          'Ya no están disponibles: ${unavailable.join(', ')}',
+        );
+      }
+
+      int unitPrice(Product product) =>
+          product.promotions?.firstOrNull?.promoPriceCents ??
+          product.priceCents;
+      final total = productIds.fold<int>(
+        0,
+        (sum, id) => sum + unitPrice(products[id]!) * quantities[id]!,
+      );
+
+      final order = await Order.db.insertRow(
+        session,
+        Order(
+          status: OrderStatus.pendingConfirmation,
+          totalCents: total,
+          deliveryAddress: deliveryAddress,
+          createdAt: now,
+          updatedAt: now,
+          customerId: customer.id!,
+        ),
+        transaction: transaction,
+      );
+      await OrderItem.db.insert(session, [
+        for (final id in productIds)
+          OrderItem(
+            quantity: quantities[id]!,
+            unitPriceCents: unitPrice(products[id]!),
+            orderId: order.id!,
+            productId: id,
+          ),
+      ], transaction: transaction);
+
+      // Si un producto no alcanza, inventory responde 409 y la transacción
+      // deshace también el pedido.
+      for (final id in productIds) {
+        await _inventory.record(
+          session,
+          (
+            productId: id,
+            type: MovementType.outgoing,
+            quantity: quantities[id]!,
+            reason: 'Pedido ${order.id}',
+          ),
+          by: customer,
+          transaction: transaction,
+        );
+      }
+
+      return (await Order.db.findById(
+        session,
+        order.id!,
+        include: _customerInclude,
+        transaction: transaction,
+      ))!;
+    });
+  }
+
+  /// Los pedidos de [customer], paginados, los más recientes primero.
+  Future<(List<Order>, int)> mine(
+    Session session,
+    User customer,
+    PageQuery page,
+  ) async {
+    Expression where(OrderTable order) => order.customerId.equals(customer.id!);
+
+    final orders = await Order.db.find(
+      session,
+      where: where,
+      orderByList: (order) => [order.createdAt.desc(), order.id.desc()],
+      limit: page.limit,
+      offset: page.offset,
+      include: _customerInclude,
+    );
+    final total = await Order.db.count(session, where: where);
+    return (orders, total);
+  }
 
   /// Paginado, los más recientes primero. [from] y [to] son días de la tienda
   /// (hora de Lima), ambos incluidos; cualquiera puede faltar.
@@ -129,7 +269,15 @@ class OrdersService {
     }
   }
 
-  /// Para el dashboard: las líneas con su producto y quién hizo el pedido.
+  /// Para el cliente: las líneas con su producto.
+  static final _customerInclude = Order.include(
+    items: OrderItem.includeList(
+      orderBy: (item) => item.id,
+      include: OrderItem.include(product: Product.include()),
+    ),
+  );
+
+  /// Para el dashboard: además, quién hizo el pedido.
   static final _include = Order.include(
     customer: User.include(),
     items: OrderItem.includeList(

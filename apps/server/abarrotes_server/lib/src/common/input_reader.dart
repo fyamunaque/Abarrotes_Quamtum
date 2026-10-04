@@ -14,10 +14,17 @@ import 'store_time.dart';
 /// - `nullable: true`: opcional, y ausente o null devuelven null (sirve para
 ///   borrar el campo). Para saber si vino, usar [has].
 class InputReader {
-  InputReader._(this._values, this._fromQuery, Set<String> allowed) {
+  InputReader._(
+    this._values,
+    this._fromQuery,
+    Set<String> allowed, {
+    List<String>? errors,
+    this._prefix = '',
+  }) : _errors = errors ?? [] {
     _errors.addAll([
       for (final field in _values.keys)
-        if (!allowed.contains(field)) 'La propiedad $field no está permitida',
+        if (!allowed.contains(field))
+          'La propiedad ${_at(field)} no está permitida',
     ]);
   }
 
@@ -35,7 +42,14 @@ class InputReader {
 
   final Map<String, Object?> _values;
   final bool _fromQuery;
-  final _errors = <String>[];
+
+  /// Compartida con los lectores de [objects], así [check] junta todo.
+  final List<String> _errors;
+
+  /// Dónde está este objeto dentro del body (`items[2].`), para los errores.
+  final String _prefix;
+
+  String _at(String field) => '$_prefix$field';
 
   bool has(String field) => _values.containsKey(field);
 
@@ -56,7 +70,7 @@ class InputReader {
     if (value is! String || value.trim().isEmpty) return null;
     final trimmed = value.trim();
     if (trimmed.length > maxLength) {
-      _errors.add('$field admite como máximo $maxLength caracteres');
+      _errors.add('${_at(field)} admite como máximo $maxLength caracteres');
     }
     return trimmed;
   });
@@ -75,7 +89,7 @@ class InputReader {
     final cents = toCents(amount);
     if (cents != null && (cents < minCents || cents > maxCents)) {
       _errors.add(
-        '$field debe estar entre ${formatMoney(minCents)} y ${formatMoney(maxCents)}',
+        '${_at(field)} debe estar entre ${formatMoney(minCents)} y ${formatMoney(maxCents)}',
       );
     }
     return cents;
@@ -92,8 +106,8 @@ class InputReader {
     if (number < min || (max != null && number > max)) {
       _errors.add(
         max == null
-            ? '$field debe ser mayor o igual a $min'
-            : '$field debe estar entre $min y $max',
+            ? '${_at(field)} debe ser mayor o igual a $min'
+            : '${_at(field)} debe estar entre $min y $max',
       );
     }
     return number;
@@ -147,10 +161,48 @@ class InputReader {
             (uri.scheme == 'http' || uri.scheme == 'https') &&
             uri.host.isNotEmpty;
         if (valid && value.trim().length > maxLength) {
-          _errors.add('$field admite como máximo $maxLength caracteres');
+          _errors.add('${_at(field)} admite como máximo $maxLength caracteres');
         }
         return valid ? value.trim() : null;
       });
+
+  /// Una lista de objetos, p. ej. las líneas de un pedido. Cada uno se lee con
+  /// su propio InputReader (con sus [allowed]); los errores van a esta misma
+  /// lista, con la posición: `items[2].quantity es obligatorio`.
+  List<InputReader>? objects(
+    String field, {
+    required Set<String> allowed,
+    int min = 0,
+    int? max,
+    bool required = true,
+  }) => _read(field, required, false, 'una lista', (value) {
+    if (value is! List) return null;
+    if (value.length < min || (max != null && value.length > max)) {
+      _errors.add(
+        max == null
+            ? '${_at(field)} debe tener al menos $min '
+                  'elemento${min == 1 ? '' : 's'}'
+            : '${_at(field)} debe tener entre $min y $max elementos',
+      );
+    }
+    final readers = <InputReader>[];
+    for (final (i, item) in value.indexed) {
+      if (item is Map<String, dynamic>) {
+        readers.add(
+          InputReader._(
+            item,
+            false,
+            allowed,
+            errors: _errors,
+            prefix: '${_at(field)}[$i].',
+          ),
+        );
+      } else {
+        _errors.add('${_at(field)}[$i] debe ser un objeto');
+      }
+    }
+    return readers;
+  });
 
   /// Uno de los [options] por nombre.
   T? oneOf<T extends Enum>(
@@ -176,14 +228,14 @@ class InputReader {
     if (value == null) {
       if (nullable) return null;
       if (_values.containsKey(field)) {
-        _errors.add('$field no puede ser null');
+        _errors.add('${_at(field)} no puede ser null');
       } else if (required) {
-        _errors.add('$field es obligatorio');
+        _errors.add('${_at(field)} es obligatorio');
       }
       return null;
     }
     final parsed = parse(value);
-    if (parsed == null) _errors.add('$field debe ser $expected');
+    if (parsed == null) _errors.add('${_at(field)} debe ser $expected');
     return parsed;
   }
 }

@@ -11,15 +11,73 @@ import '../common/pagination.dart';
 import '../generated/protocol.dart';
 import 'orders_service.dart';
 
-/// Rutas de pedidos del dashboard: solo para admin y staff.
+/// Rutas de pedidos: crear y ver los propios, para cualquier cuenta; el
+/// listado y los cambios de estado, solo para admin y staff.
 List<RouteEntry> ordersRoutes(
   OrdersService orders,
   FirebaseTokenVerifier verifier,
 ) {
+  Route signedIn(Method method, ApiHandler handler) =>
+      RoleGuard(anyRole, ApiRoute(method, handler), verifier: verifier);
   Route staffOnly(Method method, ApiHandler handler) =>
       RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
 
   return [
+    (
+      '/orders',
+      // El pedido queda a nombre de quien lo crea. Sin precios ni total: los
+      // pone el servidor con los precios de hoy.
+      signedIn(Method.post, (session, request) async {
+        final body = InputReader.body(
+          await readJsonBody(request),
+          allowed: const {'deliveryAddress', 'items'},
+        );
+        final deliveryAddress = body.text('deliveryAddress', maxLength: 255);
+        final items = body.objects(
+          'items',
+          allowed: const {'productId', 'quantity'},
+          min: 1,
+          max: 100,
+        );
+        final lines = [
+          for (final item in items ?? const <InputReader>[])
+            (
+              productId: item.uuid('productId'),
+              quantity: item.integer('quantity', min: 1, max: 999),
+            ),
+        ];
+        body.check();
+
+        final order = await orders.create(
+          session,
+          customer: request.currentUser,
+          deliveryAddress: deliveryAddress!,
+          lines: [
+            for (final line in lines)
+              (productId: line.productId!, quantity: line.quantity!),
+          ],
+        );
+        return jsonResponse(201, orderJson(order));
+      }),
+    ),
+    (
+      '/orders/mine',
+      signedIn(Method.get, (session, request) async {
+        final query = InputReader.query(request, allowed: PageQuery.fields);
+        final page = PageQuery.read(query);
+        query.check();
+
+        final (list, total) = await orders.mine(
+          session,
+          request.currentUser,
+          page,
+        );
+        return jsonResponse(
+          200,
+          page.wrap(list.map(orderJson).toList(), total),
+        );
+      }),
+    ),
     (
       '/orders',
       staffOnly(Method.get, (session, request) async {
@@ -46,7 +104,7 @@ List<RouteEntry> ordersRoutes(
         );
         return jsonResponse(
           200,
-          page.wrap(list.map(orderJson).toList(), total),
+          page.wrap(list.map(adminOrderJson).toList(), total),
         );
       }),
     ),
@@ -67,17 +125,16 @@ List<RouteEntry> ordersRoutes(
           status!,
           by: request.currentUser,
         );
-        return jsonResponse(200, orderJson(order));
+        return jsonResponse(200, adminOrderJson(order));
       }),
     ),
   ];
 }
 
-/// Como el `AdminOrder` de packages/shared-types: el pedido con sus líneas y
-/// quién lo hizo. Montos como texto ("4.5") y estado como en el modelo
-/// (`pendingConfirmation`, `confirmed`…).
+/// Como el `Order` de packages/shared-types: el pedido con sus líneas. Montos
+/// como texto ("4.5") y estado como en el modelo (`pendingConfirmation`,
+/// `confirmed`…).
 Map<String, Object?> orderJson(Order order) {
-  final customer = order.customer!;
   return {
     'id': order.id.toString(),
     'status': order.status.name,
@@ -101,6 +158,14 @@ Map<String, Object?> orderJson(Order order) {
           },
         },
     ],
+  };
+}
+
+/// Como el `AdminOrder` de packages/shared-types: además, quién lo hizo.
+Map<String, Object?> adminOrderJson(Order order) {
+  final customer = order.customer!;
+  return {
+    ...orderJson(order),
     'customer': {
       'id': customer.id.toString(),
       'name': customer.name,

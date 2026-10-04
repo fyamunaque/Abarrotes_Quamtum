@@ -114,6 +114,74 @@ void main() {
       throwsA(isA<ApiException>()),
     );
   });
+
+  group('objects', () {
+    test('lee cada objeto de la lista con sus propias reglas', () {
+      final body = InputReader.body(
+        {
+          'items': [
+            {'id': 'a', 'n': 1},
+            {'id': 'b', 'n': 2},
+          ],
+        },
+        allowed: {'items'},
+      );
+
+      final items = body.objects('items', allowed: {'id', 'n'}, min: 1)!;
+      final read = [
+        for (final item in items)
+          (item.text('id', maxLength: 5), item.integer('n', min: 1)),
+      ];
+
+      expect(read, [('a', 1), ('b', 2)]);
+      expect(errorsOf(body.check), isEmpty);
+    });
+
+    test('los errores de cada objeto dicen su posición y van al mismo 400', () {
+      final body = InputReader.body(
+        {
+          'name': '',
+          'items': [
+            {'n': 1},
+            {'n': 0, 'extra': true},
+            'no es un objeto',
+          ],
+        },
+        allowed: {'name', 'items'},
+      );
+
+      body.text('name', maxLength: 5);
+      for (final item in body.objects('items', allowed: {'n'})!) {
+        item.integer('n', min: 1, max: 9);
+      }
+
+      expect(errorsOf(body.check), [
+        'name debe ser un texto no vacío',
+        'La propiedad items[1].extra no está permitida',
+        'items[2] debe ser un objeto',
+        'items[1].n debe estar entre 1 y 9',
+      ]);
+    });
+
+    test('la lista tiene que ser una lista y respetar su tamaño', () {
+      final body = InputReader.body(
+        {'a': 'x', 'b': <Object?>[], 'c': List.filled(3, <String, Object?>{})},
+        allowed: {'a', 'b', 'c', 'd'},
+      );
+
+      body.objects('a', allowed: const {});
+      body.objects('b', allowed: const {}, min: 1);
+      body.objects('c', allowed: const {}, min: 1, max: 2);
+      body.objects('d', allowed: const {});
+
+      expect(errorsOf(body.check), [
+        'a debe ser una lista',
+        'b debe tener al menos 1 elemento',
+        'c debe tener entre 1 y 2 elementos',
+        'd es obligatorio',
+      ]);
+    });
+  });
 }
 
 enum _Status { uno, dos, tres }
