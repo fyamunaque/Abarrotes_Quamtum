@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:abarrotes_server/src/auth/firebase_auth_middleware.dart';
-import 'package:abarrotes_server/src/auth/firebase_token_verifier.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/users/users_routes.dart';
 import 'package:abarrotes_server/src/users/users_service.dart';
@@ -9,7 +8,8 @@ import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
-import '../unit/auth/test_tokens.dart';
+import '../support/http_harness.dart';
+import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
 /// GET /users/me y POST /users contra la base de pruebas, pasando por HTTP,
@@ -26,21 +26,13 @@ void main() {
 
     setUp(() async {
       session = sessionBuilder.build();
-      final verifier = FirebaseTokenVerifier(
-        projectId: testProjectId,
-        keys: FakeKeys({'llave-1': google.public}),
-        now: () => testNow,
-      );
+      final verifier = testVerifier(google);
       // Las mismas rutas (y guards) que addUsersRoutes, con la sesión del test.
-      final app = RelicApp()..use('/users', firebaseAuthMiddleware(verifier));
-      usersRoutes(const UsersService()).forEach((path, route) {
-        app.anyOf(
-          route.methods,
-          path,
-          (req) => route.handleCall(session, req),
-        );
-      });
-      server = await app.serve(port: 0);
+      server = await serveRoutes(
+        () => session,
+        usersRoutes(const UsersService(), verifier),
+        middleware: {'/users': firebaseAuthMiddleware(verifier)},
+      );
     });
 
     tearDown(() => server.close());

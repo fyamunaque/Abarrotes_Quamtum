@@ -7,7 +7,7 @@ import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
-import 'test_tokens.dart';
+import '../../support/test_tokens.dart';
 
 /// Monta el middleware como en el servidor (sobre `/users`) en un servidor
 /// HTTP real, con rutas que responden el uid de la identidad recibida.

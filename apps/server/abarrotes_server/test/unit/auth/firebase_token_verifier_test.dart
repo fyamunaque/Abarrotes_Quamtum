@@ -3,7 +3,7 @@ import 'package:abarrotes_server/src/auth/firebase_token_verifier.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:test/test.dart';
 
-import 'test_tokens.dart';
+import '../../support/test_tokens.dart';
 
 void main() {
   late RsaKeyPair google;

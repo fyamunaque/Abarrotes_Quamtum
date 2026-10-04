@@ -1,0 +1,30 @@
+/// La tienda trabaja con días de Lima. Perú no usa horario de verano desde
+/// 1994, así que la hora de la tienda es siempre UTC-5.
+const storeTimeZone = 'America/Lima';
+const _utcOffset = Duration(hours: -5);
+
+final _dayPattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+/// El día de la tienda (`2026-10-01`) en que cae [instant].
+String storeDay(DateTime instant) => _format(instant.toUtc().add(_utcOffset));
+
+/// Las 00:00 de [day] en la tienda, como instante UTC.
+DateTime storeDayStart(String day) => _parse(day).subtract(_utcOffset);
+
+/// [day] más [days] días (pueden ser negativos).
+String addDays(String day, int days) =>
+    _format(_parse(day).add(Duration(days: days)));
+
+/// Si [day] es un día real con formato `AAAA-MM-DD` ("2026-02-30" no pasa).
+bool isValidDay(String day) {
+  if (!_dayPattern.hasMatch(day)) return false;
+  final parsed = DateTime.tryParse('${day}T00:00:00Z');
+  return parsed != null && _format(parsed) == day;
+}
+
+DateTime _parse(String day) => DateTime.parse('${day}T00:00:00Z');
+
+String _format(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';

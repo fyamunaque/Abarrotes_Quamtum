@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:abarrotes_server/src/auth/firebase_token_verifier.dart';
 import 'package:abarrotes_server/src/auth/google_public_keys.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:pointycastle/export.dart' as pc;
@@ -72,6 +73,14 @@ String unsignedToken(Map<String, dynamic> claims, {String kid = 'llave-1'}) {
       base64Url.encode(utf8.encode(jsonEncode(json))).replaceAll('=', '');
   return '${encode({'alg': 'none', 'kid': kid})}.${encode(claims)}.';
 }
+
+/// Verificador de los tests: acepta los tokens firmados con [google] y usa
+/// [testNow] como hora actual.
+FirebaseTokenVerifier testVerifier(RsaKeyPair google) => FirebaseTokenVerifier(
+  projectId: testProjectId,
+  keys: FakeKeys({'llave-1': google.public}),
+  now: () => testNow,
+);
 
 /// Fuente de llaves en memoria.
 class FakeKeys implements PublicKeySource {

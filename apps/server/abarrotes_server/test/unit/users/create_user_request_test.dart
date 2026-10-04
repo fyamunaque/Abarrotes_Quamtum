@@ -54,10 +54,10 @@ void main() {
       throwsA(
         isA<ApiException>().having((e) => e.message, 'message', [
           'La propiedad extra no está permitida',
-          'firebaseUid es obligatorio y debe ser un texto',
+          'firebaseUid es obligatorio',
           'email debe ser un correo válido',
-          'name es obligatorio y debe ser un texto',
-          'role debe ser admin o staff',
+          'name es obligatorio',
+          'role es obligatorio',
         ]),
       ),
     );
