@@ -41,11 +41,10 @@ servidor, que verifica el ID token en cada petición.
 
 - **Android** ya está: sale de `apps/android/app/google-services.json` (mismo proyecto y paquete
   que la app Kotlin). Se inicializa desde Dart, sin el plugin de Gradle de google-services.
-- **Web**: pendiente. Hasta tenerla, la web arranca y el ingreso dice que no está disponible.
-  Para agregarla:
-  1. En la consola de Firebase: Configuración del proyecto → Tus apps → Agregar app → Web.
-  2. Copiar `apiKey`, `appId`, `messagingSenderId`, `projectId`, `authDomain` y `storageBucket`
-     en `DefaultFirebaseOptions.web`, como `FirebaseOptions(...)`, igual que `android`.
+- **Web** también: es la Web app del mismo proyecto (consola de Firebase → Configuración del
+  proyecto → Tus apps). Si se registra otra plataforma, sus valores van en
+  `DefaultFirebaseOptions` igual; sin config, la app arranca y el ingreso dice que no está
+  disponible.
 - Una sola vez, en la consola: **Authentication → Sign-in method → habilitar "Correo
   electrónico/contraseña"**. `localhost` ya viene en los dominios autorizados.
 

@@ -158,8 +158,7 @@ Pendiente:
 
 Pendiente:
 
-1. La config de la Web app de Firebase en `lib/firebase_options.dart`: hasta tenerla, en la web el ingreso dice que no está disponible. Android ya está configurado.
-2. Cuando esté todo, retirar `apps/android` y `apps/web`.
+1. Cuando esté todo, retirar `apps/android` y `apps/web`.
 
 Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
 

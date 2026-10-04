@@ -16,9 +16,17 @@ abstract final class DefaultFirebaseOptions {
     };
   }
 
-  /// Pendiente: la Web app del proyecto (consola de Firebase → Configuración
-  /// del proyecto → Tus apps → Web).
-  static const FirebaseOptions? web = null;
+  /// La Web app del proyecto (consola de Firebase → Configuración del
+  /// proyecto → Tus apps → Web).
+  static const FirebaseOptions web = FirebaseOptions(
+    apiKey: 'AIzaSyBzz4o2Qx-SaOKJtQTHpjXrNjU1jWW7l7Q',
+    appId: '1:850027810618:web:e047c612ea8b31dc44ca03',
+    messagingSenderId: '850027810618',
+    projectId: 'prototype-440b7',
+    authDomain: 'prototype-440b7.firebaseapp.com',
+    storageBucket: 'prototype-440b7.firebasestorage.app',
+    measurementId: 'G-WHVJZE8SDF',
+  );
 
   /// De apps/android/app/google-services.json: el mismo proyecto y paquete
   /// que la app Kotlin.
