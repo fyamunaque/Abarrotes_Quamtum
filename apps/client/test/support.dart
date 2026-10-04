@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
 
 /// Las fuentes salen de assets/google_fonts, como en la app: sin red.
 ///
@@ -32,4 +34,25 @@ void useBundledFonts() {
       return messenger.delegate.send('flutter/assets', asset);
     });
   });
+}
+
+SignedIn signedInAs(UserRole role) => SignedIn(
+  SessionUser(
+    id: 'u-${role.name}',
+    name: 'Ana ${role.name}',
+    email: '${role.name}@tienda.pe',
+    role: role,
+  ),
+);
+
+/// Sesión controlable desde el test (en la app la maneja Firebase Auth).
+class TestSession extends SessionNotifier {
+  TestSession(this.initial);
+
+  final Session initial;
+
+  @override
+  Session build() => initial;
+
+  void set(Session session) => state = session;
 }
