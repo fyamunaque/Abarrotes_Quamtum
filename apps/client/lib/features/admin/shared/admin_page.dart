@@ -44,21 +44,6 @@ class AdminPage extends StatelessWidget {
   }
 }
 
-/// Una sección del panel que todavía no está.
-class AdminPlaceholder extends StatelessWidget {
-  const AdminPlaceholder(this.title, {super.key});
-
-  final String title;
-
-  @override
-  Widget build(BuildContext context) {
-    return AdminPage(
-      title: title,
-      children: const [Text('Esta sección llega en un próximo paso.')],
-    );
-  }
-}
-
 /// Pregunta antes de una acción que no se deshace fácil (cancelar un pedido,
 /// dar de baja, eliminar). Devuelve true si la persona confirmó.
 Future<bool> confirmAction(

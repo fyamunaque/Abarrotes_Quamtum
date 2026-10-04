@@ -93,6 +93,8 @@ class _MovementFormState extends State<MovementForm> {
   Widget build(BuildContext context) {
     return Form(
       key: _formKey,
+      // Un campo con error se vuelve a validar mientras se corrige.
+      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

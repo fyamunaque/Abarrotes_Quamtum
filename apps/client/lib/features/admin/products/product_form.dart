@@ -194,6 +194,8 @@ class _ProductFormState extends ConsumerState<ProductForm> {
 
     return Form(
       key: _formKey,
+      // Un campo con error se vuelve a validar mientras se corrige.
+      autovalidateMode: AutovalidateMode.onUserInteractionIfError,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [

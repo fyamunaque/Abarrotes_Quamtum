@@ -24,8 +24,14 @@ abstract class PagedNotifier<T> extends AsyncNotifier<PageList<T>> {
     state = AsyncData(next);
   }
 
-  /// Vuelve a pedir la página actual (p. ej. después de crear o editar).
-  Future<void> refresh() => goTo(_page);
+  /// Vuelve a pedir la página actual (p. ej. después de editar). Si quedó
+  /// vacía (se borró lo último que tenía), muestra la anterior.
+  Future<void> refresh() async {
+    await goTo(_page);
+    if (_page > 1 && (state.value?.items.isEmpty ?? false)) {
+      await goTo(_page - 1);
+    }
+  }
 
   /// Deja [item] en lugar del que cumple [matches], sin volver a pedir nada.
   void replace(T item, bool Function(T) matches) {

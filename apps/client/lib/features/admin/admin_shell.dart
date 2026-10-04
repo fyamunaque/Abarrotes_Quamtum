@@ -40,14 +40,26 @@ enum AdminSection {
     'Promociones',
     Icons.sell_outlined,
     Icons.sell,
+    shortLabel: 'Promos',
   );
 
-  const AdminSection(this.path, this.label, this.icon, this.selectedIcon);
+  const AdminSection(
+    this.path,
+    this.label,
+    this.icon,
+    this.selectedIcon, {
+    this._shortLabel,
+  });
 
   final String path;
   final String label;
+  final String? _shortLabel;
   final IconData icon;
   final IconData selectedIcon;
+
+  /// Para la barra de abajo del teléfono, donde cada destino tiene poco
+  /// ancho.
+  String get shortLabel => _shortLabel ?? label;
 
   /// La sección de [path] (una subruta cuenta como su sección).
   static AdminSection of(String path) => values.lastWhere(
@@ -152,7 +164,8 @@ class AdminShell extends ConsumerWidget {
                     NavigationDestination(
                       icon: Icon(section.icon),
                       selectedIcon: Icon(section.selectedIcon),
-                      label: section.label,
+                      label: section.shortLabel,
+                      tooltip: section.label,
                     ),
                 ],
               ),

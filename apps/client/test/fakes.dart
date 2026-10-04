@@ -6,6 +6,8 @@ import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_repository.dart';
 import 'package:neils/admin/products/admin_products_repository.dart';
 import 'package:neils/admin/products/product_input.dart';
+import 'package:neils/admin/promotions/promotion.dart';
+import 'package:neils/admin/promotions/promotions_repository.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
 import 'package:neils/auth/auth_repository.dart';
@@ -315,6 +317,136 @@ class FakeInventoryRepository implements InventoryRepository {
     );
     history.insert(0, movement);
     return movement;
+  }
+}
+
+/// Las promociones en memoria, como el servidor: el precio menor que el
+/// normal (400), sin cruzarse con otra encendida del mismo producto (409) y
+/// el estado calculado con [today].
+class FakePromotionsRepository implements PromotionsRepository {
+  FakePromotionsRepository(
+    List<Promotion> promotions, {
+    this.products = const [],
+    this.today = '2026-10-04',
+    this.pageSize = 20,
+  }) : promotions = [...promotions];
+
+  final List<Promotion> promotions;
+
+  /// Los que se pueden elegir al crear.
+  final List<Product> products;
+  final String today;
+  final int pageSize;
+
+  /// Lo que se mandó al crear (`null` como id) o editar, en orden.
+  final sent = <(String?, PromotionInput)>[];
+  final deleted = <String>[];
+
+  @override
+  Future<PageList<Promotion>> list({
+    int page = 1,
+    PromotionStatus? status,
+  }) async {
+    final matching = [
+      for (final promotion in promotions)
+        if (status == null || promotion.status == status) promotion,
+    ]..sort((a, b) => b.startDate.compareTo(a.startDate));
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<Promotion> create(PromotionInput input) async {
+    final product = products.firstWhere((p) => p.id == input.productId);
+    final promotion = _build(
+      'promo-${promotions.length + 1}',
+      product.id,
+      product.name,
+      product.sku,
+      product.priceCents,
+      input,
+    );
+    _check(promotion, null);
+    sent.add((null, input));
+    promotions.add(promotion);
+    return promotion;
+  }
+
+  @override
+  Future<Promotion> update(String id, PromotionInput input) async {
+    final i = promotions.indexWhere((p) => p.id == id);
+    final current = promotions[i];
+    final promotion = _build(
+      id,
+      current.productId,
+      current.productName,
+      current.sku,
+      current.priceCents,
+      input,
+    );
+    _check(promotion, id);
+    sent.add((id, input));
+    return promotions[i] = promotion;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    promotions.removeWhere((p) => p.id == id);
+    deleted.add(id);
+  }
+
+  Promotion _build(
+    String id,
+    String productId,
+    String name,
+    String sku,
+    int priceCents,
+    PromotionInput input,
+  ) => Promotion(
+    id: id,
+    productId: productId,
+    productName: name,
+    sku: sku,
+    priceCents: priceCents,
+    promoPriceCents: input.promoPriceCents,
+    startDate: input.startDate,
+    endDate: input.endDate,
+    active: input.active,
+    status: !input.active
+        ? PromotionStatus.disabled
+        : today.compareTo(input.startDate) < 0
+        ? PromotionStatus.scheduled
+        : today.compareTo(input.endDate) > 0
+        ? PromotionStatus.expired
+        : PromotionStatus.active,
+  );
+
+  void _check(Promotion promotion, String? id) {
+    if (promotion.promoPriceCents >= promotion.priceCents) {
+      throw ApiFailure(
+        'El precio promocional debe ser menor al precio normal '
+        '(${promotion.priceCents / 100})',
+        status: 400,
+      );
+    }
+    if (!promotion.active) return;
+    for (final other in promotions) {
+      if (other.id != id &&
+          other.active &&
+          other.productId == promotion.productId &&
+          other.startDate.compareTo(promotion.endDate) <= 0 &&
+          other.endDate.compareTo(promotion.startDate) >= 0) {
+        throw ApiFailure(
+          '${promotion.productName} ya tiene una promoción del '
+          '${other.startDate} al ${other.endDate} que se cruza con esas fechas',
+          status: 409,
+        );
+      }
+    }
   }
 }
 
