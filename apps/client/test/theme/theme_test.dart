@@ -27,6 +27,19 @@ void main() {
     expect(scheme.onSurface, NeilsColors.ink);
   });
 
+  test('el texto de error se lee sobre el fondo de los campos', () {
+    final scheme = neilsTheme().colorScheme;
+    // Un campo con error bajo el mouse pinta la etiqueta con onErrorContainer.
+    // Sin definirlo, ColorScheme usa onError (blanco).
+    for (final color in [scheme.error, scheme.onErrorContainer]) {
+      expect(
+        _contrast(color, scheme.surfaceContainerLowest),
+        greaterThanOrEqualTo(4.5),
+        reason: '$color',
+      );
+    }
+  });
+
   test('Baloo 2 para títulos y precios; Inter para el resto', () {
     final text = neilsTheme().textTheme;
     void expectFont(TextStyle? style, String family, FontWeight weight) {
@@ -45,4 +58,13 @@ void main() {
     expect(NeilsText.price().color, NeilsColors.primaryDark);
     expect(text.bodyLarge?.color, NeilsColors.ink);
   });
+}
+
+/// Contraste WCAG entre dos colores (de 1 a 21).
+double _contrast(Color a, Color b) {
+  final (lighter, darker) = a.computeLuminance() > b.computeLuminance()
+      ? (a, b)
+      : (b, a);
+  return (lighter.computeLuminance() + 0.05) /
+      (darker.computeLuminance() + 0.05);
 }

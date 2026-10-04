@@ -21,6 +21,10 @@ const neilsColorScheme = ColorScheme(
   onSecondaryContainer: NeilsColors.ink,
   error: Color(0xFFBA1A1A),
   onError: Colors.white,
+  // Sin estos, ColorScheme usa error/onError, y un campo con error bajo el
+  // mouse pinta la etiqueta de blanco (onErrorContainer) sobre el fondo claro.
+  errorContainer: Color(0xFFFFDAD6),
+  onErrorContainer: Color(0xFF93000A),
   surface: NeilsColors.cream,
   onSurface: NeilsColors.ink,
   // Neutros: tinta mezclada con crema (como ink/70, ink/50 e ink/15 en la web).
