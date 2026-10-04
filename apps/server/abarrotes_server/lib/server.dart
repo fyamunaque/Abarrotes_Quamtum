@@ -16,6 +16,13 @@ import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
 import 'src/promotions/promotions_routes.dart';
 import 'src/promotions/promotions_service.dart';
+import 'src/stats/providers/expiring_products_report_provider.dart';
+import 'src/stats/providers/low_stock_report_provider.dart';
+import 'src/stats/providers/order_status_report_provider.dart';
+import 'src/stats/providers/overview_report_provider.dart';
+import 'src/stats/providers/sales_report_provider.dart';
+import 'src/stats/providers/top_products_report_provider.dart';
+import 'src/stats/stats_routes.dart';
 import 'src/users/users_routes.dart';
 
 /// The starting point of the Serverpod server.
@@ -36,14 +43,30 @@ void run(List<String> args) async {
     keys: GooglePublicKeys(),
   );
 
+  final stockAlerts = StockAlerts();
+  const sales = SalesReportProvider();
+
   // Un dominio por bloque de rutas.
   addUsersRoutes(pod.webServer, verifier: verifier);
   addRoutes(pod.webServer, [
     ...categoriesRoutes(const CategoriesService(), verifier),
     ...productsRoutes(ProductsService(), verifier),
     ...promotionsRoutes(PromotionsService(), verifier),
-    ...inventoryRoutes(const InventoryService(), StockAlerts(), verifier),
+    ...inventoryRoutes(const InventoryService(), stockAlerts, verifier),
     ...ordersRoutes(OrdersService(), verifier),
+    // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
+    // la clase que se pasa aquí.
+    ...statsRoutes(
+      overview: OverviewReportProvider(
+        sales: sales,
+        orderStatus: const OrderStatusReportProvider(),
+      ),
+      sales: sales,
+      topProducts: const TopProductsReportProvider(),
+      lowStock: LowStockReportProvider(stockAlerts),
+      expiring: ExpiringProductsReportProvider(stockAlerts),
+      verifier: verifier,
+    ),
   ]);
 
   await pod.start();

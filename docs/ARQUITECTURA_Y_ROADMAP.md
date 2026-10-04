@@ -60,6 +60,7 @@ El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-
 - `promotions`: CRUD para admin/staff, con el estado según la fecha.
 - `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
 - `orders` (admin/staff): `GET /orders` con filtros de estado y fechas, y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`). Cancelar devuelve el stock a través de inventory, en la misma transacción.
+- `stats` (admin/staff): overview, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`) inyectada por separado; stock bajo y por vencer reutilizan las alertas de inventory.
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
@@ -118,11 +119,12 @@ Hecho:
 - `categories`, `products` y `promotions`, con las mismas reglas que en NestJS;
 - `inventory`, con registro de movimientos y alertas;
 - en `orders`, el listado del dashboard y los cambios de estado con el patrón State;
+- `stats`, con un `ReportProvider` por reporte;
 - un job de CI.
 
 Pendiente:
 
-1. Completar `orders` del lado del cliente (crear un pedido cobrando el precio promocional y descontando stock, y "mis pedidos") y portar `stats`, que reutilizará las alertas de `inventory`.
+1. Completar `orders` del lado del cliente: crear un pedido cobrando el precio promocional y descontando stock, y "mis pedidos".
 2. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
 3. Pasar el login de Android y web a Firebase.
 4. Retirar `apps/api`.

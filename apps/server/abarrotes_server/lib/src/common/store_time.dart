@@ -19,6 +19,18 @@ String addDays(String day, int days) =>
 int daysBetween(String from, String to) =>
     _parse(to).difference(_parse(from)).inDays;
 
+/// Cada día de [from] a [to], ambos incluidos.
+List<String> eachDay(String from, String to) => [
+  for (var i = 0; i <= daysBetween(from, to); i++) addDays(from, i),
+];
+
+/// El lunes de la semana de [day].
+String startOfWeek(String day) =>
+    addDays(day, -(_parse(day).weekday - DateTime.monday));
+
+/// El primer día del mes de [day].
+String startOfMonth(String day) => '${day.substring(0, 8)}01';
+
 /// Las fechas sin hora, como el vencimiento de un producto, se guardan a
 /// medianoche UTC y se comparan como día de calendario, sin zona horaria.
 DateTime utcMidnight(String day) => _parse(day);

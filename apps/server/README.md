@@ -174,6 +174,10 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/alerts/expiring?days=7` | admin, staff | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
 | `GET /orders` | admin, staff | Pedidos con sus líneas y cliente, paginados, los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | admin, staff | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
+| `GET /stats/overview` | admin, staff | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
+| `GET /stats/sales?from=&to=` | admin, staff | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
+| `GET /stats/top-products?from=&to=&limit=5` | admin, staff | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
+| `GET /stats/low-stock`, `GET /stats/expiring?days=7` | admin, staff | Las mismas alertas (y el mismo JSON) que `/inventory/alerts/*`. |
 
 Estados de pedido (`lib/src/orders/states/`, una clase por estado): `pendingConfirmation` →
 `confirmed` → `outForDelivery` → `delivered`. Se puede cancelar (`cancelled`) mientras no se haya
@@ -184,6 +188,17 @@ entregado; `delivered` y `cancelled` son finales. Reglas del cambio de estado:
 - La fila del pedido se bloquea durante el cambio. Si dos personas lo cambian a la vez, la segunda
   espera y se valida contra el estado ya cambiado (400 con el motivo), así el stock nunca se
   devuelve dos veces.
+
+Estadísticas (`lib/src/stats/`): cada reporte es una estrategia que extiende `ReportProvider`
+(`SalesReportProvider`, `TopProductsReportProvider`, `OrderStatusReportProvider`,
+`LowStockReportProvider`, `ExpiringProductsReportProvider`). Cada uno se inyecta por separado en
+`statsRoutes` desde `server.dart`. Reglas:
+
+- El overview no consulta la base: compone el reporte de ventas y el de pedidos por estado, que
+  recibe como abstracciones.
+- Las ventas cuentan solo pedidos aceptados (`confirmed`, `outForDelivery`, `delivered`) y se
+  agrupan por día de Lima en la base.
+- Stock bajo y por vencer reutilizan `StockAlerts` de inventory.
 
 Reglas de los movimientos de inventario:
 
