@@ -156,6 +156,76 @@ void main() {
       expect(location(router), '/carrito');
     });
 
+    testWidgets('buscar cambia la URL y los productos', (tester) async {
+      final router = await pumpApp(tester);
+
+      await tester.enterText(find.byType(TextField), '  leche ');
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pumpAndSettle();
+
+      expect(location(router), '/catalogo?q=leche');
+      expect(shownProducts(tester), ['leche']);
+      expect(catalog.searches.last, 'leche');
+
+      await tester.tap(find.byTooltip('Borrar la búsqueda'));
+      await tester.pumpAndSettle();
+      expect(location(router), '/catalogo');
+      expect(shownProducts(tester), hasLength(3));
+      expect(find.byTooltip('Borrar la búsqueda'), findsNothing);
+    });
+
+    testWidgets('la lupa también busca, y la categoría conserva lo buscado', (
+      tester,
+    ) async {
+      final router = await pumpApp(tester);
+
+      await tester.enterText(find.byType(TextField), 'aceite');
+      await tester.tap(find.byTooltip('Buscar'));
+      await tester.pumpAndSettle();
+      expect(shownProducts(tester), ['aceite']);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Lácteos'));
+      await tester.pumpAndSettle();
+      expect(location(router), '/catalogo?categoria=cat-lacteos&q=aceite');
+      expect(
+        find.text('No encontramos productos para “aceite”.'),
+        findsOneWidget,
+      );
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'aceite',
+      );
+
+      await tester.tap(find.text('Ver todos los productos'));
+      await tester.pumpAndSettle();
+      expect(location(router), '/catalogo');
+      expect(shownProducts(tester), hasLength(3));
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty,
+      );
+    });
+
+    testWidgets('un enlace con la búsqueda abre el catálogo ya buscado', (
+      tester,
+    ) async {
+      await pumpApp(tester, at: '/catalogo?q=arroz');
+
+      expect(shownProducts(tester), ['arroz']);
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        'arroz',
+      );
+    });
+
+    testWidgets('en un teléfono de 320 px entra sin desbordes', (tester) async {
+      await pumpApp(tester, at: '/catalogo?q=arroz');
+      tester.view.physicalSize = const Size(320, 800);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('tocar una tarjeta abre el detalle', (tester) async {
       final router = await pumpApp(tester);
 

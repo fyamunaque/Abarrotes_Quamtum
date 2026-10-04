@@ -25,10 +25,22 @@ class HttpCatalogRepository implements CatalogRepository {
   }
 
   @override
-  Future<PageList<Product>> products({String? categoryId, int page = 1}) async {
+  Future<PageList<Product>> products({
+    String? categoryId,
+    String? search,
+    int page = 1,
+  }) async {
+    final text = search?.trim() ?? '';
     final json = await _api.get(
       '/products',
-      query: {'page': '$page', 'limit': '$pageSize', 'categoryId': ?categoryId},
+      query: {
+        'page': '$page',
+        'limit': '$pageSize',
+        'categoryId': ?categoryId,
+        // Como el servidor: hasta 100 caracteres.
+        if (text.isNotEmpty)
+          'search': text.length > 100 ? text.substring(0, 100) : text,
+      },
       fallback: 'No se pudieron cargar los productos.',
     );
     return decodeResponse(() => decodePage(json, Product.fromJson));

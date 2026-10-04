@@ -170,7 +170,7 @@ flutter run -d chrome   # y abrir /vitrina
 | Ruta | Quién | Qué |
 |---|---|---|
 | `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
-| `/catalogo?categoria=<id>` | Cualquiera | Productos página a página ("Ver más"), con filtro por categoría. La elegida va en la URL, así un enlace abre el catálogo ya filtrado. |
+| `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. |

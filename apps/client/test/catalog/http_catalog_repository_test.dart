@@ -86,6 +86,25 @@ void main() {
     expect(oil.category?.name, 'Abarrotes');
   });
 
+  test('lo buscado va recortado, y en blanco no se manda', () async {
+    final urls = <Uri>[];
+    final repo = repository((request) async {
+      urls.add(request.url);
+      return json(200, {
+        'data': [],
+        'meta': {'total': 0},
+      });
+    });
+
+    await repo.products(search: '  arroz  ');
+    await repo.products(search: '   ');
+    await repo.products(search: 'x' * 150);
+
+    expect(urls[0].queryParameters['search'], 'arroz');
+    expect(urls[1].queryParameters, isNot(contains('search')));
+    expect(urls[2].queryParameters['search'], hasLength(100));
+  });
+
   test(
     'sin categoría no manda categoryId; sin promoción, el precio normal',
     () async {

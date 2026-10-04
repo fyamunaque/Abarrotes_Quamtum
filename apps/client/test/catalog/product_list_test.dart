@@ -29,8 +29,12 @@ void main() {
     );
   });
 
-  Future<PageList<Product>> load([String? categoryId]) =>
-      container.read(productListProvider(categoryId).future);
+  const CatalogQuery all = (categoryId: null, search: null);
+
+  Future<PageList<Product>> load([String? categoryId, String? search]) =>
+      container.read(
+        productListProvider((categoryId: categoryId, search: search)).future,
+      );
 
   List<String> ids(PageList<Product> list) => [
     for (final p in list.items) p.id,
@@ -46,11 +50,11 @@ void main() {
 
   test('"Ver más" agrega las páginas siguientes hasta el final', () async {
     await load();
-    final notifier = container.read(productListProvider(null).notifier);
+    final notifier = container.read(productListProvider(all).notifier);
 
     await notifier.loadMore();
     await notifier.loadMore();
-    final list = container.read(productListProvider(null)).value!;
+    final list = container.read(productListProvider(all)).value!;
 
     expect(ids(list), ['p1', 'p2', 'p3', 'p4', 'p5']);
     expect(list.hasMore, isFalse);
@@ -63,15 +67,21 @@ void main() {
     expect(ids(await load(dairy.id)), ['p2', 'p4']);
   });
 
+  test('lo buscado, dentro de la categoría', () async {
+    expect(ids(await load(null, 'producto 3')), ['p3']);
+    expect(ids(await load(groceries.id, 'producto')), ['p1', 'p3']);
+    expect(catalog.searches.last, 'producto');
+  });
+
   test('si "Ver más" falla, la lista queda como estaba y avisa', () async {
     await load();
     catalog.failure = const ApiFailure('Sin conexión');
 
     await expectLater(
-      container.read(productListProvider(null).notifier).loadMore(),
+      container.read(productListProvider(all).notifier).loadMore(),
       throwsA(isA<ApiFailure>()),
     );
-    final list = container.read(productListProvider(null)).value!;
+    final list = container.read(productListProvider(all)).value!;
     expect(ids(list), ['p1', 'p2']);
     expect(list.loadingMore, isFalse);
   });

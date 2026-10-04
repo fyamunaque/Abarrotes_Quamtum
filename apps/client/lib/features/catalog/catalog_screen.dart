@@ -10,38 +10,128 @@ import '../shared/brand.dart';
 import 'product_card.dart';
 import 'product_grid.dart';
 
-/// Catálogo: las categorías para filtrar y los productos, página a página.
-/// La categoría elegida va en la URL (`?categoria=<id>`), así un enlace
-/// abre el catálogo ya filtrado.
+/// Catálogo: buscar, filtrar por categoría y los productos, página a página.
+/// La categoría y lo buscado van en la URL (`?categoria=<id>&q=<texto>`), así
+/// un enlace abre el catálogo ya filtrado.
 class CatalogScreen extends StatelessWidget {
-  const CatalogScreen({super.key, this.categoryId});
+  const CatalogScreen({super.key, this.categoryId, this.search});
 
   /// null: todas las categorías.
   final String? categoryId;
 
+  /// null: sin buscar.
+  final String? search;
+
   @override
   Widget build(BuildContext context) {
+    final text = search?.trim();
+    final query = (
+      categoryId: categoryId,
+      search: text == null || text.isEmpty ? null : text,
+    );
     return PublicScaffold(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text('Catálogo', style: Theme.of(context).textTheme.headlineMedium),
           const SizedBox(height: 12),
-          _CategoryFilter(selected: categoryId),
+          _SearchField(query),
+          const SizedBox(height: 12),
+          _CategoryFilter(query),
           const SizedBox(height: 20),
-          _Products(categoryId),
+          _Products(query),
         ],
       ),
     );
   }
 }
 
-/// "Todas" y una opción por categoría. Si las categorías no cargan, no se
-/// muestra: los productos se pueden ver igual.
-class _CategoryFilter extends ConsumerWidget {
-  const _CategoryFilter({required this.selected});
+/// Buscar por nombre dentro de la categoría elegida. Enter o la lupa buscan;
+/// la ✕ vuelve a mostrar todo.
+class _SearchField extends StatefulWidget {
+  const _SearchField(this.query);
 
-  final String? selected;
+  final CatalogQuery query;
+
+  @override
+  State<_SearchField> createState() => _SearchFieldState();
+}
+
+class _SearchFieldState extends State<_SearchField> {
+  late final _controller = TextEditingController(text: widget.query.search);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_onTextChanged);
+  }
+
+  @override
+  void didUpdateWidget(_SearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // La URL cambió desde afuera (atrás, un enlace): el campo la sigue.
+    if (widget.query.search != oldWidget.query.search &&
+        widget.query.search != _controller.text.trim()) {
+      _controller.text = widget.query.search ?? '';
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  /// Para mostrar u ocultar la ✕.
+  void _onTextChanged() => setState(() {});
+
+  void _search() => context.go(
+    Routes.catalogOf(widget.query.categoryId, search: _controller.text),
+  );
+
+  void _clear() {
+    _controller.clear();
+    context.go(Routes.catalogOf(widget.query.categoryId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: AlignmentDirectional.centerStart,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: TextField(
+          controller: _controller,
+          decoration: InputDecoration(
+            hintText: 'Buscar productos',
+            prefixIcon: IconButton(
+              tooltip: 'Buscar',
+              icon: const Icon(Icons.search),
+              onPressed: _search,
+            ),
+            suffixIcon: _controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'Borrar la búsqueda',
+                    icon: const Icon(Icons.close),
+                    onPressed: _clear,
+                  ),
+          ),
+          textInputAction: TextInputAction.search,
+          onSubmitted: (_) => _search(),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Todas" y una opción por categoría. Cambiar de categoría mantiene lo
+/// buscado. Si las categorías no cargan, no se muestra: los productos se
+/// pueden ver igual.
+class _CategoryFilter extends ConsumerWidget {
+  const _CategoryFilter(this.query);
+
+  final CatalogQuery query;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -53,14 +143,16 @@ class _CategoryFilter extends ConsumerWidget {
       children: [
         ChoiceChip(
           label: const Text('Todas'),
-          selected: selected == null,
-          onSelected: (_) => context.go(Routes.catalog),
+          selected: query.categoryId == null,
+          onSelected: (_) =>
+              context.go(Routes.catalogOf(null, search: query.search)),
         ),
         for (final category in categories)
           ChoiceChip(
             label: Text(category.name),
-            selected: category.id == selected,
-            onSelected: (_) => context.go(Routes.catalogOf(category.id)),
+            selected: category.id == query.categoryId,
+            onSelected: (_) =>
+                context.go(Routes.catalogOf(category.id, search: query.search)),
           ),
       ],
     );
@@ -68,18 +160,27 @@ class _CategoryFilter extends ConsumerWidget {
 }
 
 class _Products extends ConsumerWidget {
-  const _Products(this.categoryId);
+  const _Products(this.query);
 
-  final String? categoryId;
+  final CatalogQuery query;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final provider = productListProvider(categoryId);
+    final provider = productListProvider(query);
     return switch (ref.watch(provider)) {
       AsyncData(value: final list) when list.items.isEmpty => _Message(
-        categoryId == null
-            ? 'Todavía no hay productos.'
-            : 'No hay productos en esta categoría.',
+        switch (query) {
+          (search: final search?, categoryId: _) =>
+            'No encontramos productos para “$search”.',
+          (categoryId: null, search: null) => 'Todavía no hay productos.',
+          _ => 'No hay productos en esta categoría.',
+        },
+        action: query.search == null && query.categoryId == null
+            ? null
+            : TextButton(
+                onPressed: () => context.go(Routes.catalog),
+                child: const Text('Ver todos los productos'),
+              ),
       ),
       AsyncData(value: final list) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -126,7 +227,7 @@ class _Products extends ConsumerWidget {
 
   Future<void> _loadMore(BuildContext context, WidgetRef ref) async {
     try {
-      await ref.read(productListProvider(categoryId).notifier).loadMore();
+      await ref.read(productListProvider(query).notifier).loadMore();
     } on ApiFailure catch (failure) {
       if (context.mounted) {
         ScaffoldMessenger.of(context)

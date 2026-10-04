@@ -6,9 +6,17 @@ abstract final class Routes {
   static const catalog = '/catalogo';
   static const cart = '/carrito';
 
-  /// El catálogo filtrado por una categoría (`?categoria=<id>`).
-  static String catalogOf(String categoryId) =>
-      Uri(path: catalog, queryParameters: {'categoria': categoryId}).toString();
+  /// El catálogo filtrado por una categoría (`?categoria=<id>`) y lo buscado
+  /// (`?q=<texto>`). Sin ninguno de los dos, el catálogo completo.
+  static String catalogOf(String? categoryId, {String? search}) {
+    final query = {
+      'categoria': ?categoryId,
+      if (search?.trim() case final text? when text.isNotEmpty) 'q': text,
+    };
+    return query.isEmpty
+        ? catalog
+        : Uri(path: catalog, queryParameters: query).toString();
+  }
 
   /// El detalle de un producto.
   static String product(String id) => '/producto/${Uri.encodeComponent(id)}';

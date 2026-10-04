@@ -21,18 +21,22 @@ final productProvider = FutureProvider.family<Product, String>(
   (ref, id) => ref.watch(catalogRepositoryProvider).product(id),
 );
 
-/// Los productos cargados de una categoría (null: todas), página a página.
+/// Qué muestra el catálogo: una categoría (null: todas) y lo buscado (null:
+/// nada).
+typedef CatalogQuery = ({String? categoryId, String? search});
+
+/// Los productos cargados de [CatalogQuery], página a página.
 final productListProvider =
     AsyncNotifierProvider.family<
       ProductListNotifier,
       PageList<Product>,
-      String?
+      CatalogQuery
     >(ProductListNotifier.new);
 
 class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
-  ProductListNotifier(this.categoryId);
+  ProductListNotifier(this.query);
 
-  final String? categoryId;
+  final CatalogQuery query;
   int _page = 1;
 
   @override
@@ -40,7 +44,7 @@ class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
     _page = 1;
     return ref
         .watch(catalogRepositoryProvider)
-        .products(categoryId: categoryId);
+        .products(categoryId: query.categoryId, search: query.search);
   }
 
   /// Agrega la página siguiente al final. Si falla, la lista queda como
@@ -52,7 +56,11 @@ class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
     try {
       final next = await ref
           .read(catalogRepositoryProvider)
-          .products(categoryId: categoryId, page: _page + 1);
+          .products(
+            categoryId: query.categoryId,
+            search: query.search,
+            page: _page + 1,
+          );
       _page++;
       state = AsyncData(current.append(next));
     } catch (_) {

@@ -41,8 +41,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.register, builder: (_, _) => const RegisterScreen()),
       GoRoute(
         path: Routes.catalog,
-        builder: (_, state) =>
-            CatalogScreen(categoryId: state.uri.queryParameters['categoria']),
+        builder: (_, state) => CatalogScreen(
+          categoryId: state.uri.queryParameters['categoria'],
+          search: state.uri.queryParameters['q'],
+        ),
       ),
       GoRoute(
         path: '/producto/:id',

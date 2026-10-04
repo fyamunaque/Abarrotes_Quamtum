@@ -586,16 +586,27 @@ class FakeCatalogRepository implements CatalogRepository {
   /// Cada pedido de productos: (categoría, página).
   final requests = <(String?, int)>[];
 
+  /// Lo buscado en cada pedido de productos (null: nada).
+  final searches = <String?>[];
+
   @override
   Future<List<Category>> categories() async => categoryList;
 
   @override
-  Future<PageList<Product>> products({String? categoryId, int page = 1}) async {
+  Future<PageList<Product>> products({
+    String? categoryId,
+    String? search,
+    int page = 1,
+  }) async {
     requests.add((categoryId, page));
+    searches.add(search);
     if (failure case final failure?) throw failure;
+    final text = search?.toLowerCase();
     final matching = [
       for (final product in productList)
-        if (categoryId == null || product.category?.id == categoryId) product,
+        if ((categoryId == null || product.category?.id == categoryId) &&
+            (text == null || product.name.toLowerCase().contains(text)))
+          product,
     ];
     return PageList(
       matching.skip((page - 1) * pageSize).take(pageSize).toList(),
