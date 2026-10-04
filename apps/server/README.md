@@ -161,6 +161,19 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `POST /promotions` | admin, staff | `{productId, promoPrice, startDate, endDate, active?}`, días `AAAA-MM-DD` ambos incluidos. |
 | `PATCH /promotions/:id` | admin, staff | Cambia precio, fechas o `active`; el producto no cambia. |
 | `DELETE /promotions/:id` | admin, staff | 204. |
+| `POST /inventory/movements` | admin, staff | `{productId, type, quantity, reason?}` con `type` igual a `incoming`, `outgoing` o `adjustment`. Actualiza `currentStock` y registra el movimiento a nombre de quien lo hace, en una sola transacción. Responde el movimiento con el stock nuevo. |
+| `GET /inventory/movements` | admin, staff | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
+| `GET /inventory/alerts/low-stock` | admin, staff | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
+| `GET /inventory/alerts/expiring?days=7` | admin, staff | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
+
+Reglas de los movimientos de inventario:
+
+- Entrada y salida llevan `quantity` positiva. El ajuste lleva la corrección con signo (`-3` por
+  merma, `+5` tras un conteo), distinta de 0, y `reason` es obligatorio. Así la suma del
+  historial siempre da el stock.
+- Si el stock quedaría negativo, 409 y no cambia nada.
+- La fila del producto se bloquea (`FOR UPDATE`) durante la transacción: dos movimientos
+  simultáneos no pueden pisarse.
 
 Cada producto trae su categoría y `promotion`, la promoción vigente o `null`. Reglas de las
 promociones (`lib/src/promotions/promotion_rules.dart`):
@@ -176,7 +189,8 @@ todas las rutas, con la forma de la API NestJS (`{statusCode, message, error}`):
 - 401: sin token o con uno inválido.
 - 403: el rol no alcanza.
 - 404: no existe.
-- 409: conflicto (duplicados, categoría con productos, promociones que se cruzan).
+- 409: conflicto (duplicados, categoría con productos, promociones que se cruzan, stock
+  insuficiente).
 - 503: no se pudieron obtener las llaves de Google.
 
 ### Primer admin

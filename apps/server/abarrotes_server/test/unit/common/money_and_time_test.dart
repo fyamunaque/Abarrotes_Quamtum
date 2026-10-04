@@ -43,6 +43,19 @@ void main() {
       expect(addDays('2026-03-01', -1), '2026-02-28');
     });
 
+    test('daysBetween cuenta días de calendario', () {
+      expect(daysBetween('2026-10-01', '2026-10-08'), 7);
+      expect(daysBetween('2026-10-01', '2026-09-30'), -1);
+      expect(daysBetween('2026-12-31', '2027-01-01'), 1);
+    });
+
+    test('las fechas sin hora se guardan a medianoche UTC y se leen igual', () {
+      expect(utcMidnight('2027-03-31'), DateTime.utc(2027, 3, 31));
+      // A diferencia de storeDay, que la pasaría al 30 en hora de Lima.
+      expect(calendarDay(DateTime.utc(2027, 3, 31)), '2027-03-31');
+      expect(storeDay(DateTime.utc(2027, 3, 31)), '2027-03-30');
+    });
+
     test('isValidDay exige un día real AAAA-MM-DD', () {
       expect(isValidDay('2026-10-01'), isTrue);
       expect(isValidDay('2026-02-30'), isFalse);

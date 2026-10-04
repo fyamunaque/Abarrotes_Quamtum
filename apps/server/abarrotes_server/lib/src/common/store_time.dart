@@ -15,6 +15,17 @@ DateTime storeDayStart(String day) => _parse(day).subtract(_utcOffset);
 String addDays(String day, int days) =>
     _format(_parse(day).add(Duration(days: days)));
 
+/// Días de [from] a [to] (negativo si [to] es anterior).
+int daysBetween(String from, String to) =>
+    _parse(to).difference(_parse(from)).inDays;
+
+/// Las fechas sin hora, como el vencimiento de un producto, se guardan a
+/// medianoche UTC y se comparan como día de calendario, sin zona horaria.
+DateTime utcMidnight(String day) => _parse(day);
+
+/// El día de calendario de una fecha sin hora (ver [utcMidnight]).
+String calendarDay(DateTime date) => _format(date.toUtc());
+
 /// Si [day] es un día real con formato `AAAA-MM-DD` ("2026-02-30" no pasa).
 bool isValidDay(String day) {
   if (!_dayPattern.hasMatch(day)) return false;

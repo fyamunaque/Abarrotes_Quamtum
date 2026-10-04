@@ -1,0 +1,168 @@
+import 'package:serverpod/serverpod.dart';
+
+import '../auth/firebase_token_verifier.dart';
+import '../auth/role_guard.dart';
+import '../common/api_route.dart';
+import '../common/http_json.dart';
+import '../common/input_reader.dart';
+import '../common/pagination.dart';
+import '../common/store_time.dart';
+import '../generated/protocol.dart';
+import 'inventory_service.dart';
+import 'stock_alerts.dart';
+
+/// Rutas de inventario: todas solo para admin y staff.
+List<RouteEntry> inventoryRoutes(
+  InventoryService inventory,
+  StockAlerts alerts,
+  FirebaseTokenVerifier verifier,
+) {
+  Route staffOnly(Method method, ApiHandler handler) =>
+      RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+
+  return [
+    (
+      '/inventory/movements',
+      staffOnly(Method.post, (session, request) async {
+        final input = _readMovement(await readJsonBody(request));
+        final movement = await inventory.record(
+          session,
+          input,
+          by: request.currentUser,
+        );
+        return jsonResponse(201, {
+          ...movementJson(movement),
+          // El producto como quedó después del movimiento.
+          'product': {
+            ..._productJson(movement.product!),
+            'currentStock': movement.product!.currentStock,
+          },
+        });
+      }),
+    ),
+    (
+      '/inventory/movements',
+      staffOnly(Method.get, (session, request) async {
+        final query = InputReader.query(
+          request,
+          allowed: {...PageQuery.fields, 'productId'},
+        );
+        final page = PageQuery.read(query);
+        final productId = query.uuid('productId', required: false);
+        query.check();
+
+        final (list, total) = await inventory.list(
+          session,
+          page,
+          productId: productId,
+        );
+        return jsonResponse(
+          200,
+          page.wrap(list.map(movementJson).toList(), total),
+        );
+      }),
+    ),
+    (
+      '/inventory/alerts/low-stock',
+      staffOnly(Method.get, (session, request) async {
+        InputReader.query(request, allowed: const {}).check();
+        final products = await alerts.lowStock(session);
+        return jsonResponse(200, {
+          'data': [
+            for (final product in products)
+              {
+                ..._productJson(product),
+                'category': product.category!.name,
+                'currentStock': product.currentStock,
+                'minStock': product.minStock,
+                'shortage': StockAlerts.shortage(product),
+              },
+          ],
+        });
+      }),
+    ),
+    (
+      '/inventory/alerts/expiring',
+      staffOnly(Method.get, (session, request) async {
+        final query = InputReader.query(request, allowed: const {'days'});
+        final days =
+            query.integer('days', min: 1, max: 365, required: false) ?? 7;
+        query.check();
+
+        final report = await alerts.expiring(session, days);
+        return jsonResponse(200, {
+          'days': days,
+          'until': report.until,
+          'data': [
+            for (final product in report.products)
+              {
+                ..._productJson(product),
+                'currentStock': product.currentStock,
+                'expirationDate': calendarDay(product.expirationDate!),
+                // 0 vence hoy; negativo, ya venció.
+                'daysLeft': daysBetween(
+                  report.today,
+                  calendarDay(product.expirationDate!),
+                ),
+              },
+          ],
+        });
+      }),
+    ),
+  ];
+}
+
+/// Body de POST /inventory/movements. Entrada y salida llevan una cantidad
+/// positiva; el ajuste, la corrección con signo (distinta de 0) y su motivo.
+MovementInput _readMovement(Object? json) {
+  final body = InputReader.body(
+    json,
+    allowed: const {'productId', 'type', 'quantity', 'reason'},
+  );
+  final productId = body.uuid('productId');
+  final type = body.oneOf('type', MovementType.values);
+  final quantity = body.integer(
+    'quantity',
+    min: -_maxQuantity,
+    max: _maxQuantity,
+  );
+  final reason = body.text('reason', maxLength: 300, nullable: true);
+  if (type == MovementType.adjustment) {
+    if (quantity == 0) body.reject('quantity no puede ser 0 en un ajuste');
+    if (reason == null) body.reject('reason es obligatorio en un ajuste');
+  } else if (type != null && quantity != null && quantity < 1) {
+    body.reject('quantity debe ser mayor que 0 en una ${_typeLabel[type]}');
+  }
+  body.check();
+  return (
+    productId: productId!,
+    type: type!,
+    quantity: quantity!,
+    reason: reason,
+  );
+}
+
+const _maxQuantity = 1000000;
+const _typeLabel = {
+  MovementType.incoming: 'entrada',
+  MovementType.outgoing: 'salida',
+};
+
+/// Como el `InventoryMovement` de packages/shared-types, con el tipo en
+/// minúsculas (`incoming`, `outgoing`, `adjustment`).
+Map<String, Object?> movementJson(InventoryMovement movement) => {
+  'id': movement.id.toString(),
+  'type': movement.type.name,
+  'quantity': movement.quantity,
+  'reason': movement.reason,
+  'createdAt': movement.createdAt.toUtc().toIso8601String(),
+  'product': _productJson(movement.product!),
+  // Quién lo originó: el cliente del pedido o el staff que lo registró.
+  'user': {'id': movement.user!.id.toString(), 'name': movement.user!.name},
+};
+
+Map<String, Object?> _productJson(Product product) => {
+  'id': product.id.toString(),
+  'name': product.name,
+  'sku': product.sku,
+};

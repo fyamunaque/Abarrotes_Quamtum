@@ -58,6 +58,7 @@ El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-
 - `users`: `GET /users/me` devuelve el usuario del Firebase ID token y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
 - `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra su promoción vigente.
 - `promotions`: CRUD para admin/staff, con el estado según la fecha.
+- `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
@@ -114,11 +115,12 @@ Hecho:
 - la verificación del Firebase ID token;
 - el dominio `users` (`GET /users/me`, `POST /users`) y el guard por rol;
 - `categories`, `products` y `promotions`, con las mismas reglas que en NestJS;
+- `inventory`, con registro de movimientos y alertas;
 - un job de CI.
 
 Pendiente:
 
-1. Portar `orders` (con su patrón State y el cobro del precio promocional), `inventory` y `stats`.
+1. Portar `orders` (con su patrón State, el cobro del precio promocional y sus movimientos de stock) y `stats`, que reutilizará las alertas de `inventory`.
 2. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
 3. Pasar el login de Android y web a Firebase.
 4. Retirar `apps/api`.
