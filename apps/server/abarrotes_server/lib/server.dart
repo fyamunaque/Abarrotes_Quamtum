@@ -6,6 +6,7 @@ import 'src/auth/google_public_keys.dart';
 import 'src/categories/categories_routes.dart';
 import 'src/categories/categories_service.dart';
 import 'src/common/api_route.dart';
+import 'src/common/cors.dart';
 import 'src/generated/serverpod.dart';
 import 'src/inventory/inventory_routes.dart';
 import 'src/inventory/inventory_service.dart';
@@ -45,6 +46,18 @@ void run(List<String> args) async {
 
   final stockAlerts = StockAlerts();
   const sales = SalesReportProvider();
+
+  // CORS para la app Flutter web, que corre en otro origen. En `/` envuelve a
+  // los middlewares de cada dominio (p. ej. el de Firebase en `/users`).
+  pod.webServer.addMiddleware(
+    corsMiddleware(
+      allowedOrigins(
+        development: pod.runMode == 'development',
+        extra: (Platform.environment['ALLOWED_ORIGINS'] ?? '').split(','),
+      ),
+    ),
+    '/',
+  );
 
   // Un dominio por bloque de rutas.
   addUsersRoutes(pod.webServer, verifier: verifier);

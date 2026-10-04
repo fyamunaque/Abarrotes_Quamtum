@@ -19,6 +19,9 @@ void addRoutes(WebServer webServer, List<RouteEntry> routes) {
 /// Serverpod admite una sola ruta por path, así que las rutas que comparten
 /// path se juntan en una que despacha según el método. Cada una conserva su
 /// guard. Un mismo método dos veces en un path es un error de programación.
+///
+/// Cada path responde además `OPTIONS` (el preflight de CORS). Sin eso, el
+/// router contestaría 405 antes de que corra corsMiddleware.
 List<RouteEntry> mergeByPath(List<RouteEntry> routes) {
   final byPath = <String, Map<Method, Route>>{};
   for (final (path, route) in routes) {
@@ -30,6 +33,9 @@ List<RouteEntry> mergeByPath(List<RouteEntry> routes) {
       methods[method] = route;
     }
   }
+  for (final methods in byPath.values) {
+    methods.putIfAbsent(Method.options, _PreflightRoute.new);
+  }
   return [
     for (final MapEntry(key: path, value: methods) in byPath.entries)
       (
@@ -39,6 +45,15 @@ List<RouteEntry> mergeByPath(List<RouteEntry> routes) {
             : _MethodDispatchRoute(methods),
       ),
   ];
+}
+
+/// `OPTIONS` sin CORS (p. ej. de un origen no permitido): solo dice que la
+/// ruta existe. Las respuestas con CORS las da corsMiddleware antes.
+class _PreflightRoute extends Route {
+  _PreflightRoute() : super(methods: {Method.options});
+
+  @override
+  Result handleCall(Session session, Request request) => Response.noContent();
 }
 
 class _MethodDispatchRoute extends Route {

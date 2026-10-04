@@ -41,6 +41,32 @@ void main() {
     },
   );
 
+  test('todo path responde OPTIONS, para el preflight de CORS', () async {
+    final server = await serveRoutes(() => _NoSession(), [
+      route('/items', Method.get, 'lista'),
+      route('/items/:id', Method.get, 'detalle'),
+      route('/items/:id', Method.patch, 'editar'),
+    ]);
+    addTearDown(server.close);
+    Future<int> options(String path) async => (await http.Request(
+      'OPTIONS',
+      Uri.parse('http://localhost:${server.port}$path'),
+    ).send()).statusCode;
+
+    expect(await options('/items'), 204);
+    expect(await options('/items/1'), 204);
+  });
+
+  test('un OPTIONS propio de una ruta no se reemplaza', () {
+    final custom = ApiRoute(Method.options, (_, _) => jsonResponse(200, 'x'));
+    final merged = mergeByPath([
+      route('/items', Method.get, 'lista'),
+      ('/items', custom),
+    ]);
+
+    expect(merged.single.$2.methods, {Method.get, Method.options});
+  });
+
   test('el mismo método dos veces en un path es un error', () {
     expect(
       () => mergeByPath([
