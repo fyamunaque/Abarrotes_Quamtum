@@ -16,12 +16,16 @@ class SessionUser {
     required this.name,
     required this.email,
     required this.role,
+    this.address,
   });
 
   final String id;
   final String name;
   final String email;
   final UserRole role;
+
+  /// La dirección guardada en el perfil, para proponerla al hacer un pedido.
+  final String? address;
 }
 
 /// Quién usa la app: nadie ([SignedOut]) o una cuenta ([SignedIn]). Al

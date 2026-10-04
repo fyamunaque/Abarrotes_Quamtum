@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neils/auth/auth_repository.dart';
+import 'package:neils/common/api_client.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/users/http_user_repository.dart';
 
@@ -18,7 +19,9 @@ void main() {
   HttpUserRepository repository(
     MockClientHandler handler, {
     String baseUrl = 'http://localhost:8082',
-  }) => HttpUserRepository(MockClient(handler), baseUrl: Uri.parse(baseUrl));
+  }) => HttpUserRepository(
+    ApiClient(MockClient(handler), baseUrl: Uri.parse(baseUrl)),
+  );
 
   Matcher failsWith(String text) => throwsA(
     isA<AuthFailure>().having((f) => f.message, 'message', contains(text)),
@@ -48,6 +51,12 @@ void main() {
     expect(user.email, 'jose@tienda.pe');
     expect(user.name, 'José Ñahui');
     expect(user.role, UserRole.staff);
+    expect(user.address, isNull);
+
+    final withAddress = await repository(
+      (_) async => json(200, {...profile, 'address': 'Jr. Cusco 456'}),
+    ).me('t');
+    expect(withAddress.address, 'Jr. Cusco 456');
   });
 
   test('respeta el path de API_URL y la barra final', () async {

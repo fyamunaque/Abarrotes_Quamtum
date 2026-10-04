@@ -1,6 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
 import '../config/api_config.dart';
 import '../firebase_options.dart';
@@ -17,8 +16,6 @@ final authRepositoryProvider = Provider<AuthRepository>(
 );
 
 /// El perfil y el rol desde el servidor.
-final userRepositoryProvider = Provider<UserRepository>((ref) {
-  final client = http.Client();
-  ref.onDispose(client.close);
-  return HttpUserRepository(client, baseUrl: apiBaseUrl);
-});
+final userRepositoryProvider = Provider<UserRepository>(
+  (ref) => HttpUserRepository(ref.watch(apiClientProvider)),
+);
