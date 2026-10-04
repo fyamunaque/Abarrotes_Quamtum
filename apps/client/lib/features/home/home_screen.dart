@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../router/routes.dart';
-import '../../theme/brand_colors.dart';
 import '../shared/brand.dart';
 
 /// Inicio: presentación de la tienda y accesos al catálogo y al registro.
@@ -16,14 +15,8 @@ class HomeScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: NeilsColors.primary,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: const Center(child: NeilsLogo(height: 120)),
-          ),
+          // El logo ya trae su fondo naranja: hace de portada.
+          const Center(child: NeilsLogo(height: 200)),
           const SizedBox(height: 24),
           Text(
             'Tus abarrotes, a la puerta de tu casa',
