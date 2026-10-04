@@ -62,10 +62,11 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
-  # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/images/
+    # Baloo 2 e Inter empaquetadas (licencia OFL): google_fonts las toma de
+    # aquí y no descarga nada. Ver lib/theme/neils_theme.dart.
+    - assets/google_fonts/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

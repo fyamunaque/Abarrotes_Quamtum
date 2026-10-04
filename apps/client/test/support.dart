@@ -1,0 +1,35 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
+
+/// Las fuentes salen de assets/google_fonts, como en la app: sin red.
+///
+/// En el motor de pruebas de Windows (flutter_tester de Flutter 3.47), cargar
+/// Baloo2-SemiBold y Baloo2-Bold en el mismo proceso lo cierra sin ningún
+/// error; cada una por separado carga bien. Los tests no necesitan los glifos
+/// reales, así que cuando google_fonts pide la SemiBold se le entregan los
+/// bytes de la ExtraBold. El resto de los assets llega sin cambios.
+void useBundledFonts() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+  setUpAll(() => GoogleFonts.config.allowRuntimeFetching = false);
+  setUp(() {
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMessageHandler('flutter/assets', (message) {
+      final key = utf8.decode(
+        message!.buffer.asUint8List(
+          message.offsetInBytes,
+          message.lengthInBytes,
+        ),
+      );
+      final asset = key.endsWith('/Baloo2-SemiBold.ttf')
+          ? ByteData.sublistView(
+              utf8.encode(key.replaceFirst('SemiBold', 'ExtraBold')),
+            )
+          : message;
+      return messenger.delegate.send('flutter/assets', asset);
+    });
+  });
+}
