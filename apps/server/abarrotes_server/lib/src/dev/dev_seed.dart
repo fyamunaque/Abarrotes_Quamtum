@@ -1,4 +1,7 @@
-import 'package:serverpod/serverpod.dart';
+import 'dart:math';
+
+// El modelo Order choca con la clase Order (orderBy) de Serverpod.
+import 'package:serverpod/serverpod.dart' hide Order;
 
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
@@ -61,6 +64,157 @@ Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
     return created;
   });
 }
+
+/// Pedidos de ejemplo para el panel: 40 de un cliente de ejemplo, repartidos
+/// en los últimos 30 días, siempre los mismos (semilla fija).
+/// - Los viejos quedaron entregados (y alguno cancelado); los de los últimos
+///   días están pendientes, confirmados o en camino.
+/// - Cobran el precio de hoy y no tocan el stock: son historia de ejemplo.
+/// - Deja también algo para las alertas: el yogurt vence en 3 días y la leche
+///   en 10 (si no tenían fecha), y la lejía queda bajo su mínimo.
+///
+/// El cliente (`seed-cliente-demo`) no es una cuenta de Firebase: no se puede
+/// ingresar con él. Solo agrega si no hay pedidos y ya hay productos con
+/// stock. Devuelve cuántos pedidos creó.
+Future<int> seedDevOrders(Session session, {DateTime Function()? now}) async {
+  final clock = (now ?? DateTime.now)().toUtc();
+  if (await Order.db.count(session) > 0) return 0;
+  final products = await Product.db.find(
+    session,
+    where: (product) =>
+        product.active.equals(true) & (product.currentStock > 0),
+    orderBy: (product) => product.sku,
+    include: Product.include(
+      promotions: Promotion.includeList(
+        where: (promotion) => activePromotionWhere(promotion, clock),
+        limit: 1,
+      ),
+    ),
+  );
+  if (products.isEmpty) return 0;
+
+  final random = Random(42);
+  T pick<T>(List<T> options) => options[random.nextInt(options.length)];
+
+  return session.db.transaction((transaction) async {
+    final customer =
+        await User.db.findFirstRow(
+          session,
+          where: (user) => user.firebaseUid.equals(_demoCustomerUid),
+          transaction: transaction,
+        ) ??
+        await User.db.insertRow(
+          session,
+          User(
+            firebaseUid: _demoCustomerUid,
+            email: 'cliente.demo@neils.pe',
+            name: 'Cliente de ejemplo',
+            role: UserRole.customer,
+            address: 'Av. Arequipa 1234, Lince',
+          ),
+          transaction: transaction,
+        );
+
+    const count = 40;
+    for (var i = 0; i < count; i++) {
+      // Del día 29 hacia atrás hasta hoy, unos por día.
+      final daysAgo = 29 - (i * 29) ~/ (count - 1);
+      final createdAt = clock.subtract(
+        Duration(
+          days: daysAgo,
+          hours: random.nextInt(8),
+          minutes: random.nextInt(60),
+        ),
+      );
+      final status = switch (daysAgo) {
+        <= 1 => pick(const [
+          OrderStatus.pendingConfirmation,
+          OrderStatus.confirmed,
+          OrderStatus.outForDelivery,
+        ]),
+        <= 3 => pick(const [
+          OrderStatus.confirmed,
+          OrderStatus.outForDelivery,
+          OrderStatus.delivered,
+        ]),
+        _ =>
+          random.nextInt(8) == 0
+              ? OrderStatus.cancelled
+              : OrderStatus.delivered,
+      };
+
+      final lines = [
+        for (final product in (List.of(products)..shuffle(random)).take(
+          1 + random.nextInt(3),
+        ))
+          (
+            product: product,
+            quantity: 1 + random.nextInt(3),
+            unitPrice:
+                product.promotions?.firstOrNull?.promoPriceCents ??
+                product.priceCents,
+          ),
+      ];
+      final order = await Order.db.insertRow(
+        session,
+        Order(
+          status: status,
+          totalCents: lines.fold(
+            0,
+            (sum, line) => sum + line.unitPrice * line.quantity,
+          ),
+          deliveryAddress: customer.address ?? 'Av. Arequipa 1234, Lince',
+          createdAt: createdAt,
+          updatedAt: createdAt,
+          customerId: customer.id!,
+        ),
+        transaction: transaction,
+      );
+      await OrderItem.db.insert(session, [
+        for (final line in lines)
+          OrderItem(
+            quantity: line.quantity,
+            unitPriceCents: line.unitPrice,
+            orderId: order.id!,
+            productId: line.product.id!,
+          ),
+      ], transaction: transaction);
+    }
+
+    final today = storeDay(clock);
+    for (final (sku, days) in const [('YOG-1L', 3), ('LEC-400', 10)]) {
+      final product = await Product.db.findFirstRow(
+        session,
+        where: (product) => product.sku.equals(sku),
+        transaction: transaction,
+      );
+      if (product != null && product.expirationDate == null) {
+        await Product.db.updateRow(
+          session,
+          product.copyWith(expirationDate: utcMidnight(addDays(today, days))),
+          columns: (product) => [product.expirationDate],
+          transaction: transaction,
+        );
+      }
+    }
+    final bleach = await Product.db.findFirstRow(
+      session,
+      where: (product) => product.sku.equals('LEJ-1L'),
+      transaction: transaction,
+    );
+    if (bleach != null && bleach.minStock < bleach.currentStock) {
+      await Product.db.updateRow(
+        session,
+        bleach.copyWith(minStock: bleach.currentStock + 2),
+        columns: (product) => [product.minStock],
+        transaction: transaction,
+      );
+    }
+    return count;
+  });
+}
+
+const _demoCustomerUid = 'seed-cliente-demo';
 
 typedef _SeedProduct = ({
   String name,
