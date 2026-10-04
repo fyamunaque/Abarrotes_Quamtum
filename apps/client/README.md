@@ -68,22 +68,26 @@ servidor). En Android, el HTTP sin cifrar solo está permitido en los builds de 
 main.dart              URLs sin "#" en la web, fuentes empaquetadas, Firebase, ProviderScope
 app.dart               MaterialApp.router: tema, router, español
 firebase_options.dart  config de Firebase por plataforma
-config/                URL del servidor (API_URL)
+config/                URL del servidor (API_URL) y apiClientProvider
 auth/                  AuthRepository (Firebase Auth) y los providers de los repositorios
 users/                 UserRepository: el perfil y el rol desde GET /users/me
 session/               Session y sessionProvider (quién ingresó y con qué rol)
-catalog/               Product (montos en céntimos, como el servidor)
-orders/                OrderStatus (los estados del servidor, con los textos de la web)
-common/                formatSoles
-router/                rutas, guard de /admin y GoRouter
+catalog/               Product, Category, CatalogRepository y sus providers
+cart/                  Cart y cartProvider (en memoria; también hace el pedido)
+orders/                Order, OrderStatus, OrderRepository y myOrdersProvider
+common/                ApiClient (las rutas REST y sus errores), PageList, formatSoles
+router/                rutas, guard y GoRouter
 theme/                 tokens de marca y de estados (brand_colors.dart), ThemeData
                        (neils_theme.dart) y movimiento (motion.dart)
-features/<sección>/    pantallas y componentes: home, auth, catalog, orders, admin,
+features/<sección>/    pantallas y componentes: home, auth, catalog, cart, orders, admin,
                        showcase (la vitrina) y shared (logo, barra, swoosh, PressScale)
 ```
 
-Las pantallas no hablan con Firebase ni con HTTP: usan `sessionProvider`, que usa los
-repositorios. Los tests reemplazan los repositorios por versiones en memoria.
+Las pantallas no hablan con Firebase ni con HTTP: usan providers, que usan los repositorios
+(una interfaz y su implementación HTTP o Firebase). Los tests reemplazan los repositorios por
+versiones en memoria (`test/fakes.dart`). Los errores del servidor llegan como `ApiFailure`, ya en
+español: sin conexión, sesión vencida, 5xx, o el mensaje del servidor (p. ej. "Stock
+insuficiente: Aceite tiene 2 unidades").
 
 ## Tema
 
@@ -149,10 +153,24 @@ flutter run -d chrome   # y abrir /vitrina
 
 ## Sesión y rutas
 
-| Ruta | Quién |
-|---|---|
-| `/`, `/login`, `/registro`, `/catalogo` | Cualquiera |
-| `/admin` y sus subrutas | Solo `admin` y `staff` |
+| Ruta | Quién | Qué |
+|---|---|---|
+| `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
+| `/catalogo?categoria=<id>` | Cualquiera | Productos página a página ("Ver más"), con filtro por categoría. La elegida va en la URL, así un enlace abre el catálogo ya filtrado. |
+| `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. |
+| `/admin` y sus subrutas | Solo `admin` y `staff` | El panel |
+
+**Carrito** (`cart/cart_provider.dart`): vive solo en memoria, así que se vacía al cerrar o
+recargar la app.
+- La cantidad va de 1 al stock, y como mucho a 999, lo que el servidor acepta por línea.
+- Los precios son los del catálogo al agregar. El servidor cobra los del momento del pedido, el de
+  la promoción vigente si la hay.
+- `placeOrder` hace el pedido con el ID token. Si sale bien, vacía el carrito y recarga "Mis
+  pedidos" y el catálogo (cambió el stock).
+- Si el servidor lo rechaza (409 sin stock, 400 producto dado de baja), muestra su mensaje y el
+  carrito queda igual.
 
 **Sesión** (`session/session_provider.dart`): hay sesión cuando hay una cuenta de Firebase y el
 servidor devolvió su perfil.
@@ -164,29 +182,36 @@ servidor devolvió su perfil.
   perfil no hay rol.
 
 **Después de ingresar** (`routeAfterSignIn` en `router/route_guard.dart`):
-- un cliente va a `/catalogo`;
-- admin y staff van a `/admin`, o a la ruta del panel que pidió el ingreso (`/login?from=...`).
+- si el ingreso lo pidió el carrito o "Mis pedidos" (`/login?from=...`), vuelve ahí, con
+  cualquier cuenta;
+- si no, un cliente va a `/catalogo`;
+- admin y staff van a `/admin`, o a la ruta del panel que pidió el ingreso.
 
-**El guard** protege `/admin`:
+**El guard** protege `/mis-pedidos` y `/admin`:
 - sin sesión, manda a `/login?from=...`;
-- con una cuenta de cliente, vuelve al inicio;
-- mientras la sesión carga, el panel muestra un indicador.
+- con una cuenta de cliente, `/admin` vuelve al inicio;
+- mientras la sesión carga, la pantalla muestra un indicador.
 
 Si la sesión cambia (p. ej. "Salir"), el router vuelve a evaluar la ruta actual.
 
-## Probar el ingreso real
+## Probar de punta a punta
 
-Con el servidor corriendo y la config de Firebase de la plataforma:
+Con el servidor corriendo (y, la primera vez, `dart run bin/seed_dev.dart` para tener productos;
+ver el README del servidor) y la config de Firebase de la plataforma:
 
 1. `flutter run -d chrome` (o en el emulador). Crear una cuenta en **Crear una cuenta**: termina
    en `/catalogo`, con el nombre en la barra.
-2. Pasarla a admin en la base del servidor:
+2. Agregar productos, abrir el carrito y confirmar el pedido: termina en `/mis-pedidos`, con el
+   aviso y el pedido en "Pendiente".
+3. Pasar la cuenta a admin en la base del servidor:
 
    ```powershell
    & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U abarrotes -d abarrotes_server -c "UPDATE users SET role = 'admin' WHERE email = 'correo@ejemplo.com'"
    ```
 
-3. **Salir** e ingresar de nuevo: termina en `/admin`.
+4. **Salir** e ingresar de nuevo: termina en `/admin`.
+5. Cambiar el estado del pedido con `PATCH /orders/:id/status` (o desde el panel, cuando exista).
+   En "Mis pedidos", **Actualizar** anima el seguimiento hasta el estado nuevo.
 
 ## Tests
 
@@ -199,7 +224,22 @@ Con el servidor corriendo y la config de Firebase de la plataforma:
   como el real: así se prueba que el registro no crea la cuenta sin nombre en el servidor.
 - `test/features/auth_screens_test.dart`: ingreso, registro, validación, errores, carga y salir,
   con la app completa.
-- `test/users/http_user_repository_test.dart`: `GET /users/me` con un cliente HTTP simulado.
+- `test/users/http_user_repository_test.dart`, `test/catalog/http_catalog_repository_test.dart`
+  y `test/orders/http_order_repository_test.dart`: cada ruta REST con un cliente HTTP simulado
+  (`MockClient`): la URL, el query, el token, el body y cómo se lee la respuesta.
+- `test/common/api_client_test.dart`: los errores (sin conexión, sin respuesta, 401, 5xx, el
+  mensaje del servidor o su lista).
+- `test/catalog/product_list_test.dart`: el catálogo página a página, por categoría, y "Ver más"
+  cuando falla.
+- `test/cart/`: el carrito (sumar, límites, total) y `placeOrder` (vacía el carrito solo si el
+  pedido sale bien).
+- `test/features/catalog_screen_test.dart`, `cart_screen_test.dart` y `checkout_test.dart`: el
+  flujo de compra con la app completa:
+  - filtro y URL, "Ver más", errores, detalle;
+  - carrito, cantidades y quitar;
+  - sin cuenta: ingresar, volver al carrito y pedir;
+  - el 409, la dirección vacía;
+  - `/mis-pedidos` y "Actualizar" animando el seguimiento.
 - `test/auth/auth_error_message_test.dart`: los mensajes de cada error de Firebase.
 - `test/features/account_bar_test.dart`: la barra con sesión entra en un teléfono de 320 y 375
   px (la cuenta va en un menú).
@@ -220,6 +260,12 @@ assets, sin red. Ese helper también esquiva un fallo del motor de pruebas de Wi
 Baloo2-SemiBold y Baloo2-Bold en el mismo proceso lo cierra sin error. Por eso, en los tests, la
 SemiBold se reemplaza por la ExtraBold. La app no cambia.
 
-Con poca RAM libre, `flutter test` puede cortar a mitad algún test ("did not complete", sin
-error): corre varios motores de prueba en paralelo. En ese caso, `flutter test --concurrency=1`,
-y sin `flutter run` abierto al mismo tiempo.
+En Windows, además, `flutter_tester` a veces se cae solo: el archivo de tests termina con "did
+not complete" y sin ningún assert fallido. En el registro de eventos de Windows figura como
+access violation (0xC0000005) dentro de `flutter_tester.exe`. Pasa con cualquier archivo que use
+el tema, también corriendo de a uno (`--concurrency=1`), y más con poca RAM libre o con
+`flutter run` abierto.
+- Es un fallo del motor de pruebas de Flutter 3.47 en Windows, no de los tests. Probé cargar las
+  fuentes de a una y usar un solo archivo de fuente, y ninguna de las dos cosas lo evita.
+- Si pasa, vuelve a correr ese archivo.
+- En CI (Linux) no ocurre.

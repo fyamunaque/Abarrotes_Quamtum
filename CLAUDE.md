@@ -79,6 +79,7 @@ flutter test
 
 # Serverpod (desde apps/server/abarrotes_server; la CLI necesita Flutter en el PATH o CI=true)
 dart run bin/main.dart                     # servidor: rutas REST en el puerto 8082
+dart run bin/seed_dev.dart                 # catálogo de ejemplo en la base de development (si está vacía)
 serverpod generate                         # después de editar un .spy.yaml
 serverpod create-migration                 # y luego: dart run bin/main.dart --role maintenance --apply-migrations
 dart test                                  # unitarios + integración con PostgreSQL

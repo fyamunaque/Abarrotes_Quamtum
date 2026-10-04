@@ -120,17 +120,19 @@ Hecho:
 - el dominio `users` (`GET /users/me`, `POST /users`) y el guard por rol;
 - `categories`, `products` y `promotions`, con las mismas reglas que en NestJS;
 - `inventory`, con registro de movimientos y alertas;
-- en `orders`, el listado del dashboard y los cambios de estado con el patrón State;
+- `orders`:
+  - el listado del dashboard y los cambios de estado con el patrón State;
+  - del lado del cliente, `POST /orders` y `GET /orders/mine`. El pedido cobra el precio de la promoción vigente y descuenta el stock en una transacción, con los productos bloqueados en orden: dos pedidos simultáneos por la última unidad no se pisan ni se traban;
 - `stats`, con un `ReportProvider` por reporte;
 - CORS para la app web (en `development`, cualquier `http://localhost:<puerto>`; además, los orígenes de `ALLOWED_ORIGINS`);
+- un seed de desarrollo (`dart run bin/seed_dev.dart`) con un catálogo de ejemplo;
 - un job de CI.
 
 Pendiente:
 
-1. Completar `orders` del lado del cliente: crear un pedido cobrando el precio promocional y descontando stock, y "mis pedidos".
-2. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
-3. Pasar el login de Android y web a Firebase.
-4. Retirar `apps/api`.
+1. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
+2. Pasar el login de Android y web a Firebase.
+3. Retirar `apps/api`.
 
 **App Flutter (Android + web)** *(pedido del cliente, en curso)*
 `apps/client` reemplazará a la app Kotlin y a la web Next.js; hasta entonces conviven. Ya tiene:
@@ -143,16 +145,18 @@ Pendiente:
 - los componentes de marca, con movimiento que respeta "reducir animaciones":
   - el swoosh del logo dibujándose en la portada;
   - la tarjeta de producto, con el swoosh bajo el precio y "Agregar" que responde al toque;
-  - el seguimiento de pedido, con colores por estado.
-
-  La tarjeta y el seguimiento todavía no tienen datos reales: se ven en `/vitrina`, solo en debug.
+  - el seguimiento de pedido, con colores por estado;
+- el flujo de compra contra Serverpod, con repositorios y Riverpod:
+  - el catálogo con filtro por categoría (en la URL) y el detalle de producto;
+  - el carrito, solo en memoria;
+  - el pedido, que sin cuenta pasa por el ingreso y vuelve al carrito;
+  - "Mis pedidos", con el seguimiento de cada uno.
 
 Pendiente:
 
 1. La config de la Web app de Firebase en `lib/firebase_options.dart`: hasta tenerla, en la web el ingreso dice que no está disponible. Android ya está configurado.
-2. Catálogo, carrito y pedidos contra Serverpod.
-3. Las secciones del panel.
-4. Cuando esté todo, retirar `apps/android` y `apps/web`.
+2. Las secciones del panel.
+3. Cuando esté todo, retirar `apps/android` y `apps/web`.
 
 Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
 

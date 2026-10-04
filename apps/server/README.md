@@ -84,6 +84,14 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
    dart run bin/main.dart --role maintenance --apply-migrations
    ```
 
+4. Opcional, para probar la app: un catálogo de ejemplo, con 5 categorías y 12 productos. Uno
+   tiene una promoción vigente por 30 días y otro está agotado; no llevan imágenes. Solo corre
+   en `development` y no hace nada si ya hay productos. No toca la base `abarrotes` de la demo.
+
+   ```powershell
+   dart run bin/seed_dev.dart
+   ```
+
 ## Día a día (desde `apps/server/abarrotes_server`)
 
 | Qué | Comando |
@@ -193,6 +201,8 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/movements` | admin, staff | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
 | `GET /inventory/alerts/low-stock` | admin, staff | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | admin, staff | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
+| `POST /orders` | cualquiera con cuenta | `{deliveryAddress, items: [{productId, quantity}]}` (de 1 a 100 líneas; cantidad de 1 a 999). Sin precios ni total: el servidor cobra el precio de hoy, el de la promoción vigente si la hay. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido. |
+| `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero. |
 | `GET /orders` | admin, staff | Pedidos con sus líneas y cliente, paginados, los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | admin, staff | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
 | `GET /stats/overview` | admin, staff | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
@@ -209,6 +219,16 @@ entregado; `delivered` y `cancelled` son finales. Reglas del cambio de estado:
 - La fila del pedido se bloquea durante el cambio. Si dos personas lo cambian a la vez, la segunda
   espera y se valida contra el estado ya cambiado (400 con el motivo), así el stock nunca se
   devuelve dos veces.
+
+Al crear un pedido (`OrdersService.create`), todo pasa en una transacción:
+
+- Los productos se bloquean (`FOR UPDATE`) al leerlos, en orden por id y antes de escribir nada.
+  Así dos pedidos a la vez por las últimas unidades se ordenan ahí: uno pasa y el otro recibe
+  409.
+- Si el bloqueo se hiciera recién al descontar el stock, se trabarían. Cada uno ya tendría la
+  fila tomada por la clave foránea de sus líneas (deadlock). El test de concurrencia lo cubre.
+- El stock se descuenta con `InventoryService.record` (una salida por producto, a nombre del
+  cliente, con el motivo `Pedido <id>`). Si no alcanza, su 409 deshace también el pedido.
 
 Estadísticas (`lib/src/stats/`): cada reporte es una estrategia que extiende `ReportProvider`
 (`SalesReportProvider`, `TopProductsReportProvider`, `OrderStatusReportProvider`,
