@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Firebase Auth y el servidor de la tienda. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Neil's"
         android:name="${applicationName}"

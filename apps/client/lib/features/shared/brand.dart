@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../router/routes.dart';
+import '../../session/session.dart';
+import '../../session/session_provider.dart';
+import 'account.dart';
 
 /// El logo de Neil's (naranja con letras crema).
 class NeilsLogo extends StatelessWidget {
@@ -22,17 +26,18 @@ class NeilsLogo extends StatelessWidget {
   }
 }
 
-/// Estructura de las pantallas públicas: barra con el logo y accesos al
-/// catálogo y al ingreso, y el contenido centrado con un ancho cómodo en la
-/// web.
-class PublicScaffold extends StatelessWidget {
+/// Estructura de las pantallas públicas: barra con el logo, el catálogo y la
+/// cuenta (ingresar, o el nombre y salir), y el contenido centrado con un
+/// ancho cómodo en la web.
+class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({super.key, required this.child, this.maxWidth = 960});
 
   final Widget child;
   final double maxWidth;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionProvider);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 64,
@@ -45,10 +50,26 @@ class PublicScaffold extends StatelessWidget {
             onPressed: () => context.go(Routes.catalog),
             child: const Text('Catálogo'),
           ),
-          TextButton(
-            onPressed: () => context.go(Routes.login),
-            child: const Text('Ingresar'),
-          ),
+          ...switch (session) {
+            // Mientras se sabe si hay una cuenta abierta, nada: así no
+            // aparece "Ingresar" un instante.
+            SessionLoading() => const <Widget>[],
+            SignedOut() => [
+              TextButton(
+                onPressed: () => context.go(Routes.login),
+                child: const Text('Ingresar'),
+              ),
+            ],
+            SignedIn(:final user) => [
+              if (user.role.isStaff)
+                TextButton(
+                  onPressed: () => context.go(Routes.admin),
+                  child: const Text('Panel'),
+                ),
+              UserName(user),
+              const SignOutButton(),
+            ],
+          },
           const SizedBox(width: 8),
         ],
       ),

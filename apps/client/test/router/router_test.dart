@@ -75,13 +75,15 @@ void main() {
     expect(find.byType(AdminShell), findsNothing);
   });
 
-  testWidgets('staff entra al panel y ve su nombre', (tester) async {
+  testWidgets('staff entra al panel y ve su primer nombre y su rol', (
+    tester,
+  ) async {
     final router = await pumpApp(tester, signedInAs(UserRole.staff));
 
     await goTo(tester, router, '/admin');
 
     expect(find.byType(AdminShell), findsOneWidget);
-    expect(find.text('Ana staff · staff'), findsOneWidget);
+    expect(find.text('Ana · staff'), findsOneWidget);
   });
 
   testWidgets('si la sesión se cierra dentro del panel, sale de /admin', (

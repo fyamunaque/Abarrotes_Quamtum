@@ -5,10 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
+import '../shared/account.dart';
 import '../shared/brand.dart';
 
 /// Layout común de /admin. Solo se llega aquí con una sesión de admin o
-/// staff (ver route_guard.dart).
+/// staff, o mientras la sesión carga (ver route_guard.dart): en ese caso
+/// muestra un indicador hasta que el guard decide.
 class AdminShell extends ConsumerWidget {
   const AdminShell({super.key, required this.child});
 
@@ -24,23 +26,34 @@ class AdminShell extends ConsumerWidget {
           children: [
             NeilsLogo(),
             SizedBox(width: 12),
-            Text('Panel de la tienda'),
+            Flexible(
+              child: Text(
+                'Panel de la tienda',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
-          if (session case SignedIn(:final user))
-            Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: Center(child: Text('${user.name} · ${user.role.name}')),
-            ),
           TextButton(
             onPressed: () => context.go(Routes.home),
             child: const Text('Ir a la tienda'),
           ),
+          if (session case SignedIn(:final user)) ...[
+            UserName(user, showRole: true),
+            const SignOutButton(),
+          ],
           const SizedBox(width: 8),
         ],
       ),
-      body: SafeArea(child: child),
+      body: SafeArea(
+        child: switch (session) {
+          SignedIn() => child,
+          _ => const Center(
+            child: CircularProgressIndicator(semanticsLabel: 'Cargando'),
+          ),
+        },
+      ),
     );
   }
 }

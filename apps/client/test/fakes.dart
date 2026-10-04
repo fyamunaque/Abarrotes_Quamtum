@@ -119,11 +119,17 @@ class FakeUserRepository implements UserRepository {
 
   /// Si no es null, `me` falla con esto (p. ej. el servidor caído).
   AuthFailure? failure;
+
+  /// Si no es null, `me` no responde hasta que se complete (un servidor
+  /// lento, para ver los estados de carga).
+  Completer<void>? hold;
+
   int calls = 0;
 
   @override
   Future<SessionUser> me(String idToken) async {
     calls++;
+    if (hold case final hold?) await hold.future;
     if (failure case final failure?) throw failure;
     final uid = idToken.replaceFirst('token-', '');
     return _profiles.putIfAbsent(uid, () {
