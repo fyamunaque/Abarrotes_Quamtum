@@ -18,6 +18,7 @@ Documento de referencia completo con arquitectura, roadmap y prompts sugeridos: 
 |---|---|
 | App Android | Kotlin + Jetpack Compose + Retrofit |
 | Web (marketplace + dashboard) | Next.js (App Router) + TypeScript + Tailwind CSS |
+| Cliente nuevo (en construcción) | Flutter (Android + web) en `/apps/client`, con Riverpod y go_router. Convive con la app Kotlin y la web Next.js hasta reemplazarlas |
 | Backend / API | NestJS + TypeScript + Prisma ORM |
 | Backend nuevo (en migración) | Serverpod 4 (Dart) en `/apps/server`, pedido del cliente: reemplaza a NestJS dominio por dominio |
 | Base de datos | PostgreSQL (`abarrotes` para NestJS, `abarrotes_server` para Serverpod: nunca la misma base) |
@@ -32,6 +33,7 @@ Documento de referencia completo con arquitectura, roadmap y prompts sugeridos: 
   /web            -> Next.js (marketplace público + /admin protegido por rol)
   /api            -> NestJS
   /server         -> Serverpod (Dart): abarrotes_server + cliente generado
+  /client         -> Flutter (Android + web): la app nueva, contra apps/server
 /packages
   /shared-types   -> tipos TypeScript compartidos entre /web y /api
 /prisma
@@ -47,6 +49,7 @@ Documento de referencia completo con arquitectura, roadmap y prompts sugeridos: 
 - **Nombres**: entidades y tablas en inglés (`Product`, `Order`), texto de UI en español.
 - **Módulos NestJS**: uno por dominio (`products`, `orders`, `inventory`, `promotions`, `auth`, `users`), cada uno con controller + service + DTOs propios. No mezclar dominios en un mismo módulo.
 - **Serverpod**: un dominio por carpeta en `apps/server/abarrotes_server/lib/src/<dominio>/`, con sus modelos `.spy.yaml`, su servicio y sus rutas. Ningún dominio importa la lógica de otro (`auth` y `common` son infraestructura compartida). `lib/src/generated/` y `abarrotes_client` los escribe `serverpod generate`: no se editan a mano. Montos en céntimos enteros (`priceCents`) y como texto en el JSON (`"4.5"`). Cada dominio expone `List<RouteEntry>` con `ApiRoute`s (rutas REST, JSON con la forma de `packages/shared-types`), valida con `InputReader` y protege la escritura con `RoleGuard(staffRoles, ruta, verifier: …)`; se registran con `addRoutes` en `lib/server.dart`. Nada de registro o login propios (los hace Firebase). Patrón completo: `apps/server/README.md`.
+- **Flutter (`apps/client`)**: una carpeta por sección en `lib/features/<sección>/`. El estado va con Riverpod (providers, nada de `setState` para datos compartidos) y las rutas con go_router (paths en `router/routes.dart`). Las rutas protegidas se deciden en `router/route_guard.dart`, nunca dentro de una pantalla. Colores y tipografía solo desde `lib/theme/`: nada de colores sueltos.
 - **Estados de pedido**: enum fijo — `PENDING_CONFIRMATION`, `CONFIRMED`, `OUT_FOR_DELIVERY`, `DELIVERED`, `CANCELLED` (en Serverpod los mismos en camelCase: `pendingConfirmation`, …). No agregar estados nuevos sin actualizar los tres frontends y `docs/ARQUITECTURA_Y_ROADMAP.md`.
 
 ## Cómo trabajar en este repo
@@ -69,11 +72,16 @@ cd apps/web && npm run dev
 # Migraciones de base de datos (después de editar prisma/schema.prisma)
 cd apps/api && npx prisma migrate dev --name <nombre_descriptivo>
 
-# Serverpod (desde apps/server/abarrotes_server; la CLI necesita CI=true sin Flutter)
+# Cliente Flutter (desde apps/client)
+flutter run -d chrome                      # o -d <emulador>; flutter devices los lista
+flutter analyze
+flutter test
+
+# Serverpod (desde apps/server/abarrotes_server; la CLI necesita Flutter en el PATH o CI=true)
 dart run bin/main.dart                     # servidor: rutas REST en el puerto 8082
 serverpod generate                         # después de editar un .spy.yaml
 serverpod create-migration                 # y luego: dart run bin/main.dart --role maintenance --apply-migrations
 dart test                                  # unitarios + integración con PostgreSQL
 ```
 
-Requisitos y detalles de Serverpod (Dart SDK, `passwords.yaml`, Firebase, primer admin): `apps/server/README.md`.
+Requisitos y detalles de Serverpod (Dart SDK, `passwords.yaml`, Firebase, primer admin): `apps/server/README.md`. Del cliente Flutter (versión de Flutter, tema, rutas): `apps/client/README.md`.

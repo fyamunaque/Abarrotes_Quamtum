@@ -22,6 +22,7 @@ Todo se apoya en un **backend/API único** y una **base de datos central**, para
 | Base de datos | **PostgreSQL** | Relacional, con transacciones ACID — importante cuando un pedido descuenta stock y genera un registro de venta a la vez. |
 | Auth | JWT (access + refresh token) | Roles `CUSTOMER`, `ADMIN`, `STAFF`; el mismo esquema de auth sirve para app, web y dashboard. |
 | Backend nuevo (en migración) | **Serverpod 4** (Dart) + **Firebase Auth** | Pedido del cliente. Vive en `apps/server` y va reemplazando a NestJS dominio por dominio. Las cuentas y contraseñas las maneja Firebase; el servidor verifica el ID token y guarda el rol en Postgres. Ver la sección 3. |
+| Cliente nuevo (en construcción) | **Flutter** + Riverpod + go_router | Pedido del cliente: una sola app para Android y web, en Dart como el backend. Vive en `apps/client` y convive con la app Kotlin y la web Next.js hasta reemplazarlas. |
 
 **Nota sobre Python:** si alguien del equipo se siente más cómodo con Python, FastAPI es una alternativa igual de válida para el backend — la arquitectura (módulos por dominio, JWT, Prisma o SQLAlchemy) se traduce casi 1 a 1. Los prompts de la sección 6 están escritos para NestJS; si cambian a FastAPI, ajusten la referencia al framework y el resto de la guía se mantiene igual.
 
@@ -35,6 +36,7 @@ Un solo repositorio con las tres apps facilita compartir tipos y mantener sincro
   /web            -> Next.js (marketplace público + /admin protegido por rol)
   /api            -> NestJS
   /server         -> Serverpod (Dart): abarrotes_server + cliente generado
+  /client         -> Flutter (Android + web), la app nueva contra /server
 /packages
   /shared-types   -> tipos TypeScript compartidos entre /web y /api
 /prisma
@@ -129,6 +131,21 @@ Pendiente:
 3. Pasar el login de Android y web a Firebase.
 4. Retirar `apps/api`.
 
+**App Flutter (Android + web)** *(pedido del cliente, en curso)*
+`apps/client` reemplazará a la app Kotlin y a la web Next.js; hasta entonces conviven. Ya tiene:
+
+- Riverpod y go_router;
+- el tema de Neil's (los mismos tokens y el mismo criterio de contraste que la web y Android, con Baloo 2 e Inter empaquetadas);
+- el flujo público `/`, `/login`, `/registro` y `/catalogo`;
+- `/admin` protegido por rol: solo admin y staff.
+
+Pendiente:
+
+1. Ingreso y registro con Firebase Auth, con la sesión y el rol desde `GET /users/me`.
+2. Catálogo, carrito y pedidos contra Serverpod.
+3. Las secciones del panel.
+4. Cuando esté todo, retirar `apps/android` y `apps/web`.
+
 Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
 
 ## 6. Flujo de trabajo con el equipo y con Claude Code
@@ -191,10 +208,11 @@ debajo de minStock y otro con productos próximos a vencer (expirationDate).
 ## 7. Herramientas complementarias
 
 - **Probar la API mientras se desarrolla**: Insomnia o Postman (o archivos `.http` dentro del repo si prefieren algo más ligero, sin instalar nada aparte).
-- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`, con cuatro jobs en paralelo en cada PR y push a `develop` y `main`:
+- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`, con cinco jobs en paralelo en cada PR y push a `develop` y `main`:
 
 - API, con PostgreSQL efímero; además aplica las migraciones y el seed sobre una base vacía.
 - Serverpod, con PostgreSQL efímero: tests, migraciones y arranque del servidor con un chequeo de 401.
+- Cliente Flutter: formato, análisis, tests y build web.
 - Web.
 - Android.
 - **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), web en Vercel, app en Google Play Console (pago único de $25).
