@@ -127,6 +127,8 @@ jobs:
           expect 401 "$api/inventory/alerts/low-stock"
           expect 401 "$api/orders?status=confirmed"
           expect 401 -X PATCH "$api/orders/0199a000-0000-7000-8000-000000000000/status"
+          expect 401 "$api/stats/overview"
+          expect 401 "$api/stats/sales?from=2026-01-01&to=2026-01-31"
 
   web:
     name: Web
