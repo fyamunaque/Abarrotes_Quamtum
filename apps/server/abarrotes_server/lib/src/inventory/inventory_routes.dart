@@ -6,10 +6,10 @@ import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/pagination.dart';
-import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import 'inventory_service.dart';
 import 'stock_alerts.dart';
+import 'stock_alerts_json.dart';
 
 /// Rutas de inventario: todas solo para admin y staff.
 List<RouteEntry> inventoryRoutes(
@@ -66,19 +66,10 @@ List<RouteEntry> inventoryRoutes(
       '/inventory/alerts/low-stock',
       staffOnly(Method.get, (session, request) async {
         InputReader.query(request, allowed: const {}).check();
-        final products = await alerts.lowStock(session);
-        return jsonResponse(200, {
-          'data': [
-            for (final product in products)
-              {
-                ..._productJson(product),
-                'category': product.category!.name,
-                'currentStock': product.currentStock,
-                'minStock': product.minStock,
-                'shortage': StockAlerts.shortage(product),
-              },
-          ],
-        });
+        return jsonResponse(
+          200,
+          lowStockReportJson(await alerts.lowStock(session)),
+        );
       }),
     ),
     (
@@ -89,24 +80,10 @@ List<RouteEntry> inventoryRoutes(
             query.integer('days', min: 1, max: 365, required: false) ?? 7;
         query.check();
 
-        final report = await alerts.expiring(session, days);
-        return jsonResponse(200, {
-          'days': days,
-          'until': report.until,
-          'data': [
-            for (final product in report.products)
-              {
-                ..._productJson(product),
-                'currentStock': product.currentStock,
-                'expirationDate': calendarDay(product.expirationDate!),
-                // 0 vence hoy; negativo, ya venció.
-                'daysLeft': daysBetween(
-                  report.today,
-                  calendarDay(product.expirationDate!),
-                ),
-              },
-          ],
-        });
+        return jsonResponse(
+          200,
+          expiringReportJson(await alerts.expiring(session, days)),
+        );
       }),
     ),
   ];

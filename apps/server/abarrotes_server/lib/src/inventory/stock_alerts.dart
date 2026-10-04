@@ -3,9 +3,17 @@ import 'package:serverpod/serverpod.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 
+/// Productos por vencer hasta [until] (hoy + [days]), vistos desde [today].
+typedef ExpiringProducts = ({
+  int days,
+  String today,
+  String until,
+  List<Product> products,
+});
+
 /// Alertas de stock. Es el único lugar del servidor que sabe qué es "stock
-/// bajo" o "por vencer": las rutas de inventory lo usan, y stats lo
-/// reutilizará.
+/// bajo" o "por vencer": lo usan las rutas de inventory y los reportes de
+/// stats.
 class StockAlerts {
   StockAlerts({DateTime Function()? now}) : _now = now ?? DateTime.now;
 
@@ -32,10 +40,7 @@ class StockAlerts {
   /// Productos activos con stock que vencen de hoy (hora de Lima) a hoy +
   /// [days], incluidos los ya vencidos que siguen en el inventario: son los
   /// más urgentes. Los primeros en vencer, primero.
-  Future<({String today, String until, List<Product> products})> expiring(
-    Session session,
-    int days,
-  ) async {
+  Future<ExpiringProducts> expiring(Session session, int days) async {
     final today = storeDay(_now());
     final until = addDays(today, days);
     final products = await Product.db.find(
@@ -50,7 +55,7 @@ class StockAlerts {
         product.name.asc(),
       ],
     );
-    return (today: today, until: until, products: products);
+    return (days: days, today: today, until: until, products: products);
   }
 
   /// Menor proporción de stock primero; con la misma proporción, el que más
