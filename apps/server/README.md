@@ -43,7 +43,14 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
   ```
 
 - **PostgreSQL** local (el mismo que usa `apps/api`). El usuario `abarrotes` necesita permiso
-  `CREATEDB`: los tests crean y borran bases temporales.
+  `CREATEDB`: los tests crean y borran bases temporales. También necesita `pg_signal_backend`:
+  al borrar una base temporal, PostgreSQL a veces tiene que cortar un proceso de autovacuum que
+  trabaja en ella. Sin ese permiso, algún grupo falla de vez en cuando en su `tearDownAll` y deja
+  una base `sp_test_*`. Se otorga una vez, como superusuario:
+
+  ```powershell
+  & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U postgres -c "GRANT pg_signal_backend TO abarrotes"
+  ```
 
 ## Primera vez
 
