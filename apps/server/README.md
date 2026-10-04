@@ -172,6 +172,18 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/movements` | admin, staff | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
 | `GET /inventory/alerts/low-stock` | admin, staff | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | admin, staff | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
+| `GET /orders` | admin, staff | Pedidos con sus líneas y cliente, paginados, los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
+| `PATCH /orders/:id/status` | admin, staff | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
+
+Estados de pedido (`lib/src/orders/states/`, una clase por estado): `pendingConfirmation` →
+`confirmed` → `outForDelivery` → `delivered`. Se puede cancelar (`cancelled`) mientras no se haya
+entregado; `delivered` y `cancelled` son finales. Reglas del cambio de estado:
+
+- Cancelar devuelve al inventario lo que el pedido descontó: una entrada por línea, a nombre de
+  quien cancela. Lo hace el servicio de inventory dentro de la misma transacción.
+- La fila del pedido se bloquea durante el cambio. Si dos personas lo cambian a la vez, la segunda
+  espera y se valida contra el estado ya cambiado (400 con el motivo), así el stock nunca se
+  devuelve dos veces.
 
 Reglas de los movimientos de inventario:
 

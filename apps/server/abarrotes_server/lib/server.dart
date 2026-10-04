@@ -10,6 +10,8 @@ import 'src/generated/serverpod.dart';
 import 'src/inventory/inventory_routes.dart';
 import 'src/inventory/inventory_service.dart';
 import 'src/inventory/stock_alerts.dart';
+import 'src/orders/orders_routes.dart';
+import 'src/orders/orders_service.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
 import 'src/promotions/promotions_routes.dart';
@@ -41,6 +43,7 @@ void run(List<String> args) async {
     ...productsRoutes(ProductsService(), verifier),
     ...promotionsRoutes(PromotionsService(), verifier),
     ...inventoryRoutes(const InventoryService(), StockAlerts(), verifier),
+    ...ordersRoutes(OrdersService(), verifier),
   ]);
 
   await pod.start();
