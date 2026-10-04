@@ -7,10 +7,11 @@
 # facing ports.
 
 # Configuration for the main API server.
+# En 8088 y no en 8080, que suele estar ocupado (Apache/XAMPP).
 apiServer:
-  port: 8080
+  port: 8088
   publicHost: localhost
-  publicPort: 8080
+  publicPort: 8088
   publicScheme: http
 
 # Configuration for the Insights server.

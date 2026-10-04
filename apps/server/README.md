@@ -56,6 +56,9 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
 2. Crear `abarrotes_server/config/passwords.yaml` (está en `.gitignore`):
 
    ```yaml
+   shared:
+     # Proyecto de Firebase cuyos ID tokens acepta el servidor (no es secreto).
+     firebaseProjectId: '<project id de Firebase>'
    development:
      database: '<contraseña del usuario abarrotes>'
      serviceSecret: '<cadena aleatoria larga>'
@@ -64,7 +67,8 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
    ```
 
    En CI o en un servidor, las mismas claves llegan por variables de entorno:
-   `SERVERPOD_PASSWORD_database`, `SERVERPOD_PASSWORD_serviceSecret`, etc.
+   `SERVERPOD_PASSWORD_database`, `SERVERPOD_PASSWORD_serviceSecret`, etc. El project id
+   también puede venir de `FIREBASE_PROJECT_ID`. Sin él, el servidor no arranca.
 
 3. Dependencias y migraciones, desde `apps/server/abarrotes_server`:
 
@@ -77,9 +81,64 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
 
 | Qué | Comando |
 |---|---|
-| Levantar el servidor (API 8080, Insights 8081, web 8082) | `dart run bin/main.dart` |
+| Levantar el servidor (API 8088, Insights 8081, web 8082) | `dart run bin/main.dart` |
 | Regenerar código tras editar un `.spy.yaml` | `serverpod generate` |
 | Crear la migración de ese cambio (se commitea) | `serverpod create-migration` |
 | Aplicar migraciones pendientes | `dart run bin/main.dart --role maintenance --apply-migrations` |
 | Análisis estático | `dart analyze` |
-| Tests | `dart test` |
+| Tests (unitarios + integración con PostgreSQL) | `dart test` |
+
+## Autenticación con Firebase
+
+Las cuentas viven en **Firebase Auth**: el servidor no guarda contraseñas. Cada petición
+protegida trae el ID token de Firebase en `Authorization: Bearer <token>`, y el servidor:
+
+- Verifica la firma RS256 con las llaves públicas de Google
+  (`securetoken@system.gserviceaccount.com`). Las cachea según su `Cache-Control` y las vuelve a
+  descargar si Google las rota.
+- Exige `iss = https://securetoken.google.com/<project id>`, `aud = <project id>`, el token
+  vigente y un `sub` (el uid) no vacío.
+- Busca al usuario por `firebaseUid` en `users`. Ahí viven el **rol** y los datos de la tienda.
+
+Código en `lib/src/auth/`: `GooglePublicKeys` (llaves), `FirebaseTokenVerifier`,
+`firebaseAuthMiddleware` (rutas REST) y `firebaseAuthenticationHandler`. Este último autentica
+también la sesión de Serverpod con el uid, para los endpoints que se agreguen después.
+
+## Endpoints (servidor web, puerto 8082)
+
+| Método y ruta | Quién | Qué hace |
+|---|---|---|
+| `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. |
+| `POST /users` | solo `admin` | Crea una cuenta `admin` o `staff` vinculada a un `firebaseUid` existente. Es la única forma de tener esos roles. |
+
+Respuesta de ambos: `{id, email, name, phone, role, address, createdAt}`, con `role` igual a
+`customer`, `admin` o `staff`. Body de `POST /users`:
+`{firebaseUid, email, name, role, phone?, address?}`.
+
+Errores con la forma de la API NestJS (`{statusCode, message, error}`):
+
+- 401: sin token o con uno inválido.
+- 403: quien llama no es admin.
+- 400: body inválido, o token sin email en `/users/me`.
+- 409: `firebaseUid` o email ya registrados.
+- 503: no se pudieron obtener las llaves de Google.
+
+### Primer admin
+
+`POST /users` exige un admin, así que el primero se crea a mano:
+
+1. La persona inicia sesión una vez en la app o la web; `GET /users/me` la crea como cliente.
+2. Se le cambia el rol en la base:
+
+   ```powershell
+   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U abarrotes -d abarrotes_server -c "UPDATE users SET role = 'admin' WHERE email = 'correo@ejemplo.com'"
+   ```
+
+### Probar con un token real
+
+Desde la app o la web ya logueadas con Firebase, `await user.getIdToken()` entrega el token
+(dura una hora). Con él:
+
+```powershell
+curl.exe -H "Authorization: Bearer <token>" http://localhost:8082/users/me
+```

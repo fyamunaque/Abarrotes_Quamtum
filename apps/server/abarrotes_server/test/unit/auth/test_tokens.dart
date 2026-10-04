@@ -40,7 +40,11 @@ RsaKeyPair generateRsaKeyPair() {
 int _seconds(DateTime time) => time.millisecondsSinceEpoch ~/ 1000;
 
 /// Claims de un ID token válido emitido un minuto antes de [testNow].
-Map<String, dynamic> validClaims({String uid = 'uid-ana'}) => {
+Map<String, dynamic> validClaims({
+  String uid = 'uid-ana',
+  String? email = 'ana@example.com',
+  String? name = 'Ana Quispe',
+}) => {
   'iss': 'https://securetoken.google.com/$testProjectId',
   'aud': testProjectId,
   'auth_time': _seconds(testNow.subtract(const Duration(minutes: 5))),
@@ -48,9 +52,8 @@ Map<String, dynamic> validClaims({String uid = 'uid-ana'}) => {
   'exp': _seconds(testNow.add(const Duration(minutes: 59))),
   'sub': uid,
   'user_id': uid,
-  'email': 'ana@example.com',
-  'email_verified': true,
-  'name': 'Ana Quispe',
+  if (email != null) ...{'email': email, 'email_verified': true},
+  'name': ?name,
 };
 
 /// Token firmado con RS256, como los que emite Firebase.
