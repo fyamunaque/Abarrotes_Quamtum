@@ -118,7 +118,7 @@ PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED
         └──────────────────┴───────────────┴──→ CANCELLED
 ```
 
-- Solo se permiten esas transiciones (`src/orders/order-status.ts`); cualquier otra responde 400. `DELIVERED` y `CANCELLED` son finales.
+- **Patrón State** (`src/orders/states/`): cada estado es una clase (`PendingConfirmationState`, `ConfirmedState`, …) que implementa `OrderStateHandler` y declara a qué estados puede pasar. `PATCH` consulta el handler del estado actual antes de guardar: si la transición no vale, responde 400 con el motivo ("Un pedido entregado ya no puede cambiar de estado", "Un pedido pendiente de confirmación no puede pasar a entregado: solo puede pasar a confirmado o cancelado"). Pedir el mismo estado también es 400. `DELIVERED` y `CANCELLED` son finales.
 - **Cancelar devuelve el stock** de cada línea y registra un `InventoryMovement` `IN` a nombre de quien canceló, en la misma transacción.
 - Si dos personas cambian el mismo pedido a la vez, la segunda recibe 409 ("El pedido cambió mientras tanto"): así el stock nunca se devuelve dos veces.
 

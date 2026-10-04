@@ -290,6 +290,32 @@ describe('API (e2e)', () => {
         .send({ status: 'CONFIRMED' })
         .expect(200, { id: 'o1', status: 'CONFIRMED' });
     });
+
+    it('PATCH status rechaza una transición inválida con 400 y el motivo, sin guardar', async () => {
+      const updateMany = jest.fn();
+      const tx = {
+        order: {
+          findUnique: jest
+            .fn()
+            .mockResolvedValue({ id: 'o1', status: 'DELIVERED', items: [] }),
+          updateMany,
+        },
+      };
+      prisma.$transaction.mockImplementation(
+        (fn: (client: typeof tx) => unknown) => fn(tx),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/orders/${randomUUID()}/status`)
+        .set('Authorization', await bearer(UserRole.STAFF))
+        .send({ status: 'CANCELLED' })
+        .expect(400);
+
+      expect(res.body.message).toBe(
+        'Un pedido entregado ya no puede cambiar de estado',
+      );
+      expect(updateMany).not.toHaveBeenCalled();
+    });
   });
 
   describe('tokens (Passport-JWT)', () => {

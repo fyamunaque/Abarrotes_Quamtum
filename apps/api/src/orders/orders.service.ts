@@ -9,7 +9,7 @@ import { paginate, PaginationQueryDto, toSkipTake } from '../common/pagination';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateOrderDto, OrderItemDto } from './dto/create-order.dto';
 import { ListOrdersQueryDto } from './dto/list-orders-query.dto';
-import { canTransition, ORDER_STATUS_LABELS } from './order-status';
+import { orderStateOf } from './states';
 
 const orderInclude = {
   items: {
@@ -151,10 +151,10 @@ export class OrdersService {
       if (!order) {
         throw new NotFoundException('Pedido no encontrado');
       }
-      if (!canTransition(order.status, status)) {
-        throw new BadRequestException(
-          `Un pedido ${ORDER_STATUS_LABELS[order.status]} no puede pasar a ${ORDER_STATUS_LABELS[status]}`,
-        );
+      // El estado actual decide a qué estados puede pasar (patrón State, ver states/).
+      const current = orderStateOf(order.status);
+      if (!current.canTransitionTo(status)) {
+        throw new BadRequestException(current.rejectionReason(status));
       }
 
       // Solo actualiza si sigue en el estado leído: si dos personas lo cambian a la

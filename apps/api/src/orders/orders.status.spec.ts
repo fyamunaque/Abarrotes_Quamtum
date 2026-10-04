@@ -5,7 +5,6 @@ import {
 } from '@nestjs/common';
 import { MovementType, OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { canTransition } from './order-status';
 import { OrdersService } from './orders.service';
 
 const ORDER_ID = 'cccccccc-0000-4000-8000-000000000003';
@@ -70,18 +69,45 @@ describe('OrdersService: cambios de estado', () => {
   });
 
   it.each([
-    [OrderStatus.PENDING_CONFIRMATION, OrderStatus.DELIVERED],
-    [OrderStatus.CONFIRMED, OrderStatus.PENDING_CONFIRMATION],
-    [OrderStatus.DELIVERED, OrderStatus.CANCELLED],
-    [OrderStatus.CANCELLED, OrderStatus.CONFIRMED],
-  ])('rechaza pasar de %s a %s', async (from, to) => {
-    existingOrder(from);
+    [
+      OrderStatus.PENDING_CONFIRMATION,
+      OrderStatus.DELIVERED,
+      'Un pedido pendiente de confirmación no puede pasar a entregado: solo puede pasar a confirmado o cancelado',
+    ],
+    [
+      OrderStatus.CONFIRMED,
+      OrderStatus.PENDING_CONFIRMATION,
+      'Un pedido confirmado no puede pasar a pendiente de confirmación: solo puede pasar a en camino o cancelado',
+    ],
+    [
+      OrderStatus.DELIVERED,
+      OrderStatus.CANCELLED,
+      'Un pedido entregado ya no puede cambiar de estado',
+    ],
+    [
+      OrderStatus.CANCELLED,
+      OrderStatus.CONFIRMED,
+      'Un pedido cancelado ya no puede cambiar de estado',
+    ],
+    [
+      OrderStatus.CONFIRMED,
+      OrderStatus.CONFIRMED,
+      'El pedido ya está confirmado',
+    ],
+  ])(
+    'rechaza pasar de %s a %s con 400 y el motivo',
+    async (from, to, reason) => {
+      existingOrder(from);
 
-    await expect(
-      service.updateStatus(ORDER_ID, to, 'staff-1'),
-    ).rejects.toBeInstanceOf(BadRequestException);
-    expect(tx.order.updateMany).not.toHaveBeenCalled();
-  });
+      const error = await service
+        .updateStatus(ORDER_ID, to, 'staff-1')
+        .catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(BadRequestException);
+      expect((error as BadRequestException).message).toBe(reason);
+      expect(tx.order.updateMany).not.toHaveBeenCalled();
+    },
+  );
 
   it('al cancelar devuelve el stock y registra la entrada en inventario', async () => {
     existingOrder(OrderStatus.CONFIRMED);
@@ -143,12 +169,5 @@ describe('OrdersService: cambios de estado', () => {
         orderBy: { createdAt: 'desc' },
       }),
     );
-  });
-
-  it('DELIVERED y CANCELLED son estados finales', () => {
-    for (const to of Object.values(OrderStatus)) {
-      expect(canTransition(OrderStatus.DELIVERED, to)).toBe(false);
-      expect(canTransition(OrderStatus.CANCELLED, to)).toBe(false);
-    }
   });
 });
