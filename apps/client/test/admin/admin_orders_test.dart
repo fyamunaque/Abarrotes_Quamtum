@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_providers.dart';
+import 'package:neils/admin/stats/stats_providers.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/features/admin/orders/admin_orders_screen.dart';
 import 'package:neils/features/admin/shared/admin_table.dart';
 import 'package:neils/features/admin/shared/status_badge.dart';
 import 'package:neils/features/orders/order_tracker.dart';
@@ -203,6 +205,70 @@ void main() {
       find.widgetWithText(FilledButton, 'Marcar en camino'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('"Actualizar" trae los pedidos nuevos', (tester) async {
+    await pumpOrders(tester);
+    repository.orders.add(
+      adminOrder('o-4', OrderStatus.pendingConfirmation, customer: 'Nuevo'),
+    );
+
+    await tester.tap(find.text('Actualizar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Nuevo'), findsOneWidget);
+    expect(find.text('1–4 de 4'), findsOneWidget);
+  });
+
+  testWidgets('si "Actualizar" falla, lo avisa y la tabla queda', (
+    tester,
+  ) async {
+    await pumpOrders(tester);
+    repository.failList = const ApiFailure('Sin conexión');
+
+    await tester.tap(find.text('Actualizar'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No se pudo actualizar.'), findsOneWidget);
+    expect(find.text('Ana Quispe'), findsOneWidget);
+  });
+
+  testWidgets('se actualiza solo, y deja de hacerlo al salir', (tester) async {
+    final (_, router) = await pumpPanel(
+      tester,
+      at: '/admin/pedidos',
+      overrides: [
+        adminOrdersRepositoryProvider.overrideWithValue(repository),
+        statsRepositoryProvider.overrideWithValue(FakeStatsRepository()),
+      ],
+    );
+    repository.orders.add(
+      adminOrder('o-4', OrderStatus.pendingConfirmation, customer: 'Nuevo'),
+    );
+
+    await tester.pump(AdminOrdersScreen.autoRefreshEvery);
+    await tester.pumpAndSettle();
+    expect(find.text('Nuevo'), findsOneWidget);
+
+    // Fuera de Pedidos, ya no pide nada.
+    router.go('/admin');
+    await tester.pumpAndSettle();
+    final calls = repository.listCalls;
+    await tester.pump(AdminOrdersScreen.autoRefreshEvery * 3);
+    expect(repository.listCalls, calls);
+  });
+
+  testWidgets('si la vuelta automática falla, la tabla queda igual', (
+    tester,
+  ) async {
+    await pumpOrders(tester);
+    repository.failList = const ApiFailure('Sin conexión');
+
+    await tester.pump(AdminOrdersScreen.autoRefreshEvery);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Ana Quispe'), findsOneWidget);
+    expect(find.text('No se pudo actualizar.'), findsNothing);
   });
 
   testWidgets('en el teléfono, el detalle ocupa la pantalla', (tester) async {

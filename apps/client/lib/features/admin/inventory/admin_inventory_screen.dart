@@ -6,6 +6,7 @@ import '../../../admin/inventory/movement.dart';
 import '../../shared/date_format.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/refresh_button.dart';
 import 'movement_form.dart';
 
 /// El historial de movimientos de stock (el más reciente primero) y
@@ -38,6 +39,7 @@ class AdminInventoryScreen extends ConsumerWidget {
     return AdminPage(
       title: 'Inventario',
       actions: [
+        RefreshButton(onRefresh: ref.read(movementsProvider.notifier).refresh),
         FilledButton.icon(
           onPressed: () => _record(context, ref),
           icon: const Icon(Icons.add),

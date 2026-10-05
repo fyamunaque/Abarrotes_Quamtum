@@ -63,8 +63,16 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
 
   final changes = <(String, OrderStatus)>[];
 
+  /// Cuántas veces se pidió una página.
+  int listCalls = 0;
+
+  /// Si no es null, pedir una página falla con esto.
+  ApiFailure? failList;
+
   @override
   Future<PageList<AdminOrder>> list({int page = 1, OrderStatus? status}) async {
+    listCalls++;
+    if (failList case final failure?) throw failure;
     final matching = [
       for (final order in orders)
         if (status == null || order.order.status == status) order,

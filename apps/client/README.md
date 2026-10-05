@@ -226,7 +226,7 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 | Sección | Qué hace |
 |---|---|
 | Inicio | Ventas de hoy, la semana y el mes con el ticket promedio, pedidos por estado, el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". |
-| Pedidos | Todos los pedidos, con chips por estado. El detalle muestra el cliente, la entrega, las líneas y el stepper: el seguimiento con la acción del paso siguiente ("Confirmar", "Marcar en camino", "Marcar entregado") y "Cancelar pedido", que pide confirmación. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Pedidos | Todos los pedidos, con chips por estado. Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega, las líneas y el stepper: el seguimiento con la acción del paso siguiente ("Confirmar", "Marcar en camino", "Marcar entregado") y "Cancelar pedido", que pide confirmación. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Una promoción que se cruza con otra del producto (409) se muestra. |
@@ -241,6 +241,8 @@ Las piezas compartidas están en `features/admin/shared/`:
 - `showAdminForm`: un formulario en un diálogo en pantallas anchas y a pantalla completa en el
   teléfono. Con `admin_form.dart` (campos de a dos, el error del servidor y los botones) y
   `ProductPicker` (el buscador de productos con autocompletado).
+- `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
+  lo avisa sin vaciar la tabla.
 - `FilterChips`, `StatusBadge` (punto de color más texto) y `confirmAction`.
 
 Los datos van por sección en `lib/admin/<dominio>/` (modelo, repositorio HTTP con el ID token

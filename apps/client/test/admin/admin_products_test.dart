@@ -281,6 +281,24 @@ void main() {
     );
   });
 
+  testWidgets('"Actualizar" trae lo que cambió en otro lado', (tester) async {
+    await pumpProducts(tester);
+    repository.products.add(
+      const Product(
+        id: 'fideos',
+        name: 'Fideos spaghetti 500 g',
+        sku: 'FID-500',
+        priceCents: 380,
+        stock: 60,
+        category: groceries,
+      ),
+    );
+
+    await tapAndSettle(tester, find.text('Actualizar'));
+
+    expect(inTable('Fideos spaghetti 500 g'), findsOneWidget);
+  });
+
   testWidgets('uno dado de baja no se vuelve a dar de baja', (tester) async {
     await pumpProducts(tester);
     await tapAndSettle(tester, inTable('Gaseosa 1.5 L'));

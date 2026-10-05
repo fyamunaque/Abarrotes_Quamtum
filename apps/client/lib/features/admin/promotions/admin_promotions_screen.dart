@@ -10,6 +10,7 @@ import '../../shared/date_format.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/filter_chips.dart';
+import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import 'promotion_form.dart';
 
@@ -55,6 +56,7 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
     return AdminPage(
       title: 'Promociones',
       actions: [
+        RefreshButton(onRefresh: ref.read(provider.notifier).refresh),
         FilledButton.icon(
           onPressed: _open,
           icon: const Icon(Icons.add),

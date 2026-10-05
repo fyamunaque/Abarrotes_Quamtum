@@ -10,6 +10,7 @@ import '../../../common/money.dart';
 import '../../../theme/brand_colors.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import 'product_form.dart';
 
@@ -96,6 +97,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
     return AdminPage(
       title: 'Productos',
       actions: [
+        RefreshButton(onRefresh: ref.read(provider.notifier).refresh),
         FilledButton.icon(
           onPressed: _create,
           icon: const Icon(Icons.add),

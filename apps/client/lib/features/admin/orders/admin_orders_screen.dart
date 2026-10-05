@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -12,6 +14,7 @@ import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/filter_chips.dart';
+import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 
 /// Los pedidos de todos los clientes, filtrados por estado. Tocar uno abre su
@@ -19,18 +22,44 @@ import '../shared/status_badge.dart';
 class AdminOrdersScreen extends ConsumerStatefulWidget {
   const AdminOrdersScreen({super.key});
 
+  /// Cada cuánto se vuelve a pedir la página mientras la pantalla está
+  /// abierta.
+  static const autoRefreshEvery = Duration(seconds: 30);
+
   @override
   ConsumerState<AdminOrdersScreen> createState() => _AdminOrdersScreenState();
 }
 
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   OrderStatus? _status;
+  Timer? _autoRefresh;
+
+  @override
+  void initState() {
+    super.initState();
+    // Los pedidos nuevos aparecen solos, sin tocar "Actualizar". Si falla,
+    // la tabla queda como estaba hasta la próxima vuelta.
+    _autoRefresh = Timer.periodic(
+      AdminOrdersScreen.autoRefreshEvery,
+      (_) => ref
+          .read(adminOrdersProvider(_status).notifier)
+          .refresh()
+          .catchError((Object _) {}),
+    );
+  }
+
+  @override
+  void dispose() {
+    _autoRefresh?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final provider = adminOrdersProvider(_status);
     return AdminPage(
       title: 'Pedidos',
+      actions: [RefreshButton(onRefresh: ref.read(provider.notifier).refresh)],
       children: [
         FilterChips<OrderStatus?>(
           options: [
