@@ -106,11 +106,25 @@ Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
 ///   en 10 (si no tenían fecha), y la lejía queda bajo su mínimo.
 ///
 /// El cliente (`seed-cliente-demo`) no es una cuenta de Firebase: no se puede
-/// ingresar con él. Solo agrega si no hay pedidos y ya hay productos con
-/// stock. Devuelve cuántos pedidos creó.
-Future<int> seedDevOrders(Session session, {DateTime Function()? now}) async {
-  final clock = (now ?? DateTime.now)().toUtc();
-  if (await Order.db.count(session) > 0) return 0;
+/// ingresar con él. Solo agrega si ese cliente todavía no tiene pedidos y ya
+/// hay productos con stock. Devuelve cuántos pedidos creó.
+Future<int> seedDevOrders(Session session, {DateTime Function()? now}) =>
+    _seedOrders(session, (now ?? DateTime.now)().toUtc(), reset: false);
+
+/// Vuelve a generar los pedidos de ejemplo con fechas hasta hoy, para que una
+/// demo arranque como recién cargada: borra los del cliente de ejemplo
+/// (primero sus items) y los crea de nuevo, y vuelve a fechar desde hoy los
+/// vencimientos de ejemplo (yogurt y leche). No toca los pedidos de otras
+/// cuentas, el resto de los productos ni el stock. Devuelve cuántos pedidos
+/// creó.
+Future<int> resetDevOrders(Session session, {DateTime Function()? now}) =>
+    _seedOrders(session, (now ?? DateTime.now)().toUtc(), reset: true);
+
+Future<int> _seedOrders(
+  Session session,
+  DateTime clock, {
+  required bool reset,
+}) async {
   final products = await Product.db.find(
     session,
     where: (product) =>
@@ -145,6 +159,29 @@ Future<int> seedDevOrders(Session session, {DateTime Function()? now}) async {
           ),
           transaction: transaction,
         );
+
+    final previous = {
+      for (final order in await Order.db.find(
+        session,
+        where: (order) => order.customerId.equals(customer.id),
+        transaction: transaction,
+      ))
+        order.id!,
+    };
+    if (previous.isNotEmpty) {
+      if (!reset) return 0;
+      // Los items no se borran solos (onDelete=Restrict).
+      await OrderItem.db.deleteWhere(
+        session,
+        where: (item) => item.orderId.inSet(previous),
+        transaction: transaction,
+      );
+      await Order.db.deleteWhere(
+        session,
+        where: (order) => order.id.inSet(previous),
+        transaction: transaction,
+      );
+    }
 
     const count = 40;
     for (var i = 0; i < count; i++) {
@@ -212,7 +249,8 @@ Future<int> seedDevOrders(Session session, {DateTime Function()? now}) async {
         where: (product) => product.sku.equals(sku),
         transaction: transaction,
       );
-      if (product != null && product.expirationDate == null) {
+      // Al reiniciar se vuelven a fechar: si no, vencen y salen de la alerta.
+      if (product != null && (reset || product.expirationDate == null)) {
         await Product.db.updateRow(
           session,
           product.copyWith(expirationDate: utcMidnight(addDays(today, days))),

@@ -29,8 +29,8 @@ Los comandos son de **Windows PowerShell 5.1**, y los `cd` parten de la raíz de
    cd apps\client; flutter pub get
    ```
 
-4. **Datos de ejemplo**, si la base está vacía: el catálogo, 40 pedidos de los últimos 30 días y
-   productos en las alertas.
+4. **Datos de ejemplo**: el catálogo (9 categorías), 40 pedidos de los últimos 30 días y
+   productos en las alertas. Si la base ya tiene algo, completa lo que falta.
 
    ```powershell
    cd apps\server\abarrotes_server; dart run bin/seed_dev.dart
@@ -80,9 +80,15 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 - **Ventana de incógnito** (`Ctrl+Shift+N`): para el lado del cliente, con la cuenta de prueba.
 - **Imágenes:** los productos de ejemplo no tienen. Ponle una URL de imagen a 4 o 5 desde
   **Productos → editar**: el catálogo se ve mucho mejor.
-- **Fechas:** las ventas de ejemplo son de los 30 días anteriores al día en que se cargaron.
-  "Ventas de hoy" arranca en 0 hasta que haya un pedido de ese día: el que se hace en el paso 2
-  lo llena.
+- **Datos frescos:** desde `apps\server\abarrotes_server` (puede ser con el servidor corriendo):
+
+  ```powershell
+  dart run bin/seed_dev.dart --reiniciar
+  ```
+
+  Vuelve a generar los pedidos de ejemplo con fechas hasta hoy y fecha los vencimientos desde
+  hoy. Así el gráfico llega hasta hoy, hay pedidos pendientes para confirmar y las alertas tienen
+  algo. Tus pedidos de prueba no se tocan.
 
 **El recorrido:**
 

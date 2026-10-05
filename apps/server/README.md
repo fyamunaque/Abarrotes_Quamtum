@@ -96,12 +96,22 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
      - Son de un cliente de ejemplo (`seed-cliente-demo`), que no es una cuenta de Firebase:
        no se puede ingresar con él.
      - No tocan el stock: son historia de ejemplo.
-     - No hace nada si ya hay pedidos.
+     - No hace nada si el cliente de ejemplo ya tiene pedidos. Los de otras cuentas no cuentan.
    - **Alertas:** el yogurt vence en 3 días y la leche en 10 (si no tenían fecha). El mínimo de
      la lejía sube a 20, así queda en stock bajo junto con el azúcar agotado.
 
    ```powershell
    dart run bin/seed_dev.dart
+   ```
+
+   **Antes de una demo**, con `--reiniciar` los pedidos de ejemplo se vuelven a generar con
+   fechas hasta hoy (borra solo los del cliente de ejemplo, con sus items) y los vencimientos del
+   yogurt y la leche se fechan desde hoy. Si no, a los días el gráfico termina vacío, "ventas de
+   hoy" queda en 0 y los vencimientos pasan. No toca los pedidos de otras cuentas, el resto de
+   los productos ni el stock.
+
+   ```powershell
+   dart run bin/seed_dev.dart --reiniciar
    ```
 
 ## Día a día (desde `apps/server/abarrotes_server`)

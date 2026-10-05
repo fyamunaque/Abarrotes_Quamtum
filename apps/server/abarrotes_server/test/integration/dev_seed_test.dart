@@ -1,4 +1,5 @@
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
+import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/dev/dev_seed.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/inventory/stock_alerts.dart';
@@ -230,6 +231,120 @@ void main() {
             'Yogurt de fresa 1 L',
           ],
         );
+      });
+
+      /// Un pedido de una cuenta real, con un item.
+      Future<Order> otherCustomerOrder() async {
+        final other = await insertUser(
+          session,
+          'uid-cliente',
+          UserRole.customer,
+        );
+        final rice = (await Product.db.findFirstRow(
+          session,
+          where: (product) => product.sku.equals('ARR-5KG'),
+        ))!;
+        final order = await Order.db.insertRow(
+          session,
+          Order(
+            status: OrderStatus.pendingConfirmation,
+            totalCents: 2490,
+            deliveryAddress: 'Jr. Real 1',
+            customerId: other.id!,
+          ),
+        );
+        await OrderItem.db.insertRow(
+          session,
+          OrderItem(
+            quantity: 1,
+            unitPriceCents: 2490,
+            orderId: order.id!,
+            productId: rice.id!,
+          ),
+        );
+        return order;
+      }
+
+      /// Los del cliente de ejemplo, el más reciente primero.
+      Future<List<Order>> demoOrders() async {
+        final demo = (await User.db.findFirstRow(
+          session,
+          where: (user) => user.firebaseUid.equals('seed-cliente-demo'),
+        ))!;
+        final orders = await Order.db.find(
+          session,
+          where: (order) => order.customerId.equals(demo.id),
+        );
+        return orders..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      }
+
+      test('los pedidos de otra cuenta no impiden los de ejemplo', () async {
+        await otherCustomerOrder();
+
+        expect(await seedDevOrders(session, now: () => testNow), 40);
+        expect(await Order.db.count(session), 41);
+      });
+
+      test('reiniciar: los de ejemplo, de nuevo hasta hoy; los demás, '
+          'intactos', () async {
+        await seedDevOrders(session, now: () => testNow);
+        final other = await otherCustomerOrder();
+        // La demo es 10 días después.
+        final later = testNow.add(const Duration(days: 10));
+
+        expect(await resetDevOrders(session, now: () => later), 40);
+
+        final orders = await demoOrders();
+        expect(orders, hasLength(40));
+        expect(
+          orders.every(
+            (o) =>
+                !o.createdAt.isAfter(later) &&
+                o.createdAt.isAfter(later.subtract(const Duration(days: 31))),
+          ),
+          isTrue,
+        );
+        expect(
+          orders.take(2).map((o) => o.status),
+          everyElement(OrderStatus.pendingConfirmation),
+        );
+        // El pedido de la otra cuenta sigue, con su item; los items de los
+        // pedidos de ejemplo viejos ya no están.
+        expect(await Order.db.findById(session, other.id!), isNotNull);
+        expect(
+          await OrderItem.db.count(
+            session,
+            where: (item) => item.orderId.equals(other.id),
+          ),
+          1,
+        );
+        final demoItems = await OrderItem.db.count(
+          session,
+          where: (item) =>
+              item.orderId.inSet({for (final order in orders) order.id!}),
+        );
+        expect(await OrderItem.db.count(session), demoItems + 1);
+
+        // Los vencimientos de ejemplo, desde el día nuevo.
+        final yogurt = (await Product.db.findFirstRow(
+          session,
+          where: (product) => product.sku.equals('YOG-1L'),
+        ))!;
+        expect(
+          yogurt.expirationDate,
+          utcMidnight(addDays(storeDay(later), 3)),
+        );
+      });
+
+      test('reiniciar dos veces da lo mismo', () async {
+        await resetDevOrders(session, now: () => testNow);
+        final first = [for (final o in await demoOrders()) o.totalCents];
+
+        await resetDevOrders(session, now: () => testNow);
+        final second = [for (final o in await demoOrders()) o.totalCents];
+
+        expect(second, first);
+        expect(await Order.db.count(session), 40);
       });
 
       test('correrlo de nuevo no duplica los pedidos', () async {
