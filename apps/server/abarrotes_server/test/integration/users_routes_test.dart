@@ -312,5 +312,121 @@ void main() {
         expect(body['message'], contains('email'));
       });
     });
+
+    group('dispositivos', () {
+      Future<int> send(
+        String method,
+        Map<String, String> headers, {
+        Object? body,
+        String query = '',
+      }) async {
+        final request = http.Request(method, url('/users/me/devices$query'))
+          ..headers.addAll(headers);
+        if (body != null) {
+          request.body = body is String ? body : jsonEncode(body);
+        }
+        final response = await http.Response.fromStream(await request.send());
+        return response.statusCode;
+      }
+
+      Future<List<(String, String, String?)>> devices() async => [
+        for (final device in await DeviceToken.db.find(
+          session,
+          orderBy: (d) => d.token,
+          include: DeviceToken.include(user: User.include()),
+        ))
+          (device.token, device.user!.firebaseUid, device.platform),
+      ];
+
+      test('PUT registra el dispositivo; repetirlo no lo duplica', () async {
+        final ana = authAs('uid-ana');
+
+        expect(
+          await send('PUT', ana, body: {'token': 'fcm-1', 'platform': 'web'}),
+          204,
+        );
+        expect(await send('PUT', ana, body: {'token': 'fcm-1'}), 204);
+        expect(
+          await send(
+            'PUT',
+            ana,
+            body: {'token': 'fcm-2', 'platform': 'android'},
+          ),
+          204,
+        );
+
+        expect(await devices(), [
+          ('fcm-1', 'uid-ana', 'web'),
+          ('fcm-2', 'uid-ana', 'android'),
+        ]);
+      });
+
+      test(
+        'si el token era de otra cuenta, pasa a la que lo registra',
+        () async {
+          await send('PUT', authAs('uid-ana'), body: {'token': 'fcm-1'});
+          await send(
+            'PUT',
+            authAs('uid-luis', email: 'luis@example.com'),
+            body: {'token': 'fcm-1'},
+          );
+
+          expect(await devices(), [('fcm-1', 'uid-luis', null)]);
+        },
+      );
+
+      test('DELETE quita solo los tokens propios', () async {
+        await send('PUT', authAs('uid-ana'), body: {'token': 'fcm-ana'});
+        await send(
+          'PUT',
+          authAs('uid-luis', email: 'luis@example.com'),
+          body: {'token': 'fcm-luis'},
+        );
+
+        expect(
+          await send('DELETE', authAs('uid-ana'), query: '?token=fcm-luis'),
+          204,
+        );
+        expect(
+          await send('DELETE', authAs('uid-ana'), query: '?token=fcm-ana'),
+          204,
+        );
+
+        expect(await devices(), [('fcm-luis', 'uid-luis', null)]);
+      });
+
+      test('valida el body y el query, y sin token es 401', () async {
+        final ana = authAs('uid-ana');
+
+        expect(await send('PUT', ana, body: {'platform': 'web'}), 400);
+        expect(
+          await send('PUT', ana, body: {'token': 'x', 'platform': 'ios'}),
+          400,
+        );
+        expect(await send('PUT', ana, body: {'token': 'x', 'otro': 1}), 400);
+        expect(await send('DELETE', ana), 400);
+        expect(
+          await send(
+            'PUT',
+            {'content-type': 'application/json'},
+            body: {'token': 'x'},
+          ),
+          401,
+        );
+        expect(await devices(), isEmpty);
+      });
+
+      test('GET /users/me guarda si el correo está verificado', () async {
+        Future<bool> stored() async => (await User.db.findFirstRow(
+          session,
+          where: (u) => u.firebaseUid.equals('uid-ana'),
+        ))!.emailVerified;
+
+        await getMe(authAs('uid-ana', emailVerified: false));
+        expect(await stored(), isFalse);
+        await getMe(authAs('uid-ana'));
+        expect(await stored(), isTrue);
+      });
+    });
   });
 }

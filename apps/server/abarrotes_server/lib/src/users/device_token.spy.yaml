@@ -1,0 +1,21 @@
+### Un dispositivo (un teléfono o un navegador) donde la cuenta recibe avisos
+### push: su token de registro de FCM. Una cuenta puede tener varios.
+class: DeviceToken
+table: device_tokens
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  ### El token de registro de FCM, que da la app (firebase_messaging).
+  token: String
+  ### android o web; solo informativo.
+  platform: String?
+  createdAt: DateTime, default=now
+  ### La última vez que la app lo registró.
+  updatedAt: DateTime, default=now
+  userId: UuidValue
+  user: User?, relation(name=user_device_tokens, field=userId, onDelete=Cascade, onUpdate=Cascade)
+indexes:
+  device_tokens_token_idx:
+    fields: token
+    unique: true
+  device_tokens_user_idx:
+    fields: userId

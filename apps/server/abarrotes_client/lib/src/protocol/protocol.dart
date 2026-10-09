@@ -22,6 +22,7 @@ import 'products/product.dart' as _io8c7sps;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
 import 'supplies/supply.dart' as _iae274dd;
+import 'users/device_token.dart' as _ir35tcw0;
 import 'users/user.dart' as _ih6cb19o;
 import 'users/user_role.dart' as _iyk67ys5;
 import 'vip/vip_customer.dart' as _i4hmll1q;
@@ -35,6 +36,7 @@ export 'products/product.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
 export 'supplies/supply.dart';
+export 'users/device_token.dart';
 export 'users/user.dart';
 export 'users/user_role.dart';
 export 'vip/vip_customer.dart';
@@ -104,6 +106,9 @@ class Protocol extends _isc.SerializationManager {
     if (t == _iae274dd.Supply) {
       return _iae274dd.Supply.fromJson(data) as T;
     }
+    if (t == _ir35tcw0.DeviceToken) {
+      return _ir35tcw0.DeviceToken.fromJson(data) as T;
+    }
     if (t == _ih6cb19o.User) {
       return _ih6cb19o.User.fromJson(data) as T;
     }
@@ -144,6 +149,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _isc.getType<_iae274dd.Supply?>()) {
       return (data != null ? _iae274dd.Supply.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ir35tcw0.DeviceToken?>()) {
+      return (data != null ? _ir35tcw0.DeviceToken.fromJson(data) : null) as T;
     }
     if (t == _isc.getType<_ih6cb19o.User?>()) {
       return (data != null ? _ih6cb19o.User.fromJson(data) : null) as T;
@@ -236,6 +244,20 @@ class Protocol extends _isc.SerializationManager {
               : null)
           as T;
     }
+    if (t == List<_ir35tcw0.DeviceToken>) {
+      return (data as List)
+              .map((e) => deserialize<_ir35tcw0.DeviceToken>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_ir35tcw0.DeviceToken>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_ir35tcw0.DeviceToken>(e))
+                    .toList()
+              : null)
+          as T;
+    }
     return super.deserialize<T>(data, t);
   }
 
@@ -251,6 +273,7 @@ class Protocol extends _isc.SerializationManager {
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
       _iae274dd.Supply => 'Supply',
+      _ir35tcw0.DeviceToken => 'DeviceToken',
       _ih6cb19o.User => 'User',
       _iyk67ys5.UserRole => 'UserRole',
       _i4hmll1q.VipCustomer => 'VipCustomer',
@@ -288,6 +311,8 @@ class Protocol extends _isc.SerializationManager {
         return 'PromotionAudience';
       case _iae274dd.Supply():
         return 'Supply';
+      case _ir35tcw0.DeviceToken():
+        return 'DeviceToken';
       case _ih6cb19o.User():
         return 'User';
       case _iyk67ys5.UserRole():
@@ -333,6 +358,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'Supply') {
       return deserialize<_iae274dd.Supply>(data['data']);
+    }
+    if (dataClassName == 'DeviceToken') {
+      return deserialize<_ir35tcw0.DeviceToken>(data['data']);
     }
     if (dataClassName == 'User') {
       return deserialize<_ih6cb19o.User>(data['data']);

@@ -15,6 +15,7 @@ import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
+import '../users/device_token.dart' as _iuurxiuf;
 import '../users/user_role.dart' as _iww5kqrp;
 import '../vip/vip_customer.dart' as _icy1qtyi;
 
@@ -26,6 +27,7 @@ abstract class User
     this.id,
     required this.firebaseUid,
     required this.email,
+    bool? emailVerified,
     required this.name,
     this.phone,
     _iww5kqrp.UserRole? role,
@@ -34,13 +36,16 @@ abstract class User
     this.orders,
     this.inventoryMovements,
     this.vipCustomersAdded,
-  }) : role = role ?? _iww5kqrp.UserRole.customer,
+    this.deviceTokens,
+  }) : emailVerified = emailVerified ?? false,
+       role = role ?? _iww5kqrp.UserRole.customer,
        createdAt = createdAt ?? DateTime.now();
 
   factory User({
     _is.UuidValue? id,
     required String firebaseUid,
     required String email,
+    bool? emailVerified,
     required String name,
     String? phone,
     _iww5kqrp.UserRole? role,
@@ -49,6 +54,7 @@ abstract class User
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
+    List<_iuurxiuf.DeviceToken>? deviceTokens,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -58,6 +64,9 @@ abstract class User
           : _is.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
       firebaseUid: jsonSerialization['firebaseUid'] as String,
       email: jsonSerialization['email'] as String,
+      emailVerified: jsonSerialization['emailVerified'] == null
+          ? null
+          : _is.BoolJsonExtension.fromJson(jsonSerialization['emailVerified']),
       name: jsonSerialization['name'] as String,
       phone: jsonSerialization['phone'] as String?,
       role: jsonSerialization['role'] == null
@@ -82,6 +91,11 @@ abstract class User
           : _i1p9jj0z.Protocol().deserialize<List<_icy1qtyi.VipCustomer>>(
               jsonSerialization['vipCustomersAdded'],
             ),
+      deviceTokens: jsonSerialization['deviceTokens'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<List<_iuurxiuf.DeviceToken>>(
+              jsonSerialization['deviceTokens'],
+            ),
     );
   }
 
@@ -96,6 +110,10 @@ abstract class User
   String firebaseUid;
 
   String email;
+
+  /// Lo último que dijo el ID token (email_verified). Lo usa el aviso push,
+  /// que no tiene un token del cliente a mano.
+  bool emailVerified;
 
   String name;
 
@@ -113,6 +131,8 @@ abstract class User
 
   List<_icy1qtyi.VipCustomer>? vipCustomersAdded;
 
+  List<_iuurxiuf.DeviceToken>? deviceTokens;
+
   @override
   _is.Table<_is.UuidValue?> get table => t;
 
@@ -123,6 +143,7 @@ abstract class User
     _is.UuidValue? id,
     String? firebaseUid,
     String? email,
+    bool? emailVerified,
     String? name,
     String? phone,
     _iww5kqrp.UserRole? role,
@@ -131,6 +152,7 @@ abstract class User
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
+    List<_iuurxiuf.DeviceToken>? deviceTokens,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -139,6 +161,7 @@ abstract class User
       if (id != null) 'id': id?.toJson(),
       'firebaseUid': firebaseUid,
       'email': email,
+      'emailVerified': emailVerified,
       'name': name,
       if (phone != null) 'phone': phone,
       'role': role.toJson(),
@@ -154,6 +177,8 @@ abstract class User
         'vipCustomersAdded': vipCustomersAdded?.toJson(
           valueToJson: (v) => v.toJson(),
         ),
+      if (deviceTokens != null)
+        'deviceTokens': deviceTokens?.toJson(valueToJson: (v) => v.toJson()),
     };
   }
 
@@ -164,6 +189,7 @@ abstract class User
       if (id != null) 'id': id?.toJson(),
       'firebaseUid': firebaseUid,
       'email': email,
+      'emailVerified': emailVerified,
       'name': name,
       if (phone != null) 'phone': phone,
       'role': role.toJson(),
@@ -179,6 +205,10 @@ abstract class User
         'vipCustomersAdded': vipCustomersAdded?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (deviceTokens != null)
+        'deviceTokens': deviceTokens?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
     };
   }
 
@@ -186,11 +216,13 @@ abstract class User
     _ij3i88ow.OrderIncludeList? orders,
     _i4yp9mtd.InventoryMovementIncludeList? inventoryMovements,
     _icy1qtyi.VipCustomerIncludeList? vipCustomersAdded,
+    _iuurxiuf.DeviceTokenIncludeList? deviceTokens,
   }) {
     return UserInclude._(
       orders: orders,
       inventoryMovements: inventoryMovements,
       vipCustomersAdded: vipCustomersAdded,
+      deviceTokens: deviceTokens,
     );
   }
 
@@ -225,6 +257,7 @@ class _UserImpl extends User {
     _is.UuidValue? id,
     required String firebaseUid,
     required String email,
+    bool? emailVerified,
     required String name,
     String? phone,
     _iww5kqrp.UserRole? role,
@@ -233,10 +266,12 @@ class _UserImpl extends User {
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
+    List<_iuurxiuf.DeviceToken>? deviceTokens,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
          email: email,
+         emailVerified: emailVerified,
          name: name,
          phone: phone,
          role: role,
@@ -245,6 +280,7 @@ class _UserImpl extends User {
          orders: orders,
          inventoryMovements: inventoryMovements,
          vipCustomersAdded: vipCustomersAdded,
+         deviceTokens: deviceTokens,
        );
 
   /// Returns a shallow copy of this [User]
@@ -255,6 +291,7 @@ class _UserImpl extends User {
     Object? id = _Undefined,
     String? firebaseUid,
     String? email,
+    bool? emailVerified,
     String? name,
     Object? phone = _Undefined,
     _iww5kqrp.UserRole? role,
@@ -263,11 +300,13 @@ class _UserImpl extends User {
     Object? orders = _Undefined,
     Object? inventoryMovements = _Undefined,
     Object? vipCustomersAdded = _Undefined,
+    Object? deviceTokens = _Undefined,
   }) {
     return User(
       id: id is _is.UuidValue? ? id : this.id,
       firebaseUid: firebaseUid ?? this.firebaseUid,
       email: email ?? this.email,
+      emailVerified: emailVerified ?? this.emailVerified,
       name: name ?? this.name,
       phone: phone is String? ? phone : this.phone,
       role: role ?? this.role,
@@ -283,6 +322,9 @@ class _UserImpl extends User {
       vipCustomersAdded: vipCustomersAdded is List<_icy1qtyi.VipCustomer>?
           ? vipCustomersAdded
           : this.vipCustomersAdded?.map((e0) => e0.copyWith()).toList(),
+      deviceTokens: deviceTokens is List<_iuurxiuf.DeviceToken>?
+          ? deviceTokens
+          : this.deviceTokens?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }
@@ -297,6 +339,11 @@ class UserUpdateTable extends _is.UpdateTable<UserTable> {
 
   _is.ColumnValue<String, String> email(String value) => _is.ColumnValue(
     table.email,
+    value,
+  );
+
+  _is.ColumnValue<bool, bool> emailVerified(bool value) => _is.ColumnValue(
+    table.emailVerified,
     value,
   );
 
@@ -340,6 +387,11 @@ class UserTable extends _is.Table<_is.UuidValue?> {
       'email',
       this,
     );
+    emailVerified = _is.ColumnBool(
+      'emailVerified',
+      this,
+      hasDefault: true,
+    );
     name = _is.ColumnString(
       'name',
       this,
@@ -372,6 +424,10 @@ class UserTable extends _is.Table<_is.UuidValue?> {
 
   late final _is.ColumnString email;
 
+  /// Lo último que dijo el ID token (email_verified). Lo usa el aviso push,
+  /// que no tiene un token del cliente a mano.
+  late final _is.ColumnBool emailVerified;
+
   late final _is.ColumnString name;
 
   late final _is.ColumnString phone;
@@ -393,6 +449,10 @@ class UserTable extends _is.Table<_is.UuidValue?> {
   _icy1qtyi.VipCustomerTable? ___vipCustomersAdded;
 
   _is.ManyRelation<_icy1qtyi.VipCustomerTable>? _vipCustomersAdded;
+
+  _iuurxiuf.DeviceTokenTable? ___deviceTokens;
+
+  _is.ManyRelation<_iuurxiuf.DeviceTokenTable>? _deviceTokens;
 
   _ij3i88ow.OrderTable get __orders {
     if (___orders != null) return ___orders!;
@@ -431,6 +491,19 @@ class UserTable extends _is.Table<_is.UuidValue?> {
           _icy1qtyi.VipCustomerTable(tableRelation: foreignTableRelation),
     );
     return ___vipCustomersAdded!;
+  }
+
+  _iuurxiuf.DeviceTokenTable get __deviceTokens {
+    if (___deviceTokens != null) return ___deviceTokens!;
+    ___deviceTokens = _is.createRelationTable(
+      relationFieldName: '__deviceTokens',
+      field: User.t.id,
+      foreignField: _iuurxiuf.DeviceToken.t.userId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _iuurxiuf.DeviceTokenTable(tableRelation: foreignTableRelation),
+    );
+    return ___deviceTokens!;
   }
 
   _is.ManyRelation<_ij3i88ow.OrderTable> get orders {
@@ -490,11 +563,31 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     return _vipCustomersAdded!;
   }
 
+  _is.ManyRelation<_iuurxiuf.DeviceTokenTable> get deviceTokens {
+    if (_deviceTokens != null) return _deviceTokens!;
+    var relationTable = _is.createRelationTable(
+      relationFieldName: 'deviceTokens',
+      field: User.t.id,
+      foreignField: _iuurxiuf.DeviceToken.t.userId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _iuurxiuf.DeviceTokenTable(tableRelation: foreignTableRelation),
+    );
+    _deviceTokens = _is.ManyRelation<_iuurxiuf.DeviceTokenTable>(
+      tableWithRelations: relationTable,
+      table: _iuurxiuf.DeviceTokenTable(
+        tableRelation: relationTable.tableRelation!.lastRelation,
+      ),
+    );
+    return _deviceTokens!;
+  }
+
   @override
   List<_is.Column> get columns => [
     id,
     firebaseUid,
     email,
+    emailVerified,
     name,
     phone,
     role,
@@ -513,6 +606,9 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'vipCustomersAdded') {
       return __vipCustomersAdded;
     }
+    if (relationField == 'deviceTokens') {
+      return __deviceTokens;
+    }
     return null;
   }
 }
@@ -522,10 +618,12 @@ class UserInclude extends _is.IncludeObject {
     _ij3i88ow.OrderIncludeList? orders,
     _i4yp9mtd.InventoryMovementIncludeList? inventoryMovements,
     _icy1qtyi.VipCustomerIncludeList? vipCustomersAdded,
+    _iuurxiuf.DeviceTokenIncludeList? deviceTokens,
   }) {
     _orders = orders;
     _inventoryMovements = inventoryMovements;
     _vipCustomersAdded = vipCustomersAdded;
+    _deviceTokens = deviceTokens;
   }
 
   _ij3i88ow.OrderIncludeList? _orders;
@@ -534,11 +632,14 @@ class UserInclude extends _is.IncludeObject {
 
   _icy1qtyi.VipCustomerIncludeList? _vipCustomersAdded;
 
+  _iuurxiuf.DeviceTokenIncludeList? _deviceTokens;
+
   @override
   Map<String, _is.Include?> get includes => {
     'orders': _orders,
     'inventoryMovements': _inventoryMovements,
     'vipCustomersAdded': _vipCustomersAdded,
+    'deviceTokens': _deviceTokens,
   };
 
   @override
@@ -1044,6 +1145,31 @@ class UserAttachRepository {
       transaction: transaction,
     );
   }
+
+  /// Creates a relation between this [User] and the given [DeviceToken]s
+  /// by setting each [DeviceToken]'s foreign key `userId` to refer to this [User].
+  Future<void> deviceTokens(
+    _is.DatabaseSession session,
+    User user,
+    List<_iuurxiuf.DeviceToken> deviceToken, {
+    _is.Transaction? transaction,
+  }) async {
+    if (deviceToken.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('deviceToken.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $deviceToken = deviceToken
+        .map((e) => e.copyWith(userId: user.id))
+        .toList();
+    await session.db.update<_iuurxiuf.DeviceToken>(
+      $deviceToken,
+      columns: [_iuurxiuf.DeviceToken.t.userId],
+      transaction: transaction,
+    );
+  }
 }
 
 class UserAttachRowRepository {
@@ -1114,6 +1240,29 @@ class UserAttachRowRepository {
     await session.db.updateRow<_icy1qtyi.VipCustomer>(
       $vipCustomer,
       columns: [_icy1qtyi.VipCustomer.t.addedByUserId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between this [User] and the given [DeviceToken]
+  /// by setting the [DeviceToken]'s foreign key `userId` to refer to this [User].
+  Future<void> deviceTokens(
+    _is.DatabaseSession session,
+    User user,
+    _iuurxiuf.DeviceToken deviceToken, {
+    _is.Transaction? transaction,
+  }) async {
+    if (deviceToken.id == null) {
+      throw ArgumentError.notNull('deviceToken.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $deviceToken = deviceToken.copyWith(userId: user.id);
+    await session.db.updateRow<_iuurxiuf.DeviceToken>(
+      $deviceToken,
+      columns: [_iuurxiuf.DeviceToken.t.userId],
       transaction: transaction,
     );
   }
