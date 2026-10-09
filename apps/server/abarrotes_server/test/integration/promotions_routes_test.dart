@@ -1,11 +1,13 @@
+import 'dart:convert';
+
 import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/promotions/promotions_routes.dart';
-import 'package:abarrotes_server/src/promotions/promotions_service.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -28,8 +30,9 @@ void main() {
       final server = await serveRoutes(
         () => session,
         promotionsRoutes(
-          PromotionsService(now: () => testNow),
+          testPromotions(),
           testVerifier(google),
+          shoppers: testShoppers,
         ),
       );
       client = TestClient(server, google);
@@ -80,7 +83,77 @@ void main() {
           'endDate': '2026-10-07',
           'active': true,
           'status': 'active',
+          'audience': 'everyone',
+          'title': null,
         });
+      },
+    );
+
+    test('POST y PATCH guardan la audiencia y el título', () async {
+      final (status, created) = await create({
+        'audience': 'vip',
+        'title': '  Semana VIP  ',
+      });
+      expect(status, 201);
+      expect(created['audience'], 'vip');
+      expect(created['title'], 'Semana VIP');
+
+      final (_, renamed) = await client.patch('/promotions/${created['id']}', {
+        'audience': 'everyone',
+        'title': 'Semana del arroz',
+      }, as: 'uid-staff');
+      expect(
+        (renamed['audience'], renamed['title']),
+        (
+          'everyone',
+          'Semana del arroz',
+        ),
+      );
+
+      // Un PATCH sin title no lo toca; con title en null, lo borra.
+      final (_, kept) = await client.patch('/promotions/${created['id']}', {
+        'promoPrice': 3.8,
+      }, as: 'uid-staff');
+      expect(kept['title'], 'Semana del arroz');
+      final (_, cleared) = await client.patch('/promotions/${created['id']}', {
+        'title': null,
+      }, as: 'uid-staff');
+      expect(cleared['title'], isNull);
+    });
+
+    test('valida la audiencia y el título', () async {
+      final (status, body) = await create({
+        'audience': 'mayoristas',
+        'title': 'x' * 101,
+      });
+
+      expect(status, 400);
+      expect(body['message'], [
+        'audience debe ser everyone o vip',
+        'title admite como máximo 100 caracteres',
+      ]);
+    });
+
+    test(
+      'una promoción VIP y una para todos del mismo producto pueden cruzarse; '
+      'dos VIP, no',
+      () async {
+        await create({});
+
+        final (vipStatus, _) = await create({'audience': 'vip'});
+        final (status, body) = await create({
+          'audience': 'vip',
+          'startDate': day(3),
+          'endDate': day(10),
+        });
+
+        expect(vipStatus, 201);
+        expect(status, 409);
+        expect(
+          body['message'],
+          'Arroz Costeño 1 kg ya tiene una promoción VIP del 2026-10-01 al '
+          '2026-10-07 que se cruza con esas fechas',
+        );
       },
     );
 
@@ -242,6 +315,138 @@ void main() {
         )).$1,
         404,
       );
+    });
+
+    group('GET /promotions/active', () {
+      late Product leche;
+      late Map<String, Object?> vipPromo;
+
+      setUp(() async {
+        leche = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Leche Gloria',
+            sku: 'LECHE-1',
+            priceCents: 420,
+            categoryId: arroz.categoryId,
+          ),
+        );
+        final apagado = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Aceite Primor',
+            sku: 'ACEITE-1',
+            priceCents: 900,
+            active: false,
+            categoryId: arroz.categoryId,
+          ),
+        );
+        await create({'title': 'Semana del arroz'});
+        vipPromo =
+            (await create({'audience': 'vip', 'promoPrice': 3.5})).$2
+                as Map<String, Object?>;
+        await create({'productId': leche.id.toString(), 'promoPrice': 3.6});
+        // Ninguna de estas está vigente para nadie.
+        await create({'startDate': day(10), 'endDate': day(12)});
+        await create({'startDate': day(-9), 'endDate': day(-1)});
+        await create({'active': false, 'audience': 'vip'});
+        await create({'productId': apagado.id.toString(), 'promoPrice': 8});
+
+        final admin = await insertUser(session, 'uid-admin', UserRole.admin);
+        await insertUser(session, 'uid-vip', UserRole.customer);
+        await insertVips(session, admin, ['vip@tienda.pe']);
+      });
+
+      test('sin token: solo las de todos y nada de las VIP', () async {
+        final (status, body) = await client.get('/promotions/active');
+
+        expect(status, 200);
+        expect(body['meta'], {
+          'total': 2,
+          'page': 1,
+          'limit': 20,
+          'totalPages': 1,
+        });
+        expect(body['data'], [
+          {
+            'id': isA<String>(),
+            'title': 'Semana del arroz',
+            'audience': 'everyone',
+            'promoPrice': '3.9',
+            'startDate': '2026-10-01',
+            'endDate': '2026-10-07',
+            'product': {
+              'id': arroz.id.toString(),
+              'name': 'Arroz Costeño 1 kg',
+              'price': '4.5',
+              'imageUrl': null,
+            },
+          },
+          containsPair('promoPrice', '3.6'),
+        ]);
+        final json = jsonEncode(body);
+        expect(json, isNot(contains(vipPromo['id'] as String)));
+        expect(json, isNot(contains('vip')));
+      });
+
+      test(
+        'clientes no VIP, staff y VIPs sin verificar: igual que sin token',
+        () async {
+          for (final (status, body) in [
+            await client.get('/promotions/active', as: 'uid-cliente'),
+            await client.get('/promotions/active', as: 'uid-staff'),
+            await client.get(
+              '/promotions/active',
+              as: 'uid-vip',
+              email: 'vip@tienda.pe',
+              emailVerified: false,
+            ),
+            // Un token inválido se atiende como visitante.
+            await client.get('/promotions/active?limit=20', as: ''),
+          ]) {
+            expect(status, 200);
+            expect(
+              (body['data'] as List).map((p) => p['audience']),
+              ['everyone', 'everyone'],
+            );
+          }
+        },
+      );
+
+      test(
+        'un VIP ve también las VIP, por producto y la más barata primero',
+        () async {
+          final (status, body) = await client.get(
+            '/promotions/active',
+            as: 'uid-vip',
+            email: 'VIP@tienda.pe',
+          );
+
+          expect(status, 200);
+          expect(body['meta']['total'], 3);
+          expect(
+            (body['data'] as List).map(
+              (p) => [p['product']['name'], p['promoPrice'], p['audience']],
+            ),
+            [
+              ['Arroz Costeño 1 kg', '3.5', 'vip'],
+              ['Arroz Costeño 1 kg', '3.9', 'everyone'],
+              ['Leche Gloria', '3.6', 'everyone'],
+            ],
+          );
+        },
+      );
+
+      test('pagina y valida el query', () async {
+        final (_, page2) = await client.get(
+          '/promotions/active?limit=1&page=2',
+        );
+        expect((page2['data'] as List).single['promoPrice'], '3.6');
+
+        final (status, body) = await client.get('/promotions/active?status=x');
+        expect(status, 400);
+        expect(body['message'], ['La propiedad status no está permitida']);
+      });
     });
 
     test('todo /promotions es solo para admin y staff', () async {

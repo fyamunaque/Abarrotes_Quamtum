@@ -15,6 +15,8 @@ import 'src/orders/orders_routes.dart';
 import 'src/orders/orders_service.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
+import 'src/promotions/audience/everyone_audience_rule.dart';
+import 'src/promotions/audience/vip_audience_rule.dart';
 import 'src/promotions/promotions_routes.dart';
 import 'src/promotions/promotions_service.dart';
 import 'src/stats/providers/expiring_products_report_provider.dart';
@@ -27,6 +29,7 @@ import 'src/stats/stats_routes.dart';
 import 'src/users/users_routes.dart';
 import 'src/vip/vip_routes.dart';
 import 'src/vip/vip_service.dart';
+import 'src/vip/vip_shopper_resolver.dart';
 
 /// The starting point of the Serverpod server.
 void run(List<String> args) async {
@@ -49,6 +52,14 @@ void run(List<String> args) async {
   final stockAlerts = StockAlerts();
   const sales = SalesReportProvider();
 
+  // Quién es cada cliente (VIP o no) y qué audiencias de promociones puede
+  // usar. Un segmento nuevo es una regla más en esta lista.
+  const vips = VipService();
+  const shoppers = VipShopperResolver(vips);
+  final promotions = PromotionsService(
+    audienceRules: const [EveryoneAudienceRule(), VipAudienceRule()],
+  );
+
   // CORS para la app Flutter web, que corre en otro origen. En `/` envuelve a
   // los middlewares de cada dominio (p. ej. el de Firebase en `/users`).
   pod.webServer.addMiddleware(
@@ -62,14 +73,18 @@ void run(List<String> args) async {
   );
 
   // Un dominio por bloque de rutas.
-  addUsersRoutes(pod.webServer, verifier: verifier);
+  addUsersRoutes(pod.webServer, verifier: verifier, shoppers: shoppers);
   addRoutes(pod.webServer, [
     ...categoriesRoutes(const CategoriesService(), verifier),
-    ...productsRoutes(ProductsService(), verifier),
-    ...promotionsRoutes(PromotionsService(), verifier),
+    ...productsRoutes(
+      ProductsService(pricing: promotions),
+      verifier,
+      shoppers: shoppers,
+    ),
+    ...promotionsRoutes(promotions, verifier, shoppers: shoppers),
     ...inventoryRoutes(const InventoryService(), stockAlerts, verifier),
     ...ordersRoutes(OrdersService(), verifier),
-    ...vipRoutes(const VipService(), verifier),
+    ...vipRoutes(vips, verifier),
     // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
     // la clase que se pasa aquí.
     ...statsRoutes(

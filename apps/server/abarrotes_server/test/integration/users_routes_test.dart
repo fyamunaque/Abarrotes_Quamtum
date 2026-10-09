@@ -9,6 +9,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -30,7 +31,7 @@ void main() {
       // Las mismas rutas (y guards) que addUsersRoutes, con la sesión del test.
       server = await serveRoutes(
         () => session,
-        usersRoutes(const UsersService(), verifier),
+        usersRoutes(const UsersService(), verifier, shoppers: testShoppers),
         middleware: {'/users': firebaseAuthMiddleware(verifier)},
       );
     });
@@ -43,11 +44,17 @@ void main() {
       String uid, {
       String? email = 'ana@example.com',
       String? name = 'Ana Quispe',
+      bool emailVerified = true,
     }) => {
       'authorization':
           'Bearer ${signToken(
             google.private,
-            claims: validClaims(uid: uid, email: email, name: name),
+            claims: validClaims(
+              uid: uid,
+              email: email,
+              emailVerified: emailVerified,
+              name: name,
+            ),
           )}',
       'content-type': 'application/json',
     };
@@ -103,6 +110,7 @@ void main() {
           'role': 'customer',
           'address': null,
           'createdAt': isA<String>(),
+          'isVip': false,
         });
         final stored = await User.db.find(
           session,
@@ -163,6 +171,48 @@ void main() {
         final response = await http.get(url('/users/me'));
 
         expect(response.statusCode, 401);
+      });
+
+      group('isVip', () {
+        setUp(() async {
+          final admin = await insertUser('uid-admin', UserRole.admin);
+          await insertVips(session, admin, ['ana@example.com']);
+        });
+
+        test(
+          'true si el correo es de un VIP activo y está verificado',
+          () async {
+            final (status, body) = await getMe(
+              authAs('uid-ana', email: 'Ana@Example.com'),
+            );
+
+            expect(status, 200);
+            expect(body['isVip'], isTrue);
+          },
+        );
+
+        test('false si el correo no está verificado', () async {
+          final (_, body) = await getMe(
+            authAs('uid-ana', emailVerified: false),
+          );
+
+          expect(body['isVip'], isFalse);
+        });
+
+        test('false si el VIP se dio de baja o es otro correo', () async {
+          final (_, other) = await getMe(
+            authAs('uid-luis', email: 'luis@example.com'),
+          );
+          await VipCustomer.db.updateWhere(
+            session,
+            columnValues: (vip) => [vip.active(false)],
+            where: (vip) => vip.email.equals('ana@example.com'),
+          );
+          final (_, inactive) = await getMe(authAs('uid-ana'));
+
+          expect(other['isVip'], isFalse);
+          expect(inactive['isVip'], isFalse);
+        });
       });
     });
 

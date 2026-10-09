@@ -62,7 +62,9 @@ class OrdersService {
           orderBy: (product) => product.id,
           include: Product.include(
             promotions: Promotion.includeList(
-              where: (promotion) => activePromotionWhere(promotion, now),
+              where: (promotion) =>
+                  activePromotionWhere(promotion, now) &
+                  promotion.audience.equals(PromotionAudience.everyone),
               limit: 1,
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:serverpod/serverpod.dart';
 
+import '../auth/firebase_auth_middleware.dart';
 import '../auth/firebase_token_verifier.dart';
 import '../auth/role_guard.dart';
 import '../common/api_route.dart';
@@ -7,18 +8,24 @@ import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/money.dart';
 import '../common/pagination.dart';
+import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_rules.dart';
 import 'products_service.dart';
 
 /// Rutas de productos: lectura pública (marketplace y app) y escritura solo
-/// para admin y staff.
+/// para admin y staff. La lectura usa el token, si viene, para mostrar la
+/// promoción de cada cliente.
 List<RouteEntry> productsRoutes(
   ProductsService products,
-  FirebaseTokenVerifier verifier,
-) {
+  FirebaseTokenVerifier verifier, {
+  required ShopperResolver shoppers,
+}) {
   Route staffOnly(Method method, ApiHandler handler) =>
       RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+
+  Future<Shopper> shopperOf(Session session, Request request) async =>
+      shoppers.resolve(session, await optionalIdentity(verifier, request));
 
   return [
     (
@@ -45,6 +52,7 @@ List<RouteEntry> productsRoutes(
         final (list, total) = await products.list(
           session,
           page,
+          shopper: await shopperOf(session, request),
           categoryId: categoryId,
           search: search,
           // Solo tiene efecto para admin y staff; para el resto se ignora.
@@ -67,6 +75,7 @@ List<RouteEntry> productsRoutes(
         final product = await products.get(
           session,
           id,
+          shopper: await shopperOf(session, request),
           includeInactive: staff,
         );
         return jsonResponse(200, productJson(product));
@@ -187,7 +196,7 @@ String? _imageUrl(InputReader body) =>
     body.url('imageUrl', maxLength: 2000, nullable: true);
 
 /// Como lo lee la app (`Product.fromJson`): precios como texto ("4.5") y
-/// la promoción vigente (o null) con días de la tienda.
+/// la promoción vigente de quien mira (o null) con días de la tienda.
 Map<String, Object?> productJson(Product product) {
   final category = product.category!;
   return {
@@ -217,5 +226,7 @@ Map<String, Object?>? _promotionJson(Promotion? promotion) {
     'promoPrice': formatMoney(promotion.promoPriceCents),
     'startDate': days.startDate,
     'endDate': days.endDate,
+    'title': promotion.title,
+    'audience': promotion.audience.name,
   };
 }

@@ -3,21 +3,26 @@ import 'package:serverpod/serverpod.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/pagination.dart';
+import '../common/shopper.dart';
 import '../generated/protocol.dart';
-import '../promotions/promotion_rules.dart';
+import '../promotions/promotion_pricing.dart';
 
-/// Productos del catálogo. Cada producto se devuelve con su categoría y su
-/// promoción vigente: como las promociones encendidas de un producto no se
-/// cruzan en el tiempo, hay a lo sumo una (en `promotions`).
+/// Productos del catálogo. Cada producto se devuelve con su categoría y la
+/// mejor promoción vigente que puede usar quien mira (en `promotions`, a lo
+/// sumo una): un cliente nunca ve una promoción que no es para él.
 class ProductsService {
-  ProductsService({DateTime Function()? now}) : _now = now ?? DateTime.now;
+  ProductsService({required this._pricing, DateTime Function()? now})
+    : _now = now ?? DateTime.now;
 
+  final PromotionPricing _pricing;
   final DateTime Function() _now;
 
   /// Por nombre. [includeInactive] es solo para admin y staff: decide la ruta.
+  /// [onSale] deja los que tienen una promoción que [shopper] puede usar.
   Future<(List<Product>, int)> list(
     Session session,
     PageQuery page, {
+    Shopper shopper = Shopper.anonymous,
     UuidValue? categoryId,
     String? search,
     bool includeInactive = false,
@@ -30,7 +35,7 @@ class ProductsService {
       if (!includeInactive) filter &= product.active.equals(true);
       if (onSale) {
         filter &= product.promotions.any(
-          (promotion) => activePromotionWhere(promotion, now),
+          (promotion) => _pricing.eligibleWhere(promotion, now, shopper),
         );
       }
       if (search != null) {
@@ -46,7 +51,7 @@ class ProductsService {
       orderByList: (product) => [product.name.asc(), product.id.asc()],
       limit: page.limit,
       offset: page.offset,
-      include: _include(now),
+      include: _include(now, shopper),
     );
     final total = await Product.db.count(session, where: where);
     return (products, total);
@@ -56,12 +61,13 @@ class ProductsService {
   Future<Product> get(
     Session session,
     UuidValue id, {
+    Shopper shopper = Shopper.anonymous,
     bool includeInactive = false,
   }) async {
     final product = await Product.db.findById(
       session,
       id,
-      include: _include(_now().toUtc()),
+      include: _include(_now().toUtc(), shopper),
     );
     if (product == null || (!product.active && !includeInactive)) {
       throw const ApiException(404, _notFound);
@@ -133,12 +139,9 @@ class ProductsService {
   static ApiException _skuTaken(String sku) =>
       ApiException.conflict('Ya existe un producto con el SKU $sku');
 
-  static ProductInclude _include(DateTime now) => Product.include(
+  ProductInclude _include(DateTime now, Shopper shopper) => Product.include(
     category: Category.include(),
-    promotions: Promotion.includeList(
-      where: (promotion) => activePromotionWhere(promotion, now),
-      limit: 1,
-    ),
+    promotions: _pricing.bestFor(now, shopper),
   );
 
   static const _notFound = 'Producto no encontrado';

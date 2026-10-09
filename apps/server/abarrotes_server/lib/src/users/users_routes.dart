@@ -5,6 +5,7 @@ import '../auth/firebase_token_verifier.dart';
 import '../auth/role_guard.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
+import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'create_user_request.dart';
 import 'users_service.dart';
@@ -13,23 +14,28 @@ import 'users_service.dart';
 void addUsersRoutes(
   WebServer webServer, {
   required FirebaseTokenVerifier verifier,
+  required ShopperResolver shoppers,
   UsersService users = const UsersService(),
 }) {
   webServer.addMiddleware(firebaseAuthMiddleware(verifier), '/users');
-  addRoutes(webServer, usersRoutes(users, verifier));
+  addRoutes(webServer, usersRoutes(users, verifier, shoppers: shoppers));
 }
 
 /// Las rutas de usuarios con sus guards de rol.
 List<RouteEntry> usersRoutes(
   UsersService users,
-  FirebaseTokenVerifier verifier,
-) => [
-  // El usuario del token; la primera vez lo crea como cliente.
+  FirebaseTokenVerifier verifier, {
+  required ShopperResolver shoppers,
+}) => [
+  // El usuario del token; la primera vez lo crea como cliente. isVip: si
+  // puede usar las promociones VIP (VIP activo y correo verificado).
   (
     '/users/me',
     ApiRoute(Method.get, (session, request) async {
-      final user = await users.findOrCreate(session, request.firebaseIdentity);
-      return jsonResponse(200, userJson(user));
+      final identity = request.firebaseIdentity;
+      final user = await users.findOrCreate(session, identity);
+      final shopper = await shoppers.resolve(session, identity);
+      return jsonResponse(200, {...userJson(user), 'isVip': shopper.isVip});
     }),
   ),
   // Solo admin: crea una cuenta admin o staff vinculada a un firebaseUid.
