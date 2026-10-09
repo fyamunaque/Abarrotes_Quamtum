@@ -30,7 +30,7 @@ webServer:
 
 
 # This is the database setup for your server.
-# El PostgreSQL local que también usa apps/api, pero con una base propia.
+# El PostgreSQL local, con la base abarrotes_server.
 database:
   host: localhost
   port: 5432

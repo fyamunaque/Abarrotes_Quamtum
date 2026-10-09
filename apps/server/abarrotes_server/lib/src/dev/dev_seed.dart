@@ -303,8 +303,7 @@ _SeedProduct _product(
   promoPriceCents: promoPriceCents,
 );
 
-/// Las categorías que cambiaron de nombre: (antes, ahora). Son las 9 de la
-/// web Next.js, que ya se retiró.
+/// Las categorías que cambiaron de nombre: (antes, ahora).
 const _renamedCategories = [
   ('Lácteos', 'Lácteos y huevos'),
   ('Snacks', 'Snacks y dulces'),

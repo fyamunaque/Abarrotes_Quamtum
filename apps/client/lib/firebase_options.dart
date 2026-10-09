@@ -28,8 +28,7 @@ abstract final class DefaultFirebaseOptions {
     measurementId: 'G-WHVJZE8SDF',
   );
 
-  /// De apps/android/app/google-services.json: el mismo proyecto y paquete
-  /// que la app Kotlin.
+  /// La Android app del proyecto (paquete com.quamtum.neils).
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDezqjhkzbRah2b_M7M6qUAqSVTMMhdYYA',
     appId: '1:850027810618:android:fec30065966a893544ca03',

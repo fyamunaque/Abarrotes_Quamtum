@@ -5,7 +5,7 @@ import 'money.dart';
 import 'store_time.dart';
 
 /// Lee y valida la entrada de una petición (body JSON o query) juntando todos
-/// los errores, como el ValidationPipe de NestJS: las propiedades que no están
+/// los errores en una sola respuesta: las propiedades que no están
 /// en `allowed` también son error. [check] lanza un 400 con la lista.
 ///
 /// Cada lectura distingue tres casos, que importan en los PATCH:

@@ -1,5 +1,5 @@
-/// Los montos se guardan en céntimos enteros y viajan en el JSON como en la
-/// API NestJS: un texto sin ceros finales ("4.5", "12", "0.05").
+/// Los montos se guardan en céntimos enteros y viajan en el JSON como
+/// texto, sin ceros finales ("4.5", "12", "0.05").
 String formatMoney(int cents) {
   final sign = cents < 0 ? '-' : '';
   final units = cents.abs() ~/ 100;

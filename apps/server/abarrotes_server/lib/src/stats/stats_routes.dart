@@ -98,7 +98,7 @@ List<RouteEntry> statsRoutes({
   ];
 }
 
-/// `SalesSummary` de shared-types: total y ticket promedio como texto.
+/// El resumen de ventas: total y ticket promedio como texto.
 Map<String, Object?> salesSummaryJson(SalesReport report) => {
   'from': report.range.from,
   'to': report.range.to,
@@ -110,7 +110,7 @@ Map<String, Object?> salesSummaryJson(SalesReport report) => {
       : '0',
 };
 
-/// `SalesReport` de shared-types: el resumen y un punto por día.
+/// Las ventas del período: el resumen y un punto por día.
 Map<String, Object?> salesReportJson(SalesReport report) => {
   ...salesSummaryJson(report),
   'timeZone': storeTimeZone,
@@ -124,7 +124,7 @@ Map<String, Object?> salesReportJson(SalesReport report) => {
   ],
 };
 
-/// `StatsOverview` de shared-types, con los estados como en el modelo.
+/// El resumen del inicio del panel, con los estados como en el modelo.
 Map<String, Object?> overviewJson(StatsOverview report) => {
   'timeZone': storeTimeZone,
   'generatedAt': report.generatedAt.toUtc().toIso8601String(),
@@ -138,7 +138,7 @@ Map<String, Object?> overviewJson(StatsOverview report) => {
   },
 };
 
-/// `TopProductsReport` de shared-types.
+/// Los productos más vendidos.
 Map<String, Object?> topProductsJson(TopProductsReport report) => {
   'from': report.range.from,
   'to': report.range.to,

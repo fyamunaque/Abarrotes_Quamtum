@@ -19,7 +19,7 @@ class Product {
     this.expirationDate,
   });
 
-  /// Como lo manda el servidor (el `Product` de packages/shared-types, con la
+  /// Como lo manda el servidor (`productJson` en apps/server, con la
   /// promoción vigente o null). Lanza [FormatException] si no tiene esa forma.
   factory Product.fromJson(Object? json) {
     if (json case {

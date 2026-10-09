@@ -186,7 +186,7 @@ int? _price(InputReader body, {required bool required}) =>
 String? _imageUrl(InputReader body) =>
     body.url('imageUrl', maxLength: 2000, nullable: true);
 
-/// Como el `Product` de packages/shared-types: precios como texto ("4.5") y
+/// Como lo lee la app (`Product.fromJson`): precios como texto ("4.5") y
 /// la promoción vigente (o null) con días de la tienda.
 Map<String, Object?> productJson(Product product) {
   final category = product.category!;

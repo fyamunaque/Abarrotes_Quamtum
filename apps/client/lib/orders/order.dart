@@ -1,8 +1,8 @@
 import '../common/money.dart';
 import 'order_status.dart';
 
-/// Un pedido de la cuenta, como lo manda el servidor (el `Order` de
-/// packages/shared-types). Montos en céntimos.
+/// Un pedido de la cuenta, como lo manda el servidor (`orderJson` en
+/// apps/server). Montos en céntimos.
 class Order {
   const Order({
     required this.id,

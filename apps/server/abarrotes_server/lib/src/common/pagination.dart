@@ -1,6 +1,6 @@
 import 'input_reader.dart';
 
-/// Paginación de los listados, como en la API NestJS: `?page=` (desde 1) y
+/// Paginación de los listados: `?page=` (desde 1) y
 /// `?limit=` (1 a 100, por defecto 20).
 class PageQuery {
   const PageQuery(this.page, this.limit);
@@ -18,7 +18,7 @@ class PageQuery {
 
   int get offset => (page - 1) * limit;
 
-  /// `{data, meta}`, el mismo `Paginated<T>` de packages/shared-types.
+  /// `{data, meta}`: la forma que leen todas las tablas de la app.
   Map<String, Object?> wrap(List<Object?> data, int total) => {
     'data': data,
     'meta': {

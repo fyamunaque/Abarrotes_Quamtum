@@ -7,8 +7,7 @@ import 'brand_colors.dart';
 /// (TextButton, etiqueta del campo con foco). El naranja de marca sobre crema
 /// da 3,0:1, así que `primary` es primaryDark (4,6:1 sobre crema; blanco
 /// encima, 5,1:1). El naranja va en `secondaryContainer`, con texto tinta
-/// (5,9:1): lo usan los botones tonales, como "Agregar". Es el mismo criterio
-/// que la app Kotlin y la web.
+/// (5,9:1): lo usan los botones tonales, como "Agregar".
 const neilsColorScheme = ColorScheme(
   brightness: Brightness.light,
   primary: NeilsColors.primaryDark,

@@ -125,7 +125,7 @@ const _typeLabel = {
   MovementType.outgoing: 'salida',
 };
 
-/// Como el `InventoryMovement` de packages/shared-types, con el tipo en
+/// Un movimiento como lo lee la app (`Movement.fromJson`), con el tipo en
 /// minúsculas (`incoming`, `outgoing`, `adjustment`).
 Map<String, Object?> movementJson(InventoryMovement movement) => {
   'id': movement.id.toString(),

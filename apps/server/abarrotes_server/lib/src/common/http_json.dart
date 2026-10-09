@@ -35,7 +35,7 @@ Response jsonResponse(int statusCode, Object? body) => Response(
   body: Body.fromString(jsonEncode(body), mimeType: MimeType.json),
 );
 
-/// Error con la misma forma que los de la API NestJS:
+/// Error con una forma fija, la que lee la app:
 /// `{statusCode, message, error}`. [message] es un texto o una lista de textos.
 Response jsonError(int statusCode, Object message) => jsonResponse(statusCode, {
   'statusCode': statusCode,

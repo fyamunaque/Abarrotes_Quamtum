@@ -4,7 +4,7 @@ import 'package:test/test.dart';
 
 void main() {
   group('formatMoney', () {
-    test('escribe los céntimos como la API NestJS, sin ceros finales', () {
+    test('escribe los céntimos como texto, sin ceros finales', () {
       expect(formatMoney(450), '4.5');
       expect(formatMoney(1200), '12');
       expect(formatMoney(5), '0.05');

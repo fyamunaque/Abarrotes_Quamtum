@@ -131,7 +131,7 @@ List<RouteEntry> ordersRoutes(
   ];
 }
 
-/// Como el `Order` de packages/shared-types: el pedido con sus líneas. Montos
+/// El pedido con sus líneas, como lo lee la app (`Order.fromJson`). Montos
 /// como texto ("4.5") y estado como en el modelo (`pendingConfirmation`,
 /// `confirmed`…).
 Map<String, Object?> orderJson(Order order) {
@@ -161,7 +161,7 @@ Map<String, Object?> orderJson(Order order) {
   };
 }
 
-/// Como el `AdminOrder` de packages/shared-types: además, quién lo hizo.
+/// Como [orderJson] y, además, quién lo hizo (para el panel).
 Map<String, Object?> adminOrderJson(Order order) {
   final customer = order.customer!;
   return {

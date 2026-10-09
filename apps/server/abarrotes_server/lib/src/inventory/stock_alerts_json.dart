@@ -2,8 +2,8 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import 'stock_alerts.dart';
 
-/// Los reportes de alertas tal como los devuelve la API (`LowStockReport` y
-/// `ExpiringProductsReport` de packages/shared-types). Los usan
+/// Los reportes de alertas tal como los devuelve la API (stock bajo y por
+/// vencer). Los usan
 /// /inventory/alerts/* y /stats/*: el mismo reporte, el mismo JSON.
 
 /// `{data}` con lo que falta para llegar al mínimo de cada producto.

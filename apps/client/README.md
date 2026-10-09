@@ -1,8 +1,7 @@
 # Cliente Flutter — Neil's Food Services
 
-App de la tienda para **Android y web**, hecha en Flutter. Ya reemplazó a la web Next.js, que se
-retiró. Por ahora convive con la app Kotlin (`apps/android`), que queda de respaldo hasta probar
-esta en un Android real. Habla con el backend Serverpod de `apps/server`.
+App de la tienda para **Android y web**, hecha en Flutter: la tienda para los clientes y el panel
+`/admin` para la tienda. Habla con el servidor Serverpod de `apps/server`.
 
 - Paquete Android: `com.quamtum.neils` (el registrado en Firebase).
 - Estado: [Riverpod](https://riverpod.dev). Rutas: [go_router](https://pub.dev/packages/go_router).
@@ -14,7 +13,7 @@ esta en un Android real. Habla con el backend Serverpod de `apps/server`.
 - **Flutter 3.47.6** (trae Dart 3.13.5). En Windows: descomprimir el zip oficial en
   `%USERPROFILE%\develop\flutter` y agregar `%USERPROFILE%\develop\flutter\bin` al `Path` del
   usuario.
-- Para Android, el SDK que ya usa `apps/android` más el **NDK 30.0.16248370**: en Android Studio,
+- Para Android, el SDK de Android Studio más el **NDK 30.0.16248370**: en Android Studio,
   SDK Manager → SDK Tools → NDK (Side by side). `android/build.gradle.kts` fija esa versión en
   todos los módulos. Flutter pide el 28.2 y, en Windows, su instalador automático falla.
 - Para la web, Chrome o Edge.
@@ -39,8 +38,8 @@ esta en un Android real. Habla con el backend Serverpod de `apps/server`.
 Se versiona: los valores identifican el proyecto, no son secretos. Lo que protege los datos es el
 servidor, que verifica el ID token en cada petición.
 
-- **Android** ya está: sale de `apps/android/app/google-services.json` (mismo proyecto y paquete
-  que la app Kotlin). Se inicializa desde Dart, sin el plugin de Gradle de google-services.
+- **Android** ya está: la Android app del proyecto, con el paquete `com.quamtum.neils`. Se
+  inicializa desde Dart, sin `google-services.json` ni el plugin de Gradle de google-services.
 - **Web** también: es la Web app del mismo proyecto (consola de Firebase → Configuración del
   proyecto → Tus apps). Si se registra otra plataforma, sus valores van en
   `DefaultFirebaseOptions` igual; sin config, la app arranca y el ingreso dice que no está
@@ -93,7 +92,7 @@ insuficiente: Aceite tiene 2 unidades").
 
 ## Tema
 
-Los tokens son los mismos de la app Kotlin (y de la web Next.js que se retiró):
+Los tokens de la marca:
 
 | Token | Color |
 |---|---|

@@ -21,7 +21,7 @@ extension CurrentUserRequest on Request {
   User get currentUser => _currentUserProperty.get(this);
 }
 
-/// Protege una ruta por rol, como `@Roles(...)` en NestJS:
+/// Protege una ruta por rol (el que está guardado en `users`):
 ///
 /// ```dart
 /// RoleGuard(staffRoles, ApiRoute(Method.post, crear), verifier: verifier)

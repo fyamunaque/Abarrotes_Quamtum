@@ -96,7 +96,7 @@ void main() {
 
     group('GET /products (público)', () {
       test(
-        'solo activos, por nombre, paginados y con la forma de NestJS',
+        'solo activos, por nombre, paginados y con la forma que lee la app',
         () async {
           final (status, body) = await client.get('/products?limit=1');
 

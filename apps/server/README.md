@@ -1,9 +1,8 @@
 # Servidor Serverpod — Abarrotes
 
-Backend nuevo en Dart con [Serverpod 4](https://docs.serverpod.dev), que irá reemplazando a la
-API NestJS de `apps/api`. Mientras conviven, cada uno usa **su propia base** en el mismo
-PostgreSQL local: `abarrotes` (Prisma, con los datos de la demo) y `abarrotes_server` (Serverpod).
-No compartas la base: Prisma y Serverpod borran las tablas que no reconocen.
+El servidor de la tienda, en Dart con [Serverpod 4](https://docs.serverpod.dev). Atiende a la app
+Flutter de `apps/client` con rutas REST, verifica las cuentas de Firebase y guarda todo en la base
+`abarrotes_server` de PostgreSQL. Usa una base propia: Serverpod borra las tablas que no reconoce.
 
 ## Estructura
 
@@ -42,8 +41,8 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
   $env:CI = 'true'
   ```
 
-- **PostgreSQL** local (el mismo que usa `apps/api`). El usuario `abarrotes` necesita permiso
-  `CREATEDB`: los tests crean y borran bases temporales. También necesita `pg_signal_backend`:
+- **PostgreSQL** local (aquí se usa la 18), con un usuario `abarrotes` con permiso `CREATEDB`:
+  los tests crean y borran bases temporales. También necesita `pg_signal_backend`:
   al borrar una base temporal, PostgreSQL a veces tiene que cortar un proceso de autovacuum que
   trabaja en ella. Sin ese permiso, algún grupo falla de vez en cuando en su `tearDownAll` y deja
   una base `sp_test_*`. Se otorga una vez, como superusuario:
@@ -54,10 +53,15 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
 
 ## Primera vez
 
-1. Crear la base del servidor (con el usuario `abarrotes`, no hace falta superusuario):
+1. Crear el usuario y la base, como superusuario `postgres` (elige tu propia clave). Si el
+   usuario `abarrotes` ya existe, basta con el segundo comando:
 
    ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U abarrotes -d abarrotes -c "CREATE DATABASE abarrotes_server"
+   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U postgres -c "CREATE ROLE abarrotes LOGIN CREATEDB PASSWORD 'tu-clave'"
+   ```
+
+   ```powershell
+   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U postgres -c "CREATE DATABASE abarrotes_server OWNER abarrotes"
    ```
 
 2. Crear `abarrotes_server/config/passwords.yaml` (está en `.gitignore`):
@@ -84,12 +88,11 @@ Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplie
    dart run bin/main.dart --role maintenance --apply-migrations
    ```
 
-4. Opcional, para probar la app: datos de ejemplo. Solo corre en `development` y no toca la base
-   `abarrotes` de la demo.
-   - **El catálogo:** 9 categorías (las de la web Next.js, ya retirada) y 25 productos, sin
-     imágenes. Uno tiene una promoción vigente por 30 días y otro está agotado. Completa lo que
-     falta: agrega las categorías y los productos (por SKU) que no están, y nunca toca uno que ya
-     existe, aunque se haya editado o dado de baja.
+4. Opcional, para probar la app: datos de ejemplo. Solo corre en `development`.
+   - **El catálogo:** 9 categorías y 25 productos, sin imágenes. Uno tiene una promoción vigente
+     por 30 días y otro está agotado. Completa lo que falta: agrega las categorías y los
+     productos (por SKU) que no están, y nunca toca uno que ya existe, aunque se haya editado o
+     dado de baja.
    - **Pedidos:** 40 pedidos de 1 a 3 productos, repartidos en los últimos 30 días, para que el
      panel tenga ventas, top 5 y pedidos por estado. Los dos más recientes esperan confirmación,
      dos están confirmados y dos en camino; los demás, entregados o cancelados.
@@ -147,7 +150,7 @@ toma en cuenta.
 
 ### Proteger una ruta por rol
 
-`RoleGuard` es el equivalente a `@Roles(...)` de NestJS: envuelve una ruta y responde 401 (sin
+`RoleGuard` protege una ruta por rol: la envuelve y responde 401 (sin
 token o inválido), 503 (sin llaves de Google) o 403 (el rol no alcanza) antes de que la ruta lea
 el body. Si deja pasar, la ruta tiene al usuario en `request.currentUser`. Las lecturas públicas
 que muestran más al staff (p. ej. productos inactivos) usan `optionalUser`: un token ausente o
@@ -164,7 +167,7 @@ el preflight no trae token, y el de Firebase en `/users` lo rechazaría.
   `Access-Control-Allow-Origin` a todas las respuestas, también a los errores (la app tiene que
   poder leer un 401).
 - A un origen no permitido no le agrega nada: el navegador bloquea la respuesta. Sin `Origin`
-  (curl, la app Android) todo sigue igual.
+  (curl, la app en Android) todo sigue igual.
 - Orígenes permitidos: en `development`, cualquier `http://localhost:<puerto>`. En staging y
   producción, solo los de la variable `ALLOWED_ORIGINS`, separados por comas:
 
@@ -189,8 +192,8 @@ List<RouteEntry> categoriesRoutes(CategoriesService categories, FirebaseTokenVer
   que las que comparten path se juntan en una que despacha según el método (`mergeByPath`).
   Cada path responde además `OPTIONS`: sin eso, el router contesta 405 al preflight de CORS
   antes de correr cualquier middleware.
-- `InputReader` valida el body o el query como el ValidationPipe de NestJS. Junta todos los
-  errores en un 400 y rechaza las propiedades no permitidas.
+- `InputReader` valida el body o el query. Junta todos los errores en un 400 y rechaza las
+  propiedades no permitidas.
 - Montos en céntimos en la base y como texto en el JSON (`formatMoney`: 450 → `"4.5"`). Los días
   de la tienda (`AAAA-MM-DD`) se manejan en hora de Lima (`common/store_time.dart`).
 - Tests de integración: `serveRoutes` (en `test/support/`) monta las rutas igual que Serverpod,
@@ -198,7 +201,7 @@ List<RouteEntry> categoriesRoutes(CategoriesService categories, FirebaseTokenVer
 
 ## Endpoints (servidor web, puerto 8082)
 
-El JSON tiene la misma forma que la API NestJS (`packages/shared-types`): precios como texto
+El JSON es el que lee la app Flutter (los `fromJson` de `apps/client/lib`): precios como texto
 (`"4.5"`), listados `{data, meta}` con `?page=` y `?limit=` (1 a 100, por defecto 20) y fechas de
 promoción como días de Lima. Lo único distinto: los enums van como en los modelos de Serverpod
 (`customer`, `active`…).
@@ -280,7 +283,7 @@ promociones (`lib/src/promotions/promotion_rules.dart`):
 - Dos promociones encendidas del mismo producto no pueden cruzarse en el tiempo (409).
 
 Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}`. Errores comunes a
-todas las rutas, con la forma de la API NestJS (`{statusCode, message, error}`):
+todas las rutas, siempre con la forma `{statusCode, message, error}`:
 
 - 400: body o query inválidos (con la lista de errores), o token sin email en `/users/me`.
 - 401: sin token o con uno inválido.

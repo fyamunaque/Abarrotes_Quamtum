@@ -1,4 +1,0 @@
-# gradlew es un script de shell: con CRLF no corre en Mac, Linux ni CI.
-gradlew text eol=lf
-*.bat text eol=crlf
-*.jar binary

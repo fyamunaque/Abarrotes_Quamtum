@@ -9,7 +9,7 @@ class AdminOrder {
     this.customerPhone,
   });
 
-  /// Como lo manda `GET /orders` (el `AdminOrder` de packages/shared-types).
+  /// Como lo manda `GET /orders` del servidor: el pedido y quién lo hizo.
   factory AdminOrder.fromJson(Object? json) => switch (json) {
     {
       'customer':

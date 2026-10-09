@@ -108,7 +108,7 @@ void main() {
         expect(body['message'], 'Ya existe la categoría "Bebidas"');
       });
 
-      test('valida el body como NestJS', () async {
+      test('valida el body y junta los errores', () async {
         final (status, body) = await client.post('/categories', {
           'name': '',
           'color': 'rojo',

@@ -12,7 +12,7 @@ void main() {
     return const [];
   }
 
-  test('las propiedades no permitidas son error, como en NestJS', () {
+  test('las propiedades no permitidas son error', () {
     final body = InputReader.body({'name': 'x', 'extra': 1}, allowed: {'name'});
     body.text('name', maxLength: 10);
 

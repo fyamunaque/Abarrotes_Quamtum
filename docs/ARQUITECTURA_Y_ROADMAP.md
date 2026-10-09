@@ -1,240 +1,120 @@
 # Sistema Integral de Ventas y Distribución — Arquitectura y hoja de ruta
 
-Guía técnica para el equipo. Complementa `CLAUDE.md` (que vive en la raíz del repo y es lo que lee Claude Code automáticamente).
+Guía técnica para el equipo. Complementa `CLAUDE.md` (que vive en la raíz del repo y es lo que lee Claude Code automáticamente). Para correr y presentar la demo: `docs/DEMO.md`.
 
 ## 1. Resumen del proyecto
 
-Plataforma centralizada de ecommerce para una tienda de abarrotes, sobre un mismo backend:
+Plataforma de ecommerce para una tienda de abarrotes (Neil's Food Services), con dos caras sobre un mismo servidor:
 
-- **App Android** — catálogo, carrito, pedidos y seguimiento para el cliente.
-- **Marketplace web** — el mismo flujo de compra desde navegador.
-- **Dashboard administrativo** — gestión de productos, pedidos, inventario, logística, estadísticas y promociones.
+- **Tienda** — catálogo, carrito, pedidos y seguimiento para el cliente, en Android y en el navegador.
+- **Panel** — gestión de pedidos, productos, inventario, estadísticas y promociones para la tienda.
 
-Hoy el foco es **Dart y Flutter**: la app Flutter (`apps/client`) cubre los tres canales (Android y web, tienda y panel) contra el servidor Serverpod (`apps/server`). La web Next.js ya se retiró; la app Kotlin y la API NestJS quedan de respaldo hasta probar la app Flutter en un Android real.
+Las dos están en **una sola app Flutter** (`apps/client`), contra un servidor **Serverpod** en Dart (`apps/server`) con una **base de datos central**, así la tienda y el panel muestran siempre la misma información (stock, precios, estado de pedidos).
 
-Todo se apoya en un **backend/API único** y una **base de datos central**, para que los tres canales muestren siempre la misma información (stock, precios, estado de pedidos).
-
-## 2. Stack elegido y por qué
+## 2. Stack y por qué
 
 | Componente | Tecnología | Por qué |
 |---|---|---|
-| App Android | **Kotlin** + Jetpack Compose + Retrofit | Nativo, mejor rendimiento y acceso a APIs de Android que un framework híbrido; es la opción que ya eligieron. |
-| Web (marketplace + dashboard) | ~~Next.js~~, **retirada** | La reemplaza la app Flutter en la web (tienda y panel). Lo que tenía y faltaba en Flutter (la búsqueda, el carrito guardado, las 9 categorías, los títulos de pestaña) se pasó antes de borrarla. |
-| Backend / API | **NestJS** + TypeScript + Prisma ORM | Estructura modular por dominio (parecida a Spring, así que el paso desde POO en Java es directo), tipado fuerte, y — al ser TypeScript — el mismo lenguaje que la web. Con un equipo de 2-3 personas, no tener que cambiar de lenguaje entre web y backend ahorra tiempo real. |
-| Base de datos | **PostgreSQL** | Relacional, con transacciones ACID — importante cuando un pedido descuenta stock y genera un registro de venta a la vez. |
-| Auth | JWT (access + refresh token) | Roles `CUSTOMER`, `ADMIN`, `STAFF`; el mismo esquema de auth sirve para app, web y dashboard. |
-| Backend nuevo (en migración) | **Serverpod 4** (Dart) + **Firebase Auth** | Pedido del cliente. Vive en `apps/server` y va reemplazando a NestJS dominio por dominio. Las cuentas y contraseñas las maneja Firebase; el servidor verifica el ID token y guarda el rol en Postgres. Ver la sección 3. |
-| Cliente nuevo (en construcción) | **Flutter** + Riverpod + go_router | Pedido del cliente: una sola app para Android y web, en Dart como el backend. Vive en `apps/client`. Ya reemplazó a la web Next.js; convive con la app Kotlin hasta reemplazarla. |
+| App (Android + web) | **Flutter** + Riverpod + go_router | Pedido del cliente: una sola base de código para Android y la web, para la tienda y el panel. |
+| Servidor | **Serverpod 4** (Dart) | Pedido del cliente: el mismo lenguaje que la app, con modelos y migraciones generados. |
+| Base de datos | **PostgreSQL** | Relacional, con transacciones ACID: un pedido descuenta stock y registra el movimiento a la vez. |
+| Cuentas | **Firebase Auth** | Registro, ingreso y contraseñas los maneja Firebase. El servidor verifica el ID token en cada petición y guarda el rol (`customer`, `staff`, `admin`) en Postgres. |
 
-**Nota sobre Python:** si alguien del equipo se siente más cómodo con Python, FastAPI es una alternativa igual de válida para el backend — la arquitectura (módulos por dominio, JWT, Prisma o SQLAlchemy) se traduce casi 1 a 1. Los prompts de la sección 6 están escritos para NestJS; si cambian a FastAPI, ajusten la referencia al framework y el resto de la guía se mantiene igual.
-
-## 3. Estructura del repo (monorepo)
-
-Un solo repositorio con las tres apps facilita compartir tipos y mantener sincronizados los cambios del modelo de datos:
+## 3. Estructura del repo
 
 ```
 /apps
-  /android        -> app Kotlin nativa (respaldo, en retiro)
-  /api            -> NestJS (respaldo, en retiro)
-  /server         -> Serverpod (Dart): abarrotes_server + cliente generado
-  /client         -> Flutter (Android + web), la app nueva contra /server
-/packages
-  /shared-types   -> tipos TypeScript del contrato JSON de /api
-/prisma
-  schema.prisma
-  seed.ts         -> datos de desarrollo: `cd apps/api && npx prisma db seed`
-  /migrations     -> generadas por `prisma migrate dev`
+  /server         -> Serverpod: abarrotes_server (el servidor) + abarrotes_client (generado)
+  /client         -> Flutter: tienda y panel, para Android y web
 /docs
   ARQUITECTURA_Y_ROADMAP.md
+  DEMO.md
+/.githooks        -> pre-push: bloquea el push directo a main y develop
+/.github          -> CI
 CLAUDE.md
-package.json      -> npm workspaces (un solo `npm install` en la raíz)
 ```
 
-El backend fija Prisma en la v6 porque el schema usa `url = env(...)` y `prisma-client-js`, que Prisma 7 ya no acepta. Instrucciones de arranque y lista de endpoints: `apps/api/README.md`. App Android (versiones, cómo apuntarla a la API local): `apps/android/README.md`.
-
-**Tipos compartidos:** `packages/shared-types` describe el JSON de la API (solo tipos, se importa con `import type`). Serverpod responde con la misma forma; la API los verifica en `apps/api/src/shared-types.contract.spec.ts`, que falla si un DTO de entrada o un enum (`OrderStatus`, `UserRole`) deja de coincidir. Si cambias un DTO o el schema, actualiza también `shared-types`.
-
-
-**Serverpod (backend nuevo):** `apps/server` es un workspace de Dart con el servidor (`abarrotes_server`) y el cliente que genera Serverpod. Usa el mismo PostgreSQL pero **otra base**, `abarrotes_server`: Prisma y Serverpod borran las tablas que no reconocen, así que nunca comparten base. Cada dominio tiene su carpeta en `lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082), con el mismo JSON que la API NestJS. Ya están portados:
+**El servidor:** cada dominio tiene su carpeta en `apps/server/abarrotes_server/lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082):
 
 - `users`: `GET /users/me` devuelve el usuario del Firebase ID token y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
 - `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra su promoción vigente.
 - `promotions`: CRUD para admin/staff, con el estado según la fecha.
 - `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
-- `orders` (admin/staff): `GET /orders` con filtros de estado y fechas, y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`). Cancelar devuelve el stock a través de inventory, en la misma transacción.
-- `stats` (admin/staff): overview, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`) inyectada por separado; stock bajo y por vencer reutilizan las alertas de inventory.
+- `orders`: del lado del cliente, `POST /orders` y `GET /orders/mine`; para el panel, `GET /orders` con filtros y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`).
+- `stats` (admin/staff): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
-**Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `PENDING_CONFIRMATION`) y registra un `InventoryMovement` `OUT`; pasar el pedido a `CANCELLED` lo devuelve con un movimiento `IN`. Ambas cosas ocurren dentro de una transacción. Transiciones permitidas: `apps/api/src/orders/order-status.ts`.
+**Regla de stock de pedidos:** `POST /orders` descuenta el stock al crear el pedido (en `pendingConfirmation`) y registra un movimiento `outgoing`; pasar el pedido a `cancelled` lo devuelve con un movimiento `incoming`. Todo dentro de una transacción, con los productos bloqueados en orden: dos pedidos simultáneos por la última unidad no se pisan ni se traban.
 
-## 4. Modelo de datos inicial
+**La app:** una carpeta por sección en `apps/client/lib/features/`, los datos detrás de repositorios con Riverpod, y rutas con go_router. Detalle (tema, rutas, panel, tests): `apps/client/README.md`.
 
-Ya armé un `schema.prisma` de partida con las entidades centrales: `User` (con rol), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con el enum de estados de la propuesta (`PENDING_CONFIRMATION → CONFIRMED → OUT_FOR_DELIVERY → DELIVERED`, con `CANCELLED` como ruta alterna), `OrderItem` y `Promotion`.
+## 4. Modelo de datos
 
-Úsenlo como punto de partida, no como versión final — lo normal es que crezca (por ejemplo, direcciones múltiples por cliente, o historial de precios). Cualquier cambio al esquema pasa por `npx prisma migrate dev`, nunca editando la base directamente.
+Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid` y rol), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem` y `Promotion`.
 
-**El mismo modelo en Serverpod** (`apps/server/abarrotes_server/lib/src/<dominio>/*.spy.yaml`) replica estas entidades y relaciones. Las claves foráneas usan `ON DELETE RESTRICT ON UPDATE CASCADE`, como las de Prisma. Diferencias a propósito:
+- **Estados de pedido:** `pendingConfirmation → confirmed → outForDelivery → delivered`, con `cancelled` como ruta alterna.
+- **Montos en céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal. En el JSON viajan como texto (`"4.5"`).
+- Enums en camelCase. Movimientos: `incoming`, `outgoing`, `adjustment` (`in` es palabra reservada de Dart).
+- Ids UUID v7, tablas en plural (`users`, `orders`, …) y claves foráneas `ON DELETE RESTRICT ON UPDATE CASCADE`.
 
-- `User` lleva `firebaseUid` (único) y **no** `passwordHash`: las contraseñas viven en Firebase.
-- Los montos se guardan en **céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal.
-- Los enums van en camelCase:
-  - roles: `customer`, `admin`, `staff`;
-  - estados: `pendingConfirmation`, `confirmed`, …;
-  - movimientos: `incoming`, `outgoing`, `adjustment`. `in` es palabra reservada de Dart.
-- Ids UUID v7 y tablas en plural (`users`, `orders`, …).
-
-Cambios al modelo de Serverpod: editar el `.spy.yaml`, correr `serverpod generate` y `serverpod create-migration`, y commitear la migración. Mientras convivan los dos backends, un cambio de modelo se refleja en ambos.
+Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por cliente o historial de precios). Para cambiarlo: editar el `.spy.yaml`, correr `serverpod generate` y `serverpod create-migration`, y commitear la migración. Nunca editar la base a mano.
 
 ## 5. Hoja de ruta
 
-Su propuesta ya define dos etapas (MVP de la app, luego sistema completo). Las abro en fases más chicas para un equipo de 2-3 personas — piensen en cada fase como 1-3 semanas, no como una fecha fija:
+**Hecho:**
 
-**Fase 0 — Fundamentos (antes de la app)**
-Repo, CI básico, PostgreSQL + Prisma con el schema inicial, y en NestJS: módulo `auth` (registro/login/JWT) y CRUD de `products`. Sin esto, la app Android no tiene contra qué construir.
+- **Fundamentos:** el repo, el CI, PostgreSQL, el servidor Serverpod con el modelo completo y su migración inicial, y la verificación del Firebase ID token con el guard por rol.
+- **Tienda (cliente):**
+  - registro e ingreso con Firebase;
+  - catálogo con búsqueda y categorías, y detalle de producto;
+  - carrito guardado en el dispositivo;
+  - pedido, y "Mis pedidos" con el seguimiento de cada uno.
+- **Panel:**
+  - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
+  - pedidos con el stepper de estado y actualización automática;
+  - productos, inventario (entradas, salidas y ajustes) y promociones.
+- **Para la demo:**
+  - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
+  - la app web en release;
+  - un teléfono Android por cable USB (ver `docs/DEMO.md`).
 
-**Fase 1 — MVP App Android** *(tal como está en su propuesta)*
-Registro e inicio de sesión, catálogo y categorías, detalle de producto, carrito, generación y consulta de pedidos, estados básicos.
+**Pendiente:**
 
-**Fase 2 — Marketplace web**
-Mismo flujo de compra en Next.js, reutilizando el backend ya construido en la Fase 0-1. *(Hecha y después retirada: hoy la web es la app Flutter.)*
+1. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
+2. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
+3. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
+4. **Negocio real:**
+   - pasarela de pago;
+   - notificaciones (push o email) de cambio de estado;
+   - recuperar la contraseña.
 
-**Fase 3 — Dashboard admin**
-Productos y categorías, clientes, subusuarios y roles, gestión de todos los pedidos con cambio de estado.
+   Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
+5. **Más gestión en el panel:**
+   - categorías;
+   - cuentas del personal;
+   - insumos;
+   - exportar a CSV;
+   - gráficos por rango de fechas.
 
-**Fase 4 — Inventario y logística**
-Stock por producto, stock mínimo y alertas, entradas/salidas/ajustes, historial de movimientos, vencimientos, insumos generales, control de despacho.
-
-**Fase 5 — Estadísticas y promociones**
-Ventas por periodo, productos más/menos vendidos, stock bajo y por vencer, promociones creables desde el dashboard y visibles en app y web.
-
-**Fase 6 — Negocio real** *(no está en la propuesta original, pero la necesitan si el objetivo es un negocio funcional)*
-Pasarela de pago, notificaciones (push/email) de cambio de estado, despliegue a producción, publicación en Google Play. Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos — eso se integra después, vía un proveedor como Nubefact, no se construye desde cero.
-
-**Migración a Serverpod + Firebase** *(pedido del cliente, en curso)*
-Hecho:
-
-- el proyecto en `apps/server`;
-- el modelo de datos completo con su migración inicial;
-- la verificación del Firebase ID token;
-- el dominio `users` (`GET /users/me`, `POST /users`) y el guard por rol;
-- `categories`, `products` y `promotions`, con las mismas reglas que en NestJS;
-- `inventory`, con registro de movimientos y alertas;
-- `orders`:
-  - el listado del dashboard y los cambios de estado con el patrón State;
-  - del lado del cliente, `POST /orders` y `GET /orders/mine`. El pedido cobra el precio de la promoción vigente y descuenta el stock en una transacción, con los productos bloqueados en orden: dos pedidos simultáneos por la última unidad no se pisan ni se traban;
-- `stats`, con un `ReportProvider` por reporte;
-- CORS para la app web (en `development`, cualquier `http://localhost:<puerto>`; además, los orígenes de `ALLOWED_ORIGINS`);
-- un seed de desarrollo (`dart run bin/seed_dev.dart`) con un catálogo de ejemplo;
-- un job de CI.
-
-Pendiente:
-
-1. Migrar los datos de la base `abarrotes` a `abarrotes_server`.
-2. Pasar el login de la app Kotlin a Firebase (o retirarla, cuando la app Flutter esté probada en Android).
-3. Retirar `apps/api`.
-
-**App Flutter (Android + web)** *(pedido del cliente, en curso)*
-`apps/client` ya reemplazó a la web Next.js, y reemplazará a la app Kotlin; hasta entonces conviven. Ya tiene:
-
-- Riverpod y go_router;
-- el tema de Neil's (los mismos tokens y el mismo criterio de contraste que la app Kotlin, con Baloo 2 e Inter empaquetadas);
-- el flujo público `/`, `/login`, `/registro` y `/catalogo`;
-- `/admin` protegido por rol: solo admin y staff;
-- ingreso y registro con Firebase Auth (email y contraseña). El rol sale de `GET /users/me`: un cliente termina en el catálogo, admin y staff en el panel. El SDK de Firebase guarda la cuenta y renueva el ID token, así que no hay JWT propio que guardar;
-- los componentes de marca, con movimiento que respeta "reducir animaciones":
-  - el swoosh del logo dibujándose en la portada;
-  - la tarjeta de producto, con el swoosh bajo el precio y "Agregar" que responde al toque;
-  - el seguimiento de pedido, con colores por estado;
-- el flujo de compra contra Serverpod, con repositorios y Riverpod:
-  - el catálogo con búsqueda y filtro por categoría (en la URL) y el detalle de producto;
-  - el carrito, guardado en el dispositivo;
-  - el pedido, que sin cuenta pasa por el ingreso y vuelve al carrito;
-  - "Mis pedidos", con el seguimiento de cada uno;
-- el panel `/admin`, con un tema calmado (crema, tinta y el naranja solo en lo principal) y una tabla reutilizable que en el teléfono pasa a tarjetas:
-  - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, el gráfico de ventas de 30 días, stock bajo, por vencer y el top 5;
-  - pedidos, con el stepper de estado (avanzar o cancelar);
-  - productos (crear, editar, dar de baja), inventario (entradas, salidas y ajustes) y promociones (crear, editar, eliminar).
-
-Pendiente:
-
-1. Probarla en un Android real y, entonces, retirar `apps/android` y `apps/api` (con `prisma/` y `packages/shared-types`).
-
-Con 2-3 personas, un reparto que funciona bien: una persona en backend + base de datos, otra en Android, otra en web/dashboard — o si son 2, uno lleva backend+web y el otro Android, juntándose para integrar.
+**Historia:** el proyecto empezó con una app Kotlin, una web Next.js (tienda y panel) y una API NestJS con Prisma. Por pedido del cliente se pasó todo a Dart y Flutter. Lo que la web tenía y Flutter no (la búsqueda, el carrito guardado, las 9 categorías, los títulos de pestaña) se pasó antes de retirarla. Ese código sigue en el historial de git y en las ramas viejas de GitHub.
 
 ## 6. Flujo de trabajo con el equipo y con Claude Code
 
 - **Git**: `main` estable, `develop` como rama de integración, una rama `feature/<nombre>` por tarea. Pull request antes de mergear a `develop`, aunque sea entre ustedes mismos — obliga a revisar el diff.
-  - El repo es privado en el plan gratuito de GitHub, que no permite proteger ramas. En su lugar, el hook `.githooks/pre-push` bloquea en cada clon el push directo a `main` y `develop` (lo activa `npm install`, vía el script `prepare`). Es una barrera contra descuidos, no una restricción real: `git push --no-verify` la salta. Si pasan a GitHub Pro, configuren además la protección de ramas con PR y CI obligatorios.
+  - El repo es privado en el plan gratuito de GitHub, que no permite proteger ramas. En su lugar, el hook `.githooks/pre-push` bloquea en cada clon el push directo a `main` y `develop`. Se activa una vez por clon con `git config core.hooksPath .githooks`. Es una barrera contra descuidos, no una restricción real: `git push --no-verify` la salta. Si pasan a GitHub Pro, configuren además la protección de ramas con PR y CI obligatorios.
 - **Tareas**: con un equipo tan chico, GitHub Projects (gratis, ligado directo a los issues del repo) alcanza — no hace falta Jira/Trello aparte.
 - **Cada quien con Claude Code en su propia rama**, para no pisarse cambios en el mismo archivo a la vez.
 - Empiecen cada sesión de Claude Code en la carpeta raíz del repo (para que cargue `CLAUDE.md`), y usen `/clear` al pasar de una tarea a otra sin relación.
 - Para algo grande (nueva entidad, integración de pagos, cambio de arquitectura), pídanle a Claude Code que primero les muestre el plan antes de escribir código.
-- Revisen el diff antes de aceptar — sobre todo en `prisma/schema.prisma`, porque un cambio ahí afecta a los tres canales a la vez.
-
-### Prompts listos para usar (uno por hito, cópienlos y ajusten el nombre de rama)
-
-**Levantar el backend (Fase 0):**
-```
-Crea el backend NestJS en /apps/api con TypeScript. Conecta Prisma usando el
-schema que ya existe en /prisma/schema.prisma (no lo regeneres). Crea el
-módulo `auth` con registro, login y JWT (access + refresh token, roles
-CUSTOMER/ADMIN/STAFF), y el módulo `products` con CRUD protegido por rol
-para ADMIN/STAFF y lectura pública para CUSTOMER. Sigue las convenciones de
-CLAUDE.md (un módulo por dominio, controller + service + DTOs).
-```
-
-**Catálogo + carrito en Android (Fase 1):**
-```
-En /apps/android, crea las pantallas de catálogo (lista de productos por
-categoría, con búsqueda) y detalle de producto, usando Jetpack Compose.
-Consume el endpoint GET /products del backend (ver /apps/api). Agrega un
-carrito en memoria (ViewModel) con agregar/quitar/cambiar cantidad, y un
-botón para generar el pedido contra POST /orders.
-```
-
-**Marketplace web (Fase 2)** *(histórico: la web Next.js se retiró; hoy es la app Flutter)*:
-```
-En /apps/web, crea las páginas públicas del marketplace con Next.js App
-Router: listado de productos con filtro por categoría, página de detalle,
-carrito (Context o Zustand) y checkout que llama a POST /orders del backend
-en /apps/api. Reutiliza los tipos de /packages/shared-types si ya existen,
-o créalos ahí si no.
-```
-
-**Dashboard admin (Fase 3)** *(histórico: hoy el panel está en la app Flutter)*:
-```
-En /apps/web, agrega la sección /admin protegida por rol ADMIN/STAFF (usa
-el JWT del backend). Necesito una vista de pedidos con filtro por estado y
-botón para avanzar el estado (PENDING_CONFIRMATION -> CONFIRMED -> ...), y
-una vista de productos con alta/edición/desactivación.
-```
-
-**Inventario (Fase 4):**
-```
-En /apps/api, crea el módulo `inventory` con endpoints para registrar
-movimientos de stock (entrada/salida/ajuste) sobre el modelo
-InventoryMovement, que además actualicen currentStock en Product dentro de
-una transacción. Agrega un endpoint que devuelva productos con stock por
-debajo de minStock y otro con productos próximos a vencer (expirationDate).
-```
+- Revisen el diff antes de aceptar — sobre todo en los `.spy.yaml` y las migraciones, porque un cambio ahí afecta a la tienda y al panel a la vez.
 
 ## 7. Herramientas complementarias
 
-- **Probar la API mientras se desarrolla**: Insomnia o Postman (o archivos `.http` dentro del repo si prefieren algo más ligero, sin instalar nada aparte).
-- **CI**: GitHub Actions corriendo lint + tests en cada pull request — evita que algo roto llegue a `develop`. Configurado en `.github/workflows/ci.yml`, con cuatro jobs en paralelo en cada PR y push a `develop` y `main`:
-
-- API, con PostgreSQL efímero; además aplica las migraciones y el seed sobre una base vacía.
-- Serverpod, con PostgreSQL efímero: tests, migraciones y arranque del servidor con un chequeo de 401.
-- Cliente Flutter: formato, análisis, tests y build web.
-- Android.
-- **Hosting**: API + PostgreSQL en Railway o Render (planes gratuitos/baratos alcanzan para empezar), la web de Flutter en Vercel, app en Google Play Console (pago único de $25).
-- **Pagos** (Fase 6, para negocio real en Perú): Culqi o Izipay son las opciones locales más simples de integrar (tarjetas, y Culqi soporta Yape); Mercado Pago es la alternativa regional.
+- **Probar el servidor mientras se desarrolla**: Insomnia o Postman, o `curl` (ver los ejemplos de `apps/server/README.md`).
+- **CI**: GitHub Actions en cada pull request y push a `develop` y `main` (`.github/workflows/ci.yml`), con dos jobs en paralelo:
+  - Serverpod, con PostgreSQL efímero: formato, análisis, tests, migraciones y arranque del servidor con un chequeo de 401.
+  - App Flutter: formato, análisis, tests y build web.
+- **Hosting**: servidor + PostgreSQL en Railway o Render (planes gratuitos o baratos alcanzan para empezar), la web de Flutter en Vercel, app en Google Play Console (pago único de $25).
+- **Pagos** (para negocio real en Perú): Culqi o Izipay son las opciones locales más simples de integrar (tarjetas, y Culqi soporta Yape); Mercado Pago es la alternativa regional.
 - **Diseño de pantallas** (opcional): si quieren mockups antes de programar, Figma tiene plan gratuito suficiente para un equipo de 2-3.
-
-## 8. Primeros pasos concretos
-
-1. Creen el repo (monorepo) con la estructura de la sección 3, y copien `CLAUDE.md` y `prisma/schema.prisma` tal como están aquí.
-2. Corran el primer prompt de la sección 6 para levantar el backend.
-3. Con el backend respondiendo `auth` y `products`, arranquen en paralelo Android (Fase 1) y, si ya tienen tiempo, el marketplace web (Fase 2).
-4. No avancen a inventario/estadísticas (Fases 4-5) hasta que el flujo de compra completo (app o web → pedido → cambio de estado en el dashboard) funcione de punta a punta — es la parte que valida que la arquitectura central funciona.

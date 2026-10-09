@@ -12,7 +12,6 @@ PostgreSQL. Las cuentas las maneja Firebase.
 |---|---|---|
 | **App** (Flutter) | [`apps/client`](apps/client/README.md) | **Tienda:** catálogo con búsqueda y categorías, detalle, carrito (queda guardado), pedido y "Mis pedidos" con el seguimiento de cada uno. **Panel** (`/admin`, solo admin y staff): ventas del día, la semana y el mes, gráfico de 30 días, alertas de stock y vencimiento, top 5; pedidos con el avance de estado; productos; inventario; promociones. |
 | **Servidor** (Serverpod) | [`apps/server`](apps/server/README.md) | Las rutas REST de todo lo anterior, con el ID token de Firebase y el rol en PostgreSQL. |
-| Respaldo, en retiro | `apps/android`, `apps/api` | La app Kotlin y la API NestJS de antes. Se retiran cuando la app Flutter esté probada en un Android real. La web Next.js ya se retiró. |
 
 Los pedidos siguen siempre los mismos estados: pendiente de confirmación → confirmado → en camino
 → entregado (o cancelado).
@@ -38,11 +37,8 @@ Y abrir http://localhost:5006.
 ```
 apps/client           App Flutter (Android y web): tienda y panel
 apps/server           Servidor Serverpod (Dart) y su cliente generado
-apps/android          App Kotlin (respaldo, en retiro)
-apps/api              API NestJS (respaldo, en retiro)
-packages/shared-types Contrato JSON de la API (Serverpod responde con la misma forma)
-prisma                Modelo de datos de la API NestJS
 docs                  Demo, arquitectura y hoja de ruta
+.githooks             pre-push: bloquea el push directo a main y develop
 ```
 
 ## Documentación
@@ -57,8 +53,8 @@ docs                  Demo, arquitectura y hoja de ruta
 ## Cómo se trabaja
 
 - Ramas: `main` ← `develop` ← `feature/<nombre>`. A `main` y `develop` solo se llega por pull
-  request; el hook `.githooks/pre-push`, que se activa con `npm install`, bloquea el push directo.
+  request; el hook `.githooks/pre-push` bloquea el push directo. Se activa una vez por clon:
+  `git config core.hooksPath .githooks`.
 - Commits con Conventional Commits (`feat:`, `fix:`, `docs:`…), un cambio lógico por commit.
 - Cada pull request corre el CI de GitHub Actions: la app Flutter (formato, análisis, tests y
-  build web), Serverpod (tests con PostgreSQL, migraciones y arranque), y la API y la app Kotlin
-  mientras sigan.
+  build web) y Serverpod (tests con PostgreSQL, migraciones y arranque).

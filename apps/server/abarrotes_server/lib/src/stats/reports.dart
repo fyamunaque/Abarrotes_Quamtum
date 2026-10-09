@@ -2,7 +2,7 @@ import '../generated/protocol.dart';
 import 'report_provider.dart';
 
 /// Los datos de cada reporte. Los montos van en céntimos; las rutas los
-/// pasan al JSON de packages/shared-types (ver stats_json.dart).
+/// pasan al JSON que lee el panel (ver stats_routes.dart).
 
 /// Ventas de un día.
 typedef SalesPoint = ({String date, int totalCents, int orders});

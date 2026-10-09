@@ -123,7 +123,7 @@ const _fields = {'promoPrice', 'startDate', 'endDate', 'active'};
 int? _readPromoPrice(InputReader body, {required bool required}) =>
     body.cents('promoPrice', minCents: 1, required: required);
 
-/// Como el `Promotion` de packages/shared-types, con el estado en minúsculas
+/// Como lo lee el panel (`Promotion.fromJson`), con el estado en minúsculas
 /// (`scheduled`, `active`, `expired`, `disabled`).
 Map<String, Object?> promotionJson(Promotion promotion, DateTime now) {
   final product = promotion.product!;
