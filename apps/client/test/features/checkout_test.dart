@@ -6,7 +6,9 @@ import 'package:neils/app.dart';
 import 'package:neils/auth/auth_providers.dart';
 import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/catalog/catalog_providers.dart';
+import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/common/money.dart';
 import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/orders/order_tracker.dart';
 import 'package:neils/orders/order_status.dart';
@@ -124,6 +126,50 @@ void main() {
     expect(find.byTooltip('Carrito'), findsOneWidget);
   });
 
+  testWidgets(
+    'el carrito muestra un total estimado; el aviso, lo que cobró la tienda',
+    (tester) async {
+      auth = FakeAuthRepository()
+        ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      await pumpApp(tester, '/carrito');
+      // Se agregó cuando el arroz tenía una promoción que ya terminó.
+      container
+          .read(cartProvider.notifier)
+          .add(
+            const Product(
+              id: 'arroz',
+              name: 'Arroz extra 5 kg',
+              priceCents: 2490,
+              promoPriceCents: 1990,
+              stock: 40,
+            ),
+          );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Total estimado'), findsOneWidget);
+      expect(find.text(formatSoles(1990)), findsWidgets);
+      expect(
+        find.text('El precio final lo confirma la tienda al hacer el pedido.'),
+        findsOneWidget,
+      );
+
+      await confirm(tester, 'Av. Arequipa 123');
+
+      expect(orders.orders.single.totalCents, 2490);
+      expect(find.text('Total: ${formatSoles(2490)}'), findsOneWidget);
+      expect(
+        find.text('Algunos precios cambiaron desde que los agregaste:'),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          'Arroz extra 5 kg: ${formatSoles(1990)} → ${formatSoles(2490)}',
+        ),
+        findsOneWidget,
+      );
+    },
+  );
+
   testWidgets('propone la dirección del perfil', (tester) async {
     auth = FakeAuthRepository();
     final ana = auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
@@ -194,7 +240,7 @@ void main() {
     await orders.place(
       't',
       deliveryAddress: 'Av. Arequipa 123',
-      lines: [(productId: 'arroz', quantity: 1)],
+      lines: [(productId: 'arroz', quantity: 1, shownUnitPriceCents: null)],
     );
     await pumpApp(tester, '/mis-pedidos');
     OrderTracker tracker() =>

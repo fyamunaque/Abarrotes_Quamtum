@@ -14,9 +14,11 @@ import '../shared/brand.dart';
 import '../shared/error_message.dart';
 import '../shared/press_scale.dart';
 import '../shared/quantity_stepper.dart';
+import '../shared/vip_tag.dart';
 
-/// El carrito: cambiar cantidades, quitar productos, ver el total y hacer el
-/// pedido.
+/// El carrito: cambiar cantidades, quitar productos, ver el total estimado
+/// (con los precios de la cuenta, p. ej. los VIP) y hacer el pedido. El
+/// precio final lo pone el servidor.
 class CartScreen extends ConsumerWidget {
   const CartScreen({super.key});
 
@@ -77,11 +79,19 @@ class _CartLineTile extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(product.name, style: theme.textTheme.titleMedium),
-                    Text(
-                      '${formatSoles(product.finalPriceCents)} c/u',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                    Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          '${formatSoles(product.finalPriceCents)} c/u',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (product.vipPrice && ref.watch(isVipProvider))
+                          const VipTag(),
+                      ],
                     ),
                   ],
                 ),
@@ -127,7 +137,7 @@ class _Total extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('Total', style: text.titleLarge),
+            Text('Total estimado', style: text.titleLarge),
             const Spacer(),
             Text(
               formatSoles(cart.totalCents),
@@ -137,7 +147,7 @@ class _Total extends StatelessWidget {
         ),
         const SizedBox(height: 4),
         Text(
-          'La tienda cobra los precios del momento en que confirmas el pedido.',
+          'El precio final lo confirma la tienda al hacer el pedido.',
           style: text.bodySmall,
         ),
       ],

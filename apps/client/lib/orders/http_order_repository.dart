@@ -23,7 +23,12 @@ class HttpOrderRepository implements OrderRepository {
         'deliveryAddress': deliveryAddress,
         'items': [
           for (final line in lines)
-            {'productId': line.productId, 'quantity': line.quantity},
+            {
+              'productId': line.productId,
+              'quantity': line.quantity,
+              if (line.shownUnitPriceCents case final cents?)
+                'unitPrice': cents / 100,
+            },
         ],
       },
       idToken: idToken,

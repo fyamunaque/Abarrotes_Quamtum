@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/features/shared/cart_button.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
 
 import '../fakes.dart';
+import '../support.dart';
 
 void main() {
   late ProviderContainer container;
@@ -15,6 +18,10 @@ void main() {
   }) async {
     await tester.pumpWidget(
       ProviderScope(
+        // El carrito mira la sesión (los precios VIP).
+        overrides: [
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
         child: MediaQuery(
           data: MediaQueryData(disableAnimations: reduceMotion),
           child: const MaterialApp(

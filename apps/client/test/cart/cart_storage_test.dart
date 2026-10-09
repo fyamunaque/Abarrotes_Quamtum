@@ -6,7 +6,11 @@ import 'package:neils/cart/cart.dart';
 import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support.dart';
 
 void main() {
   const rice = Product(
@@ -116,7 +120,10 @@ void main() {
     test('empieza con lo guardado y guarda cada cambio', () {
       final storage = MemoryCartStorage(const Cart([CartLine(rice, 1)]));
       final container = ProviderContainer.test(
-        overrides: [cartStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          cartStorageProvider.overrideWithValue(storage),
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
       );
 
       expect(lines(container.read(cartProvider)), [('arroz', 1)]);
@@ -133,11 +140,17 @@ void main() {
     test('sigue ahí al volver a abrir la app (un contenedor nuevo)', () {
       final storage = MemoryCartStorage();
       ProviderContainer.test(
-        overrides: [cartStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          cartStorageProvider.overrideWithValue(storage),
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
       ).read(cartProvider.notifier).add(rice, 3);
 
       final reopened = ProviderContainer.test(
-        overrides: [cartStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          cartStorageProvider.overrideWithValue(storage),
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
       );
 
       expect(lines(reopened.read(cartProvider)), [('arroz', 3)]);

@@ -629,6 +629,9 @@ class FakeOrderRepository implements OrderRepository {
   /// Los ID tokens con que se llamó a `place` y `mine`.
   final tokens = <String>[];
 
+  /// Las líneas de cada pedido, como llegaron.
+  final placed = <List<OrderLineRequest>>[];
+
   @override
   Future<Order> place(
     String idToken, {
@@ -637,6 +640,8 @@ class FakeOrderRepository implements OrderRepository {
   }) async {
     tokens.add(idToken);
     if (failure case final failure?) throw failure;
+    placed.add(lines);
+    final changes = <PriceChange>[];
     final orderLines = [
       for (final line in lines)
         if (await catalog.product(line.productId) case final product)
@@ -647,6 +652,22 @@ class FakeOrderRepository implements OrderRepository {
             unitPriceCents: product.finalPriceCents,
           ),
     ];
+    // Como el servidor: cobra el precio de hoy y avisa si el carrito
+    // mostraba otro.
+    for (final line in lines) {
+      final product = await catalog.product(line.productId);
+      if (line.shownUnitPriceCents case final shown?
+          when shown != product.finalPriceCents) {
+        changes.add(
+          PriceChange(
+            productId: product.id,
+            name: product.name,
+            shownUnitPriceCents: shown,
+            unitPriceCents: product.finalPriceCents,
+          ),
+        );
+      }
+    }
     final order = Order(
       id: 'pedido-${orders.length + 1}',
       status: OrderStatus.pendingConfirmation,
@@ -654,6 +675,7 @@ class FakeOrderRepository implements OrderRepository {
       deliveryAddress: deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,
+      priceChanges: changes,
     );
     orders.insert(0, order);
     return order;

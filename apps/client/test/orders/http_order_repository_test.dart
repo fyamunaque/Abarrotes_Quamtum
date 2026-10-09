@@ -65,7 +65,8 @@ void main() {
     expect(order.lines.first.totalCents, 780);
   }
 
-  test('hacer un pedido: POST /orders con el token, sin precios', () async {
+  test('hacer un pedido: POST /orders con el token y el precio del carrito, '
+      'que el servidor solo compara', () async {
     late http.Request sent;
     final placed =
         await repository((request) async {
@@ -75,8 +76,8 @@ void main() {
           'el-token',
           deliveryAddress: 'Av. Arequipa 123',
           lines: [
-            (productId: 'p-arroz', quantity: 2),
-            (productId: 'p-aceite', quantity: 1),
+            (productId: 'p-arroz', quantity: 2, shownUnitPriceCents: 350),
+            (productId: 'p-aceite', quantity: 1, shownUnitPriceCents: null),
           ],
         );
 
@@ -86,11 +87,32 @@ void main() {
     expect(jsonDecode(sent.body), {
       'deliveryAddress': 'Av. Arequipa 123',
       'items': [
-        {'productId': 'p-arroz', 'quantity': 2},
+        {'productId': 'p-arroz', 'quantity': 2, 'unitPrice': 3.5},
         {'productId': 'p-aceite', 'quantity': 1},
       ],
     });
     expectOrder(placed);
+    expect(placed.priceChanges, isEmpty);
+  });
+
+  test('la respuesta trae los precios que cambiaron', () async {
+    final placed = await repository(
+      (_) async => json(201, {
+        ...order,
+        'priceChanges': [
+          {
+            'productId': 'p-arroz',
+            'name': 'Arroz',
+            'shownUnitPrice': '3.5',
+            'unitPrice': '3.9',
+          },
+        ],
+      }),
+    ).place('t', deliveryAddress: 'x', lines: const []);
+
+    final change = placed.priceChanges.single;
+    expect(change.name, 'Arroz');
+    expect((change.shownUnitPriceCents, change.unitPriceCents), (350, 390));
   });
 
   test('sin stock: el 409 llega con el mensaje del servidor', () {

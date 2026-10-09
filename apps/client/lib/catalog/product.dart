@@ -88,6 +88,24 @@ class Product {
 
   bool get onSale => promoPriceCents != null;
 
+  /// El mismo producto sin su precio VIP (para quien ya no es VIP): el precio
+  /// normal, hasta que el servidor diga el de hoy.
+  Product withoutVipPrice() => !vipPrice
+      ? this
+      : Product(
+          id: id,
+          name: name,
+          priceCents: priceCents,
+          stock: stock,
+          imageUrl: imageUrl,
+          description: description,
+          category: category,
+          sku: sku,
+          active: active,
+          minStock: minStock,
+          expirationDate: expirationDate,
+        );
+
   /// Lo que se paga hoy.
   int get finalPriceCents => promoPriceCents ?? priceCents;
 

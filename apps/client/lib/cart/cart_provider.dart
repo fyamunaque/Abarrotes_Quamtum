@@ -6,6 +6,8 @@ import '../catalog/product.dart';
 import '../common/api_client.dart';
 import '../orders/order.dart';
 import '../orders/orders_providers.dart';
+import '../session/session.dart';
+import '../session/session_provider.dart';
 import 'cart.dart';
 import 'cart_storage.dart';
 
@@ -18,8 +20,32 @@ class CartNotifier extends Notifier<Cart> {
   Cart build() {
     final storage = ref.watch(cartStorageProvider);
     listenSelf((_, cart) => storage.save(cart));
-    return storage.load();
+    // Un precio VIP no se le muestra a quien no es VIP (p. ej. otra persona
+    // en el mismo dispositivo): vuelve al normal apenas se sabe.
+    ref.listen(sessionProvider, (_, session) {
+      if (_notVip(session)) state = _withoutVipPrices(state);
+    });
+    final saved = storage.load();
+    return _notVip(ref.read(sessionProvider))
+        ? _withoutVipPrices(saved)
+        : saved;
   }
+
+  /// Sin cuenta o con una que no es VIP. Mientras la sesión carga, todavía no
+  /// se sabe.
+  static bool _notVip(Session session) => switch (session) {
+    SessionLoading() => false,
+    SignedOut() => true,
+    SignedIn(:final user) => !user.isVip,
+  };
+
+  static Cart _withoutVipPrices(Cart cart) =>
+      !cart.lines.any((line) => line.product.vipPrice)
+      ? cart
+      : Cart([
+          for (final line in cart.lines)
+            CartLine(line.product.withoutVipPrice(), line.quantity),
+        ]);
 
   /// Suma [quantity] unidades de [product], o lo agrega. Nunca pasa de
   /// [Product.maxQuantity]. Devuelve cuántas quedaron en el carrito.
@@ -42,7 +68,9 @@ class CartNotifier extends Notifier<Cart> {
   void clear() => state = const Cart();
 
   /// Hace el pedido con lo que hay en el carrito, a nombre de la cuenta
-  /// abierta. Si sale bien, vacía el carrito y devuelve el pedido.
+  /// abierta. Manda el precio que mostraba cada línea, para que el servidor
+  /// avise si cobra otro. Si sale bien, vacía el carrito y devuelve el
+  /// pedido (también queda en [placedOrderProvider]).
   ///
   /// Si falla (`ApiFailure` del servidor, p. ej. 409 sin stock, o
   /// `AuthFailure` si la sesión terminó), el carrito queda igual. Si el
@@ -61,10 +89,15 @@ class CartNotifier extends Notifier<Cart> {
             deliveryAddress: deliveryAddress,
             lines: [
               for (final line in lines)
-                (productId: line.product.id, quantity: line.quantity),
+                (
+                  productId: line.product.id,
+                  quantity: line.quantity,
+                  shownUnitPriceCents: line.product.finalPriceCents,
+                ),
             ],
           );
       state = const Cart();
+      ref.read(placedOrderProvider.notifier).set(order);
       ref
         ..invalidate(myOrdersProvider)
         ..invalidate(productListProvider)
