@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'src/auth/firebase_authentication_handler.dart';
@@ -19,6 +20,9 @@ import 'src/promotions/audience/everyone_audience_rule.dart';
 import 'src/promotions/audience/vip_audience_rule.dart';
 import 'src/promotions/promotions_routes.dart';
 import 'src/promotions/promotions_service.dart';
+import 'src/push/fcm_push_sender.dart';
+import 'src/push/google_access_tokens.dart';
+import 'src/push/push_sender.dart';
 import 'src/stats/providers/expiring_products_report_provider.dart';
 import 'src/stats/providers/low_stock_report_provider.dart';
 import 'src/stats/providers/order_status_report_provider.dart';
@@ -27,6 +31,7 @@ import 'src/stats/providers/sales_report_provider.dart';
 import 'src/stats/providers/top_products_report_provider.dart';
 import 'src/stats/stats_routes.dart';
 import 'src/users/users_routes.dart';
+import 'src/vip/vip_promotion_announcer.dart';
 import 'src/vip/vip_routes.dart';
 import 'src/vip/vip_service.dart';
 import 'src/vip/vip_shopper_resolver.dart';
@@ -44,8 +49,9 @@ void run(List<String> args) async {
         firebaseAuthenticationHandler(verifier)(session, token),
   );
 
+  final projectId = _firebaseProjectId(pod);
   verifier = FirebaseTokenVerifier(
-    projectId: _firebaseProjectId(pod),
+    projectId: projectId,
     keys: GooglePublicKeys(),
   );
 
@@ -58,6 +64,12 @@ void run(List<String> args) async {
   const shoppers = VipShopperResolver(vips);
   final promotions = PromotionsService(
     audienceRules: const [EveryoneAudienceRule(), VipAudienceRule()],
+    // Una promoción VIP que ya rige se avisa por push a los VIP.
+    announcer: VipPromotionAnnouncer(
+      sender: _pushSender(pod, projectId),
+      run: pod.withSession,
+      vips: vips,
+    ),
   );
 
   // CORS para la app Flutter web, que corre en otro origen. En `/` envuelve a
@@ -105,6 +117,47 @@ void run(List<String> args) async {
   ]);
 
   await pod.start();
+}
+
+/// El envío push con FCM, si hay una cuenta de servicio configurada:
+/// `fcmServiceAccountFile` en config/passwords.yaml (o la variable
+/// FCM_SERVICE_ACCOUNT_FILE) con la ruta de su JSON. Sin eso, o si no se
+/// puede leer, el servidor arranca igual, sin avisos push. El contenido del
+/// archivo es un secreto: nunca va al log.
+PushSender _pushSender(Serverpod pod, String firebaseProjectId) {
+  final path =
+      (pod.getPassword('fcmServiceAccountFile') ??
+              Platform.environment['FCM_SERVICE_ACCOUNT_FILE'])
+          ?.trim();
+  if (path == null || path.isEmpty) {
+    stdout.writeln(
+      'Aviso push desactivado: falta fcmServiceAccountFile en '
+      'config/passwords.yaml (o FCM_SERVICE_ACCOUNT_FILE).',
+    );
+    return const DisabledPushSender();
+  }
+  final ServiceAccount account;
+  try {
+    account = ServiceAccount.fromJson(
+      jsonDecode(File(path).readAsStringSync()),
+    );
+  } on Object catch (e) {
+    stderr.writeln(
+      'Aviso push desactivado: no se pudo leer la cuenta de servicio de '
+      '$path (${e.runtimeType}).',
+    );
+    return const DisabledPushSender();
+  }
+  if (account.projectId != firebaseProjectId) {
+    stderr.writeln(
+      'Atención: la cuenta de servicio es del proyecto ${account.projectId} '
+      'y los ID tokens, de $firebaseProjectId.',
+    );
+  }
+  return FcmPushSender(
+    projectId: account.projectId,
+    accessTokens: GoogleAccessTokens(account, scope: FcmPushSender.scope),
+  );
 }
 
 /// El proyecto de Firebase cuyos ID tokens se aceptan: `firebaseProjectId` en

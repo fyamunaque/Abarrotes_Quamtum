@@ -6,6 +6,7 @@ import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'audience/promotion_audience_rule.dart';
+import 'promotion_announcer.dart';
 import 'promotion_pricing.dart';
 import 'promotion_rules.dart';
 
@@ -23,14 +24,17 @@ typedef PromotionInput = ({
 /// puede usar cada cliente ([PromotionPricing]).
 class PromotionsService implements PromotionPricing {
   /// [audienceRules] decide quién usa cada audiencia: una audiencia sin regla
-  /// no la usa nadie.
+  /// no la usa nadie. [announcer] avisa de cada promoción que se crea y ya
+  /// rige (p. ej. un push a los VIP).
   PromotionsService({
     required List<PromotionAudienceRule> audienceRules,
+    this._announcer = const NoPromotionAnnouncer(),
     DateTime Function()? now,
   }) : _audienceRules = List.unmodifiable(audienceRules),
        _now = now ?? DateTime.now;
 
   final List<PromotionAudienceRule> _audienceRules;
+  final PromotionAnnouncer _announcer;
   final DateTime Function() _now;
 
   DateTime now() => _now().toUtc();
@@ -157,7 +161,25 @@ class PromotionsService implements PromotionPricing {
         title: input.title,
       ),
     );
-    return get(session, created.id!);
+    final promotion = await get(session, created.id!);
+    if (promotionStatus(promotion, now()) == PromotionStatus.active) {
+      _announce(session, promotion);
+    }
+    return promotion;
+  }
+
+  /// El aviso nunca corta la creación: si falla, queda en el log.
+  void _announce(Session session, Promotion promotion) {
+    try {
+      _announcer.announce(promotion);
+    } on Object catch (error, stackTrace) {
+      session.log(
+        'No se pudo avisar de la promoción ${promotion.id}',
+        level: LogLevel.warning,
+        exception: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   /// Aplica [changes] a la promoción actual. Se valida tal como quedaría.

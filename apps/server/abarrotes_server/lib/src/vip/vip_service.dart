@@ -155,6 +155,16 @@ class VipService {
     return item;
   }
 
+  /// Los correos de todos los VIP activos (p. ej. para avisarles de una
+  /// promoción).
+  Future<Set<String>> activeEmails(Session session) async => {
+    for (final vip in await VipCustomer.db.find(
+      session,
+      where: (vip) => vip.active.equals(true),
+    ))
+      vip.email,
+  };
+
   /// Si [email] (en cualquier forma) es de un VIP activo.
   Future<bool> isActiveVip(Session session, String email) async {
     final normalized = normalizeEmail(email);

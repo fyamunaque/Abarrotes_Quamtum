@@ -6,6 +6,7 @@ import 'package:abarrotes_server/src/promotions/promotions_routes.dart';
 import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
+import '../support/fake_push.dart';
 import '../support/http_harness.dart';
 import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
@@ -24,13 +25,15 @@ void main() {
     late Session session;
     late TestClient client;
     late Product arroz;
+    late RecordingAnnouncer announcer;
 
     setUp(() async {
       session = sessionBuilder.build();
+      announcer = RecordingAnnouncer();
       final server = await serveRoutes(
         () => session,
         promotionsRoutes(
-          testPromotions(),
+          testPromotions(announcer: announcer),
           testVerifier(google),
           shoppers: testShoppers,
         ),
@@ -448,6 +451,27 @@ void main() {
         expect(body['message'], ['La propiedad status no está permitida']);
       });
     });
+
+    test(
+      'crear una que ya rige la anuncia; programada o apagada, no',
+      () async {
+        final (_, vigente) = await create({'audience': 'vip'});
+        await create({'startDate': day(10), 'endDate': day(12)});
+        await create({
+          'active': false,
+          'audience': 'vip',
+          'startDate': day(20),
+          'endDate': day(22),
+        });
+
+        expect(announcer.announced, hasLength(1));
+        final announced = announcer.announced.single;
+        expect(announced.id.toString(), vigente['id']);
+        expect(announced.audience, PromotionAudience.vip);
+        // Con su producto, para armar el aviso.
+        expect(announced.product?.name, 'Arroz Costeño 1 kg');
+      },
+    );
 
     test('todo /promotions es solo para admin y staff', () async {
       expect((await client.get('/promotions')).$1, 401);
