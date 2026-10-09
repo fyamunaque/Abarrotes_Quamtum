@@ -11,6 +11,7 @@ import 'package:neils/admin/products/product_input.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
+import 'package:neils/admin/vip/vip_repository.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/orders/order_status.dart';
 
@@ -464,6 +465,90 @@ void main() {
       await repository.delete('pr-1');
       expect(sent.last.method, 'DELETE');
       expect(sent.last.url.path, '/promotions/pr-1');
+    });
+  });
+
+  group('clientes VIP', () {
+    const vip = {
+      'id': 'v-1',
+      'email': 'ana@gmail.com',
+      'active': true,
+      'createdAt': '2026-10-09T15:30:00.000Z',
+      'hasAccount': true,
+      'addedBy': {'id': 'u-1', 'name': 'Frank', 'email': 'frank@tienda.pe'},
+    };
+
+    test('lista con búsqueda: el estado, la fecha y quién lo agregó', () async {
+      final repository = HttpVipRepository(api((_) => page([vip])));
+
+      final list = await repository.list(page: 2, search: '  gmail ');
+      expect(sent.single.url.path, '/vip-customers');
+      expect(sent.single.url.queryParameters, {
+        'page': '2',
+        'limit': '20',
+        'search': 'gmail',
+      });
+      expect(sent.single.headers['authorization'], 'Bearer token-staff');
+      final ana = list.items.single;
+      expect(ana.email, 'ana@gmail.com');
+      expect(ana.hasAccount, isTrue);
+      expect(ana.createdAt, DateTime.utc(2026, 10, 9, 15, 30));
+      expect(ana.addedByName, 'Frank');
+
+      await repository.list();
+      expect(sent.last.url.queryParameters, isNot(contains('search')));
+    });
+
+    test('agregar manda los correos y lee el resumen', () async {
+      final summary = await HttpVipRepository(
+        api(
+          (_) => {
+            'added': ['luis@gmail.com'],
+            'duplicates': ['ana@gmail.com'],
+            'invalid': ['no-es-correo'],
+          },
+        ),
+      ).add(['luis@gmail.com', 'ana@gmail.com', 'no-es-correo']);
+
+      expect(sent.single.method, 'POST');
+      expect(jsonDecode(sent.single.body), {
+        'emails': ['luis@gmail.com', 'ana@gmail.com', 'no-es-correo'],
+      });
+      expect(summary.added, ['luis@gmail.com']);
+      expect(summary.duplicates, ['ana@gmail.com']);
+      expect(summary.invalid, ['no-es-correo']);
+    });
+
+    test('quitar es DELETE y devuelve el VIP dado de baja', () async {
+      final removed = await HttpVipRepository(
+        api((_) => {...vip, 'active': false, 'addedBy': null}),
+      ).remove('v-1');
+
+      expect(sent.single.method, 'DELETE');
+      expect(sent.single.url.path, '/vip-customers/v-1');
+      expect(removed.active, isFalse);
+      expect(removed.addedByName, isNull);
+    });
+
+    test('un 403 (staff) llega con el mensaje del servidor', () async {
+      await expectLater(
+        HttpVipRepository(
+          api(
+            (_) => {
+              'statusCode': 403,
+              'message': 'Tu rol no tiene permiso para esta acción',
+            },
+            status: 403,
+          ),
+        ).add(['luis@gmail.com']),
+        throwsA(
+          isA<ApiFailure>().having(
+            (f) => f.message,
+            'message',
+            'Tu rol no tiene permiso para esta acción',
+          ),
+        ),
+      );
     });
   });
 

@@ -10,6 +10,8 @@ import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
+import 'package:neils/admin/vip/vip_customer.dart';
+import 'package:neils/admin/vip/vip_repository.dart';
 import 'package:neils/auth/auth_repository.dart';
 import 'package:neils/catalog/catalog_repository.dart';
 import 'package:neils/catalog/category.dart';
@@ -459,6 +461,105 @@ class FakePromotionsRepository implements PromotionsRepository {
         );
       }
     }
+  }
+}
+
+/// Los clientes VIP en memoria, como el servidor: solo los activos, por
+/// correo y con búsqueda; el alta normaliza, valida, separa los duplicados
+/// (repetidos o ya activos) y reactiva a los dados de baja; la baja es lógica.
+class FakeVipRepository implements VipRepository {
+  FakeVipRepository(
+    List<VipCustomer> customers, {
+    this.registered = const {},
+    this.pageSize = 20,
+  }) : customers = [...customers];
+
+  final List<VipCustomer> customers;
+
+  /// Los correos que ya tienen cuenta (para los que se agregan).
+  final Set<String> registered;
+  final int pageSize;
+
+  /// Lo que se mandó al agregar y los ids que se quitaron, en orden.
+  final sent = <List<String>>[];
+  final removed = <String>[];
+
+  /// Con un valor, el alta falla con ese error.
+  ApiFailure? addFailure;
+
+  @override
+  Future<PageList<VipCustomer>> list({int page = 1, String search = ''}) async {
+    final query = normalizeEmail(search);
+    final matching = [
+      for (final vip in customers)
+        if (vip.active && vip.email.contains(query)) vip,
+    ]..sort((a, b) => a.email.compareTo(b.email));
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<VipAddSummary> add(List<String> emails) async {
+    if (addFailure case final failure?) throw failure;
+    sent.add(emails);
+    final added = <String>[];
+    final duplicates = <String>[];
+    final invalid = <String>[];
+    final seen = <String>{};
+    for (final raw in emails) {
+      final email = normalizeEmail(raw);
+      if (!isValidEmail(email)) {
+        invalid.add(raw.trim());
+        continue;
+      }
+      if (!seen.add(email)) {
+        duplicates.add(email);
+        continue;
+      }
+      final i = customers.indexWhere((vip) => vip.email == email);
+      if (i >= 0 && customers[i].active) {
+        duplicates.add(email);
+        continue;
+      }
+      final vip = VipCustomer(
+        id: i >= 0 ? customers[i].id : 'vip-${customers.length + 1}',
+        email: email,
+        active: true,
+        createdAt: DateTime.utc(2026, 10, 9, 15),
+        hasAccount: registered.contains(email),
+        addedByName: 'Ana admin',
+      );
+      if (i >= 0) {
+        customers[i] = vip;
+      } else {
+        customers.add(vip);
+      }
+      added.add(email);
+    }
+    return VipAddSummary(
+      added: added,
+      duplicates: duplicates,
+      invalid: invalid,
+    );
+  }
+
+  @override
+  Future<VipCustomer> remove(String id) async {
+    final i = customers.indexWhere((vip) => vip.id == id);
+    final current = customers[i];
+    removed.add(id);
+    return customers[i] = VipCustomer(
+      id: current.id,
+      email: current.email,
+      active: false,
+      createdAt: current.createdAt,
+      hasAccount: current.hasAccount,
+      addedByName: current.addedByName,
+    );
   }
 }
 

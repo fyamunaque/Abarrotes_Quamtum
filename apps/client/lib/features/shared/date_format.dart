@@ -8,6 +8,11 @@ String formatDateTime(BuildContext context, DateTime instant) {
       '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(local))}';
 }
 
+/// "4 oct 2026": la fecha de un instante (p. ej. un alta) en la hora del
+/// dispositivo.
+String formatDate(BuildContext context, DateTime instant) =>
+    MaterialLocalizations.of(context).formatShortDate(instant.toLocal());
+
 /// Un día de la tienda (un vencimiento, la vigencia de una promoción):
 /// "7 oct 2026". Del servidor llega a las 00:00 UTC: se toma la fecha tal
 /// cual, sin pasarla a la hora local (que la correría al día anterior).

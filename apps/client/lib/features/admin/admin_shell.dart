@@ -42,6 +42,13 @@ enum AdminSection {
     Icons.sell_outlined,
     Icons.sell,
     shortLabel: 'Promos',
+  ),
+  vip(
+    Routes.adminVip,
+    'Clientes VIP',
+    Icons.workspace_premium_outlined,
+    Icons.workspace_premium,
+    shortLabel: 'VIP',
   );
 
   const AdminSection(

@@ -10,14 +10,15 @@ import 'package:neils/session/session_provider.dart';
 
 import '../support.dart';
 
-/// El panel en [at] con una sesión de staff y los repositorios de
-/// [overrides], en una ventana de [width] px. Devuelve el contenedor de
-/// providers y el router.
+/// El panel en [at] con una sesión de [role] (staff, si no se dice) y los
+/// repositorios de [overrides], en una ventana de [width] px. Devuelve el
+/// contenedor de providers y el router.
 Future<(ProviderContainer, GoRouter)> pumpPanel(
   WidgetTester tester, {
   required String at,
   List<Override> overrides = const [],
   double width = 1280,
+  UserRole role = UserRole.staff,
 }) async {
   tester.view.physicalSize = Size(width, 1000);
   tester.view.devicePixelRatio = 1;
@@ -25,9 +26,7 @@ Future<(ProviderContainer, GoRouter)> pumpPanel(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        sessionProvider.overrideWith(
-          () => TestSession(signedInAs(UserRole.staff)),
-        ),
+        sessionProvider.overrideWith(() => TestSession(signedInAs(role))),
         ...overrides,
       ],
       child: const NeilsApp(),

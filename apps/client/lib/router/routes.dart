@@ -37,6 +37,7 @@ abstract final class Routes {
   static const adminProducts = '/admin/productos';
   static const adminInventory = '/admin/inventario';
   static const adminPromotions = '/admin/promociones';
+  static const adminVip = '/admin/clientes-vip';
 
   /// Vitrina de componentes con datos de ejemplo. Solo existe en debug.
   static const showcase = '/vitrina';

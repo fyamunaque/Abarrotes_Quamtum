@@ -46,6 +46,7 @@ void main() {
     expect(AdminSection.of('/admin'), AdminSection.home);
     expect(AdminSection.of('/admin/pedidos'), AdminSection.orders);
     expect(AdminSection.of('/admin/promociones/x'), AdminSection.promotions);
+    expect(AdminSection.of('/admin/clientes-vip'), AdminSection.vip);
   });
 
   testWidgets('en escritorio, un riel a la izquierda con la sección marcada', (
