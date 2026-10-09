@@ -76,7 +76,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - pedidos con el stepper de estado y actualización automática;
   - productos, inventario (entradas, salidas y ajustes) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve.
-- **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia y el título en el formulario de promociones.
+- **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia y el título en el formulario de promociones; en la tienda, el precio VIP en el catálogo, las "Ofertas exclusivas", el carrito como estimación con el precio final al pedir, el refresco del perfil sin cerrar sesión y el aviso para verificar el correo.
 - **Para la demo:**
   - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
   - la app web en release;
@@ -86,17 +86,14 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 1. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
 2. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-3. **Clientes VIP en la tienda** (el servidor y el panel ya están):
-   - avisar en el carrito cuando `priceChanges` trae precios distintos;
-   - enviar el correo de verificación de Firebase: sin verificar, nadie es VIP.
-4. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
-5. **Negocio real:**
+3. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
+4. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado;
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-6. **Más gestión en el panel:**
+5. **Más gestión en el panel:**
    - categorías;
    - cuentas del personal;
    - insumos;

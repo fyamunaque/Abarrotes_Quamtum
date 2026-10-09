@@ -119,8 +119,10 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
    - pegar varios correos de una vez y mostrar el resumen (agregados, ya estaban, no válidos);
    - en **Promociones**, crear una "Solo clientes VIP": lleva la insignia VIP en la lista.
 
-   En la tienda, un VIP ve ese precio solo si ingresa con su correo verificado. La app todavía no
-   manda el correo de verificación, así que las cuentas de prueba ven el precio para todos.
+   - En la tienda, con una cuenta de cliente agregada como VIP y su correo verificado (el aviso
+     "Verifica tu correo" manda el correo): al volver a la pestaña o abrir el catálogo aparecen
+     el precio VIP con su insignia y las "Ofertas exclusivas", sin volver a ingresar.
+   - Una cuenta que no es VIP no ve nada de eso.
 10. **En el teléfono:** `F12` → ícono de dispositivo (`Ctrl+Shift+M`). La tienda y el panel se
    adaptan: en el panel, la navegación pasa abajo y las tablas, a tarjetas.
 
