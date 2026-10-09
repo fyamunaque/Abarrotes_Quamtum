@@ -12,9 +12,29 @@ import '../shared/vip_tag.dart';
 /// VIP, además la insignia VIP, y el precio entra con una animación breve,
 /// una sola vez.
 class PriceTag extends StatelessWidget {
-  const PriceTag(this.product, {super.key, this.fontSize = 22});
+  PriceTag(Product product, {super.key, this.fontSize = 22})
+    : priceCents = product.priceCents,
+      promoPriceCents = product.promoPriceCents,
+      vipPrice = product.vipPrice;
 
-  final Product product;
+  /// Los precios sueltos, para lo que no es un producto del catálogo (p. ej.
+  /// una oferta).
+  const PriceTag.prices({
+    super.key,
+    required this.priceCents,
+    this.promoPriceCents,
+    this.vipPrice = false,
+    this.fontSize = 22,
+  });
+
+  /// El precio normal.
+  final int priceCents;
+
+  /// El de la promoción, si hay.
+  final int? promoPriceCents;
+
+  /// Si esa promoción es VIP.
+  final bool vipPrice;
   final double fontSize;
 
   @override
@@ -31,7 +51,7 @@ class PriceTag extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                formatSoles(product.finalPriceCents),
+                formatSoles(promoPriceCents ?? priceCents),
                 style: NeilsText.price(fontSize: fontSize),
               ),
               // Sube para quedar pegado a los números, como en el logo.
@@ -42,20 +62,20 @@ class PriceTag extends StatelessWidget {
             ],
           ),
         ),
-        if (product.onSale)
+        if (promoPriceCents != null)
           Text(
-            formatSoles(product.priceCents),
+            formatSoles(priceCents),
             // Tachado no se oye: el lector de pantalla dice "Antes".
-            semanticsLabel: 'Antes ${formatSoles(product.priceCents)}',
+            semanticsLabel: 'Antes ${formatSoles(priceCents)}',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: theme.colorScheme.onSurfaceVariant,
               decoration: TextDecoration.lineThrough,
             ),
           ),
-        if (product.vipPrice) const VipTag(),
+        if (vipPrice) const VipTag(),
       ],
     );
-    return product.vipPrice ? VipReveal(child: tag) : tag;
+    return vipPrice ? VipReveal(child: tag) : tag;
   }
 }
 

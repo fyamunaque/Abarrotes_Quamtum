@@ -6,9 +6,11 @@ import '../../catalog/catalog_providers.dart';
 import '../../catalog/product.dart';
 import '../../common/api_client.dart';
 import '../../common/page_list.dart';
+import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
 import '../cart/add_to_cart.dart';
+import '../offers/exclusive_offers.dart';
 import '../shared/brand.dart';
 import 'product_card.dart';
 import 'product_grid.dart';
@@ -52,7 +54,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
   Future<void> _refresh() async {
     await ref.read(sessionProvider.notifier).refreshProfile();
-    ref.invalidate(productListProvider(_query));
+    ref
+      ..invalidate(exclusiveOffersProvider)
+      ..invalidate(productListProvider(_query));
     await ref
         .read(productListProvider(_query).future)
         .catchError(
@@ -79,6 +83,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           const SizedBox(height: 12),
           _CategoryFilter(query),
           const SizedBox(height: 20),
+          // Las de la cuenta VIP, arriba del catálogo completo (no de una
+          // búsqueda o una categoría). Sin nada que mostrar, no aparece.
+          if (query == (categoryId: null, search: null))
+            const ExclusiveOffers(),
           _Products(query),
         ],
       ),

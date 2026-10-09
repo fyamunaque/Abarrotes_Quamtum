@@ -18,6 +18,8 @@ import 'package:neils/catalog/category.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/page_list.dart';
+import 'package:neils/offers/offer.dart';
+import 'package:neils/offers/offers_repository.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
@@ -731,6 +733,26 @@ class FakeCatalogRepository implements CatalogRepository {
   Future<Product> product(String id) async =>
       productList.where((product) => product.id == id).firstOrNull ??
       (throw const ApiFailure('Producto no encontrado', status: 404));
+}
+
+/// Las ofertas exclusivas en memoria. [calls] cuenta cuántas veces se
+/// pidieron: a quien no es VIP, la app no debe pedirlas nunca.
+class FakeOffersRepository implements OffersRepository {
+  FakeOffersRepository([this.offers = const []]);
+
+  List<Offer> offers;
+
+  /// Si no es null, `exclusive` falla con esto.
+  Object? failure;
+
+  int calls = 0;
+
+  @override
+  Future<List<Offer>> exclusive() async {
+    calls++;
+    if (failure case final failure?) throw failure;
+    return offers;
+  }
 }
 
 /// Firebase Auth en memoria: cuentas por email y una abierta a la vez.
