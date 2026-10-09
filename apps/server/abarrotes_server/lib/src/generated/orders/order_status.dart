@@ -12,7 +12,7 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:serverpod/serverpod.dart' as _is;
 
-/// Enum fijo (CLAUDE.md): no agregar estados sin actualizar los tres frontends.
+/// Enum fijo (CLAUDE.md): no agregar estados sin actualizar la app Flutter.
 enum OrderStatus implements _is.SerializableModel {
   pendingConfirmation,
   confirmed,

@@ -44,6 +44,7 @@ int _seconds(DateTime time) => time.millisecondsSinceEpoch ~/ 1000;
 Map<String, dynamic> validClaims({
   String uid = 'uid-ana',
   String? email = 'ana@example.com',
+  bool emailVerified = true,
   String? name = 'Ana Quispe',
 }) => {
   'iss': 'https://securetoken.google.com/$testProjectId',
@@ -53,7 +54,7 @@ Map<String, dynamic> validClaims({
   'exp': _seconds(testNow.add(const Duration(minutes: 59))),
   'sub': uid,
   'user_id': uid,
-  if (email != null) ...{'email': email, 'email_verified': true},
+  if (email != null) ...{'email': email, 'email_verified': emailVerified},
   'name': ?name,
 };
 

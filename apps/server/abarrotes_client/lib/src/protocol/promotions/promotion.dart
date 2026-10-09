@@ -13,6 +13,7 @@
 import 'package:abarrotes_client/src/protocol/protocol.dart' as _iv4mbvnl;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../products/product.dart' as _iubf72bi;
+import '../promotions/promotion_audience.dart' as _ifhe3ya9;
 
 /// Precio especial de un producto por un periodo. Las fechas son días de la
 /// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
@@ -26,7 +27,10 @@ abstract class Promotion
     bool? active,
     required this.productId,
     this.product,
-  }) : active = active ?? true;
+    _ifhe3ya9.PromotionAudience? audience,
+    this.title,
+  }) : active = active ?? true,
+       audience = audience ?? _ifhe3ya9.PromotionAudience.everyone;
 
   factory Promotion({
     _isc.UuidValue? id,
@@ -36,6 +40,8 @@ abstract class Promotion
     bool? active,
     required _isc.UuidValue productId,
     _iubf72bi.Product? product,
+    _ifhe3ya9.PromotionAudience? audience,
+    String? title,
   }) = _PromotionImpl;
 
   factory Promotion.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -61,6 +67,12 @@ abstract class Promotion
           : _iv4mbvnl.Protocol().deserialize<_iubf72bi.Product>(
               jsonSerialization['product'],
             ),
+      audience: jsonSerialization['audience'] == null
+          ? null
+          : _ifhe3ya9.PromotionAudience.fromJson(
+              (jsonSerialization['audience'] as String),
+            ),
+      title: jsonSerialization['title'] as String?,
     );
   }
 
@@ -81,6 +93,12 @@ abstract class Promotion
 
   _iubf72bi.Product? product;
 
+  /// A quién va dirigida: a todos o solo a los clientes VIP.
+  _ifhe3ya9.PromotionAudience audience;
+
+  /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
+  String? title;
+
   /// Returns a shallow copy of this [Promotion]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -92,6 +110,8 @@ abstract class Promotion
     bool? active,
     _isc.UuidValue? productId,
     _iubf72bi.Product? product,
+    _ifhe3ya9.PromotionAudience? audience,
+    String? title,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -104,6 +124,8 @@ abstract class Promotion
       'active': active,
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJson(),
+      'audience': audience.toJson(),
+      if (title != null) 'title': title,
     };
   }
 
@@ -118,6 +140,8 @@ abstract class Promotion
       'active': active,
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJsonForProtocol(),
+      'audience': audience.toJson(),
+      if (title != null) 'title': title,
     };
   }
 
@@ -138,6 +162,8 @@ class _PromotionImpl extends Promotion {
     bool? active,
     required _isc.UuidValue productId,
     _iubf72bi.Product? product,
+    _ifhe3ya9.PromotionAudience? audience,
+    String? title,
   }) : super._(
          id: id,
          promoPriceCents: promoPriceCents,
@@ -146,6 +172,8 @@ class _PromotionImpl extends Promotion {
          active: active,
          productId: productId,
          product: product,
+         audience: audience,
+         title: title,
        );
 
   /// Returns a shallow copy of this [Promotion]
@@ -160,6 +188,8 @@ class _PromotionImpl extends Promotion {
     bool? active,
     _isc.UuidValue? productId,
     Object? product = _Undefined,
+    _ifhe3ya9.PromotionAudience? audience,
+    Object? title = _Undefined,
   }) {
     return Promotion(
       id: id is _isc.UuidValue? ? id : this.id,
@@ -171,6 +201,8 @@ class _PromotionImpl extends Promotion {
       product: product is _iubf72bi.Product?
           ? product
           : this.product?.copyWith(),
+      audience: audience ?? this.audience,
+      title: title is String? ? title : this.title,
     );
   }
 }

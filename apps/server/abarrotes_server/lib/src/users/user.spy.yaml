@@ -14,6 +14,7 @@ fields:
   createdAt: DateTime, default=now
   orders: List<Order>?, relation(name=user_orders)
   inventoryMovements: List<InventoryMovement>?, relation(name=user_inventory_movements)
+  vipCustomersAdded: List<VipCustomer>?, relation(name=user_vip_customers)
 indexes:
   users_firebase_uid_idx:
     fields: firebaseUid

@@ -16,6 +16,7 @@ import 'package:serverpod/serverpod.dart' as _is;
 import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
 import '../users/user_role.dart' as _iww5kqrp;
+import '../vip/vip_customer.dart' as _icy1qtyi;
 
 /// Cuenta de la plataforma. La autenticación vive en Firebase: aquí se guarda
 /// el uid de Firebase y el rol, nunca una contraseña.
@@ -32,6 +33,7 @@ abstract class User
     DateTime? createdAt,
     this.orders,
     this.inventoryMovements,
+    this.vipCustomersAdded,
   }) : role = role ?? _iww5kqrp.UserRole.customer,
        createdAt = createdAt ?? DateTime.now();
 
@@ -46,6 +48,7 @@ abstract class User
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
+    List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -73,6 +76,11 @@ abstract class User
           ? null
           : _i1p9jj0z.Protocol().deserialize<List<_i4yp9mtd.InventoryMovement>>(
               jsonSerialization['inventoryMovements'],
+            ),
+      vipCustomersAdded: jsonSerialization['vipCustomersAdded'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<List<_icy1qtyi.VipCustomer>>(
+              jsonSerialization['vipCustomersAdded'],
             ),
     );
   }
@@ -103,6 +111,8 @@ abstract class User
 
   List<_i4yp9mtd.InventoryMovement>? inventoryMovements;
 
+  List<_icy1qtyi.VipCustomer>? vipCustomersAdded;
+
   @override
   _is.Table<_is.UuidValue?> get table => t;
 
@@ -120,6 +130,7 @@ abstract class User
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
+    List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -137,6 +148,10 @@ abstract class User
         'orders': orders?.toJson(valueToJson: (v) => v.toJson()),
       if (inventoryMovements != null)
         'inventoryMovements': inventoryMovements?.toJson(
+          valueToJson: (v) => v.toJson(),
+        ),
+      if (vipCustomersAdded != null)
+        'vipCustomersAdded': vipCustomersAdded?.toJson(
           valueToJson: (v) => v.toJson(),
         ),
     };
@@ -160,16 +175,22 @@ abstract class User
         'inventoryMovements': inventoryMovements?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (vipCustomersAdded != null)
+        'vipCustomersAdded': vipCustomersAdded?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
     };
   }
 
   static UserInclude include({
     _ij3i88ow.OrderIncludeList? orders,
     _i4yp9mtd.InventoryMovementIncludeList? inventoryMovements,
+    _icy1qtyi.VipCustomerIncludeList? vipCustomersAdded,
   }) {
     return UserInclude._(
       orders: orders,
       inventoryMovements: inventoryMovements,
+      vipCustomersAdded: vipCustomersAdded,
     );
   }
 
@@ -211,6 +232,7 @@ class _UserImpl extends User {
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
+    List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
@@ -222,6 +244,7 @@ class _UserImpl extends User {
          createdAt: createdAt,
          orders: orders,
          inventoryMovements: inventoryMovements,
+         vipCustomersAdded: vipCustomersAdded,
        );
 
   /// Returns a shallow copy of this [User]
@@ -239,6 +262,7 @@ class _UserImpl extends User {
     DateTime? createdAt,
     Object? orders = _Undefined,
     Object? inventoryMovements = _Undefined,
+    Object? vipCustomersAdded = _Undefined,
   }) {
     return User(
       id: id is _is.UuidValue? ? id : this.id,
@@ -256,6 +280,9 @@ class _UserImpl extends User {
           inventoryMovements is List<_i4yp9mtd.InventoryMovement>?
           ? inventoryMovements
           : this.inventoryMovements?.map((e0) => e0.copyWith()).toList(),
+      vipCustomersAdded: vipCustomersAdded is List<_icy1qtyi.VipCustomer>?
+          ? vipCustomersAdded
+          : this.vipCustomersAdded?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }
@@ -363,6 +390,10 @@ class UserTable extends _is.Table<_is.UuidValue?> {
 
   _is.ManyRelation<_i4yp9mtd.InventoryMovementTable>? _inventoryMovements;
 
+  _icy1qtyi.VipCustomerTable? ___vipCustomersAdded;
+
+  _is.ManyRelation<_icy1qtyi.VipCustomerTable>? _vipCustomersAdded;
+
   _ij3i88ow.OrderTable get __orders {
     if (___orders != null) return ___orders!;
     ___orders = _is.createRelationTable(
@@ -387,6 +418,19 @@ class UserTable extends _is.Table<_is.UuidValue?> {
           _i4yp9mtd.InventoryMovementTable(tableRelation: foreignTableRelation),
     );
     return ___inventoryMovements!;
+  }
+
+  _icy1qtyi.VipCustomerTable get __vipCustomersAdded {
+    if (___vipCustomersAdded != null) return ___vipCustomersAdded!;
+    ___vipCustomersAdded = _is.createRelationTable(
+      relationFieldName: '__vipCustomersAdded',
+      field: User.t.id,
+      foreignField: _icy1qtyi.VipCustomer.t.addedByUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _icy1qtyi.VipCustomerTable(tableRelation: foreignTableRelation),
+    );
+    return ___vipCustomersAdded!;
   }
 
   _is.ManyRelation<_ij3i88ow.OrderTable> get orders {
@@ -427,6 +471,25 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     return _inventoryMovements!;
   }
 
+  _is.ManyRelation<_icy1qtyi.VipCustomerTable> get vipCustomersAdded {
+    if (_vipCustomersAdded != null) return _vipCustomersAdded!;
+    var relationTable = _is.createRelationTable(
+      relationFieldName: 'vipCustomersAdded',
+      field: User.t.id,
+      foreignField: _icy1qtyi.VipCustomer.t.addedByUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _icy1qtyi.VipCustomerTable(tableRelation: foreignTableRelation),
+    );
+    _vipCustomersAdded = _is.ManyRelation<_icy1qtyi.VipCustomerTable>(
+      tableWithRelations: relationTable,
+      table: _icy1qtyi.VipCustomerTable(
+        tableRelation: relationTable.tableRelation!.lastRelation,
+      ),
+    );
+    return _vipCustomersAdded!;
+  }
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -447,6 +510,9 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'inventoryMovements') {
       return __inventoryMovements;
     }
+    if (relationField == 'vipCustomersAdded') {
+      return __vipCustomersAdded;
+    }
     return null;
   }
 }
@@ -455,19 +521,24 @@ class UserInclude extends _is.IncludeObject {
   UserInclude._({
     _ij3i88ow.OrderIncludeList? orders,
     _i4yp9mtd.InventoryMovementIncludeList? inventoryMovements,
+    _icy1qtyi.VipCustomerIncludeList? vipCustomersAdded,
   }) {
     _orders = orders;
     _inventoryMovements = inventoryMovements;
+    _vipCustomersAdded = vipCustomersAdded;
   }
 
   _ij3i88ow.OrderIncludeList? _orders;
 
   _i4yp9mtd.InventoryMovementIncludeList? _inventoryMovements;
 
+  _icy1qtyi.VipCustomerIncludeList? _vipCustomersAdded;
+
   @override
   Map<String, _is.Include?> get includes => {
     'orders': _orders,
     'inventoryMovements': _inventoryMovements,
+    'vipCustomersAdded': _vipCustomersAdded,
   };
 
   @override
@@ -948,6 +1019,31 @@ class UserAttachRepository {
       transaction: transaction,
     );
   }
+
+  /// Creates a relation between this [User] and the given [VipCustomer]s
+  /// by setting each [VipCustomer]'s foreign key `addedByUserId` to refer to this [User].
+  Future<void> vipCustomersAdded(
+    _is.DatabaseSession session,
+    User user,
+    List<_icy1qtyi.VipCustomer> vipCustomer, {
+    _is.Transaction? transaction,
+  }) async {
+    if (vipCustomer.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('vipCustomer.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $vipCustomer = vipCustomer
+        .map((e) => e.copyWith(addedByUserId: user.id))
+        .toList();
+    await session.db.update<_icy1qtyi.VipCustomer>(
+      $vipCustomer,
+      columns: [_icy1qtyi.VipCustomer.t.addedByUserId],
+      transaction: transaction,
+    );
+  }
 }
 
 class UserAttachRowRepository {
@@ -995,6 +1091,29 @@ class UserAttachRowRepository {
     await session.db.updateRow<_i4yp9mtd.InventoryMovement>(
       $inventoryMovement,
       columns: [_i4yp9mtd.InventoryMovement.t.userId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between this [User] and the given [VipCustomer]
+  /// by setting the [VipCustomer]'s foreign key `addedByUserId` to refer to this [User].
+  Future<void> vipCustomersAdded(
+    _is.DatabaseSession session,
+    User user,
+    _icy1qtyi.VipCustomer vipCustomer, {
+    _is.Transaction? transaction,
+  }) async {
+    if (vipCustomer.id == null) {
+      throw ArgumentError.notNull('vipCustomer.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $vipCustomer = vipCustomer.copyWith(addedByUserId: user.id);
+    await session.db.updateRow<_icy1qtyi.VipCustomer>(
+      $vipCustomer,
+      columns: [_icy1qtyi.VipCustomer.t.addedByUserId],
       transaction: transaction,
     );
   }

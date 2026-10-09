@@ -9,3 +9,7 @@ fields:
   endDate: DateTime
   active: bool, default=true
   product: Product?, relation(name=product_promotions, onDelete=Restrict, onUpdate=Cascade)
+  ### A quién va dirigida: a todos o solo a los clientes VIP.
+  audience: PromotionAudience, default=everyone
+  ### Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
+  title: String?

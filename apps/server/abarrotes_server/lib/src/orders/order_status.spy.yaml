@@ -1,4 +1,4 @@
-### Enum fijo (CLAUDE.md): no agregar estados sin actualizar los tres frontends.
+### Enum fijo (CLAUDE.md): no agregar estados sin actualizar la app Flutter.
 enum: OrderStatus
 serialized: byName
 values:

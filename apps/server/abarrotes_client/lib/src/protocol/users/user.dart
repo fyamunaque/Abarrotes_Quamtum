@@ -15,6 +15,7 @@ import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
 import '../users/user_role.dart' as _iww5kqrp;
+import '../vip/vip_customer.dart' as _icy1qtyi;
 
 /// Cuenta de la plataforma. La autenticación vive en Firebase: aquí se guarda
 /// el uid de Firebase y el rol, nunca una contraseña.
@@ -31,6 +32,7 @@ abstract class User
     DateTime? createdAt,
     this.orders,
     this.inventoryMovements,
+    this.vipCustomersAdded,
   }) : role = role ?? _iww5kqrp.UserRole.customer,
        createdAt = createdAt ?? DateTime.now();
 
@@ -45,6 +47,7 @@ abstract class User
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
+    List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -73,6 +76,11 @@ abstract class User
           : _iv4mbvnl.Protocol().deserialize<List<_i4yp9mtd.InventoryMovement>>(
               jsonSerialization['inventoryMovements'],
             ),
+      vipCustomersAdded: jsonSerialization['vipCustomersAdded'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<List<_icy1qtyi.VipCustomer>>(
+              jsonSerialization['vipCustomersAdded'],
+            ),
     );
   }
 
@@ -100,6 +108,8 @@ abstract class User
 
   List<_i4yp9mtd.InventoryMovement>? inventoryMovements;
 
+  List<_icy1qtyi.VipCustomer>? vipCustomersAdded;
+
   /// Returns a shallow copy of this [User]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -114,6 +124,7 @@ abstract class User
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
+    List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -131,6 +142,10 @@ abstract class User
         'orders': orders?.toJson(valueToJson: (v) => v.toJson()),
       if (inventoryMovements != null)
         'inventoryMovements': inventoryMovements?.toJson(
+          valueToJson: (v) => v.toJson(),
+        ),
+      if (vipCustomersAdded != null)
+        'vipCustomersAdded': vipCustomersAdded?.toJson(
           valueToJson: (v) => v.toJson(),
         ),
     };
@@ -152,6 +167,10 @@ abstract class User
         'orders': orders?.toJson(valueToJson: (v) => v.toJsonForProtocol()),
       if (inventoryMovements != null)
         'inventoryMovements': inventoryMovements?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
+      if (vipCustomersAdded != null)
+        'vipCustomersAdded': vipCustomersAdded?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
     };
@@ -177,6 +196,7 @@ class _UserImpl extends User {
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
+    List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
@@ -188,6 +208,7 @@ class _UserImpl extends User {
          createdAt: createdAt,
          orders: orders,
          inventoryMovements: inventoryMovements,
+         vipCustomersAdded: vipCustomersAdded,
        );
 
   /// Returns a shallow copy of this [User]
@@ -205,6 +226,7 @@ class _UserImpl extends User {
     DateTime? createdAt,
     Object? orders = _Undefined,
     Object? inventoryMovements = _Undefined,
+    Object? vipCustomersAdded = _Undefined,
   }) {
     return User(
       id: id is _isc.UuidValue? ? id : this.id,
@@ -222,6 +244,9 @@ class _UserImpl extends User {
           inventoryMovements is List<_i4yp9mtd.InventoryMovement>?
           ? inventoryMovements
           : this.inventoryMovements?.map((e0) => e0.copyWith()).toList(),
+      vipCustomersAdded: vipCustomersAdded is List<_icy1qtyi.VipCustomer>?
+          ? vipCustomersAdded
+          : this.vipCustomersAdded?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }

@@ -45,18 +45,41 @@ class _WithTestSession extends Route {
 typedef ApiResult = (int status, dynamic body);
 
 /// Cliente HTTP de los tests. Con `as:` manda un Firebase ID token de ese uid
-/// firmado con las llaves de prueba.
+/// firmado con las llaves de prueba; [email] y [emailVerified] cambian esos
+/// claims (por defecto, `ana@example.com` verificado).
 class TestClient {
   TestClient(this.server, this.google);
 
   final RelicServer server;
   final RsaKeyPair google;
 
-  Future<ApiResult> get(String path, {String? as}) =>
-      _send('GET', path, as: as);
+  Future<ApiResult> get(
+    String path, {
+    String? as,
+    String? email,
+    bool emailVerified = true,
+  }) => _send(
+    'GET',
+    path,
+    as: as,
+    email: email,
+    emailVerified: emailVerified,
+  );
 
-  Future<ApiResult> post(String path, Object? body, {String? as}) =>
-      _send('POST', path, body: body, as: as);
+  Future<ApiResult> post(
+    String path,
+    Object? body, {
+    String? as,
+    String? email,
+    bool emailVerified = true,
+  }) => _send(
+    'POST',
+    path,
+    body: body,
+    as: as,
+    email: email,
+    emailVerified: emailVerified,
+  );
 
   Future<ApiResult> patch(String path, Object? body, {String? as}) =>
       _send('PATCH', path, body: body, as: as);
@@ -69,14 +92,20 @@ class TestClient {
     String path, {
     Object? body,
     String? as,
+    String? email,
+    bool emailVerified = true,
   }) async {
+    final claims = {
+      ...validClaims(uid: as ?? '', emailVerified: emailVerified),
+      'email': ?email,
+    };
     final request =
         http.Request(method, Uri.parse('http://localhost:${server.port}$path'))
           ..headers.addAll({
             'content-type': 'application/json',
             if (as != null)
               'authorization':
-                  'Bearer ${signToken(google.private, claims: validClaims(uid: as))}',
+                  'Bearer ${signToken(google.private, claims: claims)}',
           });
     if (body != null) request.body = body is String ? body : jsonEncode(body);
     final response = await http.Response.fromStream(await request.send());
