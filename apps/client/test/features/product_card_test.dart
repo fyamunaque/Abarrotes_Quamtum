@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/catalog/product.dart';
+import 'package:neils/common/money.dart';
+import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
 import 'package:neils/features/shared/swoosh.dart';
+import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
 
@@ -97,6 +100,95 @@ void main() {
     final before = tester.widget<Text>(find.text('S/ 10.90'));
     expect(before.style?.decoration, TextDecoration.lineThrough);
     expect(before.semanticsLabel, 'Antes S/ 10.90');
+  });
+
+  group('precio VIP', () {
+    const vipOil = Product(
+      id: 'aceite',
+      name: 'Aceite vegetal 1 L',
+      priceCents: 1090,
+      promoPriceCents: 790,
+      vipPrice: true,
+      stock: 30,
+    );
+
+    double revealOpacity(WidgetTester tester) => tester
+        .widget<Opacity>(
+          find.descendant(
+            of: find.byType(VipReveal),
+            matching: find.byType(Opacity),
+          ),
+        )
+        .opacity;
+
+    testWidgets(
+      'el precio VIP subrayado con el swoosh, el normal tachado y la insignia',
+      (tester) async {
+        await pumpCard(tester, vipOil);
+        await tester.pumpAndSettle();
+
+        expect(find.text(formatSoles(790)), findsOneWidget);
+        final before = tester.widget<Text>(find.text(formatSoles(1090)));
+        expect(before.style?.decoration, TextDecoration.lineThrough);
+        final tag = tester.widget<Text>(find.text('VIP'));
+        expect(tag.style?.color, NeilsColors.accent);
+        expect(tag.semanticsLabel, 'Precio VIP');
+        final box =
+            tester
+                    .widget<Container>(
+                      find.ancestor(
+                        of: find.text('VIP'),
+                        matching: find.byType(Container),
+                      ),
+                    )
+                    .decoration!
+                as BoxDecoration;
+        expect(box.color, NeilsColors.cream);
+        final price = tester.getRect(find.text(formatSoles(790)));
+        final underline = tester.getRect(find.byType(Swoosh));
+        expect(underline.top, greaterThan(price.center.dy));
+      },
+    );
+
+    testWidgets('entra en unos 300 ms, una sola vez', (tester) async {
+      await pumpCard(tester, vipOil);
+
+      expect(revealOpacity(tester), 0);
+      await tester.pump(const Duration(milliseconds: 150));
+      expect(revealOpacity(tester), allOf(greaterThan(0), lessThan(1)));
+      await tester.pump(NeilsMotion.reveal);
+      expect(revealOpacity(tester), 1);
+      expect(tester.hasRunningAnimations, isFalse);
+
+      // Otra vez el mismo producto (p. ej. la lista se reconstruye): no se
+      // repite.
+      await pumpCard(tester, vipOil);
+      expect(revealOpacity(tester), 1);
+      expect(tester.hasRunningAnimations, isFalse);
+    });
+
+    testWidgets('con "reducir animaciones" aparece directo', (tester) async {
+      await pumpCard(tester, vipOil, reduceMotion: true);
+      await tester.pump();
+
+      expect(revealOpacity(tester), 1);
+    });
+
+    testWidgets('sin precio VIP no hay insignia ni animación', (tester) async {
+      await pumpCard(
+        tester,
+        const Product(
+          id: 'aceite',
+          name: 'Aceite vegetal 1 L',
+          priceCents: 1090,
+          promoPriceCents: 890,
+          stock: 30,
+        ),
+      );
+
+      expect(find.text('VIP'), findsNothing);
+      expect(find.byType(VipReveal), findsNothing);
+    });
   });
 
   testWidgets('"Agregar" llama a onAdd', (tester) async {

@@ -44,9 +44,13 @@ class PublicScaffold extends ConsumerWidget {
     required this.child,
     this.title,
     this.maxWidth = 960,
+    this.onRefresh,
   });
 
   final Widget child;
+
+  /// Con esto, deslizar hacia abajo desde arriba lo llama (pull-to-refresh).
+  final Future<void> Function()? onRefresh;
 
   /// Para la pestaña del navegador (ver [PageTitle]). Sin título, la marca.
   final String? title;
@@ -95,22 +99,28 @@ class PublicScaffold extends ConsumerWidget {
           ],
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: switch (session) {
-                  SignedIn(:final user) when !user.emailVerified => Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      VerifyEmailNotice(user, key: ValueKey(user.id)),
-                      const SizedBox(height: 16),
-                      child,
-                    ],
-                  ),
-                  _ => child,
-                },
+          child: _refreshable(
+            SingleChildScrollView(
+              // Para poder deslizar aunque el contenido entre en la pantalla.
+              physics: onRefresh == null
+                  ? null
+                  : const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: switch (session) {
+                    SignedIn(:final user) when !user.emailVerified => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        VerifyEmailNotice(user, key: ValueKey(user.id)),
+                        const SizedBox(height: 16),
+                        child,
+                      ],
+                    ),
+                    _ => child,
+                  },
+                ),
               ),
             ),
           ),
@@ -118,4 +128,9 @@ class PublicScaffold extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _refreshable(Widget scroll) => switch (onRefresh) {
+    final onRefresh? => RefreshIndicator(onRefresh: onRefresh, child: scroll),
+    null => scroll,
+  };
 }

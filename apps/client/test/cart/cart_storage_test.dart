@@ -41,7 +41,24 @@ void main() {
       expect(saved.imageUrl, 'https://tienda.pe/arroz.png');
       expect(promo.finalPriceCents, 890);
       expect(promo.stock, 3);
+      expect(promo.vipPrice, isFalse);
       expect(cart.totalCents, 2 * 2490 + 3 * 890);
+    });
+
+    test('guarda si el precio era VIP', () {
+      const vipOil = Product(
+        id: 'aceite',
+        name: 'Aceite vegetal 1 L',
+        priceCents: 1090,
+        promoPriceCents: 790,
+        vipPrice: true,
+        stock: 3,
+      );
+
+      final cart = decodeCart(encodeCart(const Cart([CartLine(vipOil, 1)])));
+
+      expect(cart.lines.single.product.vipPrice, isTrue);
+      expect(cart.lines.single.product.finalPriceCents, 790);
     });
 
     test('nada guardado, JSON roto u otra versión: carrito vacío', () {

@@ -158,7 +158,9 @@ void main() {
       users.hold!.complete();
       await tester.pumpAndSettle();
       expect(currentPath(router), '/catalogo');
-      expect(users.calls, 1);
+      // Un perfil por el ingreso (no se repite) y otro al abrir el catálogo,
+      // que lo refresca.
+      expect(users.calls, 2);
     });
 
     testWidgets('si el servidor no responde, lo dice y no deja la sesión '

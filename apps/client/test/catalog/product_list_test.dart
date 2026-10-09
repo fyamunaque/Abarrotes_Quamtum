@@ -4,8 +4,11 @@ import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/page_list.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
 
 import '../fakes.dart';
+import '../support.dart';
 
 void main() {
   final products = [
@@ -25,7 +28,11 @@ void main() {
   setUp(() {
     catalog = FakeCatalogRepository(productList: products, pageSize: 2);
     container = ProviderContainer.test(
-      overrides: [catalogRepositoryProvider.overrideWithValue(catalog)],
+      overrides: [
+        catalogRepositoryProvider.overrideWithValue(catalog),
+        // La lista mira si la cuenta es VIP (el precio de cada cliente).
+        sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+      ],
     );
   });
 

@@ -9,6 +9,20 @@ final sessionProvider = NotifierProvider<SessionNotifier, Session>(
   SessionNotifier.new,
 );
 
+/// El ID token de la cuenta abierta, o null sin sesión: para las rutas
+/// públicas que responden distinto a cada cliente (los precios del catálogo,
+/// las ofertas). Si no se puede obtener, null: se atiende como visitante.
+final optionalIdTokenProvider = Provider<Future<String?> Function()>(
+  (ref) => () async {
+    if (ref.read(sessionProvider) is! SignedIn) return null;
+    try {
+      return await ref.read(authRepositoryProvider).idToken();
+    } on AuthFailure {
+      return null;
+    }
+  },
+);
+
 /// Si la cuenta abierta puede usar las promociones VIP. Lo que depende de eso
 /// (los precios del catálogo, las ofertas) mira solo esto: cambia cuando un
 /// admin agrega o quita el correo, sin cerrar la sesión.

@@ -2,24 +2,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common/page_list.dart';
 import '../config/api_config.dart';
+import '../session/session_provider.dart';
 import 'catalog_repository.dart';
 import 'category.dart';
 import 'http_catalog_repository.dart';
 import 'product.dart';
 
-/// El catálogo desde el servidor. Los tests lo reemplazan por uno en memoria.
+/// El catálogo desde el servidor, con el token de la cuenta abierta (si hay).
+/// Los tests lo reemplazan por uno en memoria.
 final catalogRepositoryProvider = Provider<CatalogRepository>(
-  (ref) => HttpCatalogRepository(ref.watch(apiClientProvider)),
+  (ref) => HttpCatalogRepository(
+    ref.watch(apiClientProvider),
+    idToken: ref.watch(optionalIdTokenProvider),
+  ),
 );
 
 final categoriesProvider = FutureProvider<List<Category>>(
   (ref) => ref.watch(catalogRepositoryProvider).categories(),
 );
 
-/// Un producto, para su detalle.
-final productProvider = FutureProvider.family<Product, String>(
-  (ref, id) => ref.watch(catalogRepositoryProvider).product(id),
-);
+/// Un producto, para su detalle. Si la cuenta pasa a ser VIP (o deja de
+/// serlo), se vuelve a pedir: el precio cambia.
+final productProvider = FutureProvider.family<Product, String>((ref, id) {
+  ref.watch(isVipProvider);
+  return ref.watch(catalogRepositoryProvider).product(id);
+});
 
 /// Qué muestra el catálogo: una categoría (null: todas) y lo buscado (null:
 /// nada).
@@ -42,6 +49,9 @@ class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
   @override
   Future<PageList<Product>> build() {
     _page = 1;
+    // Cada cliente ve su precio: si pasa a ser VIP (o deja de serlo), la
+    // lista se vuelve a pedir.
+    ref.watch(isVipProvider);
     return ref
         .watch(catalogRepositoryProvider)
         .products(categoryId: query.categoryId, search: query.search);

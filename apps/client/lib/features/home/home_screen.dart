@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../router/routes.dart';
+import '../../session/session_provider.dart';
 import '../shared/brand.dart';
 import '../shared/swoosh.dart';
 
 /// Inicio: presentación de la tienda y accesos al catálogo y al registro.
-class HomeScreen extends StatelessWidget {
+/// Deslizar hacia abajo vuelve a pedir el perfil.
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     return PublicScaffold(
+      onRefresh: () => ref.read(sessionProvider.notifier).refreshProfile(),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
