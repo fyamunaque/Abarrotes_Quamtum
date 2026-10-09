@@ -8,6 +8,7 @@ import '../../session/session_provider.dart';
 import 'account.dart';
 import 'cart_button.dart';
 import 'page_title.dart';
+import 'verify_email_notice.dart';
 
 /// El logo de Neil's (naranja con letras crema).
 class NeilsLogo extends StatelessWidget {
@@ -34,6 +35,9 @@ class NeilsLogo extends StatelessWidget {
 ///
 /// Por debajo de [AccountActions.wideFrom] la barra se compacta: el catálogo
 /// pasa a ser un ícono y la cuenta va en un menú.
+///
+/// Con una cuenta que no confirmó su correo, arriba del contenido va el
+/// aviso para verificarlo ([VerifyEmailNotice]).
 class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({
     super.key,
@@ -96,7 +100,17 @@ class PublicScaffold extends ConsumerWidget {
             child: Center(
               child: ConstrainedBox(
                 constraints: BoxConstraints(maxWidth: maxWidth),
-                child: child,
+                child: switch (session) {
+                  SignedIn(:final user) when !user.emailVerified => Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      VerifyEmailNotice(user, key: ValueKey(user.id)),
+                      const SizedBox(height: 16),
+                      child,
+                    ],
+                  ),
+                  _ => child,
+                },
               ),
             ),
           ),

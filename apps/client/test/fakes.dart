@@ -742,18 +742,24 @@ class FakeAuthRepository implements AuthRepository {
   /// El uid de la cuenta abierta.
   String? get current => _current;
 
+  /// Cuántas veces se mandó el correo de verificación, y cuántas se volvió a
+  /// preguntar a Firebase si está verificado.
+  int verificationEmails = 0;
+  int reloads = 0;
+
   FakeAccount addAccount(
     String email,
     String password, {
     String? name,
     bool signedIn = false,
+    bool emailVerified = true,
   }) {
     final account = FakeAccount(
       'uid-${_accounts.length + 1}',
       email,
       password,
       name,
-    );
+    )..emailVerified = emailVerified;
     _accounts[email] = account;
     if (signedIn) _current = account.uid;
     return account;
@@ -801,10 +807,13 @@ class FakeAuthRepository implements AuthRepository {
     if (_accounts.containsKey(email)) {
       throw const AuthFailure('Ya hay una cuenta con ese correo.');
     }
-    final account = addAccount(email, password);
+    // Como Firebase: la cuenta nueva no tiene el correo confirmado, y el
+    // registro manda el correo para confirmarlo.
+    final account = addAccount(email, password, emailVerified: false);
     _open(account.uid);
     await Future<void>.delayed(Duration.zero);
     account.name = name;
+    verificationEmails++;
     return account.uid;
   }
 
@@ -816,6 +825,19 @@ class FakeAuthRepository implements AuthRepository {
     final uid = _current;
     if (uid == null) throw const AuthFailure('Tu sesión terminó.');
     return 'token-$uid';
+  }
+
+  @override
+  Future<bool> emailVerified({bool reload = false}) async {
+    if (reload) reloads++;
+    final uid = _current;
+    return uid != null && accountOf(uid).emailVerified;
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    if (_current == null) throw const AuthFailure('Tu sesión terminó.');
+    verificationEmails++;
   }
 
   void _open(String? uid) {
@@ -833,6 +855,9 @@ class FakeAccount {
   final String email;
   final String password;
   String? name;
+
+  /// Si confirmó su correo (lo cambia el test, como si abriera el enlace).
+  bool emailVerified = true;
 }
 
 /// El servidor en memoria: la primera vez que ve un uid crea su perfil con el
@@ -847,6 +872,10 @@ class FakeUserRepository implements UserRepository {
 
   /// Direcciones guardadas en el perfil, por uid.
   final addresses = <String, String>{};
+
+  /// Los uid que el servidor responde como VIP (un admin los puede agregar
+  /// o quitar en cualquier momento).
+  final vips = <String>{};
   final _profiles = <String, SessionUser>{};
 
   /// Si no es null, `me` falla con esto (p. ej. el servidor caído).
@@ -864,16 +893,18 @@ class FakeUserRepository implements UserRepository {
     if (hold case final hold?) await hold.future;
     if (failure case final failure?) throw failure;
     final uid = idToken.replaceFirst('token-', '');
-    return _profiles.putIfAbsent(uid, () {
-      final account = auth.accountOf(uid);
-      return SessionUser(
-        id: 'user-$uid',
-        name: account.name ?? account.email.split('@').first,
-        email: account.email,
-        role: roles[uid] ?? UserRole.customer,
-        address: addresses[uid],
-      );
-    });
+    return _profiles
+        .putIfAbsent(uid, () {
+          final account = auth.accountOf(uid);
+          return SessionUser(
+            id: 'user-$uid',
+            name: account.name ?? account.email.split('@').first,
+            email: account.email,
+            role: roles[uid] ?? UserRole.customer,
+            address: addresses[uid],
+          );
+        })
+        .copyWith(isVip: vips.contains(uid));
   }
 }
 

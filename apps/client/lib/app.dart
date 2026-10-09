@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'features/shared/refresh_on_resume.dart';
 import 'router/router.dart';
 import 'theme/neils_theme.dart';
 
@@ -21,6 +22,8 @@ class NeilsApp extends ConsumerWidget {
       locale: const Locale('es'),
       supportedLocales: const [Locale('es')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
+      // Al volver a la app, el perfil al día (p. ej. si ahora es VIP).
+      builder: (_, child) => RefreshOnResume(child: child!),
     );
   }
 }

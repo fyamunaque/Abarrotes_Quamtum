@@ -21,6 +21,14 @@ abstract interface class AuthRepository {
 
   /// El ID token de la cuenta actual. Firebase lo renueva antes de que venza.
   Future<String> idToken();
+
+  /// Si la cuenta actual confirmó su correo (false sin cuenta). Con [reload],
+  /// lo vuelve a preguntar a Firebase y, si se acaba de confirmar, renueva el
+  /// ID token: el servidor lo lee de ahí (`email_verified`).
+  Future<bool> emailVerified({bool reload = false});
+
+  /// Manda el correo para confirmar la cuenta actual.
+  Future<void> sendEmailVerification();
 }
 
 /// Un error que se le muestra a la persona, ya en español.

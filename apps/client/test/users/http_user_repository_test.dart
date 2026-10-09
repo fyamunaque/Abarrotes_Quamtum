@@ -57,6 +57,13 @@ void main() {
       (_) async => json(200, {...profile, 'address': 'Jr. Cusco 456'}),
     ).me('t');
     expect(withAddress.address, 'Jr. Cusco 456');
+
+    // isVip: sin el campo (un servidor anterior), no es VIP.
+    expect(user.isVip, isFalse);
+    final vip = await repository(
+      (_) async => json(200, {...profile, 'isVip': true}),
+    ).me('t');
+    expect(vip.isVip, isTrue);
   });
 
   test('respeta el path de API_URL y la barra final', () async {

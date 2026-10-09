@@ -38,6 +38,13 @@ class FirebaseAuthRepository implements AuthRepository {
     // El token de la cuenta recién creada no trae el nombre; uno nuevo sí. El
     // servidor crea el usuario con el nombre del token (GET /users/me).
     await user.getIdToken(true);
+    // El correo para confirmar la cuenta. Si no sale, se puede pedir otra vez
+    // desde el aviso: no corta el registro.
+    try {
+      await _sendVerification(user);
+    } on FirebaseException {
+      // Sigue sin verificar; el aviso lo ofrece de nuevo.
+    }
     return user.uid;
   });
 
@@ -52,6 +59,36 @@ class FirebaseAuthRepository implements AuthRepository {
     }
     return token;
   });
+
+  @override
+  Future<bool> emailVerified({bool reload = false}) => _guard(() async {
+    final user = _auth.currentUser;
+    if (user == null) return false;
+    if (!reload) return user.emailVerified;
+    await user.reload();
+    final fresh = _auth.currentUser;
+    if (fresh == null || !fresh.emailVerified) return false;
+    // Recién confirmado: el token guardado todavía dice que no. Uno nuevo lo
+    // trae al día (solo entonces: no hace falta pedirlo cada vez).
+    final claims = (await fresh.getIdTokenResult()).claims;
+    if (claims?['email_verified'] != true) await fresh.getIdToken(true);
+    return true;
+  });
+
+  @override
+  Future<void> sendEmailVerification() => _guard(() async {
+    final user = _auth.currentUser;
+    if (user == null) {
+      throw const AuthFailure('Tu sesión terminó. Vuelve a ingresar.');
+    }
+    await _sendVerification(user);
+  });
+
+  /// En español: el correo de Firebase sale en el idioma que se le pide.
+  Future<void> _sendVerification(User user) async {
+    await _auth.setLanguageCode('es');
+    await user.sendEmailVerification();
+  }
 
   Future<T> _guard<T>(Future<T> Function() action) async {
     try {
@@ -114,4 +151,10 @@ class UnavailableAuthRepository implements AuthRepository {
 
   @override
   Future<String> idToken() => Future.error(_failure);
+
+  @override
+  Future<bool> emailVerified({bool reload = false}) async => false;
+
+  @override
+  Future<void> sendEmailVerification() => Future.error(_failure);
 }

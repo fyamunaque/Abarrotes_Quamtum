@@ -142,6 +142,102 @@ void main() {
     expect(user.name, 'Ana Quispe');
     expect(container.read(sessionProvider), isA<SignedIn>());
     expect(users.calls, 1);
+    // La cuenta nueva no tiene el correo confirmado: se le mandó el correo.
+    expect(user.emailVerified, isFalse);
+    expect(auth.verificationEmails, 1);
+  });
+
+  group('VIP y correo verificado', () {
+    SessionUser userOf(ProviderContainer container) =>
+        (container.read(sessionProvider) as SignedIn).user;
+
+    test('al ingresar trae si es VIP y si confirmó su correo', () async {
+      final ana = auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      users.vips.add(ana.uid);
+      final container = start();
+      await flushEvents();
+
+      expect(userOf(container).isVip, isTrue);
+      expect(userOf(container).emailVerified, isTrue);
+      expect(container.read(isVipProvider), isTrue);
+    });
+
+    test(
+      'refreshProfile refleja un VIP agregado por el admin, sin cerrar sesión',
+      () async {
+        final ana = auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+        final container = start();
+        await flushEvents();
+        expect(container.read(isVipProvider), isFalse);
+        final before = userOf(container);
+
+        users.vips.add(ana.uid);
+        await container.read(sessionProvider.notifier).refreshProfile();
+
+        expect(container.read(isVipProvider), isTrue);
+        expect(userOf(container).id, before.id);
+        expect(auth.current, ana.uid);
+        // Volvió a preguntar a Firebase por el correo (y el token).
+        expect(auth.reloads, 1);
+
+        // Y al quitarlo, deja de serlo.
+        users.vips.clear();
+        await container.read(sessionProvider.notifier).refreshProfile();
+        expect(container.read(isVipProvider), isFalse);
+      },
+    );
+
+    test('refreshProfile ve el correo recién confirmado', () async {
+      final ana = auth.addAccount(
+        'ana@tienda.pe',
+        'secreta',
+        signedIn: true,
+        emailVerified: false,
+      );
+      final container = start();
+      await flushEvents();
+      expect(userOf(container).emailVerified, isFalse);
+
+      ana.emailVerified = true;
+      await container.read(sessionProvider.notifier).refreshProfile();
+
+      expect(userOf(container).emailVerified, isTrue);
+    });
+
+    test('si refreshProfile falla, la sesión queda como estaba', () async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      final container = start();
+      await flushEvents();
+      final before = userOf(container);
+
+      users.failure = serverDown;
+      await container.read(sessionProvider.notifier).refreshProfile();
+
+      expect(userOf(container), same(before));
+      expect(auth.current, isNotNull);
+    });
+
+    test('dos refrescos a la vez piden el perfil una sola vez', () async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      final container = start();
+      await flushEvents();
+      final calls = users.calls;
+
+      final notifier = container.read(sessionProvider.notifier);
+      await Future.wait([notifier.refreshProfile(), notifier.refreshProfile()]);
+
+      expect(users.calls, calls + 1);
+    });
+
+    test('sin sesión, refreshProfile no pide nada', () async {
+      final container = start();
+      await flushEvents();
+
+      await container.read(sessionProvider.notifier).refreshProfile();
+
+      expect(users.calls, 0);
+      expect(container.read(sessionProvider), isA<SignedOut>());
+    });
   });
 
   group('salir', () {
