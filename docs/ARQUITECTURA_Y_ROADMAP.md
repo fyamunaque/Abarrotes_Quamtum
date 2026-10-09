@@ -7,7 +7,7 @@ Guía técnica para el equipo. Complementa `CLAUDE.md` (que vive en la raíz del
 Plataforma de ecommerce para una tienda de abarrotes (Neil's Food Services), con dos caras sobre un mismo servidor:
 
 - **Tienda** — catálogo, carrito, pedidos y seguimiento para el cliente, en Android y en el navegador.
-- **Panel** — gestión de pedidos, productos, inventario, estadísticas y promociones para la tienda.
+- **Panel** — gestión de pedidos, productos, inventario, estadísticas, promociones y clientes VIP para la tienda.
 
 Las dos están en **una sola app Flutter** (`apps/client`), contra un servidor **Serverpod** en Dart (`apps/server`) con una **base de datos central**, así la tienda y el panel muestran siempre la misma información (stock, precios, estado de pedidos).
 
@@ -74,8 +74,9 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 - **Panel:**
   - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
   - pedidos con el stepper de estado y actualización automática;
-  - productos, inventario (entradas, salidas y ajustes) y promociones.
-- **Clientes VIP (servidor):** la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente.
+  - productos, inventario (entradas, salidas y ajustes) y promociones;
+  - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve.
+- **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia y el título en el formulario de promociones.
 - **Para la demo:**
   - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
   - la app web en release;
@@ -85,9 +86,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 1. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
 2. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-3. **Clientes VIP en la app** (el servidor ya está):
-   - pantalla del panel para agregar y quitar VIPs;
-   - elegir la audiencia y el título en el formulario de promociones;
+3. **Clientes VIP en la tienda** (el servidor y el panel ya están):
    - avisar en el carrito cuando `priceChanges` trae precios distintos;
    - enviar el correo de verificación de Firebase: sin verificar, nadie es VIP.
 4. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.

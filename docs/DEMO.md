@@ -115,7 +115,13 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 7. **Inventario:** registrar una entrada para el producto agotado. El formulario muestra cómo
    queda el stock antes de guardar, y en la tienda deja de estar agotado.
 8. **Promociones:** crear una que empiece hoy. En la tienda aparece el precio rebajado.
-9. **En el teléfono:** `F12` → ícono de dispositivo (`Ctrl+Shift+M`). La tienda y el panel se
+9. **Clientes VIP:**
+   - pegar varios correos de una vez y mostrar el resumen (agregados, ya estaban, no válidos);
+   - en **Promociones**, crear una "Solo clientes VIP": lleva la insignia VIP en la lista.
+
+   En la tienda, un VIP ve ese precio solo si ingresa con su correo verificado. La app todavía no
+   manda el correo de verificación, así que las cuentas de prueba ven el precio para todos.
+10. **En el teléfono:** `F12` → ícono de dispositivo (`Ctrl+Shift+M`). La tienda y el panel se
    adaptan: en el panel, la navegación pasa abajo y las tablas, a tarjetas.
 
 **Qué hay detrás**, si pregunta:

@@ -74,7 +74,7 @@ catalog/               Product, Category, CatalogRepository y sus providers
 cart/                  Cart, cartProvider (también hace el pedido) y CartStorage (dónde se guarda)
 orders/                Order, OrderStatus, OrderRepository y myOrdersProvider
 admin/                 los datos del panel, un dominio por carpeta (stats, orders, products,
-                       inventory, promotions) y PagedNotifier
+                       inventory, promotions, vip) y PagedNotifier
 common/                ApiClient y AuthedApi (las rutas REST y sus errores), PageList,
                        formatSoles, los días de la tienda (days.dart)
 router/                rutas, guard y GoRouter
@@ -175,7 +175,7 @@ flutter run -d chrome   # y abrir /vitrina
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. |
-| `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario` y `/admin/promociones` (ver "El panel") |
+| `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones` y `/admin/clientes-vip` (ver "El panel") |
 
 **Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
 SharedPreferences en Android, `localStorage` en la web), así que sigue ahí al recargar o volver a
@@ -228,7 +228,8 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 | Pedidos | Todos los pedidos, con chips por estado. Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega, las líneas y el stepper: el seguimiento con la acción del paso siguiente ("Confirmar", "Marcar en camino", "Marcar entregado") y "Cancelar pedido", que pide confirmación. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
-| Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Una promoción que se cruza con otra del producto (409) se muestra. |
+| Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |
+| Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Solo admin agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación. Staff ve la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
 
 Las piezas compartidas están en `features/admin/shared/`:
 - `AdminTable<T>`:
@@ -236,13 +237,16 @@ Las piezas compartidas están en `features/admin/shared/`:
     error con "Reintentar" y vacío;
   - desde 720 px de ancho es una tabla; más angosto, cada fila es una tarjeta con
     `etiqueta: valor`;
-  - cada fila es un botón con su descripción para el lector de pantalla.
+  - cada fila es un botón con su descripción para el lector de pantalla;
+  - con `rowAction` (`AdminRowAction`), cada fila tiene además un botón propio (p. ej.
+    "Quitar"), fuera de la descripción de la fila: al final en la tabla y abajo en las tarjetas.
 - `showAdminForm`: un formulario en un diálogo en pantallas anchas y a pantalla completa en el
   teléfono. Con `admin_form.dart` (campos de a dos, el error del servidor y los botones) y
   `ProductPicker` (el buscador de productos con autocompletado).
 - `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
   lo avisa sin vaciar la tabla.
-- `FilterChips`, `StatusBadge` (punto de color más texto) y `confirmAction`.
+- `FilterChips`, `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es
+  solo para clientes VIP) y `confirmAction`.
 
 Los datos van por sección en `lib/admin/<dominio>/` (modelo, repositorio HTTP con el ID token
 y providers). Las tablas usan `PagedNotifier<T>`, con los filtros como argumento del provider
@@ -311,16 +315,18 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
 - `test/features/order_tracker_test.dart`: cuánto se llena cada tramo por estado, la animación al
   avanzar (a mitad de camino y al final), cancelado y el estado como texto.
 - `test/theme/theme_test.dart`: colores, contraste y fuentes del tema.
-- `test/admin/`: el panel, con repositorios en memoria y una sesión de staff (`pumpPanel` en
-  `panel_support.dart`):
+- `test/admin/`: el panel, con repositorios en memoria y una sesión de staff, o del rol que se
+  pida (`pumpPanel` en `panel_support.dart`):
   - `admin_repositories_test.dart`: cada repositorio del panel con `MockClient`;
   - `admin_table_test.dart` y `admin_shell_test.dart`: tabla o tarjetas según el ancho,
     paginación, estados, y la navegación (riel o barra);
   - `admin_home_test.dart`: los KPI, el gráfico (30 puntos, la tabla de datos), las alertas, el
     top 5 y una tarjeta que falla sola;
-  - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart` y
-    `admin_promotions_test.dart`: filtros, formularios (validación y lo que se manda), los
-    errores del servidor (400 y 409), las confirmaciones y que no se desborde en 320 y 375 px.
+  - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart`,
+    `admin_promotions_test.dart` y `admin_vip_test.dart`: filtros, formularios (validación y lo
+    que se manda), los errores del servidor (400, 403 y 409), las confirmaciones, lo que ve
+    staff y lo que ve admin, y que no se desborde en 320 y 375 px;
+  - `vip_emails_test.dart`: separar los correos pegados y validarlos como el servidor.
 
 Los tests de movimiento usan `MediaQueryData(disableAnimations: true)` para "reducir
 animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándose. Flutter da por
