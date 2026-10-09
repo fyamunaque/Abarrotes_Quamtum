@@ -39,7 +39,8 @@ CLAUDE.md
 - `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`) y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
 - `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
 - `promotions`: CRUD para admin/staff, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
-- `vip`: la lista de clientes VIP por correo (`/vip-customers`): admin la modifica, staff solo la lee. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`.
+- `vip`: la lista de clientes VIP por correo (`/vip-customers`): admin la modifica, staff solo la lee. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
+- `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`.
 - `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
 - `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` con filtros y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`).
 - `stats` (admin/staff): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
@@ -85,15 +86,19 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 **Pendiente:**
 
 1. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
-2. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-3. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
-4. **Negocio real:**
+2. **Avisos push en la app** (el servidor ya los manda): `firebase_messaging`, pedir el permiso
+   de notificaciones, registrar el token con `PUT /users/me/devices` (y quitarlo al salir), en la
+   web la clave VAPID y el service worker, y abrir el producto al tocar el aviso. Para que salgan,
+   configurar la cuenta de servicio en el servidor (`apps/server/README.md`, "Avisos push").
+3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
+4. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
+5. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado;
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-5. **Más gestión en el panel:**
+6. **Más gestión en el panel:**
    - categorías;
    - cuentas del personal;
    - insumos;

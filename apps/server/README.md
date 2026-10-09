@@ -21,7 +21,7 @@ apps/server/
 ```
 
 Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplies`, `orders`,
-`promotions`, `vip`): ningún dominio importa la lógica de otro. `auth` y `common` son
+`promotions`, `vip`): ningún dominio importa la lógica de otro. `auth`, `common` y `push` son
 infraestructura compartida; lo que un dominio necesita de otro llega por constructor como interfaz
 (p. ej. `PromotionPricing`, ver [Clientes VIP](#clientes-vip-y-audiencias-de-las-promociones)).
 
@@ -212,7 +212,9 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 
 | Método y ruta | Quién | Qué hace |
 |---|---|---|
-| `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. Incluye `isVip`: si puede usar las promociones VIP. |
+| `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. Incluye `isVip`: si puede usar las promociones VIP. Guarda si el correo está verificado (`email_verified` del token). |
+| `PUT /users/me/devices` | cualquiera con token | `{token, platform?}` (`platform`: `android` o `web`): registra el token de FCM de un dispositivo para los avisos push. Repetirlo no lo duplica; si el token era de otra cuenta, pasa a esta. 204. |
+| `DELETE /users/me/devices?token=…` | cualquiera con token | Lo quita (al cerrar sesión). Solo los tokens propios. 204. |
 | `POST /users` | solo `admin` | Crea una cuenta `admin` o `staff` vinculada a un `firebaseUid` existente. Es la única forma de tener esos roles. |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
 | `POST /categories`, `PATCH /categories/:id` | admin, staff | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
@@ -321,6 +323,45 @@ confirma su correo, el servidor la trata como cliente común (`isVip: false`).
 
 No hace falta tocar `PromotionsService`, ni products, ni orders. El test
 `test/unit/promotions/promotion_audience_test.dart` lo muestra con una regla de prueba.
+
+### Avisos push (FCM)
+
+Al crear una promoción **VIP que ya rige** (encendida y con hoy dentro de su vigencia), el
+servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado:
+"Nueva oferta exclusiva", con el producto, el precio y hasta qué día rige, y en `data`
+`{type: vip_promotion, promotionId, productId}` para que la app abra el producto.
+
+- Usa la REST API de FCM (HTTP v1), **un mensaje por token**, nunca por topic: un topic lo puede
+  suscribir cualquiera desde el cliente.
+- Corre en segundo plano, con su propia sesión (`Serverpod.withSession`): la respuesta del
+  `POST /promotions` no espera, y si el envío falla la promoción se crea igual. Todo queda en el
+  log: el resumen (enviados, tokens inválidos borrados, fallidos) y cada fallo, con solo el
+  final del token.
+- Los tokens que FCM da por dados de baja (`UNREGISTERED`, o un 400 por `message.token`) se
+  borran. Cualquier otro error no borra nada.
+- Las piezas:
+  - `push/`: `PushSender`, `FcmPushSender` y `GoogleAccessTokens`, que firma el JWT de
+    la cuenta de servicio (RS256) y lo canjea por un access token de OAuth;
+  - `promotions/promotion_announcer.dart`: `PromotionsService` llama a
+    `PromotionAnnouncer.announce` con cada promoción que se crea y ya rige;
+  - `vip/vip_promotion_announcer.dart`: decide a quién y manda.
+- Los tokens los registra la app con `PUT /users/me/devices` (tabla `device_tokens`, varios
+  por cuenta). Si se aprueba un VIP con el correo verificado, lo sabe por `users.emailVerified`,
+  que guarda `GET /users/me`.
+
+**Configurarlo** (sin esto el servidor arranca igual y lo dice en el log: "Aviso push
+desactivado"):
+
+1. En Firebase: Configuración del proyecto → Cuentas de servicio → **Generar nueva clave
+   privada**. Descarga un JSON: es un secreto.
+2. Guardarlo fuera del repo, o en `config/` con un nombre que git ignora (p. ej.
+   `config/firebase_service_account_key.json`, o el nombre que pone Firebase,
+   `*-firebase-adminsdk-*.json`).
+3. En `config/passwords.yaml`, en la sección del modo (p. ej. `development:`):
+   `fcmServiceAccountFile: 'config/firebase_service_account_key.json'` (o la variable de
+   entorno `FCM_SERVICE_ACCOUNT_FILE`).
+4. Reiniciar el servidor. Si el proyecto de la cuenta no es el de `firebaseProjectId`, lo
+   avisa al arrancar.
 
 Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}` (y `isVip` en
 `/users/me`). Errores comunes a
