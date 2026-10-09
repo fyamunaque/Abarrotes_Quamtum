@@ -83,7 +83,11 @@ void run(List<String> args) async {
     ),
     ...promotionsRoutes(promotions, verifier, shoppers: shoppers),
     ...inventoryRoutes(const InventoryService(), stockAlerts, verifier),
-    ...ordersRoutes(OrdersService(), verifier),
+    ...ordersRoutes(
+      OrdersService(pricing: promotions),
+      verifier,
+      shoppers: shoppers,
+    ),
     ...vipRoutes(vips, verifier),
     // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
     // la clase que se pasa aquí.

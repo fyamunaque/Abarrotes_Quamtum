@@ -1,5 +1,6 @@
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
 import 'package:abarrotes_server/src/common/http_json.dart';
+import 'package:abarrotes_server/src/common/shopper.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/orders/orders_routes.dart';
 import 'package:abarrotes_server/src/orders/orders_service.dart';
@@ -7,6 +8,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -92,7 +94,11 @@ void main() {
       session = sessionBuilder.build();
       final server = await serveRoutes(
         () => session,
-        ordersRoutes(OrdersService(now: () => testNow), testVerifier(google)),
+        ordersRoutes(
+          OrdersService(pricing: testPromotions(), now: () => testNow),
+          testVerifier(google),
+          shoppers: testShoppers,
+        ),
       );
       client = TestClient(server, google);
       addTearDown(server.close);
@@ -354,6 +360,7 @@ void main() {
         expect(order['customerId'], shop.customer.id.toString());
         expect(order['deliveryAddress'], 'Av. Arequipa 123, Lince');
         expect(order['total'], '12.3'); // 2 × 3.90 + 4.50
+        expect(order['priceChanges'], isEmpty);
         expect(order, isNot(contains('customer')));
         expect(
           [
@@ -379,6 +386,114 @@ void main() {
                 'Pedido ${order['id']}',
               ),
           ]),
+        );
+      });
+
+      group('según el cliente', () {
+        setUp(() async {
+          // Arroz: 3.90 para todos y 3.50 para VIPs.
+          for (final (cents, audience) in [
+            (390, PromotionAudience.everyone),
+            (350, PromotionAudience.vip),
+          ]) {
+            await Promotion.db.insertRow(
+              session,
+              Promotion(
+                productId: shop.arroz.id!,
+                promoPriceCents: cents,
+                startDate: testNow.subtract(const Duration(days: 1)),
+                endDate: testNow.add(const Duration(days: 1)),
+                audience: audience,
+              ),
+            );
+          }
+          await insertUser(session, 'uid-vip', UserRole.customer);
+          await insertVips(session, shop.staff, ['vip@tienda.pe']);
+        });
+
+        Future<String> arrozPriceFor(
+          String uid, {
+          String? email,
+          bool emailVerified = true,
+        }) async {
+          final (status, order) = await client.post(
+            '/orders',
+            body([(shop.arroz, 1)]),
+            as: uid,
+            email: email,
+            emailVerified: emailVerified,
+          );
+          expect(status, 201);
+          return order['items'][0]['unitPrice'] as String;
+        }
+
+        test('un VIP paga el precio VIP y los demás el de todos', () async {
+          expect(await arrozPriceFor('uid-vip', email: 'vip@tienda.pe'), '3.5');
+          expect(await arrozPriceFor('uid-cliente'), '3.9');
+          expect(
+            await arrozPriceFor(
+              'uid-vip',
+              email: 'vip@tienda.pe',
+              emailVerified: false,
+            ),
+            '3.9',
+          );
+        });
+
+        test(
+          'el unitPrice del carrito nunca se cobra: si difiere, va en '
+          'priceChanges',
+          () async {
+            final (status, order) = await place({
+              'deliveryAddress': 'Av. Arequipa 123',
+              'items': [
+                // El carrito mostraba el precio VIP, pero no lo es.
+                {
+                  'productId': shop.arroz.id.toString(),
+                  'quantity': 2,
+                  'unitPrice': 3.5,
+                },
+                {
+                  'productId': shop.aceite.id.toString(),
+                  'quantity': 1,
+                  'unitPrice': '4.50',
+                },
+              ],
+            });
+
+            expect(status, 400);
+            expect(order['message'], [
+              'items[1].unitPrice debe ser un número con 2 decimales como '
+                  'máximo',
+            ]);
+
+            final (created, placed) = await place({
+              'deliveryAddress': 'Av. Arequipa 123',
+              'items': [
+                {
+                  'productId': shop.arroz.id.toString(),
+                  'quantity': 2,
+                  'unitPrice': 3.5,
+                },
+                {
+                  'productId': shop.aceite.id.toString(),
+                  'quantity': 1,
+                  'unitPrice': 4.5,
+                },
+              ],
+            });
+
+            expect(created, 201);
+            expect(placed['total'], '12.3'); // 2 × 3.90 + 4.50
+            expect(placed['priceChanges'], [
+              {
+                'productId': shop.arroz.id.toString(),
+                'name': 'Arroz',
+                'shownUnitPrice': '3.5',
+                'unitPrice': '3.9',
+              },
+            ]);
+          },
         );
       });
 
@@ -458,12 +573,12 @@ void main() {
               'items': [
                 {'productId': arroz, 'quantity': 0},
                 {'productId': 'no-es-uuid', 'quantity': 1000},
-                {'productId': arroz, 'quantity': 1, 'unitPrice': '0.1'},
+                {'productId': arroz, 'quantity': 1, 'price': 0.1},
               ],
             }),
             [
               'La propiedad total no está permitida',
-              'La propiedad items[2].unitPrice no está permitida',
+              'La propiedad items[2].price no está permitida',
               'items[0].quantity debe estar entre 1 y 999',
               'items[1].productId debe ser un UUID',
               'items[1].quantity debe estar entre 1 y 999',
@@ -559,7 +674,7 @@ void main() {
           await shop.setUp();
           final order = await shop.order();
 
-          Future<Object> cancel() => OrdersService()
+          Future<Object> cancel() => OrdersService(pricing: testPromotions())
               .changeStatus(
                 sessionBuilder.build(),
                 order.id!,
@@ -594,15 +709,22 @@ void main() {
           final shop = _Shop(sessionBuilder.build());
           await shop.setUp();
 
-          Future<Object> place() => OrdersService()
+          Future<Object> place() => OrdersService(pricing: testPromotions())
               .create(
                 sessionBuilder.build(),
                 customer: shop.customer,
+                shopper: Shopper.anonymous,
                 deliveryAddress: 'Av. Arequipa 123',
-                lines: [(productId: shop.aceite.id!, quantity: 2)],
+                lines: [
+                  (
+                    productId: shop.aceite.id!,
+                    quantity: 2,
+                    shownUnitPriceCents: null,
+                  ),
+                ],
               )
               .then<Object>(
-                (order) => order.status.name,
+                (placed) => placed.order.status.name,
                 onError: (Object e) => e is ApiException ? e.message : e,
               );
 
