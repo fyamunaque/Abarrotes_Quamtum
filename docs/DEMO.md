@@ -135,9 +135,34 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 | Para que… | Cómo | Qué hace falta |
 |---|---|---|
 | alguien la vea | Compartir pantalla (Meet, Zoom) y seguir el guion | Nada más |
+| mostrarla en tu teléfono Android | El teléfono por cable USB (abajo) | La depuración USB activada y tu servidor corriendo |
 | la pruebe en su Android, cerca tuyo | Un APK que apunta a tu computadora (abajo) | Los dos en la misma Wi-Fi y tu servidor corriendo |
 | la pruebe desde otro lugar, en iPhone o en su navegador | Publicar el servidor y la web en internet | Un hosting (el objetivo del roadmap es Railway o Render, y Vercel): todavía no está |
 | un desarrollador la levante | Clonar el repositorio (ver "En otra computadora") | Las herramientas de esa sección |
+
+### Tu teléfono Android por cable USB
+
+Lo más estable para una demo: el teléfono llega al servidor por el mismo cable, sin depender de la
+Wi-Fi, la IP ni el firewall. `adb` está en `%LOCALAPPDATA%\Android\Sdk\platform-tools`.
+
+1. **En el teléfono:** **Ajustes → Acerca del teléfono**, tocar 7 veces **Número de compilación**;
+   después, en **Opciones de desarrollador**, activar **Depuración por USB**. Conectarlo y aceptar
+   "¿Permitir depuración por USB?".
+2. **Pasar el puerto del servidor por el cable**, cada vez que se conecta:
+
+   ```powershell
+   & "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" reverse tcp:8082 tcp:8082
+   ```
+
+3. **Compilar e instalar la app** desde `apps\client`, en release (rápida en cualquier teléfono),
+   con el servidor en `localhost`:
+
+   ```powershell
+   flutter run --release --dart-define=API_URL=http://localhost:8082
+   ```
+
+   La versión release solo permite HTTP sin cifrar hacia el propio teléfono (`localhost`), que es
+   justo lo que usa el cable; todo lo demás va por HTTPS.
 
 ### Un APK para un Android en la misma Wi-Fi
 

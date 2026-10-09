@@ -4,7 +4,7 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
-    <!-- Solo en debug: el servidor local va por HTTP (http://10.0.2.2:8082).
-         Los builds de release solo hablan HTTPS. -->
-    <application android:usesCleartextTraffic="true"/>
+    <!-- El HTTP hacia el servidor local lo permite
+         src/debug/res/xml/network_security_config.xml, que reemplaza al de
+         main: con networkSecurityConfig, Android ignora usesCleartextTraffic. -->
 </manifest>
