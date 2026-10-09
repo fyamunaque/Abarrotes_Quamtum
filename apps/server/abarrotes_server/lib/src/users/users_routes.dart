@@ -36,7 +36,7 @@ List<RouteEntry> usersRoutes(
   (
     '/users',
     RoleGuard(
-      {UserRole.admin},
+      adminRoles,
       ApiRoute(Method.post, (session, request) async {
         final input = CreateUserRequest.parse(await readJsonBody(request));
         final user = await users.createStaff(

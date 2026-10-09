@@ -10,6 +10,10 @@ import 'firebase_token_verifier.dart';
 /// Los roles internos de la tienda: el dashboard y la gestión del catálogo.
 const staffRoles = {UserRole.admin, UserRole.staff};
 
+/// Solo admin: lo que cambia quién accede a qué (cuentas del personal,
+/// clientes VIP).
+const adminRoles = {UserRole.admin};
+
 /// Cualquier cuenta de la tienda (p. ej. para hacer un pedido).
 final anyRole = Set<UserRole>.unmodifiable(UserRole.values);
 

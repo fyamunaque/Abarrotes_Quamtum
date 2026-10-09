@@ -204,6 +204,39 @@ class InputReader {
     return readers;
   });
 
+  /// Una lista de textos (p. ej. correos), cada uno de hasta [maxLength]
+  /// caracteres. Lo que no es texto es error, con su posición: `emails[2]`.
+  List<String>? strings(
+    String field, {
+    required int maxLength,
+    int min = 0,
+    int? max,
+    bool required = true,
+  }) => _read(field, required, false, 'una lista de textos', (value) {
+    if (value is! List) return null;
+    if (value.length < min || (max != null && value.length > max)) {
+      _errors.add(
+        max == null
+            ? '${_at(field)} debe tener al menos $min '
+                  'elemento${min == 1 ? '' : 's'}'
+            : '${_at(field)} debe tener entre $min y $max elementos',
+      );
+    }
+    final texts = <String>[];
+    for (final (i, item) in value.indexed) {
+      if (item is! String) {
+        _errors.add('${_at(field)}[$i] debe ser un texto');
+      } else if (item.length > maxLength) {
+        _errors.add(
+          '${_at(field)}[$i] admite como máximo $maxLength caracteres',
+        );
+      } else {
+        texts.add(item);
+      }
+    }
+    return texts;
+  });
+
   /// Uno de los [options] por nombre.
   T? oneOf<T extends Enum>(
     String field,

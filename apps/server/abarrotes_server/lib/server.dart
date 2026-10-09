@@ -25,6 +25,8 @@ import 'src/stats/providers/sales_report_provider.dart';
 import 'src/stats/providers/top_products_report_provider.dart';
 import 'src/stats/stats_routes.dart';
 import 'src/users/users_routes.dart';
+import 'src/vip/vip_routes.dart';
+import 'src/vip/vip_service.dart';
 
 /// The starting point of the Serverpod server.
 void run(List<String> args) async {
@@ -67,6 +69,7 @@ void run(List<String> args) async {
     ...promotionsRoutes(PromotionsService(), verifier),
     ...inventoryRoutes(const InventoryService(), stockAlerts, verifier),
     ...ordersRoutes(OrdersService(), verifier),
+    ...vipRoutes(const VipService(), verifier),
     // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
     // la clase que se pasa aquí.
     ...statsRoutes(
