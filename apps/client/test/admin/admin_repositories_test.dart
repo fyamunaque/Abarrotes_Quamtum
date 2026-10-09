@@ -394,6 +394,33 @@ void main() {
       expect((oil.priceCents, oil.promoPriceCents), (1090, 890));
       expect(oil.discountPercent, 18);
       expect(oil.status, PromotionStatus.active);
+      // Sin audience (un servidor anterior), es para todos.
+      expect(oil.audience, PromotionAudience.everyone);
+      expect(oil.title, isNull);
+    });
+
+    test('la audiencia y el título', () async {
+      final promotions = await HttpPromotionsRepository(
+        api(
+          (_) => page([
+            {...promotion, 'audience': 'vip', 'title': 'Semana VIP'},
+          ]),
+        ),
+      ).list();
+
+      final vip = promotions.items.single;
+      expect(vip.vipOnly, isTrue);
+      expect(vip.title, 'Semana VIP');
+      await expectLater(
+        HttpPromotionsRepository(
+          api(
+            (_) => page([
+              {...promotion, 'audience': 'mayoristas'},
+            ]),
+          ),
+        ).list(),
+        throwsA(isA<ApiFailure>()),
+      );
     });
 
     test('crear lleva el producto; editar, no; eliminar es DELETE', () async {
@@ -414,6 +441,8 @@ void main() {
         'startDate': '2026-10-04',
         'endDate': '2026-11-02',
         'active': true,
+        'audience': 'everyone',
+        'title': null,
       });
 
       await repository.update(
@@ -423,10 +452,14 @@ void main() {
           startDate: '2026-10-04',
           endDate: '2026-11-02',
           active: false,
+          audience: PromotionAudience.vip,
+          title: 'Semana VIP',
         ),
       );
       expect(sent.last.method, 'PATCH');
       expect(jsonDecode(sent.last.body), isNot(contains('productId')));
+      expect(jsonDecode(sent.last.body), containsPair('audience', 'vip'));
+      expect(jsonDecode(sent.last.body), containsPair('title', 'Semana VIP'));
 
       await repository.delete('pr-1');
       expect(sent.last.method, 'DELETE');

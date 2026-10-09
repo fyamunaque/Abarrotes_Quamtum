@@ -329,8 +329,8 @@ class FakeInventoryRepository implements InventoryRepository {
 }
 
 /// Las promociones en memoria, como el servidor: el precio menor que el
-/// normal (400), sin cruzarse con otra encendida del mismo producto (409) y
-/// el estado calculado con [today].
+/// normal (400), sin cruzarse con otra encendida del mismo producto y la
+/// misma audiencia (409) y el estado calculado con [today].
 class FakePromotionsRepository implements PromotionsRepository {
   FakePromotionsRepository(
     List<Promotion> promotions, {
@@ -424,6 +424,8 @@ class FakePromotionsRepository implements PromotionsRepository {
     startDate: input.startDate,
     endDate: input.endDate,
     active: input.active,
+    audience: input.audience,
+    title: input.title,
     status: !input.active
         ? PromotionStatus.disabled
         : today.compareTo(input.startDate) < 0
@@ -446,10 +448,12 @@ class FakePromotionsRepository implements PromotionsRepository {
       if (other.id != id &&
           other.active &&
           other.productId == promotion.productId &&
+          other.audience == promotion.audience &&
           other.startDate.compareTo(promotion.endDate) <= 0 &&
           other.endDate.compareTo(promotion.startDate) >= 0) {
         throw ApiFailure(
-          '${promotion.productName} ya tiene una promoción del '
+          '${promotion.productName} ya tiene una promoción'
+          '${promotion.vipOnly ? ' VIP' : ''} del '
           '${other.startDate} al ${other.endDate} que se cruza con esas fechas',
           status: 409,
         );

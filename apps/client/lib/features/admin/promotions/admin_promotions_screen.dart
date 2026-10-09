@@ -12,10 +12,12 @@ import '../shared/admin_table.dart';
 import '../shared/filter_chips.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
+import '../shared/vip_badge.dart';
 import 'promotion_form.dart';
 
 /// Las promociones, filtradas por estado: crear, editar (precio, fechas,
-/// encendida) y eliminar.
+/// encendida, título y audiencia) y eliminar. Las exclusivas de los clientes
+/// VIP llevan la insignia VIP.
 class AdminPromotionsScreen extends ConsumerStatefulWidget {
   const AdminPromotionsScreen({super.key});
 
@@ -89,10 +91,15 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
             ),
           ],
           rowKey: (p) => p.id,
-          rowLabel: (p) =>
-              '${p.productName}, de ${formatSoles(p.priceCents)} a '
-              '${formatSoles(p.promoPriceCents)}, ${p.discountPercent} % menos, '
-              '${period(p)}, ${p.status.label}',
+          rowLabel: (p) => [
+            p.productName,
+            ?p.title,
+            if (p.vipOnly) 'solo clientes VIP',
+            'de ${formatSoles(p.priceCents)} a ${formatSoles(p.promoPriceCents)}',
+            '${p.discountPercent} % menos',
+            period(p),
+            p.status.label,
+          ].join(', '),
           onRowTap: (p) => _open(promotion: p),
           onPage: (page) => ref.read(provider.notifier).goTo(page),
           onRetry: () => ref.invalidate(provider),
@@ -126,9 +133,17 @@ class _ProductCell extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(promotion.productName),
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(promotion.productName),
+            if (promotion.vipOnly) const VipBadge(),
+          ],
+        ),
         Text(
-          promotion.sku,
+          [?promotion.title, promotion.sku].join(' · '),
           style: theme.textTheme.bodySmall?.copyWith(
             color: theme.colorScheme.onSurfaceVariant,
           ),
