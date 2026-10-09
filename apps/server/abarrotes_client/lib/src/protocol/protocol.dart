@@ -1,0 +1,320 @@
+/* AUTOMATICALLY GENERATED CODE DO NOT MODIFY */
+/*   To generate run: "serverpod generate"    */
+
+// ignore_for_file: implementation_imports
+// ignore_for_file: library_private_types_in_public_api
+// ignore_for_file: non_constant_identifier_names
+// ignore_for_file: public_member_api_docs
+// ignore_for_file: type_literal_in_constant_pattern
+// ignore_for_file: use_super_parameters
+// ignore_for_file: invalid_use_of_internal_member
+// ignore_for_file: dead_code, unnecessary_type_check
+
+// ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:serverpod_client/serverpod_client.dart' as _isc;
+import 'categories/category.dart' as _iwxpkdmg;
+import 'inventory/inventory_movement.dart' as _i976ojya;
+import 'inventory/movement_type.dart' as _i0rwgybl;
+import 'orders/order.dart' as _ia2sbmwd;
+import 'orders/order_item.dart' as _is46w9g4;
+import 'orders/order_status.dart' as _ishke5og;
+import 'products/product.dart' as _io8c7sps;
+import 'promotions/promotion.dart' as _i8z66r5b;
+import 'supplies/supply.dart' as _iae274dd;
+import 'users/user.dart' as _ih6cb19o;
+import 'users/user_role.dart' as _iyk67ys5;
+export 'categories/category.dart';
+export 'inventory/inventory_movement.dart';
+export 'inventory/movement_type.dart';
+export 'orders/order.dart';
+export 'orders/order_item.dart';
+export 'orders/order_status.dart';
+export 'products/product.dart';
+export 'promotions/promotion.dart';
+export 'supplies/supply.dart';
+export 'users/user.dart';
+export 'users/user_role.dart';
+export 'client.dart';
+
+class Protocol extends _isc.SerializationManager {
+  Protocol._();
+
+  factory Protocol() => _instance;
+
+  static final Protocol _instance = Protocol._();
+
+  static String? getClassNameFromObjectJson(dynamic data) {
+    if (data is! Map) return null;
+    final className = data['__className__'] as String?;
+    return className;
+  }
+
+  @override
+  T deserialize<T>(
+    dynamic data, [
+    Type? t,
+  ]) {
+    t ??= T;
+
+    final dataClassName = getClassNameFromObjectJson(data);
+    if (dataClassName != null && dataClassName != getClassNameForType(t)) {
+      try {
+        return deserializeByClassName({
+          'className': dataClassName,
+          'data': data,
+        });
+      } on _isc.DeserializationClassNameNotFoundException catch (_) {
+        // If the className is not recognized (e.g., older client receiving
+        // data with a new subtype), fall back to deserializing without the
+        // className, using the expected type T.
+      }
+    }
+
+    if (t == _iwxpkdmg.Category) {
+      return _iwxpkdmg.Category.fromJson(data) as T;
+    }
+    if (t == _i976ojya.InventoryMovement) {
+      return _i976ojya.InventoryMovement.fromJson(data) as T;
+    }
+    if (t == _i0rwgybl.MovementType) {
+      return _i0rwgybl.MovementType.fromJson(data) as T;
+    }
+    if (t == _ia2sbmwd.Order) {
+      return _ia2sbmwd.Order.fromJson(data) as T;
+    }
+    if (t == _is46w9g4.OrderItem) {
+      return _is46w9g4.OrderItem.fromJson(data) as T;
+    }
+    if (t == _ishke5og.OrderStatus) {
+      return _ishke5og.OrderStatus.fromJson(data) as T;
+    }
+    if (t == _io8c7sps.Product) {
+      return _io8c7sps.Product.fromJson(data) as T;
+    }
+    if (t == _i8z66r5b.Promotion) {
+      return _i8z66r5b.Promotion.fromJson(data) as T;
+    }
+    if (t == _iae274dd.Supply) {
+      return _iae274dd.Supply.fromJson(data) as T;
+    }
+    if (t == _ih6cb19o.User) {
+      return _ih6cb19o.User.fromJson(data) as T;
+    }
+    if (t == _iyk67ys5.UserRole) {
+      return _iyk67ys5.UserRole.fromJson(data) as T;
+    }
+    if (t == _isc.getType<_iwxpkdmg.Category?>()) {
+      return (data != null ? _iwxpkdmg.Category.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_i976ojya.InventoryMovement?>()) {
+      return (data != null ? _i976ojya.InventoryMovement.fromJson(data) : null)
+          as T;
+    }
+    if (t == _isc.getType<_i0rwgybl.MovementType?>()) {
+      return (data != null ? _i0rwgybl.MovementType.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ia2sbmwd.Order?>()) {
+      return (data != null ? _ia2sbmwd.Order.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_is46w9g4.OrderItem?>()) {
+      return (data != null ? _is46w9g4.OrderItem.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ishke5og.OrderStatus?>()) {
+      return (data != null ? _ishke5og.OrderStatus.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_io8c7sps.Product?>()) {
+      return (data != null ? _io8c7sps.Product.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_i8z66r5b.Promotion?>()) {
+      return (data != null ? _i8z66r5b.Promotion.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_iae274dd.Supply?>()) {
+      return (data != null ? _iae274dd.Supply.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ih6cb19o.User?>()) {
+      return (data != null ? _ih6cb19o.User.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_iyk67ys5.UserRole?>()) {
+      return (data != null ? _iyk67ys5.UserRole.fromJson(data) : null) as T;
+    }
+    if (t == List<_io8c7sps.Product>) {
+      return (data as List)
+              .map((e) => deserialize<_io8c7sps.Product>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_io8c7sps.Product>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_io8c7sps.Product>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_is46w9g4.OrderItem>) {
+      return (data as List)
+              .map((e) => deserialize<_is46w9g4.OrderItem>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_is46w9g4.OrderItem>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_is46w9g4.OrderItem>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_i976ojya.InventoryMovement>) {
+      return (data as List)
+              .map((e) => deserialize<_i976ojya.InventoryMovement>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_i976ojya.InventoryMovement>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_i976ojya.InventoryMovement>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_i8z66r5b.Promotion>) {
+      return (data as List)
+              .map((e) => deserialize<_i8z66r5b.Promotion>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_i8z66r5b.Promotion>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_i8z66r5b.Promotion>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_ia2sbmwd.Order>) {
+      return (data as List).map((e) => deserialize<_ia2sbmwd.Order>(e)).toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_ia2sbmwd.Order>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_ia2sbmwd.Order>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    return super.deserialize<T>(data, t);
+  }
+
+  static String? getClassNameForType(Type type) {
+    return switch (type) {
+      _iwxpkdmg.Category => 'Category',
+      _i976ojya.InventoryMovement => 'InventoryMovement',
+      _i0rwgybl.MovementType => 'MovementType',
+      _ia2sbmwd.Order => 'Order',
+      _is46w9g4.OrderItem => 'OrderItem',
+      _ishke5og.OrderStatus => 'OrderStatus',
+      _io8c7sps.Product => 'Product',
+      _i8z66r5b.Promotion => 'Promotion',
+      _iae274dd.Supply => 'Supply',
+      _ih6cb19o.User => 'User',
+      _iyk67ys5.UserRole => 'UserRole',
+      _ => null,
+    };
+  }
+
+  @override
+  String? getClassNameForObject(Object? data) {
+    String? className = super.getClassNameForObject(data);
+    if (className != null) return className;
+
+    if (data is Map<String, dynamic> && data['__className__'] is String) {
+      return (data['__className__'] as String).replaceFirst('abarrotes.', '');
+    }
+
+    switch (data) {
+      case _iwxpkdmg.Category():
+        return 'Category';
+      case _i976ojya.InventoryMovement():
+        return 'InventoryMovement';
+      case _i0rwgybl.MovementType():
+        return 'MovementType';
+      case _ia2sbmwd.Order():
+        return 'Order';
+      case _is46w9g4.OrderItem():
+        return 'OrderItem';
+      case _ishke5og.OrderStatus():
+        return 'OrderStatus';
+      case _io8c7sps.Product():
+        return 'Product';
+      case _i8z66r5b.Promotion():
+        return 'Promotion';
+      case _iae274dd.Supply():
+        return 'Supply';
+      case _ih6cb19o.User():
+        return 'User';
+      case _iyk67ys5.UserRole():
+        return 'UserRole';
+    }
+    return null;
+  }
+
+  @override
+  dynamic deserializeByClassName(Map<String, dynamic> data) {
+    var dataClassName = data['className'];
+    if (dataClassName is! String) {
+      return super.deserializeByClassName(data);
+    }
+    if (dataClassName == 'Category') {
+      return deserialize<_iwxpkdmg.Category>(data['data']);
+    }
+    if (dataClassName == 'InventoryMovement') {
+      return deserialize<_i976ojya.InventoryMovement>(data['data']);
+    }
+    if (dataClassName == 'MovementType') {
+      return deserialize<_i0rwgybl.MovementType>(data['data']);
+    }
+    if (dataClassName == 'Order') {
+      return deserialize<_ia2sbmwd.Order>(data['data']);
+    }
+    if (dataClassName == 'OrderItem') {
+      return deserialize<_is46w9g4.OrderItem>(data['data']);
+    }
+    if (dataClassName == 'OrderStatus') {
+      return deserialize<_ishke5og.OrderStatus>(data['data']);
+    }
+    if (dataClassName == 'Product') {
+      return deserialize<_io8c7sps.Product>(data['data']);
+    }
+    if (dataClassName == 'Promotion') {
+      return deserialize<_i8z66r5b.Promotion>(data['data']);
+    }
+    if (dataClassName == 'Supply') {
+      return deserialize<_iae274dd.Supply>(data['data']);
+    }
+    if (dataClassName == 'User') {
+      return deserialize<_ih6cb19o.User>(data['data']);
+    }
+    if (dataClassName == 'UserRole') {
+      return deserialize<_iyk67ys5.UserRole>(data['data']);
+    }
+    return super.deserializeByClassName(data);
+  }
+
+  @override
+  String getModuleName() => 'abarrotes';
+
+  /// Maps any `Record`s known to this [Protocol] to their JSON representation
+  ///
+  /// Throws in case the record type is not known.
+  ///
+  /// This method will return `null` (only) for `null` inputs.
+  Map<String, dynamic>? mapRecordToJson(Record? record) {
+    if (record == null) {
+      return null;
+    }
+    throw Exception('Unsupported record type ${record.runtimeType}');
+  }
+}

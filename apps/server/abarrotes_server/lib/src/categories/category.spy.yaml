@@ -1,0 +1,10 @@
+class: Category
+table: categories
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  name: String
+  products: List<Product>?, relation(name=category_products)
+indexes:
+  categories_name_idx:
+    fields: name
+    unique: true

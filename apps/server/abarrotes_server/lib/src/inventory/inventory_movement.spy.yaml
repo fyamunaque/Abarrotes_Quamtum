@@ -1,0 +1,11 @@
+class: InventoryMovement
+table: inventory_movements
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  type: MovementType
+  quantity: int
+  reason: String?
+  createdAt: DateTime, default=now
+  product: Product?, relation(name=product_inventory_movements, onDelete=Restrict, onUpdate=Cascade)
+  ### Quién lo originó: el cliente que hizo el pedido o el staff que lo canceló.
+  user: User?, relation(name=user_inventory_movements, onDelete=Restrict, onUpdate=Cascade)

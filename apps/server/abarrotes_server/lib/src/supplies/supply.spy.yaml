@@ -1,0 +1,10 @@
+### Insumo de la tienda (bolsas, envases...): no se vende en el catálogo.
+class: Supply
+table: supplies
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  name: String
+  unit: String
+  quantity: int, default=0
+  minQuantity: int, default=0
+  createdAt: DateTime, default=now

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release: todo por HTTPS, salvo el propio teléfono (localhost), que solo
+     existe con `adb reverse tcp:8082 tcp:8082`: así una demo por cable USB
+     llega al servidor local sin abrir HTTP hacia la red. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

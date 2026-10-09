@@ -1,8 +1,8 @@
-node_modules/
-dist/
-coverage/
-*.tsbuildinfo
+# Configuración local del editor y de Claude Code.
+.idea/
+.claude/launch.json
+.claude/settings.local.json
 
+# Secretos locales.
 .env
 .env.*
-!.env.example

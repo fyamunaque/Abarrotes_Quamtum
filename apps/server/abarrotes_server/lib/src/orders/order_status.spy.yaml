@@ -1,0 +1,9 @@
+### Enum fijo (CLAUDE.md): no agregar estados sin actualizar los tres frontends.
+enum: OrderStatus
+serialized: byName
+values:
+  - pendingConfirmation
+  - confirmed
+  - outForDelivery
+  - delivered
+  - cancelled

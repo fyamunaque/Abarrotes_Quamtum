@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Solo en builds debug: permite HTTP sin TLS para hablar con la API local.
-     La build release usa la configuración por defecto (solo HTTPS). -->
-<network-security-config>
-    <base-config cleartextTrafficPermitted="true" />
-</network-security-config>

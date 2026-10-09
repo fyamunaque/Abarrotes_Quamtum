@@ -1,0 +1,13 @@
+class: Order
+table: orders
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  status: OrderStatus, default=pendingConfirmation
+  ### Total en céntimos.
+  totalCents: int
+  deliveryAddress: String
+  createdAt: DateTime, default=now
+  ### Serverpod no tiene @updatedAt: lo actualiza quien modifica el pedido.
+  updatedAt: DateTime, default=now
+  customer: User?, relation(name=user_orders, onDelete=Restrict, onUpdate=Cascade)
+  items: List<OrderItem>?, relation(name=order_items)

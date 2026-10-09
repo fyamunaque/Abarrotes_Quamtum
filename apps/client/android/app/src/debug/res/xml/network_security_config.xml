@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug: el servidor local va por HTTP desde el emulador (10.0.2.2), un
+     teléfono en la Wi-Fi (192.168.x.x) o por cable (localhost). Reemplaza al
+     de main, que solo permite localhost. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

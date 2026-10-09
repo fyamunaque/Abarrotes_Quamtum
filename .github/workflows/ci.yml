@@ -15,8 +15,8 @@ permissions:
   contents: read
 
 jobs:
-  api:
-    name: API
+  server:
+    name: Server (Serverpod)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     services:
@@ -26,7 +26,7 @@ jobs:
         env:
           POSTGRES_USER: abarrotes
           POSTGRES_PASSWORD: abarrotes-ci
-          POSTGRES_DB: abarrotes
+          POSTGRES_DB: abarrotes_server
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U abarrotes"
@@ -34,72 +34,73 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      # Valores de prueba, no secretos: la base y los tokens se descartan al terminar.
-      DATABASE_URL: postgresql://abarrotes:abarrotes-ci@localhost:5432/abarrotes?schema=public
-      JWT_ACCESS_SECRET: ci-access-secret
-      JWT_REFRESH_SECRET: ci-refresh-secret
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - name: Tipos compartidos
-        run: npm run typecheck -w packages/shared-types
-      - name: Lint
-        run: npm run lint -w apps/api
-      - name: Typecheck
-        working-directory: apps/api
-        run: npx tsc --noEmit -p tsconfig.json
-      - name: Tests unitarios
-        run: npm test -w apps/api
-      - name: Tests e2e
-        run: npm run test:e2e -w apps/api
-      - name: Build
-        run: npm run build -w apps/api
-      - name: Migraciones y seed sobre una base vacía
-        working-directory: apps/api
-        run: |
-          npx prisma migrate deploy
-          npx prisma db seed
-
-  web:
-    name: Web
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      NEXT_TELEMETRY_DISABLED: '1'
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 24
-          cache: npm
-      - run: npm ci
-      - name: Typecheck
-        run: npm run typecheck -w apps/web
-      - name: Lint
-        run: npm run lint -w apps/web
-      - name: Tests
-        run: npm test -w apps/web
-      - name: Build
-        run: npm run build -w apps/web
-
-  android:
-    name: Android
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+      # Valores de prueba, no secretos: reemplazan a config/passwords.yaml.
+      SERVERPOD_PASSWORD_database: abarrotes-ci
+      SERVERPOD_PASSWORD_serviceSecret: ci-service-secret
+      FIREBASE_PROJECT_ID: demo-abarrotes-ci
     defaults:
       run:
-        working-directory: apps/android
+        working-directory: apps/server/abarrotes_server
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-java@v6
+      - uses: dart-lang/setup-dart@v1
         with:
-          distribution: temurin
-          java-version: 21
-      # Cachea Gradle y dependencias entre ejecuciones.
-      - uses: gradle/actions/setup-gradle@v6
-      - name: Tests unitarios y APK debug
-        run: ./gradlew testDebugUnitTest assembleDebug --console=plain
+          sdk: 3.13.5
+      - run: dart pub get
+      - name: Formato
+        run: dart format --output=none --set-exit-if-changed lib bin test
+      - name: Análisis
+        run: dart analyze --fatal-infos
+      # Los de integración crean y borran una base temporal por grupo.
+      - name: Tests unitarios y de integración
+        run: dart test
+      - name: Migraciones sobre una base vacía y arranque del servidor
+        run: |
+          dart run bin/main.dart --role maintenance --apply-migrations
+          dart run bin/main.dart > server.log 2>&1 &
+          for i in $(seq 1 90); do
+            curl -s -o /dev/null http://localhost:8082/users/me && break
+            sleep 1
+          done
+          expect() {
+            local want=$1; shift
+            local got; got=$(curl -s -o /dev/null -w '%{http_code}' "$@" || true)
+            [ "$got" = "$want" ] || { echo "$* -> $got (esperaba $want)"; cat server.log; exit 1; }
+          }
+          api=http://localhost:8082
+          expect 401 "$api/users/me"
+          expect 401 -H 'Authorization: Bearer basura' "$api/users/me"
+          expect 200 "$api/categories"
+          expect 401 -X POST "$api/categories"
+          expect 200 "$api/products?onSale=true"
+          expect 401 "$api/promotions"
+          expect 401 -X POST "$api/inventory/movements"
+          expect 401 "$api/inventory/alerts/low-stock"
+          expect 401 "$api/orders?status=confirmed"
+          expect 401 -X PATCH "$api/orders/0199a000-0000-7000-8000-000000000000/status"
+          expect 401 "$api/stats/overview"
+          expect 401 "$api/stats/sales?from=2026-01-01&to=2026-01-31"
+
+  client:
+    name: Cliente (Flutter)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: apps/client
+    steps:
+      - uses: actions/checkout@v7
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.47.6
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - name: Formato
+        run: dart format --output=none --set-exit-if-changed lib test
+      - name: Análisis
+        run: flutter analyze --fatal-infos
+      - name: Tests
+        run: flutter test
+      - name: Build web
+        run: flutter build web

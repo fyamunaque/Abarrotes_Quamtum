@@ -1,0 +1,8 @@
+### incoming: entra stock (p. ej. al cancelar un pedido). outgoing: sale (al
+### crear un pedido). `in` es palabra reservada de Dart y no puede ser un valor.
+enum: MovementType
+serialized: byName
+values:
+  - incoming
+  - outgoing
+  - adjustment
