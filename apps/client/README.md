@@ -180,6 +180,7 @@ flutter run -d chrome   # y abrir /vitrina
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
 | `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones` y `/admin/clientes-vip` (ver "El panel") |
+| `/admin/equipo`, `/admin/roles` | Con el permiso `staff.manage` | Las personas del equipo y los roles con sus permisos |
 
 **Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
 SharedPreferences en Android, `localStorage` en la web), así que sigue ahí al recargar o volver a
@@ -203,7 +204,11 @@ servidor devolvió su perfil.
 - Al arrancar es `SessionLoading`, hasta saber si quedó una cuenta abierta. Firebase la guarda de
   forma segura en cada plataforma y renueva el ID token solo.
 - Registrarse crea la cuenta en Firebase con su nombre. Después, `GET /users/me` la crea en la
-  tienda, siempre como `customer`. Las cuentas admin y staff las crea un admin.
+  tienda, siempre como `customer`. Al equipo lo agrega por correo quien tiene `staff.manage`
+  (`/admin/equipo`).
+- El perfil trae `permissions` (`SessionUser.permissions`, el catálogo en
+  `session/staff_permission.dart`) y el nombre del rol (`staffRoleName`, que el panel muestra
+  junto al nombre). La app solo muestra u oculta con ellos: el servidor revisa cada acción.
 - Si el servidor no responde, la app cierra también la cuenta de Firebase y muestra el error: sin
   perfil no hay rol.
 - `refreshProfile` vuelve a pedir el perfil sin cerrar la sesión: al abrir el catálogo, al
@@ -234,6 +239,8 @@ servidor devolvió su perfil.
 **El guard** protege `/mis-pedidos` y `/admin`:
 - sin sesión, manda a `/login?from=...`;
 - con una cuenta de cliente, `/admin` vuelve al inicio;
+- una sección que pide un permiso (`Routes.permissionFor`: el equipo y los roles piden
+  `staff.manage`) vuelve al inicio del panel sin ese permiso;
 - mientras la sesión carga, la pantalla muestra un indicador.
 
 Si la sesión cambia (p. ej. "Salir"), el router vuelve a evaluar la ruta actual.
@@ -247,7 +254,10 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 `AdminShell` (`features/admin/admin_shell.dart`) es el layout de todas las secciones:
 - desde 840 px, la navegación es un riel a la izquierda; más angosto, una barra abajo;
 - las secciones salen del enum `AdminSection` (ruta, nombre, ícono), y el router arma una ruta
-  por cada una.
+  por cada una;
+- la navegación muestra solo las que la sesión puede abrir (`AdminSection.visibleTo`): el
+  equipo, solo con `staff.manage`. Equipo tiene dos pestañas, Personas (`/admin/equipo`) y
+  Roles (`/admin/roles`), así no suma dos destinos a la barra del teléfono.
 
 | Sección | Qué hace |
 |---|---|
@@ -257,6 +267,8 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |
 | Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Solo admin agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación. Staff ve la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
+| Equipo: Personas | Solo con `staff.manage`. El equipo por correo, con búsqueda: el rol y el estado ("Activo", "Pendiente de registro" si todavía no creó su cuenta, "Desactivado"). Agregar uno o varios correos con un mismo rol, con el mismo formulario y resumen que los VIP (un desactivado vuelve con ese rol). "Cambiar rol" y "Desactivar" (con confirmación) en cada fila, menos en la propia. Si el servidor lo rechaza (el último Administrador), el motivo sale en un aviso o en el formulario. |
+| Equipo: Roles | Solo con `staff.manage`. Los roles con cuántos permisos tienen, cuántas personas activas y si están activos. El editor es un checklist por área (Productos, Pedidos, Inventario, Promociones, Clientes VIP, Estadísticas, Equipo) con lo que permite cada permiso; marcar uno que necesita otro (cambiar el estado de los pedidos necesita verlos) marca los dos. El rol del sistema (Administrador) se abre bloqueado. Crear, editar, desactivar y borrar; un nombre repetido o un rol con personal asignado muestran el motivo del servidor. |
 
 Las piezas compartidas están en `features/admin/shared/`:
 - `AdminTable<T>`:
@@ -266,14 +278,15 @@ Las piezas compartidas están en `features/admin/shared/`:
     `etiqueta: valor`;
   - cada fila es un botón con su descripción para el lector de pantalla;
   - con `rowActions` (`AdminRowAction`), cada fila tiene además sus botones (p. ej.
-    "Quitar"), fuera de la descripción de la fila: al final en la tabla y abajo en las
-    tarjetas. Con `showFor`, una acción sale solo en las filas que la tienen.
+    "Cambiar rol" y "Desactivar"), fuera de la descripción de la fila: al final en la tabla y
+    abajo en las tarjetas. Con `showFor`, una acción sale solo en las filas que la tienen.
 - `EmailsAddForm`: agregar uno o varios correos pegados, con el resumen del servidor
-  (agregados, ya estaban, no válidos), con sus textos y un campo extra a elección. Lo usan
-  los clientes VIP.
+  (agregados, ya estaban, no válidos). Lo usan los clientes VIP y el equipo (con el rol como
+  campo extra).
 - `showAdminForm`: un formulario en un diálogo en pantallas anchas y a pantalla completa en el
   teléfono. Con `admin_form.dart` (campos de a dos, el error del servidor y los botones) y
-  `ProductPicker` (el buscador de productos con autocompletado).
+  `ProductPicker` (el buscador de productos con autocompletado). `showRejected`: el motivo
+  de una acción rechazada por el servidor, en un aviso.
 - `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
   lo avisa sin vaciar la tabla.
 - `FilterChips`, `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es
@@ -357,9 +370,10 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   - `admin_home_test.dart`: los KPI, el gráfico (30 puntos, la tabla de datos), las alertas, el
     top 5 y una tarjeta que falla sola;
   - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart`,
-    `admin_promotions_test.dart` y `admin_vip_test.dart`: filtros, formularios (validación y lo
-    que se manda), los errores del servidor (400, 403 y 409), las confirmaciones, lo que ve
-    staff y lo que ve admin, y que no se desborde en 320 y 375 px;
+    `admin_promotions_test.dart`, `admin_vip_test.dart`, `admin_team_test.dart` y
+    `admin_roles_test.dart`: filtros, formularios (validación y lo que se manda), los errores
+    del servidor (400, 403 y 409: el último Administrador, un rol con personal), las
+    confirmaciones, lo que ve staff y lo que ve admin, y que no se desborde en 320 y 375 px;
   - `emails_test.dart`: separar los correos pegados y validarlos como el servidor.
 
 Los tests de movimiento usan `MediaQueryData(disableAnimations: true)` para "reducir

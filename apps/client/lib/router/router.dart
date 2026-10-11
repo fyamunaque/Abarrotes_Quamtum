@@ -8,6 +8,8 @@ import '../features/admin/inventory/admin_inventory_screen.dart';
 import '../features/admin/orders/admin_orders_screen.dart';
 import '../features/admin/products/admin_products_screen.dart';
 import '../features/admin/promotions/admin_promotions_screen.dart';
+import '../features/admin/team/admin_roles_screen.dart';
+import '../features/admin/team/admin_team_screen.dart';
 import '../features/admin/vip/admin_vip_screen.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/register_screen.dart';
@@ -79,8 +81,13 @@ final routerProvider = Provider<GoRouter>((ref) {
                 AdminSection.inventory => const AdminInventoryScreen(),
                 AdminSection.promotions => const AdminPromotionsScreen(),
                 AdminSection.vip => const AdminVipScreen(),
+                AdminSection.team => const AdminTeamScreen(),
               },
             ),
+          GoRoute(
+            path: Routes.adminRoles,
+            builder: (_, _) => const AdminRolesScreen(),
+          ),
         ],
       ),
     ],

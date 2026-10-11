@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
+import 'package:neils/session/staff_permission.dart';
 
 /// Las fuentes salen de assets/google_fonts, como en la app: sin red.
 ///
@@ -44,12 +45,23 @@ void useWideScreen(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
+/// Una cuenta de [role], con los permisos que le corresponden como los
+/// deriva el servidor: admin los tiene todos; staff, todos menos
+/// `staff.manage`.
 SignedIn signedInAs(UserRole role) => SignedIn(
   SessionUser(
     id: 'u-${role.name}',
     name: 'Ana ${role.name}',
     email: '${role.name}@tienda.pe',
     role: role,
+    permissions: switch (role) {
+      UserRole.admin => StaffPermission.values.toSet(),
+      UserRole.staff => {
+        for (final permission in StaffPermission.values)
+          if (permission != StaffPermission.staffManage) permission,
+      },
+      UserRole.customer => const {},
+    },
   ),
 );
 

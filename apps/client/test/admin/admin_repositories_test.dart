@@ -10,10 +10,13 @@ import 'package:neils/admin/products/admin_products_repository.dart';
 import 'package:neils/admin/products/product_input.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
+import 'package:neils/admin/staff/staff.dart';
+import 'package:neils/admin/staff/staff_repository.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
 import 'package:neils/admin/vip/vip_repository.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/orders/order_status.dart';
+import 'package:neils/session/staff_permission.dart';
 
 /// Los repositorios del panel contra el JSON que manda el servidor (los
 /// `*Json` de apps/server), con un cliente HTTP simulado.
@@ -547,6 +550,169 @@ void main() {
             'message',
             'Tu rol no tiene permiso para esta acción',
           ),
+        ),
+      );
+    });
+  });
+
+  group('equipo y roles', () {
+    const member = {
+      'id': 'm-1',
+      'email': 'ana@gmail.com',
+      'active': true,
+      'createdAt': '2026-10-09T15:30:00.000Z',
+      'hasAccount': false,
+      'role': {'id': 'r-cajera', 'name': 'Cajera'},
+      'addedBy': {'id': 'u-1', 'name': 'Frank', 'email': 'frank@tienda.pe'},
+    };
+    const cajera = {
+      'id': 'r-cajera',
+      'name': 'Cajera',
+      'permissions': ['products.view', 'orders.view', 'otro.nuevo'],
+      'isSystem': false,
+      'active': true,
+      'members': 2,
+      'createdAt': '2026-10-01T10:00:00.000Z',
+    };
+
+    test('el equipo con los desactivados, su rol y su estado', () async {
+      final repository = HttpStaffRepository(
+        api(
+          (_) => page([
+            member,
+            {...member, 'id': 'm-2', 'hasAccount': true},
+            {...member, 'id': 'm-3', 'active': false, 'role': null},
+          ], total: 3),
+        ),
+      );
+
+      final list = await repository.members(page: 2, search: ' gmail ');
+      expect(sent.single.url.path, '/staff/members');
+      expect(sent.single.url.queryParameters, {
+        'page': '2',
+        'limit': '20',
+        'includeInactive': 'true',
+        'search': 'gmail',
+      });
+      final [ana, active, off] = list.items;
+      expect(ana.email, 'ana@gmail.com');
+      expect((ana.roleId, ana.roleName), ('r-cajera', 'Cajera'));
+      expect(ana.addedByName, 'Frank');
+      expect(ana.status, StaffMemberStatus.pendingSignUp);
+      expect(active.status, StaffMemberStatus.active);
+      expect(off.status, StaffMemberStatus.deactivated);
+      expect(off.roleName, isNull);
+    });
+
+    test('agregar, cambiar el rol y desactivar', () async {
+      final summary = await HttpStaffRepository(
+        api(
+          (_) => {
+            'added': ['luis@gmail.com'],
+            'duplicates': [],
+            'invalid': ['no-es-correo'],
+          },
+        ),
+      ).addMembers(['luis@gmail.com', 'no-es-correo'], 'r-cajera');
+      expect(sent.single.method, 'POST');
+      expect(sent.single.url.path, '/staff/members');
+      expect(jsonDecode(sent.single.body), {
+        'emails': ['luis@gmail.com', 'no-es-correo'],
+        'roleId': 'r-cajera',
+      });
+      expect(summary.added, ['luis@gmail.com']);
+      expect(summary.invalid, ['no-es-correo']);
+
+      final changed = await HttpStaffRepository(
+        api(
+          (_) => {
+            ...member,
+            'role': {'id': 'r-2', 'name': 'Almacenero'},
+          },
+        ),
+      ).changeRole('m-1', 'r-2');
+      expect(sent.single.method, 'PATCH');
+      expect(sent.single.url.path, '/staff/members/m-1');
+      expect(jsonDecode(sent.single.body), {'roleId': 'r-2'});
+      expect(changed.roleName, 'Almacenero');
+
+      final off = await HttpStaffRepository(
+        api((_) => {...member, 'active': false}),
+      ).deactivate('m-1');
+      expect(sent.single.method, 'DELETE');
+      expect(sent.single.url.path, '/staff/members/m-1');
+      expect(off.status, StaffMemberStatus.deactivated);
+    });
+
+    test('los roles: los permisos que la app conoce', () async {
+      final roles = await HttpStaffRepository(
+        api(
+          (_) => {
+            'data': [
+              {
+                ...cajera,
+                'id': 'r-admin',
+                'name': 'Administrador',
+                'isSystem': true,
+              },
+              cajera,
+            ],
+          },
+        ),
+      ).roles();
+
+      expect(sent.single.url.path, '/staff/roles');
+      final [admin, role] = roles;
+      expect(admin.isSystem, isTrue);
+      expect(role.name, 'Cajera');
+      expect(role.members, 2);
+      // "otro.nuevo" es de un servidor más nuevo: no se muestra.
+      expect(role.permissions, {
+        StaffPermission.productsView,
+        StaffPermission.ordersView,
+      });
+    });
+
+    test('crear y editar mandan las claves en el orden del catálogo', () async {
+      final repository = HttpStaffRepository(api((_) => cajera));
+
+      await repository.createRole(
+        name: 'Repartidor',
+        permissions: {
+          StaffPermission.ordersUpdateStatus,
+          StaffPermission.ordersView,
+        },
+      );
+      expect(sent.single.method, 'POST');
+      expect(sent.single.url.path, '/staff/roles');
+      expect(jsonDecode(sent.single.body), {
+        'name': 'Repartidor',
+        'permissions': ['orders.view', 'orders.updateStatus'],
+      });
+
+      await repository.updateRole('r-cajera', active: false);
+      expect(sent.last.method, 'PATCH');
+      expect(sent.last.url.path, '/staff/roles/r-cajera');
+      // Solo lo que cambia.
+      expect(jsonDecode(sent.last.body), {'active': false});
+
+      await repository.deleteRole('r-cajera');
+      expect(sent.last.method, 'DELETE');
+      expect(sent.last.url.path, '/staff/roles/r-cajera');
+    });
+
+    test('un 409 llega con el motivo del servidor', () async {
+      const reason =
+          'frank@gmail.com es el último Administrador activo: agrega otro '
+          'antes de quitarle el rol';
+      await expectLater(
+        HttpStaffRepository(
+          api((_) => {'statusCode': 409, 'message': reason}, status: 409),
+        ).deactivate('m-1'),
+        throwsA(
+          isA<ApiFailure>()
+              .having((f) => f.message, 'message', reason)
+              .having((f) => f.status, 'status', 409),
         ),
       );
     });

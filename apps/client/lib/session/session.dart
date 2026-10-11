@@ -1,5 +1,11 @@
+import 'package:flutter/foundation.dart';
+
+import 'staff_permission.dart';
+
 /// Roles de una cuenta, con los mismos nombres que devuelve el servidor
-/// (`GET /users/me` en apps/server).
+/// (`GET /users/me` en apps/server, derivado de los permisos: admin con
+/// `staff.manage`, staff con algún otro). Lo fino va en
+/// [SessionUser.permissions].
 enum UserRole {
   customer,
   admin,
@@ -23,6 +29,8 @@ class SessionUser {
     this.address,
     this.isVip = false,
     this.emailVerified = true,
+    this.staffRoleName,
+    this.permissions = const {},
   });
 
   final String id;
@@ -40,6 +48,17 @@ class SessionUser {
   /// Si la persona confirmó su correo en Firebase.
   final bool emailVerified;
 
+  /// El nombre de su rol en el equipo ("Cajera"), o null si no es del
+  /// personal.
+  final String? staffRoleName;
+
+  /// Lo que puede hacer en el panel. Lo decide el servidor (vacío si no es
+  /// del personal o no verificó el correo): la app solo muestra u oculta, y
+  /// el servidor vuelve a revisar cada acción.
+  final Set<StaffPermission> permissions;
+
+  bool can(StaffPermission permission) => permissions.contains(permission);
+
   SessionUser copyWith({bool? isVip, bool? emailVerified}) => SessionUser(
     id: id,
     name: name,
@@ -48,6 +67,8 @@ class SessionUser {
     address: address,
     isVip: isVip ?? this.isVip,
     emailVerified: emailVerified ?? this.emailVerified,
+    staffRoleName: staffRoleName,
+    permissions: permissions,
   );
 
   @override
@@ -59,11 +80,22 @@ class SessionUser {
       other.role == role &&
       other.address == address &&
       other.isVip == isVip &&
-      other.emailVerified == emailVerified;
+      other.emailVerified == emailVerified &&
+      other.staffRoleName == staffRoleName &&
+      setEquals(other.permissions, permissions);
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, email, role, address, isVip, emailVerified);
+  int get hashCode => Object.hash(
+    id,
+    name,
+    email,
+    role,
+    address,
+    isVip,
+    emailVerified,
+    staffRoleName,
+    Object.hashAllUnordered(permissions),
+  );
 }
 
 /// Quién usa la app: nadie ([SignedOut]) o una cuenta ([SignedIn]). Al

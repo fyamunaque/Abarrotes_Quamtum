@@ -1,3 +1,5 @@
+import '../session/staff_permission.dart';
+
 /// Paths de la app. Los públicos van en español, como en la web.
 abstract final class Routes {
   static const home = '/';
@@ -38,6 +40,26 @@ abstract final class Routes {
   static const adminInventory = '/admin/inventario';
   static const adminPromotions = '/admin/promociones';
   static const adminVip = '/admin/clientes-vip';
+
+  /// El equipo y sus roles: solo con `staff.manage`.
+  static const adminTeam = '/admin/equipo';
+  static const adminRoles = '/admin/roles';
+
+  /// Las secciones del panel que piden un permiso además de ser del personal.
+  static const _panelPermissions = {
+    adminTeam: StaffPermission.staffManage,
+    adminRoles: StaffPermission.staffManage,
+  };
+
+  /// El permiso que pide [path] (o una de sus subrutas), o null si basta con
+  /// ser del personal.
+  static StaffPermission? permissionFor(String path) {
+    for (final MapEntry(key: section, value: permission)
+        in _panelPermissions.entries) {
+      if (path == section || path.startsWith('$section/')) return permission;
+    }
+    return null;
+  }
 
   /// Vitrina de componentes con datos de ejemplo. Solo existe en debug.
   static const showcase = '/vitrina';

@@ -47,6 +47,24 @@ void main() {
     expect(AdminSection.of('/admin/pedidos'), AdminSection.orders);
     expect(AdminSection.of('/admin/promociones/x'), AdminSection.promotions);
     expect(AdminSection.of('/admin/clientes-vip'), AdminSection.vip);
+    // Los roles son una pestaña del equipo.
+    expect(AdminSection.of('/admin/equipo'), AdminSection.team);
+    expect(AdminSection.of('/admin/roles'), AdminSection.team);
+  });
+
+  test('el equipo solo se ve con staff.manage', () {
+    expect(
+      AdminSection.visibleTo(signedInAs(UserRole.admin)),
+      AdminSection.values,
+    );
+    expect(
+      AdminSection.visibleTo(signedInAs(UserRole.staff)),
+      isNot(contains(AdminSection.team)),
+    );
+    expect(
+      AdminSection.visibleTo(const SessionLoading()),
+      isNot(contains(AdminSection.team)),
+    );
   });
 
   testWidgets('en escritorio, un riel a la izquierda con la sección marcada', (

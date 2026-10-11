@@ -9,6 +9,8 @@ import 'package:neils/admin/products/admin_products_repository.dart';
 import 'package:neils/admin/products/product_input.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
+import 'package:neils/admin/staff/staff.dart';
+import 'package:neils/admin/staff/staff_repository.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
 import 'package:neils/admin/vip/vip_customer.dart';
@@ -25,6 +27,7 @@ import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/session.dart';
+import 'package:neils/session/staff_permission.dart';
 import 'package:neils/users/user_repository.dart';
 
 const groceries = Category(id: 'cat-abarrotes', name: 'Abarrotes');
@@ -961,3 +964,250 @@ Future<void> flushEvents() async {
   }
 }
 
+/// El equipo y sus roles en memoria, con las reglas del servidor
+/// (`StaffService` y `RolesService` en apps/server): nadie se cambia el rol
+/// ni se desactiva a sí mismo ([me]); no se quita al último Administrador
+/// activo; un rol inactivo no se asigna; un rol con personal (también dado
+/// de baja) no se borra; el rol del sistema no se edita; los nombres no se
+/// repiten.
+class FakeStaffRepository implements StaffRepository {
+  FakeStaffRepository({
+    required List<StaffRole> roles,
+    required List<StaffMember> members,
+    this.me = 'admin@tienda.pe',
+    this.registered = const {},
+  }) : roleList = [...roles],
+       memberList = [...members];
+
+  final List<StaffRole> roleList;
+  final List<StaffMember> memberList;
+
+  /// El correo de quien usa el panel.
+  final String me;
+
+  /// Los correos que ya tienen cuenta (para los que se agregan).
+  final Set<String> registered;
+
+  /// Lo que se mandó al agregar: los correos y el rol.
+  final sent = <(List<String>, String)>[];
+
+  static ApiFailure _conflict(String message) =>
+      ApiFailure(message, status: 409);
+
+  StaffRole _role(String id) => roleList.firstWhere(
+    (role) => role.id == id,
+    orElse: () =>
+        throw const ApiFailure('El rol indicado no existe', status: 400),
+  );
+
+  StaffRole _assignable(String id) {
+    final role = _role(id);
+    if (!role.active) {
+      throw _conflict(
+        'El rol ${role.name} está inactivo: actívalo antes de asignarlo',
+      );
+    }
+    return role;
+  }
+
+  int _index(String id) => memberList.indexWhere((member) => member.id == id);
+
+  StaffMember _with(StaffMember member, {StaffRole? role, bool? active}) =>
+      StaffMember(
+        id: member.id,
+        email: member.email,
+        active: active ?? member.active,
+        hasAccount: member.hasAccount,
+        createdAt: member.createdAt,
+        roleId: role?.id ?? member.roleId,
+        roleName: role?.name ?? member.roleName,
+        addedByName: member.addedByName,
+      );
+
+  void _assertNotLastAdmin(StaffMember member) {
+    final role = _role(member.roleId!);
+    if (!role.isSystem) return;
+    final others = memberList.where(
+      (other) =>
+          other.active && other.roleId == role.id && other.id != member.id,
+    );
+    if (others.isEmpty) {
+      throw _conflict(
+        '${member.email} es el último ${role.name} activo: agrega otro antes '
+        'de quitarle el rol',
+      );
+    }
+  }
+
+  @override
+  Future<PageList<StaffMember>> members({
+    int page = 1,
+    String search = '',
+  }) async {
+    final query = normalizeEmail(search);
+    final matching = [
+      for (final member in memberList)
+        if (member.email.contains(query)) member,
+    ]..sort((a, b) => a.email.compareTo(b.email));
+    return PageList(
+      matching.skip((page - 1) * 20).take(20).toList(),
+      total: matching.length,
+      page: page,
+    );
+  }
+
+  @override
+  Future<EmailAddSummary> addMembers(List<String> emails, String roleId) async {
+    final role = _assignable(roleId);
+    sent.add((emails, roleId));
+    final added = <String>[];
+    final duplicates = <String>[];
+    final invalid = <String>[];
+    final seen = <String>{};
+    for (final raw in emails) {
+      final email = normalizeEmail(raw);
+      if (!isValidEmail(email)) {
+        invalid.add(raw.trim());
+        continue;
+      }
+      if (!seen.add(email)) {
+        duplicates.add(email);
+        continue;
+      }
+      final i = memberList.indexWhere((member) => member.email == email);
+      if (i >= 0 && memberList[i].active) {
+        duplicates.add(email);
+        continue;
+      }
+      if (i >= 0) {
+        memberList[i] = _with(memberList[i], role: role, active: true);
+      } else {
+        memberList.add(
+          StaffMember(
+            id: 'm-${memberList.length + 1}',
+            email: email,
+            active: true,
+            hasAccount: registered.contains(email),
+            createdAt: DateTime.utc(2026, 10, 11, 15),
+            roleId: role.id,
+            roleName: role.name,
+            addedByName: 'Ana admin',
+          ),
+        );
+      }
+      added.add(email);
+    }
+    return EmailAddSummary(
+      added: added,
+      duplicates: duplicates,
+      invalid: invalid,
+    );
+  }
+
+  @override
+  Future<StaffMember> changeRole(String memberId, String roleId) async {
+    final i = _index(memberId);
+    final member = memberList[i];
+    if (member.email == me) throw _conflict('No puedes cambiar tu propio rol');
+    final role = _assignable(roleId);
+    if (member.roleId == role.id) return member;
+    if (member.active) _assertNotLastAdmin(member);
+    return memberList[i] = _with(member, role: role);
+  }
+
+  @override
+  Future<StaffMember> deactivate(String memberId) async {
+    final i = _index(memberId);
+    final member = memberList[i];
+    if (member.email == me) {
+      throw _conflict('No puedes darte de baja a ti mismo');
+    }
+    if (!member.active) return member;
+    _assertNotLastAdmin(member);
+    return memberList[i] = _with(member, active: false);
+  }
+
+  /// Como los manda el servidor: con cuántas personas activas tiene cada uno.
+  @override
+  Future<List<StaffRole>> roles() async => [
+    for (final role in roleList)
+      StaffRole(
+        id: role.id,
+        name: role.name,
+        permissions: role.isSystem
+            ? StaffPermission.values.toSet()
+            : role.permissions,
+        isSystem: role.isSystem,
+        active: role.active,
+        members: memberList
+            .where((member) => member.active && member.roleId == role.id)
+            .length,
+      ),
+  ];
+
+  void _assertNameFree(String name, {String? except}) {
+    final taken = roleList.any(
+      (role) =>
+          role.id != except && role.name.toLowerCase() == name.toLowerCase(),
+    );
+    if (taken) throw _conflict('Ya existe un rol llamado $name');
+  }
+
+  void _assertNotSystem(StaffRole role) {
+    if (role.isSystem) {
+      throw _conflict(
+        'El rol ${role.name} es del sistema: no se edita ni se borra',
+      );
+    }
+  }
+
+  @override
+  Future<StaffRole> createRole({
+    required String name,
+    required Set<StaffPermission> permissions,
+  }) async {
+    _assertNameFree(name);
+    final role = StaffRole(
+      id: 'r-${roleList.length + 1}',
+      name: name,
+      permissions: permissions,
+    );
+    roleList.add(role);
+    return role;
+  }
+
+  @override
+  Future<StaffRole> updateRole(
+    String id, {
+    String? name,
+    Set<StaffPermission>? permissions,
+    bool? active,
+  }) async {
+    final role = _role(id);
+    _assertNotSystem(role);
+    if (name != null) _assertNameFree(name, except: id);
+    final updated = StaffRole(
+      id: id,
+      name: name ?? role.name,
+      permissions: permissions ?? role.permissions,
+      active: active ?? role.active,
+    );
+    roleList[roleList.indexOf(role)] = updated;
+    return updated;
+  }
+
+  @override
+  Future<void> deleteRole(String id) async {
+    final role = _role(id);
+    _assertNotSystem(role);
+    final members = memberList.where((member) => member.roleId == id).length;
+    if (members > 0) {
+      throw _conflict(
+        'El rol ${role.name} tiene $members '
+        '${members == 1 ? 'persona asignada' : 'personas asignadas'} '
+        '(también cuentan las dadas de baja): cámbiales el rol antes',
+      );
+    }
+    roleList.remove(role);
+  }
+}

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/router/route_guard.dart';
 import 'package:neils/session/session.dart';
+import 'package:neils/session/staff_permission.dart';
 
 import '../support.dart';
 
@@ -42,6 +43,31 @@ void main() {
       }
     });
 
+    test('el equipo y los roles, solo con staff.manage', () {
+      for (final path in ['/admin/equipo', '/admin/roles']) {
+        expect(redirect(signedInAs(UserRole.admin), path), isNull);
+        // Del personal, pero sin el permiso: al inicio del panel.
+        expect(redirect(signedInAs(UserRole.staff), path), '/admin');
+        expect(redirect(signedInAs(UserRole.customer), path), '/');
+        expect(
+          redirect(const SignedOut(), path),
+          '/login?from=${Uri.encodeComponent(path)}',
+        );
+      }
+      // Un rol a medida con staff.manage también entra.
+      final manager = SignedIn(
+        SessionUser(
+          id: 'u-gerente',
+          name: 'Gina',
+          email: 'gina@tienda.pe',
+          role: UserRole.admin,
+          staffRoleName: 'Gerente',
+          permissions: const {StaffPermission.staffManage},
+        ),
+      );
+      expect(redirect(manager, '/admin/equipo'), isNull);
+    });
+
     test('una ruta que solo empieza parecido no está protegida', () {
       expect(redirect(const SignedOut(), '/administracion'), isNull);
     });
@@ -65,6 +91,14 @@ void main() {
       expect(
         routeAfterSignIn(user(UserRole.staff), '/admin/pedidos?estado=x'),
         '/admin/pedidos?estado=x',
+      );
+    });
+
+    test('sin staff.manage, del equipo vuelve al inicio del panel', () {
+      expect(routeAfterSignIn(user(UserRole.staff), '/admin/equipo'), '/admin');
+      expect(
+        routeAfterSignIn(user(UserRole.admin), '/admin/equipo'),
+        '/admin/equipo',
       );
     });
 

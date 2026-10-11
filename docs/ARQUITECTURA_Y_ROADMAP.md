@@ -77,8 +77,9 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
   - pedidos con el stepper de estado y actualización automática;
   - productos, inventario (entradas, salidas y ajustes) y promociones;
-  - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve.
-- **Roles y permisos del personal (servidor):** permisos por rol, el Administrador de sistema, las plantillas Almacenero y Cajera, el personal por correo, la bitácora y las reglas para no quedarse sin administrador.
+  - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
+  - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado.
+- **Roles y permisos del personal:** en el servidor, permisos por rol, el Administrador de sistema, las plantillas Almacenero y Cajera, el personal por correo, la bitácora y las reglas para no quedarse sin administrador; en el panel, las pestañas Personas y Roles de la sección Equipo, solo con `staff.manage`.
 - **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia y el título en el formulario de promociones; en la tienda, el precio VIP en el catálogo, las "Ofertas exclusivas", el carrito como estimación con el precio final al pedir, el refresco del perfil sin cerrar sesión y el aviso para verificar el correo.
 - **Para la demo:**
   - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
@@ -101,7 +102,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
 6. **Más gestión en el panel:**
-   - roles y personal: la pantalla para `/staff/*`, y que el panel muestre solo las secciones y los botones que permiten los `permissions` de `/users/me` (hoy un rol con pocos permisos ve todo el panel y el servidor le responde 403);
+   - que el panel muestre solo las secciones y los botones que permiten los `permissions` de `/users/me` (hoy solo el equipo lo hace; un rol con pocos permisos ve el resto del panel y el servidor le responde 403);
    - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;

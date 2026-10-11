@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../router/route_guard.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
@@ -49,6 +50,16 @@ enum AdminSection {
     Icons.workspace_premium_outlined,
     Icons.workspace_premium,
     shortLabel: 'VIP',
+  ),
+
+  /// Las personas del equipo y, en otra pestaña, los roles: un solo destino
+  /// para no sumar dos a la barra del teléfono.
+  team(
+    Routes.adminTeam,
+    'Equipo',
+    Icons.groups_outlined,
+    Icons.groups,
+    alsoAt: [Routes.adminRoles],
   );
 
   const AdminSection(
@@ -57,6 +68,7 @@ enum AdminSection {
     this.icon,
     this.selectedIcon, {
     this._shortLabel,
+    this.alsoAt = const [],
   });
 
   final String path;
@@ -65,15 +77,33 @@ enum AdminSection {
   final IconData icon;
   final IconData selectedIcon;
 
+  /// Otras rutas que se marcan como esta sección.
+  final List<String> alsoAt;
+
   /// Para la barra de abajo del teléfono, donde cada destino tiene poco
   /// ancho.
   String get shortLabel => _shortLabel ?? label;
 
+  bool _matches(String path) => [
+    this.path,
+    ...alsoAt,
+  ].any((base) => path == base || path.startsWith('$base/'));
+
   /// La sección de [path] (una subruta cuenta como su sección).
-  static AdminSection of(String path) => values.lastWhere(
-    (section) => path == section.path || path.startsWith('${section.path}/'),
-    orElse: () => home,
-  );
+  static AdminSection of(String path) =>
+      values.lastWhere((section) => section._matches(path), orElse: () => home);
+
+  /// Las secciones que ve [session]: las que piden un permiso (el equipo),
+  /// solo con ese permiso. Mientras la sesión carga, solo las de todo el
+  /// personal.
+  static List<AdminSection> visibleTo(Session session) => [
+    for (final section in values)
+      if (switch (session) {
+        SignedIn(:final user) => canOpenPanel(user, section.path),
+        _ => Routes.permissionFor(section.path) == null,
+      })
+        section,
+  ];
 }
 
 /// Layout común de /admin, con el tema calmado del panel. Solo se llega aquí
@@ -96,8 +126,13 @@ class AdminShell extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
     final wide = MediaQuery.sizeOf(context).width >= wideFrom;
+    final sections = AdminSection.visibleTo(session);
     final selected = AdminSection.of(location);
-    void go(int index) => context.go(AdminSection.values[index].path);
+    // El guard no deja llegar a una sección oculta; por las dudas, Inicio.
+    final selectedIndex = sections
+        .indexOf(selected)
+        .clamp(0, sections.length - 1);
+    void go(int index) => context.go(sections[index].path);
 
     final content = switch (session) {
       SignedIn() => child,
@@ -144,11 +179,11 @@ class AdminShell extends ConsumerWidget {
                 ? Row(
                     children: [
                       NavigationRail(
-                        selectedIndex: selected.index,
+                        selectedIndex: selectedIndex,
                         onDestinationSelected: go,
                         labelType: NavigationRailLabelType.all,
                         destinations: [
-                          for (final section in AdminSection.values)
+                          for (final section in sections)
                             NavigationRailDestination(
                               icon: Icon(section.icon),
                               selectedIcon: Icon(section.selectedIcon),
@@ -165,12 +200,12 @@ class AdminShell extends ConsumerWidget {
           bottomNavigationBar: wide
               ? null
               : NavigationBar(
-                  selectedIndex: selected.index,
+                  selectedIndex: selectedIndex,
                   onDestinationSelected: go,
                   labelBehavior:
                       NavigationDestinationLabelBehavior.onlyShowSelected,
                   destinations: [
-                    for (final section in AdminSection.values)
+                    for (final section in sections)
                       NavigationDestination(
                         icon: Icon(section.icon),
                         selectedIcon: Icon(section.selectedIcon),
