@@ -17,8 +17,12 @@ import 'src/orders/orders_routes.dart';
 import 'src/orders/orders_service.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
+import 'src/staff/audit_log_repository.dart';
 import 'src/staff/db_authorization_service.dart';
+import 'src/staff/roles_service.dart';
 import 'src/staff/staff_bootstrap.dart';
+import 'src/staff/staff_routes.dart';
+import 'src/staff/staff_service.dart';
 import 'src/promotions/audience/everyone_audience_rule.dart';
 import 'src/promotions/audience/vip_audience_rule.dart';
 import 'src/promotions/promotions_routes.dart';
@@ -111,6 +115,12 @@ void run(List<String> args) async {
       shoppers: shoppers,
     ),
     ...vipRoutes(vips, guards),
+    ...staffRoutes(
+      roles: const RolesService(),
+      staff: const StaffService(),
+      audit: const DbAuditLogRepository(),
+      guards: guards,
+    ),
     // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
     // la clase que se pasa aquí.
     ...statsRoutes(
