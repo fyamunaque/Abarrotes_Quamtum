@@ -138,10 +138,38 @@ void run(List<String> args) async {
 
   await pod.start();
 
-  // Una base nueva arranca sin roles: el Administrador y las plantillas.
-  await pod.withSession(
-    (session) => const StaffBootstrap().ensureRoles(session),
-  );
+  // Una base nueva arranca sin roles: el Administrador y las plantillas. Y
+  // el primer administrador, si está configurado.
+  await pod.withSession((session) async {
+    const bootstrap = StaffBootstrap();
+    await bootstrap.ensureRoles(session);
+    final email = _firstAdminEmail(pod);
+    if (email == null) return;
+    try {
+      final added = await bootstrap.seedFirstAdmin(session, email);
+      session.log(
+        added
+            ? 'Primer administrador agregado: $email'
+            : 'Primer administrador: $email ya estaba en el personal',
+      );
+    } on ArgumentError {
+      session.log(
+        'firstAdminEmail no es un correo válido: no se agregó a nadie',
+        level: LogLevel.warning,
+      );
+    }
+  });
+}
+
+/// El correo del primer administrador: `firstAdminEmail` en
+/// config/passwords.yaml o la variable de entorno FIRST_ADMIN_EMAIL. Solo se
+/// usa si ese correo todavía no está en el personal.
+String? _firstAdminEmail(Serverpod pod) {
+  final email =
+      (pod.getPassword('firstAdminEmail') ??
+              Platform.environment['FIRST_ADMIN_EMAIL'])
+          ?.trim();
+  return email == null || email.isEmpty ? null : email;
 }
 
 /// El envío push con FCM, si hay una cuenta de servicio configurada:
