@@ -265,8 +265,12 @@ Las piezas compartidas están en `features/admin/shared/`:
   - desde 720 px de ancho es una tabla; más angosto, cada fila es una tarjeta con
     `etiqueta: valor`;
   - cada fila es un botón con su descripción para el lector de pantalla;
-  - con `rowAction` (`AdminRowAction`), cada fila tiene además un botón propio (p. ej.
-    "Quitar"), fuera de la descripción de la fila: al final en la tabla y abajo en las tarjetas.
+  - con `rowActions` (`AdminRowAction`), cada fila tiene además sus botones (p. ej.
+    "Quitar"), fuera de la descripción de la fila: al final en la tabla y abajo en las
+    tarjetas. Con `showFor`, una acción sale solo en las filas que la tienen.
+- `EmailsAddForm`: agregar uno o varios correos pegados, con el resumen del servidor
+  (agregados, ya estaban, no válidos), con sus textos y un campo extra a elección. Lo usan
+  los clientes VIP.
 - `showAdminForm`: un formulario en un diálogo en pantallas anchas y a pantalla completa en el
   teléfono. Con `admin_form.dart` (campos de a dos, el error del servidor y los botones) y
   `ProductPicker` (el buscador de productos con autocompletado).
@@ -356,7 +360,7 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
     `admin_promotions_test.dart` y `admin_vip_test.dart`: filtros, formularios (validación y lo
     que se manda), los errores del servidor (400, 403 y 409), las confirmaciones, lo que ve
     staff y lo que ve admin, y que no se desborde en 320 y 375 px;
-  - `vip_emails_test.dart`: separar los correos pegados y validarlos como el servidor.
+  - `emails_test.dart`: separar los correos pegados y validarlos como el servidor.
 
 Los tests de movimiento usan `MediaQueryData(disableAnimations: true)` para "reducir
 animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándose. Flutter da por

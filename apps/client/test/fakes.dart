@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:neils/admin/emails.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
 import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_order.dart';
@@ -505,7 +506,7 @@ class FakeVipRepository implements VipRepository {
   }
 
   @override
-  Future<VipAddSummary> add(List<String> emails) async {
+  Future<EmailAddSummary> add(List<String> emails) async {
     if (addFailure case final failure?) throw failure;
     sent.add(emails);
     final added = <String>[];
@@ -542,7 +543,7 @@ class FakeVipRepository implements VipRepository {
       }
       added.add(email);
     }
-    return VipAddSummary(
+    return EmailAddSummary(
       added: added,
       duplicates: duplicates,
       invalid: invalid,
@@ -959,3 +960,4 @@ Future<void> flushEvents() async {
     await Future<void>.delayed(Duration.zero);
   }
 }
+

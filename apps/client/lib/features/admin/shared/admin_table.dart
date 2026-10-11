@@ -33,6 +33,7 @@ class AdminRowAction<T> {
     required this.semanticLabel,
     required this.onPressed,
     this.destructive = false,
+    this.showFor,
   });
 
   final String label;
@@ -43,6 +44,12 @@ class AdminRowAction<T> {
   /// Quita o borra algo: va en el color de error (y debería pedir
   /// confirmación).
   final bool destructive;
+
+  /// Las filas que la tienen (p. ej. "Desactivar", solo las activas). Sin
+  /// esto, todas.
+  final bool Function(T row)? showFor;
+
+  bool _shows(T row) => showFor?.call(row) ?? true;
 }
 
 /// Cómo alinear una celda de varias líneas (un precio con el anterior tachado,
@@ -76,8 +83,8 @@ class AdminCellAlignment extends InheritedWidget {
 ///   es una tarjeta con "título: valor", con las mismas columnas: en un
 ///   teléfono no hay scroll horizontal.
 /// - Tocar una fila llama a [onRowTap] (abrir el detalle o editar).
-/// - Con [rowAction], cada fila tiene además ese botón: al final de la fila
-///   en la tabla y abajo a la derecha en las tarjetas.
+/// - Con [rowActions], cada fila tiene además esos botones: al final de la
+///   fila en la tabla y abajo a la derecha en las tarjetas.
 /// - Abajo, "1–20 de 54" y las flechas de página ([onPage]).
 class AdminTable<T> extends StatelessWidget {
   const AdminTable({
@@ -89,7 +96,7 @@ class AdminTable<T> extends StatelessWidget {
     required this.onRetry,
     required this.onPage,
     this.onRowTap,
-    this.rowAction,
+    this.rowActions = const [],
     this.emptyText = 'No hay nada para mostrar.',
   });
 
@@ -105,13 +112,13 @@ class AdminTable<T> extends StatelessWidget {
   final VoidCallback onRetry;
   final ValueChanged<int> onPage;
   final ValueChanged<T>? onRowTap;
-  final AdminRowAction<T>? rowAction;
+  final List<AdminRowAction<T>> rowActions;
   final String emptyText;
 
   static const wideFrom = 720.0;
 
-  /// El ancho de la columna de [rowAction] en la tabla.
-  static const _actionWidth = 120.0;
+  /// El ancho de cada botón de [rowActions] en la tabla.
+  static const _actionWidth = 136.0;
 
   @override
   Widget build(BuildContext context) {
@@ -157,8 +164,7 @@ class AdminTable<T> extends StatelessWidget {
     ),
   );
 
-  Widget _actionButton(BuildContext context, T row) {
-    final action = rowAction!;
+  Widget _actionButton(BuildContext context, AdminRowAction<T> action, T row) {
     final theme = Theme.of(context);
     return TextButton.icon(
       style: TextButton.styleFrom(
@@ -182,16 +188,22 @@ class _Table<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    // Con rowAction, una columna más al final, de ancho fijo y sin título.
-    Widget withAction(Widget content, Widget? action) => table.rowAction == null
+    final actions = table.rowActions;
+    // Con rowActions, una columna más al final, de ancho fijo y sin título.
+    // Una acción que la fila no tiene deja su lugar vacío: las demás quedan
+    // alineadas.
+    Widget withActions(Widget content, T? row) => actions.isEmpty
         ? content
         : Row(
             children: [
               Expanded(child: content),
-              SizedBox(
-                width: AdminTable._actionWidth,
-                child: Center(child: action),
-              ),
+              for (final action in actions)
+                SizedBox(
+                  width: AdminTable._actionWidth,
+                  child: row != null && action._shows(row)
+                      ? Center(child: table._actionButton(context, action, row))
+                      : null,
+                ),
             ],
           );
     Widget cells(Widget Function(AdminColumn<T>) build) => Row(
@@ -220,7 +232,7 @@ class _Table<T> extends StatelessWidget {
           ExcludeSemantics(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              child: withAction(
+              child: withActions(
                 cells(
                   (column) => Text(
                     column.label,
@@ -237,7 +249,7 @@ class _Table<T> extends StatelessWidget {
             const Divider(),
             KeyedSubtree(
               key: ValueKey(table.rowKey(row)),
-              child: withAction(
+              child: withActions(
                 table._row(
                   context,
                   row,
@@ -259,9 +271,7 @@ class _Table<T> extends StatelessWidget {
                     ),
                   ),
                 ),
-                table.rowAction == null
-                    ? null
-                    : table._actionButton(context, row),
+                row,
               ),
             ),
           ],
@@ -325,22 +335,30 @@ class _Cards<T> extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: Card(
               clipBehavior: Clip.antiAlias,
-              child: table.rowAction == null
-                  ? table._row(context, row, content(row))
-                  // La acción abajo a la derecha, fuera de la fila.
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        table._row(context, row, content(row)),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 4, 4),
-                          child: Align(
-                            alignment: AlignmentDirectional.centerEnd,
-                            child: table._actionButton(context, row),
-                          ),
-                        ),
-                      ],
+              child: switch ([
+                for (final action in table.rowActions)
+                  if (action._shows(row)) action,
+              ]) {
+                [] => table._row(context, row, content(row)),
+                // Las acciones abajo a la derecha, fuera de la fila.
+                final actions => Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    table._row(context, row, content(row)),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 4, 4),
+                      child: Wrap(
+                        alignment: WrapAlignment.end,
+                        spacing: 4,
+                        children: [
+                          for (final action in actions)
+                            table._actionButton(context, action, row),
+                        ],
+                      ),
                     ),
+                  ],
+                ),
+              },
             ),
           ),
       ],

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../admin/emails.dart';
 import '../../../admin/vip/vip_customer.dart';
 import '../../../admin/vip/vip_providers.dart';
 import '../../../session/session.dart';
@@ -60,7 +61,7 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
 
   Future<void> _add() async {
     final notifier = ref.read(vipCustomersProvider(_filter).notifier);
-    final summary = await showAdminForm<VipAddSummary>(
+    final summary = await showAdminForm<EmailAddSummary>(
       context,
       title: 'Agregar clientes VIP',
       builder: (_) => VipAddForm(onSubmit: notifier.add),
@@ -165,15 +166,16 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
           rowKey: (vip) => vip.id,
           rowLabel: (vip) =>
               '${vip.email}, ${status(vip).toLowerCase()}, alta ${since(vip)}',
-          rowAction: isAdmin
-              ? AdminRowAction(
-                  label: 'Quitar',
-                  icon: Icons.person_remove_outlined,
-                  semanticLabel: (vip) => 'Quitar a ${vip.email}',
-                  onPressed: _remove,
-                  destructive: true,
-                )
-              : null,
+          rowActions: [
+            if (isAdmin)
+              AdminRowAction(
+                label: 'Quitar',
+                icon: Icons.person_remove_outlined,
+                semanticLabel: (vip) => 'Quitar a ${vip.email}',
+                onPressed: _remove,
+                destructive: true,
+              ),
+          ],
           onPage: (page) => ref.read(provider.notifier).goTo(page),
           onRetry: () => ref.invalidate(provider),
           emptyText: _filter.isNotEmpty

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../auth/auth_providers.dart';
 import '../../common/page_list.dart';
+import '../emails.dart';
 import '../paged_notifier.dart';
 import 'vip_customer.dart';
 import 'vip_repository.dart';
@@ -26,7 +27,7 @@ class VipCustomersNotifier extends PagedNotifier<VipCustomer> {
       ref.read(vipRepositoryProvider).list(page: page, search: search);
 
   /// Agrega [emails] y vuelve a cargar la tabla desde la primera página.
-  Future<VipAddSummary> add(List<String> emails) async {
+  Future<EmailAddSummary> add(List<String> emails) async {
     final summary = await ref.read(vipRepositoryProvider).add(emails);
     if (summary.added.isNotEmpty) ref.invalidateSelf();
     return summary;
