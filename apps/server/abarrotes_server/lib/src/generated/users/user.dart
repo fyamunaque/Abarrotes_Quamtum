@@ -15,12 +15,14 @@ import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
+import '../staff/audit_log.dart' as _iohhzbvb;
+import '../staff/staff_member.dart' as _i3fhtrko;
 import '../users/device_token.dart' as _iuurxiuf;
-import '../users/user_role.dart' as _iww5kqrp;
 import '../vip/vip_customer.dart' as _icy1qtyi;
 
 /// Cuenta de la plataforma. La autenticación vive en Firebase: aquí se guarda
-/// el uid de Firebase y el rol, nunca una contraseña.
+/// el uid de Firebase, nunca una contraseña. Los permisos del personal no
+/// están aquí: salen de StaffMember y su Role, por el correo.
 abstract class User
     implements _is.TableRow<_is.UuidValue?>, _is.ProtocolSerialization {
   User._({
@@ -30,15 +32,15 @@ abstract class User
     bool? emailVerified,
     required this.name,
     this.phone,
-    _iww5kqrp.UserRole? role,
     this.address,
     DateTime? createdAt,
     this.orders,
     this.inventoryMovements,
     this.vipCustomersAdded,
     this.deviceTokens,
+    this.staffMembersAdded,
+    this.auditLogs,
   }) : emailVerified = emailVerified ?? false,
-       role = role ?? _iww5kqrp.UserRole.customer,
        createdAt = createdAt ?? DateTime.now();
 
   factory User({
@@ -48,13 +50,14 @@ abstract class User
     bool? emailVerified,
     required String name,
     String? phone,
-    _iww5kqrp.UserRole? role,
     String? address,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
     List<_iuurxiuf.DeviceToken>? deviceTokens,
+    List<_i3fhtrko.StaffMember>? staffMembersAdded,
+    List<_iohhzbvb.AuditLog>? auditLogs,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -69,9 +72,6 @@ abstract class User
           : _is.BoolJsonExtension.fromJson(jsonSerialization['emailVerified']),
       name: jsonSerialization['name'] as String,
       phone: jsonSerialization['phone'] as String?,
-      role: jsonSerialization['role'] == null
-          ? null
-          : _iww5kqrp.UserRole.fromJson((jsonSerialization['role'] as String)),
       address: jsonSerialization['address'] as String?,
       createdAt: jsonSerialization['createdAt'] == null
           ? null
@@ -96,6 +96,16 @@ abstract class User
           : _i1p9jj0z.Protocol().deserialize<List<_iuurxiuf.DeviceToken>>(
               jsonSerialization['deviceTokens'],
             ),
+      staffMembersAdded: jsonSerialization['staffMembersAdded'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<List<_i3fhtrko.StaffMember>>(
+              jsonSerialization['staffMembersAdded'],
+            ),
+      auditLogs: jsonSerialization['auditLogs'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<List<_iohhzbvb.AuditLog>>(
+              jsonSerialization['auditLogs'],
+            ),
     );
   }
 
@@ -119,8 +129,6 @@ abstract class User
 
   String? phone;
 
-  _iww5kqrp.UserRole role;
-
   String? address;
 
   DateTime createdAt;
@@ -132,6 +140,10 @@ abstract class User
   List<_icy1qtyi.VipCustomer>? vipCustomersAdded;
 
   List<_iuurxiuf.DeviceToken>? deviceTokens;
+
+  List<_i3fhtrko.StaffMember>? staffMembersAdded;
+
+  List<_iohhzbvb.AuditLog>? auditLogs;
 
   @override
   _is.Table<_is.UuidValue?> get table => t;
@@ -146,13 +158,14 @@ abstract class User
     bool? emailVerified,
     String? name,
     String? phone,
-    _iww5kqrp.UserRole? role,
     String? address,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
     List<_iuurxiuf.DeviceToken>? deviceTokens,
+    List<_i3fhtrko.StaffMember>? staffMembersAdded,
+    List<_iohhzbvb.AuditLog>? auditLogs,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -164,7 +177,6 @@ abstract class User
       'emailVerified': emailVerified,
       'name': name,
       if (phone != null) 'phone': phone,
-      'role': role.toJson(),
       if (address != null) 'address': address,
       'createdAt': createdAt.toJson(),
       if (orders != null)
@@ -179,6 +191,12 @@ abstract class User
         ),
       if (deviceTokens != null)
         'deviceTokens': deviceTokens?.toJson(valueToJson: (v) => v.toJson()),
+      if (staffMembersAdded != null)
+        'staffMembersAdded': staffMembersAdded?.toJson(
+          valueToJson: (v) => v.toJson(),
+        ),
+      if (auditLogs != null)
+        'auditLogs': auditLogs?.toJson(valueToJson: (v) => v.toJson()),
     };
   }
 
@@ -192,7 +210,6 @@ abstract class User
       'emailVerified': emailVerified,
       'name': name,
       if (phone != null) 'phone': phone,
-      'role': role.toJson(),
       if (address != null) 'address': address,
       'createdAt': createdAt.toJson(),
       if (orders != null)
@@ -209,6 +226,14 @@ abstract class User
         'deviceTokens': deviceTokens?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (staffMembersAdded != null)
+        'staffMembersAdded': staffMembersAdded?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
+      if (auditLogs != null)
+        'auditLogs': auditLogs?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
     };
   }
 
@@ -217,12 +242,16 @@ abstract class User
     _i4yp9mtd.InventoryMovementIncludeList? inventoryMovements,
     _icy1qtyi.VipCustomerIncludeList? vipCustomersAdded,
     _iuurxiuf.DeviceTokenIncludeList? deviceTokens,
+    _i3fhtrko.StaffMemberIncludeList? staffMembersAdded,
+    _iohhzbvb.AuditLogIncludeList? auditLogs,
   }) {
     return UserInclude._(
       orders: orders,
       inventoryMovements: inventoryMovements,
       vipCustomersAdded: vipCustomersAdded,
       deviceTokens: deviceTokens,
+      staffMembersAdded: staffMembersAdded,
+      auditLogs: auditLogs,
     );
   }
 
@@ -260,13 +289,14 @@ class _UserImpl extends User {
     bool? emailVerified,
     required String name,
     String? phone,
-    _iww5kqrp.UserRole? role,
     String? address,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
     List<_iuurxiuf.DeviceToken>? deviceTokens,
+    List<_i3fhtrko.StaffMember>? staffMembersAdded,
+    List<_iohhzbvb.AuditLog>? auditLogs,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
@@ -274,13 +304,14 @@ class _UserImpl extends User {
          emailVerified: emailVerified,
          name: name,
          phone: phone,
-         role: role,
          address: address,
          createdAt: createdAt,
          orders: orders,
          inventoryMovements: inventoryMovements,
          vipCustomersAdded: vipCustomersAdded,
          deviceTokens: deviceTokens,
+         staffMembersAdded: staffMembersAdded,
+         auditLogs: auditLogs,
        );
 
   /// Returns a shallow copy of this [User]
@@ -294,13 +325,14 @@ class _UserImpl extends User {
     bool? emailVerified,
     String? name,
     Object? phone = _Undefined,
-    _iww5kqrp.UserRole? role,
     Object? address = _Undefined,
     DateTime? createdAt,
     Object? orders = _Undefined,
     Object? inventoryMovements = _Undefined,
     Object? vipCustomersAdded = _Undefined,
     Object? deviceTokens = _Undefined,
+    Object? staffMembersAdded = _Undefined,
+    Object? auditLogs = _Undefined,
   }) {
     return User(
       id: id is _is.UuidValue? ? id : this.id,
@@ -309,7 +341,6 @@ class _UserImpl extends User {
       emailVerified: emailVerified ?? this.emailVerified,
       name: name ?? this.name,
       phone: phone is String? ? phone : this.phone,
-      role: role ?? this.role,
       address: address is String? ? address : this.address,
       createdAt: createdAt ?? this.createdAt,
       orders: orders is List<_ij3i88ow.Order>?
@@ -325,6 +356,12 @@ class _UserImpl extends User {
       deviceTokens: deviceTokens is List<_iuurxiuf.DeviceToken>?
           ? deviceTokens
           : this.deviceTokens?.map((e0) => e0.copyWith()).toList(),
+      staffMembersAdded: staffMembersAdded is List<_i3fhtrko.StaffMember>?
+          ? staffMembersAdded
+          : this.staffMembersAdded?.map((e0) => e0.copyWith()).toList(),
+      auditLogs: auditLogs is List<_iohhzbvb.AuditLog>?
+          ? auditLogs
+          : this.auditLogs?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }
@@ -354,13 +391,6 @@ class UserUpdateTable extends _is.UpdateTable<UserTable> {
 
   _is.ColumnValue<String, String> phone(String? value) => _is.ColumnValue(
     table.phone,
-    value,
-  );
-
-  _is.ColumnValue<_iww5kqrp.UserRole, _iww5kqrp.UserRole> role(
-    _iww5kqrp.UserRole value,
-  ) => _is.ColumnValue(
-    table.role,
     value,
   );
 
@@ -400,12 +430,6 @@ class UserTable extends _is.Table<_is.UuidValue?> {
       'phone',
       this,
     );
-    role = _is.ColumnEnum(
-      'role',
-      this,
-      _is.EnumSerialization.byName,
-      hasDefault: true,
-    );
     address = _is.ColumnString(
       'address',
       this,
@@ -432,8 +456,6 @@ class UserTable extends _is.Table<_is.UuidValue?> {
 
   late final _is.ColumnString phone;
 
-  late final _is.ColumnEnum<_iww5kqrp.UserRole> role;
-
   late final _is.ColumnString address;
 
   late final _is.ColumnDateTime createdAt;
@@ -453,6 +475,14 @@ class UserTable extends _is.Table<_is.UuidValue?> {
   _iuurxiuf.DeviceTokenTable? ___deviceTokens;
 
   _is.ManyRelation<_iuurxiuf.DeviceTokenTable>? _deviceTokens;
+
+  _i3fhtrko.StaffMemberTable? ___staffMembersAdded;
+
+  _is.ManyRelation<_i3fhtrko.StaffMemberTable>? _staffMembersAdded;
+
+  _iohhzbvb.AuditLogTable? ___auditLogs;
+
+  _is.ManyRelation<_iohhzbvb.AuditLogTable>? _auditLogs;
 
   _ij3i88ow.OrderTable get __orders {
     if (___orders != null) return ___orders!;
@@ -504,6 +534,32 @@ class UserTable extends _is.Table<_is.UuidValue?> {
           _iuurxiuf.DeviceTokenTable(tableRelation: foreignTableRelation),
     );
     return ___deviceTokens!;
+  }
+
+  _i3fhtrko.StaffMemberTable get __staffMembersAdded {
+    if (___staffMembersAdded != null) return ___staffMembersAdded!;
+    ___staffMembersAdded = _is.createRelationTable(
+      relationFieldName: '__staffMembersAdded',
+      field: User.t.id,
+      foreignField: _i3fhtrko.StaffMember.t.addedByUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _i3fhtrko.StaffMemberTable(tableRelation: foreignTableRelation),
+    );
+    return ___staffMembersAdded!;
+  }
+
+  _iohhzbvb.AuditLogTable get __auditLogs {
+    if (___auditLogs != null) return ___auditLogs!;
+    ___auditLogs = _is.createRelationTable(
+      relationFieldName: '__auditLogs',
+      field: User.t.id,
+      foreignField: _iohhzbvb.AuditLog.t.actorUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _iohhzbvb.AuditLogTable(tableRelation: foreignTableRelation),
+    );
+    return ___auditLogs!;
   }
 
   _is.ManyRelation<_ij3i88ow.OrderTable> get orders {
@@ -582,6 +638,44 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     return _deviceTokens!;
   }
 
+  _is.ManyRelation<_i3fhtrko.StaffMemberTable> get staffMembersAdded {
+    if (_staffMembersAdded != null) return _staffMembersAdded!;
+    var relationTable = _is.createRelationTable(
+      relationFieldName: 'staffMembersAdded',
+      field: User.t.id,
+      foreignField: _i3fhtrko.StaffMember.t.addedByUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _i3fhtrko.StaffMemberTable(tableRelation: foreignTableRelation),
+    );
+    _staffMembersAdded = _is.ManyRelation<_i3fhtrko.StaffMemberTable>(
+      tableWithRelations: relationTable,
+      table: _i3fhtrko.StaffMemberTable(
+        tableRelation: relationTable.tableRelation!.lastRelation,
+      ),
+    );
+    return _staffMembersAdded!;
+  }
+
+  _is.ManyRelation<_iohhzbvb.AuditLogTable> get auditLogs {
+    if (_auditLogs != null) return _auditLogs!;
+    var relationTable = _is.createRelationTable(
+      relationFieldName: 'auditLogs',
+      field: User.t.id,
+      foreignField: _iohhzbvb.AuditLog.t.actorUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _iohhzbvb.AuditLogTable(tableRelation: foreignTableRelation),
+    );
+    _auditLogs = _is.ManyRelation<_iohhzbvb.AuditLogTable>(
+      tableWithRelations: relationTable,
+      table: _iohhzbvb.AuditLogTable(
+        tableRelation: relationTable.tableRelation!.lastRelation,
+      ),
+    );
+    return _auditLogs!;
+  }
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -590,7 +684,6 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     emailVerified,
     name,
     phone,
-    role,
     address,
     createdAt,
   ];
@@ -609,6 +702,12 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'deviceTokens') {
       return __deviceTokens;
     }
+    if (relationField == 'staffMembersAdded') {
+      return __staffMembersAdded;
+    }
+    if (relationField == 'auditLogs') {
+      return __auditLogs;
+    }
     return null;
   }
 }
@@ -619,11 +718,15 @@ class UserInclude extends _is.IncludeObject {
     _i4yp9mtd.InventoryMovementIncludeList? inventoryMovements,
     _icy1qtyi.VipCustomerIncludeList? vipCustomersAdded,
     _iuurxiuf.DeviceTokenIncludeList? deviceTokens,
+    _i3fhtrko.StaffMemberIncludeList? staffMembersAdded,
+    _iohhzbvb.AuditLogIncludeList? auditLogs,
   }) {
     _orders = orders;
     _inventoryMovements = inventoryMovements;
     _vipCustomersAdded = vipCustomersAdded;
     _deviceTokens = deviceTokens;
+    _staffMembersAdded = staffMembersAdded;
+    _auditLogs = auditLogs;
   }
 
   _ij3i88ow.OrderIncludeList? _orders;
@@ -634,12 +737,18 @@ class UserInclude extends _is.IncludeObject {
 
   _iuurxiuf.DeviceTokenIncludeList? _deviceTokens;
 
+  _i3fhtrko.StaffMemberIncludeList? _staffMembersAdded;
+
+  _iohhzbvb.AuditLogIncludeList? _auditLogs;
+
   @override
   Map<String, _is.Include?> get includes => {
     'orders': _orders,
     'inventoryMovements': _inventoryMovements,
     'vipCustomersAdded': _vipCustomersAdded,
     'deviceTokens': _deviceTokens,
+    'staffMembersAdded': _staffMembersAdded,
+    'auditLogs': _auditLogs,
   };
 
   @override
@@ -671,6 +780,10 @@ class UserRepository {
   final attach = const UserAttachRepository._();
 
   final attachRow = const UserAttachRowRepository._();
+
+  final detach = const UserDetachRepository._();
+
+  final detachRow = const UserDetachRowRepository._();
 
   /// Returns a list of [User]s matching the given query parameters.
   ///
@@ -1170,6 +1283,56 @@ class UserAttachRepository {
       transaction: transaction,
     );
   }
+
+  /// Creates a relation between this [User] and the given [StaffMember]s
+  /// by setting each [StaffMember]'s foreign key `addedByUserId` to refer to this [User].
+  Future<void> staffMembersAdded(
+    _is.DatabaseSession session,
+    User user,
+    List<_i3fhtrko.StaffMember> staffMember, {
+    _is.Transaction? transaction,
+  }) async {
+    if (staffMember.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('staffMember.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $staffMember = staffMember
+        .map((e) => e.copyWith(addedByUserId: user.id))
+        .toList();
+    await session.db.update<_i3fhtrko.StaffMember>(
+      $staffMember,
+      columns: [_i3fhtrko.StaffMember.t.addedByUserId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between this [User] and the given [AuditLog]s
+  /// by setting each [AuditLog]'s foreign key `actorUserId` to refer to this [User].
+  Future<void> auditLogs(
+    _is.DatabaseSession session,
+    User user,
+    List<_iohhzbvb.AuditLog> auditLog, {
+    _is.Transaction? transaction,
+  }) async {
+    if (auditLog.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('auditLog.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $auditLog = auditLog
+        .map((e) => e.copyWith(actorUserId: user.id))
+        .toList();
+    await session.db.update<_iohhzbvb.AuditLog>(
+      $auditLog,
+      columns: [_iohhzbvb.AuditLog.t.actorUserId],
+      transaction: transaction,
+    );
+  }
 }
 
 class UserAttachRowRepository {
@@ -1263,6 +1426,150 @@ class UserAttachRowRepository {
     await session.db.updateRow<_iuurxiuf.DeviceToken>(
       $deviceToken,
       columns: [_iuurxiuf.DeviceToken.t.userId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between this [User] and the given [StaffMember]
+  /// by setting the [StaffMember]'s foreign key `addedByUserId` to refer to this [User].
+  Future<void> staffMembersAdded(
+    _is.DatabaseSession session,
+    User user,
+    _i3fhtrko.StaffMember staffMember, {
+    _is.Transaction? transaction,
+  }) async {
+    if (staffMember.id == null) {
+      throw ArgumentError.notNull('staffMember.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $staffMember = staffMember.copyWith(addedByUserId: user.id);
+    await session.db.updateRow<_i3fhtrko.StaffMember>(
+      $staffMember,
+      columns: [_i3fhtrko.StaffMember.t.addedByUserId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between this [User] and the given [AuditLog]
+  /// by setting the [AuditLog]'s foreign key `actorUserId` to refer to this [User].
+  Future<void> auditLogs(
+    _is.DatabaseSession session,
+    User user,
+    _iohhzbvb.AuditLog auditLog, {
+    _is.Transaction? transaction,
+  }) async {
+    if (auditLog.id == null) {
+      throw ArgumentError.notNull('auditLog.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $auditLog = auditLog.copyWith(actorUserId: user.id);
+    await session.db.updateRow<_iohhzbvb.AuditLog>(
+      $auditLog,
+      columns: [_iohhzbvb.AuditLog.t.actorUserId],
+      transaction: transaction,
+    );
+  }
+}
+
+class UserDetachRepository {
+  const UserDetachRepository._();
+
+  /// Detaches the relation between this [User] and the given [StaffMember]
+  /// by setting the [StaffMember]'s foreign key `addedByUserId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> staffMembersAdded(
+    _is.DatabaseSession session,
+    List<_i3fhtrko.StaffMember> staffMember, {
+    _is.Transaction? transaction,
+  }) async {
+    if (staffMember.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('staffMember.id');
+    }
+
+    var $staffMember = staffMember
+        .map((e) => e.copyWith(addedByUserId: null))
+        .toList();
+    await session.db.update<_i3fhtrko.StaffMember>(
+      $staffMember,
+      columns: [_i3fhtrko.StaffMember.t.addedByUserId],
+      transaction: transaction,
+    );
+  }
+
+  /// Detaches the relation between this [User] and the given [AuditLog]
+  /// by setting the [AuditLog]'s foreign key `actorUserId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> auditLogs(
+    _is.DatabaseSession session,
+    List<_iohhzbvb.AuditLog> auditLog, {
+    _is.Transaction? transaction,
+  }) async {
+    if (auditLog.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('auditLog.id');
+    }
+
+    var $auditLog = auditLog.map((e) => e.copyWith(actorUserId: null)).toList();
+    await session.db.update<_iohhzbvb.AuditLog>(
+      $auditLog,
+      columns: [_iohhzbvb.AuditLog.t.actorUserId],
+      transaction: transaction,
+    );
+  }
+}
+
+class UserDetachRowRepository {
+  const UserDetachRowRepository._();
+
+  /// Detaches the relation between this [User] and the given [StaffMember]
+  /// by setting the [StaffMember]'s foreign key `addedByUserId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> staffMembersAdded(
+    _is.DatabaseSession session,
+    _i3fhtrko.StaffMember staffMember, {
+    _is.Transaction? transaction,
+  }) async {
+    if (staffMember.id == null) {
+      throw ArgumentError.notNull('staffMember.id');
+    }
+
+    var $staffMember = staffMember.copyWith(addedByUserId: null);
+    await session.db.updateRow<_i3fhtrko.StaffMember>(
+      $staffMember,
+      columns: [_i3fhtrko.StaffMember.t.addedByUserId],
+      transaction: transaction,
+    );
+  }
+
+  /// Detaches the relation between this [User] and the given [AuditLog]
+  /// by setting the [AuditLog]'s foreign key `actorUserId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> auditLogs(
+    _is.DatabaseSession session,
+    _iohhzbvb.AuditLog auditLog, {
+    _is.Transaction? transaction,
+  }) async {
+    if (auditLog.id == null) {
+      throw ArgumentError.notNull('auditLog.id');
+    }
+
+    var $auditLog = auditLog.copyWith(actorUserId: null);
+    await session.db.updateRow<_iohhzbvb.AuditLog>(
+      $auditLog,
+      columns: [_iohhzbvb.AuditLog.t.actorUserId],
       transaction: transaction,
     );
   }

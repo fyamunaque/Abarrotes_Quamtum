@@ -8,6 +8,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
@@ -23,8 +24,8 @@ class _Shop {
   late Product aceite;
 
   Future<void> setUp() async {
-    staff = await insertUser(session, 'uid-staff', UserRole.staff);
-    customer = await insertUser(session, 'uid-cliente', UserRole.customer);
+    staff = await insertStaff(session, 'uid-staff');
+    customer = await insertUser(session, 'uid-cliente');
     final category = await Category.db.insertRow(
       session,
       Category(name: 'Abarrotes'),
@@ -96,7 +97,7 @@ void main() {
         () => session,
         ordersRoutes(
           OrdersService(pricing: testPromotions(), now: () => testNow),
-          testVerifier(google),
+          testGuards(google),
           shoppers: testShoppers,
         ),
       );
@@ -407,7 +408,7 @@ void main() {
               ),
             );
           }
-          await insertUser(session, 'uid-vip', UserRole.customer);
+          await insertUser(session, 'uid-vip');
           await insertVips(session, shop.staff, ['vip@tienda.pe']);
         });
 

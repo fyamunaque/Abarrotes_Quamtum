@@ -1,7 +1,6 @@
 import 'package:serverpod/serverpod.dart';
 
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
@@ -14,7 +13,7 @@ import 'day_range.dart';
 import 'report_provider.dart';
 import 'reports.dart';
 
-/// Estadísticas del dashboard, solo para admin y staff. Las rutas traducen el
+/// Estadísticas del dashboard, con `stats.view`. Las rutas traducen el
 /// query a un rango y delegan: los cálculos viven en cada ReportProvider, que
 /// llega por separado y como abstracción.
 List<RouteEntry> statsRoutes({
@@ -23,12 +22,12 @@ List<RouteEntry> statsRoutes({
   required ReportProvider<TopProductsRange, TopProductsReport> topProducts,
   required ReportProvider<void, List<Product>> lowStock,
   required ReportProvider<int, ExpiringProducts> expiring,
-  required FirebaseTokenVerifier verifier,
+  required Guards guards,
   DateTime Function()? now,
 }) {
   final clock = now ?? DateTime.now;
   Route staffOnly(ApiHandler handler) =>
-      RoleGuard(staffRoles, ApiRoute(Method.get, handler), verifier: verifier);
+      guards.require(Permission.statsView, ApiRoute(Method.get, handler));
 
   /// `?from=&to=` como rango; por defecto, los últimos 30 días.
   DayRange readRange(InputReader query) {

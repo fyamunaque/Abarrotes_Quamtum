@@ -1,0 +1,12 @@
+### Qué cambió en la bitácora del personal (AuditLog).
+enum: AuditAction
+serialized: byName
+values:
+  - roleCreated
+  - roleUpdated
+  - roleDeleted
+  - staffAdded
+  - staffReactivated
+  - staffRoleChanged
+  - staffDeactivated
+  - staffSeeded

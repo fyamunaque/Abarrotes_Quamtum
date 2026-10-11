@@ -15,6 +15,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -141,13 +142,13 @@ void main() {
             topProducts: const TopProductsReportProvider(),
             lowStock: LowStockReportProvider(alerts),
             expiring: ExpiringProductsReportProvider(alerts),
-            verifier: testVerifier(google),
+            guards: testGuards(google),
             now: () => testNow,
           ),
         );
         client = TestClient(server, google);
         addTearDown(server.close);
-        await insertUser(session, 'uid-staff', UserRole.staff);
+        await insertStaff(session, 'uid-staff');
         await seedDevData(session, now: () => testNow);
       });
 
@@ -235,11 +236,7 @@ void main() {
 
       /// Un pedido de una cuenta real, con un item.
       Future<Order> otherCustomerOrder() async {
-        final other = await insertUser(
-          session,
-          'uid-cliente',
-          UserRole.customer,
-        );
+        final other = await insertUser(session, 'uid-cliente');
         final rice = (await Product.db.findFirstRow(
           session,
           where: (product) => product.sku.equals('ARR-5KG'),

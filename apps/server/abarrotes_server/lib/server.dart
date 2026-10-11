@@ -4,6 +4,7 @@ import 'dart:io';
 import 'src/auth/firebase_authentication_handler.dart';
 import 'src/auth/firebase_token_verifier.dart';
 import 'src/auth/google_public_keys.dart';
+import 'src/auth/guards.dart';
 import 'src/categories/categories_routes.dart';
 import 'src/categories/categories_service.dart';
 import 'src/common/api_route.dart';
@@ -16,6 +17,8 @@ import 'src/orders/orders_routes.dart';
 import 'src/orders/orders_service.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
+import 'src/staff/db_authorization_service.dart';
+import 'src/staff/staff_bootstrap.dart';
 import 'src/promotions/audience/everyone_audience_rule.dart';
 import 'src/promotions/audience/vip_audience_rule.dart';
 import 'src/promotions/promotions_routes.dart';
@@ -58,6 +61,13 @@ void run(List<String> args) async {
   final stockAlerts = StockAlerts();
   const sales = SalesReportProvider();
 
+  // Qué puede hacer cada persona del personal: su rol, leído de la base en
+  // cada petición. Cada dominio protege sus rutas con un permiso.
+  final guards = Guards(
+    verifier: verifier,
+    authorization: const DbAuthorizationService(),
+  );
+
   // Quién es cada cliente (VIP o no) y qué audiencias de promociones puede
   // usar. Un segmento nuevo es una regla más en esta lista.
   const vips = VipService();
@@ -85,22 +95,22 @@ void run(List<String> args) async {
   );
 
   // Un dominio por bloque de rutas.
-  addUsersRoutes(pod.webServer, verifier: verifier, shoppers: shoppers);
+  addUsersRoutes(pod.webServer, guards: guards, shoppers: shoppers);
   addRoutes(pod.webServer, [
-    ...categoriesRoutes(const CategoriesService(), verifier),
+    ...categoriesRoutes(const CategoriesService(), guards),
     ...productsRoutes(
       ProductsService(pricing: promotions),
-      verifier,
+      guards,
       shoppers: shoppers,
     ),
-    ...promotionsRoutes(promotions, verifier, shoppers: shoppers),
-    ...inventoryRoutes(const InventoryService(), stockAlerts, verifier),
+    ...promotionsRoutes(promotions, guards, shoppers: shoppers),
+    ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
     ...ordersRoutes(
       OrdersService(pricing: promotions),
-      verifier,
+      guards,
       shoppers: shoppers,
     ),
-    ...vipRoutes(vips, verifier),
+    ...vipRoutes(vips, guards),
     // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
     // la clase que se pasa aquí.
     ...statsRoutes(
@@ -112,11 +122,16 @@ void run(List<String> args) async {
       topProducts: const TopProductsReportProvider(),
       lowStock: LowStockReportProvider(stockAlerts),
       expiring: ExpiringProductsReportProvider(stockAlerts),
-      verifier: verifier,
+      guards: guards,
     ),
   ]);
 
   await pod.start();
+
+  // Una base nueva arranca sin roles: el Administrador y las plantillas.
+  await pod.withSession(
+    (session) => const StaffBootstrap().ensureRoles(session),
+  );
 }
 
 /// El envío push con FCM, si hay una cuenta de servicio configurada:

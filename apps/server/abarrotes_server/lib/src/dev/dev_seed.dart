@@ -154,7 +154,6 @@ Future<int> _seedOrders(
             firebaseUid: _demoCustomerUid,
             email: 'cliente.demo@neils.pe',
             name: 'Cliente de ejemplo',
-            role: UserRole.customer,
             address: 'Av. Arequipa 1234, Lince',
           ),
           transaction: transaction,

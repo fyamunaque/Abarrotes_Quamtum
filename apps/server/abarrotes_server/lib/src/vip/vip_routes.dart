@@ -1,19 +1,20 @@
 import 'package:serverpod/serverpod.dart';
 
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/pagination.dart';
+import '../generated/protocol.dart';
 import 'vip_service.dart';
 
-/// Rutas de clientes VIP: admin y staff los ven; solo admin los cambia.
-List<RouteEntry> vipRoutes(VipService vips, FirebaseTokenVerifier verifier) {
+/// Rutas de clientes VIP: verlos pide `vip.view`; agregar y quitar,
+/// `vip.manage`.
+List<RouteEntry> vipRoutes(VipService vips, Guards guards) {
   Route staffOnly(Method method, ApiHandler handler) =>
-      RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+      guards.require(Permission.vipView, ApiRoute(method, handler));
   Route adminOnly(Method method, ApiHandler handler) =>
-      RoleGuard(adminRoles, ApiRoute(method, handler), verifier: verifier);
+      guards.require(Permission.vipManage, ApiRoute(method, handler));
 
   return [
     (

@@ -1,0 +1,18 @@
+### Un rol del personal: un nombre y sus permisos. El de sistema
+### (Administrador) tiene siempre todos y no se edita ni se borra; los demás
+### los arma un admin (p. ej. las plantillas Almacenero y Cajera).
+class: Role
+table: staff_roles
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  name: String
+  permissions: List<Permission>
+  isSystem: bool, default=false
+  ### Un rol inactivo no da permisos ni se puede asignar.
+  active: bool, default=true
+  createdAt: DateTime, default=now
+  members: List<StaffMember>?, relation(name=role_staff_members)
+indexes:
+  staff_roles_name_idx:
+    fields: name
+    unique: true

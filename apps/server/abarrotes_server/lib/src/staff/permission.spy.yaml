@@ -1,0 +1,20 @@
+### El catálogo de permisos del personal: la fuente de verdad. En la API
+### viajan como "products.view", "orders.updateStatus" (permissionKey, en
+### staff/permissions.dart). Sumar uno es agregarlo aquí y usarlo en su ruta
+### con RequirePermission: el rol Administrador lo tiene solo.
+enum: Permission
+serialized: byName
+values:
+  - productsView
+  - productsManage
+  - categoriesManage
+  - ordersView
+  - ordersUpdateStatus
+  - inventoryView
+  - inventoryAdjust
+  - promotionsManage
+  - vipView
+  - vipManage
+  - statsView
+  - customersView
+  - staffManage

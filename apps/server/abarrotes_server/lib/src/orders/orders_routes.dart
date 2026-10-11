@@ -2,8 +2,7 @@
 import 'package:serverpod/serverpod.dart' hide Order;
 
 import '../auth/firebase_auth_middleware.dart';
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
@@ -14,16 +13,23 @@ import '../generated/protocol.dart';
 import 'orders_service.dart';
 
 /// Rutas de pedidos: crear y ver los propios, para cualquier cuenta; el
-/// listado y los cambios de estado, solo para admin y staff.
+/// listado, con `orders.view`, y los cambios de estado, con
+/// `orders.updateStatus`. El contacto del cliente solo va con
+/// `customers.view`.
 List<RouteEntry> ordersRoutes(
   OrdersService orders,
-  FirebaseTokenVerifier verifier, {
+  Guards guards, {
   required ShopperResolver shoppers,
 }) {
   Route signedIn(Method method, ApiHandler handler) =>
-      RoleGuard(anyRole, ApiRoute(method, handler), verifier: verifier);
-  Route staffOnly(Method method, ApiHandler handler) =>
-      RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+      guards.signedIn(ApiRoute(method, handler));
+  Route requires(Permission permission, Method method, ApiHandler handler) =>
+      guards.require(permission, ApiRoute(method, handler));
+  Map<String, Object?> panelJson(Request request, Order order) =>
+      adminOrderJson(
+        order,
+        withCustomer: request.staffAccess.can(Permission.customersView),
+      );
 
   return [
     (
@@ -98,7 +104,7 @@ List<RouteEntry> ordersRoutes(
     ),
     (
       '/orders',
-      staffOnly(Method.get, (session, request) async {
+      requires(Permission.ordersView, Method.get, (session, request) async {
         final query = InputReader.query(
           request,
           allowed: {...PageQuery.fields, 'status', 'from', 'to'},
@@ -122,13 +128,19 @@ List<RouteEntry> ordersRoutes(
         );
         return jsonResponse(
           200,
-          page.wrap(list.map(adminOrderJson).toList(), total),
+          page.wrap(
+            list.map((order) => panelJson(request, order)).toList(),
+            total,
+          ),
         );
       }),
     ),
     (
       '/orders/:id/status',
-      staffOnly(Method.patch, (session, request) async {
+      requires(Permission.ordersUpdateStatus, Method.patch, (
+        session,
+        request,
+      ) async {
         final id = idParam(request);
         final body = InputReader.body(
           await readJsonBody(request),
@@ -143,7 +155,7 @@ List<RouteEntry> ordersRoutes(
           status!,
           by: request.currentUser,
         );
-        return jsonResponse(200, adminOrderJson(order));
+        return jsonResponse(200, panelJson(request, order));
       }),
     ),
   ];
@@ -187,16 +199,22 @@ Map<String, Object?> priceChangeJson(PriceChange change) => {
   'unitPrice': formatMoney(change.unitPriceCents),
 };
 
-/// Como [orderJson] y, además, quién lo hizo (para el panel).
-Map<String, Object?> adminOrderJson(Order order) {
+/// Como [orderJson] y, para el panel, quién lo hizo: sus datos de contacto
+/// solo [withCustomer] (`customers.view`); si no, `customer` va en null.
+Map<String, Object?> adminOrderJson(
+  Order order, {
+  required bool withCustomer,
+}) {
   final customer = order.customer!;
   return {
     ...orderJson(order),
-    'customer': {
-      'id': customer.id.toString(),
-      'name': customer.name,
-      'email': customer.email,
-      'phone': customer.phone,
-    },
+    'customer': withCustomer
+        ? {
+            'id': customer.id.toString(),
+            'name': customer.name,
+            'email': customer.email,
+            'phone': customer.phone,
+          }
+        : null,
   };
 }

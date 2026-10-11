@@ -8,6 +8,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -27,7 +28,7 @@ void main() {
     ) {
       test('dos salidas a la vez no pueden dejar el stock negativo', () async {
         final session = sessionBuilder.build();
-        final staff = await insertUser(session, 'uid-staff', UserRole.staff);
+        final staff = await insertUser(session, 'uid-staff');
         final category = await Category.db.insertRow(
           session,
           Category(name: 'Abarrotes'),
@@ -104,13 +105,13 @@ void main() {
         inventoryRoutes(
           const InventoryService(),
           StockAlerts(now: () => testNow),
-          testVerifier(google),
+          testGuards(google),
         ),
       );
       client = TestClient(server, google);
       addTearDown(server.close);
-      await insertUser(session, 'uid-staff', UserRole.staff);
-      await insertUser(session, 'uid-cliente', UserRole.customer);
+      await insertStaff(session, 'uid-staff');
+      await insertUser(session, 'uid-cliente');
       abarrotes = await Category.db.insertRow(
         session,
         Category(name: 'Abarrotes'),

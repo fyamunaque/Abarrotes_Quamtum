@@ -1,8 +1,7 @@
 import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_auth_middleware.dart';
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
@@ -13,19 +12,25 @@ import '../generated/protocol.dart';
 import '../promotions/promotion_rules.dart';
 import 'products_service.dart';
 
-/// Rutas de productos: lectura pública (marketplace y app) y escritura solo
-/// para admin y staff. La lectura usa el token, si viene, para mostrar la
-/// promoción de cada cliente.
+/// Rutas de productos: lectura pública (marketplace y app) y escritura con
+/// `products.manage`. La lectura usa el token, si viene, para mostrar la
+/// promoción de cada cliente y, con `products.view`, los dados de baja.
 List<RouteEntry> productsRoutes(
   ProductsService products,
-  FirebaseTokenVerifier verifier, {
+  Guards guards, {
   required ShopperResolver shoppers,
 }) {
   Route staffOnly(Method method, ApiHandler handler) =>
-      RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+      guards.require(Permission.productsManage, ApiRoute(method, handler));
 
-  Future<Shopper> shopperOf(Session session, Request request) async =>
-      shoppers.resolve(session, await optionalIdentity(verifier, request));
+  Future<Shopper> shopperOf(Session session, Request request) async => shoppers
+      .resolve(session, await optionalIdentity(guards.verifier, request));
+
+  Future<bool> canViewInactive(Session session, Request request) async =>
+      (await guards.optionalAccess(
+        session,
+        request,
+      )).can(Permission.productsView);
 
   return [
     (
@@ -55,10 +60,9 @@ List<RouteEntry> productsRoutes(
           shopper: await shopperOf(session, request),
           categoryId: categoryId,
           search: search,
-          // Solo tiene efecto para admin y staff; para el resto se ignora.
+          // Solo tiene efecto con products.view; para el resto se ignora.
           includeInactive:
-              includeInactive &&
-              isStaff(await optionalUser(session, request, verifier)),
+              includeInactive && await canViewInactive(session, request),
           onSale: onSale,
         );
         return jsonResponse(
@@ -71,7 +75,7 @@ List<RouteEntry> productsRoutes(
       '/products/:id',
       ApiRoute(Method.get, (session, request) async {
         final id = idParam(request);
-        final staff = isStaff(await optionalUser(session, request, verifier));
+        final staff = await canViewInactive(session, request);
         final product = await products.get(
           session,
           id,

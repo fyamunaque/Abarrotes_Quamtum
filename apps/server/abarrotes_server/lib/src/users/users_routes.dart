@@ -1,42 +1,54 @@
 import 'package:serverpod/serverpod.dart';
 
+import '../auth/authorization.dart';
 import '../auth/firebase_auth_middleware.dart';
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
-import 'create_user_request.dart';
+import '../staff/permissions.dart';
 import 'users_service.dart';
 
 /// Registra las rutas de usuarios, todas detrás del Firebase ID token.
 void addUsersRoutes(
   WebServer webServer, {
-  required FirebaseTokenVerifier verifier,
+  required Guards guards,
   required ShopperResolver shoppers,
   UsersService users = const UsersService(),
 }) {
-  webServer.addMiddleware(firebaseAuthMiddleware(verifier), '/users');
-  addRoutes(webServer, usersRoutes(users, verifier, shoppers: shoppers));
+  webServer.addMiddleware(firebaseAuthMiddleware(guards.verifier), '/users');
+  addRoutes(webServer, usersRoutes(users, guards, shoppers: shoppers));
 }
 
-/// Las rutas de usuarios con sus guards de rol.
+/// Las rutas de la cuenta propia.
 List<RouteEntry> usersRoutes(
   UsersService users,
-  FirebaseTokenVerifier verifier, {
+  Guards guards, {
   required ShopperResolver shoppers,
 }) => [
-  // El usuario del token; la primera vez lo crea como cliente. isVip: si
-  // puede usar las promociones VIP (VIP activo y correo verificado).
+  // El usuario del token; la primera vez lo crea como cliente. Con:
+  // - isVip: si puede usar las promociones VIP (VIP activo y correo
+  //   verificado);
+  // - staffRole y permissions: su rol de personal y sus permisos efectivos,
+  //   leídos ahora (vacíos si no es personal o no verificó el correo);
+  // - role: derivado de eso, para la app (admin, staff o customer).
   (
     '/users/me',
     ApiRoute(Method.get, (session, request) async {
       final identity = request.firebaseIdentity;
       final user = await users.findOrCreate(session, identity);
       final shopper = await shoppers.resolve(session, identity);
-      return jsonResponse(200, {...userJson(user), 'isVip': shopper.isVip});
+      final access = await guards.authorization.accessOf(session, identity);
+      return jsonResponse(200, {
+        ...userJson(user, access),
+        'isVip': shopper.isVip,
+        'staffRole': access.isStaff
+            ? {'id': access.roleId.toString(), 'name': access.roleName}
+            : null,
+        'permissions': permissionKeys(access.permissions),
+      });
     }),
   ),
   // El dispositivo donde la cuenta recibe avisos push (el token de FCM que da
@@ -79,23 +91,6 @@ List<RouteEntry> usersRoutes(
       return Response.noContent();
     }),
   ),
-  // Solo admin: crea una cuenta admin o staff vinculada a un firebaseUid.
-  (
-    '/users',
-    RoleGuard(
-      adminRoles,
-      ApiRoute(Method.post, (session, request) async {
-        final input = CreateUserRequest.parse(await readJsonBody(request));
-        final user = await users.createStaff(
-          session,
-          admin: request.currentUser,
-          input: input,
-        );
-        return jsonResponse(201, userJson(user));
-      }),
-      verifier: verifier,
-    ),
-  ),
 ];
 
 /// Dónde corre la app que registra el dispositivo.
@@ -104,13 +99,22 @@ enum DevicePlatform { android, web }
 /// Los tokens de FCM rondan los 160 caracteres; esto deja margen.
 const maxDeviceTokenLength = 4096;
 
-/// Lo que las rutas muestran de un usuario: nunca el firebaseUid.
-Map<String, Object?> userJson(User user) => {
+/// Lo que las rutas muestran de un usuario: nunca el firebaseUid. `role` sale
+/// de [access] (ver [derivedRole]).
+Map<String, Object?> userJson(User user, StaffAccess access) => {
   'id': user.id.toString(),
   'email': user.email,
   'name': user.name,
   'phone': user.phone,
-  'role': user.role.name,
+  'role': derivedRole(access),
   'address': user.address,
   'createdAt': user.createdAt.toUtc().toIso8601String(),
 };
+
+/// El rol que lee la app para el panel: `admin` con `staff.manage`, `staff`
+/// con algún otro permiso de personal y `customer` sin ninguno.
+String derivedRole(StaffAccess access) => access.can(Permission.staffManage)
+    ? 'admin'
+    : access.permissions.isNotEmpty
+    ? 'staff'
+    : 'customer';

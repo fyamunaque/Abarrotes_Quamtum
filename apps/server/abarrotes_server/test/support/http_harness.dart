@@ -46,7 +46,8 @@ typedef ApiResult = (int status, dynamic body);
 
 /// Cliente HTTP de los tests. Con `as:` manda un Firebase ID token de ese uid
 /// firmado con las llaves de prueba; [email] y [emailVerified] cambian esos
-/// claims (por defecto, `ana@example.com` verificado).
+/// claims (por defecto, `<uid>@tienda.pe` verificado: el correo que le pone
+/// [insertUser], así el personal se reconoce por su correo).
 class TestClient {
   TestClient(this.server, this.google);
 
@@ -95,10 +96,11 @@ class TestClient {
     String? email,
     bool emailVerified = true,
   }) async {
-    final claims = {
-      ...validClaims(uid: as ?? '', emailVerified: emailVerified),
-      'email': ?email,
-    };
+    final claims = validClaims(
+      uid: as ?? '',
+      email: email ?? '$as@tienda.pe',
+      emailVerified: emailVerified,
+    );
     final request =
         http.Request(method, Uri.parse('http://localhost:${server.port}$path'))
           ..headers.addAll({
@@ -116,18 +118,14 @@ class TestClient {
   }
 }
 
-/// Crea un usuario con [role] cuyo firebaseUid es [uid].
-Future<User> insertUser(
-  Session session,
-  String uid,
-  UserRole role, {
-  String? email,
-}) => User.db.insertRow(
-  session,
-  User(
-    firebaseUid: uid,
-    email: email ?? '$uid@tienda.pe',
-    name: 'Usuario $uid',
-    role: role,
-  ),
-);
+/// Crea una cuenta cuyo firebaseUid es [uid] (correo `$uid@tienda.pe`, si
+/// no se dice otro). Para que además sea del personal, `insertStaff`.
+Future<User> insertUser(Session session, String uid, {String? email}) =>
+    User.db.insertRow(
+      session,
+      User(
+        firebaseUid: uid,
+        email: email ?? '$uid@tienda.pe',
+        name: 'Usuario $uid',
+      ),
+    );

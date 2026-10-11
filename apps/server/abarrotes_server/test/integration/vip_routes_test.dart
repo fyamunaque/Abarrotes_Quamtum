@@ -5,6 +5,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -22,13 +23,18 @@ void main() {
       session = sessionBuilder.build();
       final server = await serveRoutes(
         () => session,
-        vipRoutes(const VipService(), testVerifier(google)),
+        vipRoutes(const VipService(), testGuards(google)),
       );
       client = TestClient(server, google);
       addTearDown(server.close);
-      admin = await insertUser(session, 'uid-admin', UserRole.admin);
-      await insertUser(session, 'uid-staff', UserRole.staff);
-      await insertUser(session, 'uid-cliente', UserRole.customer);
+      admin = await insertStaff(session, 'uid-admin');
+      // Puede ver la lista, pero no cambiarla.
+      await insertStaff(
+        session,
+        'uid-staff',
+        permissions: {Permission.vipView},
+      );
+      await insertUser(session, 'uid-cliente');
     });
 
     Future<ApiResult> add(List<Object?> emails, {String as = 'uid-admin'}) =>
@@ -95,11 +101,7 @@ void main() {
           await add(['ana@gmail.com']);
           final ana = await vip('ana@gmail.com');
           await client.delete('/vip-customers/${ana.id}', as: 'uid-admin');
-          final otroAdmin = await insertUser(
-            session,
-            'uid-admin2',
-            UserRole.admin,
-          );
+          final otroAdmin = await insertStaff(session, 'uid-admin2');
 
           final (status, body) = await add(['ana@gmail.com'], as: 'uid-admin2');
 
@@ -308,7 +310,7 @@ void main() {
     });
 
     group('permisos', () {
-      test('staff solo lee: 403 al agregar o dar de baja', () async {
+      test('con vip.view solo lee: 403 al agregar o dar de baja', () async {
         await add(['ana@gmail.com']);
         final ana = await vip('ana@gmail.com');
 
