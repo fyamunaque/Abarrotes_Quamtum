@@ -11,12 +11,9 @@ enum UserRole {
   admin,
   staff;
 
-  /// Admin y staff manejan la tienda: entran a /admin.
+  /// Admin y staff son del personal: entran a /admin, cada uno a las
+  /// secciones de sus permisos.
   bool get isStaff => this == admin || this == staff;
-
-  /// Solo admin cambia quién accede a qué (p. ej. los clientes VIP); staff
-  /// lo ve en modo lectura.
-  bool get isAdmin => this == admin;
 }
 
 /// La cuenta con la que se inició sesión.

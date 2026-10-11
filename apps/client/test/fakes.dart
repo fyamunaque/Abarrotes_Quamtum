@@ -30,6 +30,8 @@ import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
 import 'package:neils/users/user_repository.dart';
 
+import 'support.dart';
+
 const groceries = Category(id: 'cat-abarrotes', name: 'Abarrotes');
 const dairy = Category(id: 'cat-lacteos', name: 'Lácteos');
 
@@ -122,9 +124,7 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
           createdAt: order.order.createdAt,
           lines: order.order.lines,
         ),
-        customerName: order.customerName,
-        customerEmail: order.customerEmail,
-        customerPhone: order.customerPhone,
+        customer: order.customer,
       );
 }
 
@@ -156,9 +156,11 @@ AdminOrder adminOrder(
       ),
     ],
   ),
-  customerName: customer,
-  customerEmail: 'ana@tienda.pe',
-  customerPhone: '987654321',
+  customer: OrderCustomer(
+    name: customer,
+    email: 'ana@tienda.pe',
+    phone: '987654321',
+  ),
 );
 
 /// Los productos del panel en memoria, por nombre. Responde 409 a un SKU que
@@ -915,8 +917,15 @@ class FakeUserRepository implements UserRepository {
 
   final FakeAuthRepository auth;
 
-  /// Roles que no son customer, por uid.
+  /// Roles que no son customer, por uid, con los permisos de
+  /// `permissionsOf`.
   final roles = <String, UserRole>{};
+
+  /// Los permisos justos de una cuenta del personal, por uid, y el nombre de
+  /// su rol (gana sobre [roles]). Se pueden cambiar en cualquier momento: el
+  /// próximo `me` ya los trae, como cuando un admin cambia un rol.
+  final permissions = <String, Set<StaffPermission>>{};
+  final roleNames = <String, String>{};
 
   /// Direcciones guardadas en el perfil, por uid.
   final addresses = <String, String>{};
@@ -924,7 +933,6 @@ class FakeUserRepository implements UserRepository {
   /// Los uid que el servidor responde como VIP (un admin los puede agregar
   /// o quitar en cualquier momento).
   final vips = <String>{};
-  final _profiles = <String, SessionUser>{};
 
   /// Si no es null, `me` falla con esto (p. ej. el servidor caído).
   AuthFailure? failure;
@@ -941,18 +949,21 @@ class FakeUserRepository implements UserRepository {
     if (hold case final hold?) await hold.future;
     if (failure case final failure?) throw failure;
     final uid = idToken.replaceFirst('token-', '');
-    return _profiles
-        .putIfAbsent(uid, () {
-          final account = auth.accountOf(uid);
-          return SessionUser(
-            id: 'user-$uid',
-            name: account.name ?? account.email.split('@').first,
-            email: account.email,
-            role: roles[uid] ?? UserRole.customer,
-            address: addresses[uid],
-          );
-        })
-        .copyWith(isVip: vips.contains(uid));
+    final account = auth.accountOf(uid);
+    final granted =
+        permissions[uid] ?? permissionsOf(roles[uid] ?? UserRole.customer);
+    return SessionUser(
+      id: 'user-$uid',
+      name: account.name ?? account.email.split('@').first,
+      email: account.email,
+      role: permissions.containsKey(uid)
+          ? roleOf(granted)
+          : roles[uid] ?? UserRole.customer,
+      address: addresses[uid],
+      isVip: vips.contains(uid),
+      staffRoleName: roleNames[uid],
+      permissions: granted,
+    );
   }
 }
 

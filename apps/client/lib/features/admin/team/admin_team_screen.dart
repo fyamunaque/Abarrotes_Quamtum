@@ -11,6 +11,7 @@ import '../../../session/session_provider.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import 'team_forms.dart';
 import 'team_widgets.dart';
@@ -144,7 +145,7 @@ class _AdminTeamScreenState extends ConsumerState<AdminTeamScreen> {
       children: [
         const TeamTabs(current: TeamTab.people),
         const SizedBox(height: 16),
-        const TeamNote(
+        const PanelNote(
           'Cada persona entra al panel con su correo, cuando ingresa a la '
           'tienda y lo tiene verificado. "Pendiente de registro": todavía no '
           'creó su cuenta con ese correo.',

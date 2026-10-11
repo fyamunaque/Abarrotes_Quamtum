@@ -7,6 +7,8 @@ import '../../../admin/orders/admin_order.dart';
 import '../../../admin/orders/admin_orders_providers.dart';
 import '../../../common/money.dart';
 import '../../../orders/order_status.dart';
+import '../../../session/session_provider.dart';
+import '../../../session/staff_permission.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
@@ -14,11 +16,13 @@ import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/filter_chips.dart';
+import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 
 /// Los pedidos de todos los clientes, filtrados por estado. Tocar uno abre su
-/// detalle, con el stepper para avanzarlo o cancelarlo.
+/// detalle, con el stepper para avanzarlo o cancelarlo (con
+/// `orders.updateStatus`). Quién lo hizo, solo con `customers.view`.
 class AdminOrdersScreen extends ConsumerStatefulWidget {
   const AdminOrdersScreen({super.key});
 
@@ -57,6 +61,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = adminOrdersProvider(_status);
+    final canSeeCustomers = ref
+        .watch(permissionsProvider)
+        .contains(StaffPermission.customersView);
     return AdminPage(
       title: 'Pedidos',
       actions: [RefreshButton(onRefresh: ref.read(provider.notifier).refresh)],
@@ -78,7 +85,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
               (o) => Text(formatDateTime(context, o.order.createdAt)),
               flex: 3,
             ),
-            AdminColumn('Cliente', (o) => Text(o.customerName), flex: 3),
+            if (canSeeCustomers)
+              AdminColumn(
+                'Cliente',
+                (o) => Text(o.customer?.name ?? '—'),
+                flex: 3,
+              ),
             AdminColumn(
               'Productos',
               (o) => Text('${o.order.lines.length}'),
@@ -100,12 +112,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           ],
           rowKey: (o) => o.id,
           rowLabel: (o) =>
-              'Pedido de ${o.customerName}, '
+              '${_title(o)}, '
               '${formatDateTime(context, o.order.createdAt)}, '
               '${formatSoles(o.order.totalCents)}, ${o.order.status.label}',
           onRowTap: (order) => showAdminForm<void>(
             context,
-            title: 'Pedido de ${order.customerName}',
+            title: _title(order),
             builder: (_) =>
                 AdminOrderDetail(orderId: order.id, filter: _status),
           ),
@@ -119,6 +131,12 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     );
   }
 }
+
+/// "Pedido de Ana Quispe", o solo "Pedido" sin los datos del cliente.
+String _title(AdminOrder order) => switch (order.customer) {
+  final customer? => 'Pedido de ${customer.name}',
+  null => 'Pedido',
+};
 
 /// El detalle de un pedido: el cliente, las líneas y el stepper (el
 /// seguimiento con las acciones del estado actual). Lee el pedido de la
@@ -192,6 +210,8 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
     final status = order.order.status;
     final next = status.nextStatuses;
     final advance = next.where((s) => s != OrderStatus.cancelled).firstOrNull;
+    final permissions = ref.watch(permissionsProvider);
+    final canUpdate = permissions.contains(StaffPermission.ordersUpdateStatus);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -206,6 +226,10 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
         ],
         if (next.isEmpty)
           Text('Este pedido ya no cambia de estado.', style: muted)
+        else if (!canUpdate)
+          const PanelNote(
+            'Tu rol puede ver los pedidos, pero no cambiar su estado.',
+          )
         else
           Wrap(
             spacing: 8,
@@ -236,9 +260,15 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
         const Divider(height: 32),
         Text('Cliente', style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
-        Text(order.customerName),
-        Text(order.customerEmail, style: muted),
-        if (order.customerPhone case final phone?) Text(phone, style: muted),
+        if (order.customer case final customer?) ...[
+          Text(customer.name),
+          Text(customer.email, style: muted),
+          if (customer.phone case final phone?) Text(phone, style: muted),
+        ] else
+          Text(
+            'Tu rol no incluye ver los datos de los clientes.',
+            style: muted,
+          ),
         const SizedBox(height: 12),
         Text('Entrega', style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),

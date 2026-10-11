@@ -8,6 +8,7 @@ import '../../../session/staff_permission.dart';
 import '../../../theme/brand_colors.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import 'role_form.dart';
@@ -85,7 +86,7 @@ class AdminRolesScreen extends ConsumerWidget {
       children: [
         const TeamTabs(current: TeamTab.roles),
         const SizedBox(height: 16),
-        const TeamNote(
+        const PanelNote(
           'Cada rol es un conjunto de permisos. Toca uno para ver qué permite '
           'o cambiarlo: rige desde la próxima acción de quienes lo tienen.',
         ),

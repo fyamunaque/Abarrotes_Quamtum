@@ -8,6 +8,7 @@ import '../../../common/days.dart';
 import '../../../common/money.dart';
 import '../../../orders/order_status.dart';
 import '../../../router/routes.dart';
+import '../../../session/session_provider.dart';
 import '../../../theme/brand_colors.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/error_message.dart';
@@ -185,15 +186,20 @@ class _StatTile extends StatelessWidget {
 
 String _orders(int count) => count == 1 ? '1 pedido' : '$count pedidos';
 
+/// Si la cuenta puede abrir [path]: los enlaces a otra sección solo salen
+/// con su permiso.
+bool _canOpen(WidgetRef ref, String path) =>
+    Routes.allows(ref.watch(permissionsProvider), path);
+
 /// Cuántos pedidos hay en cada estado: el punto con su color, el nombre y el
 /// número (el color nunca va solo). Lleva a la lista de pedidos.
-class _OrdersByStatus extends StatelessWidget {
+class _OrdersByStatus extends ConsumerWidget {
   const _OrdersByStatus(this.counts);
 
   final Map<OrderStatus, int> counts;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     return Card(
       child: Padding(
@@ -212,10 +218,11 @@ class _OrdersByStatus extends StatelessWidget {
                     ),
                   ),
                 ),
-                TextButton(
-                  onPressed: () => context.go(Routes.adminOrders),
-                  child: const Text('Ver pedidos'),
-                ),
+                if (_canOpen(ref, Routes.adminOrders))
+                  TextButton(
+                    onPressed: () => context.go(Routes.adminOrders),
+                    child: const Text('Ver pedidos'),
+                  ),
               ],
             ),
             const SizedBox(height: 8),
@@ -363,10 +370,12 @@ class LowStockCard extends ConsumerWidget {
       subtitle: (items) => items.isEmpty ? null : _products(items.length),
       value: ref.watch(lowStockProvider),
       onRetry: () => ref.invalidate(lowStockProvider),
-      action: TextButton(
-        onPressed: () => context.go(Routes.adminInventory),
-        child: const Text('Inventario'),
-      ),
+      action: _canOpen(ref, Routes.adminInventory)
+          ? TextButton(
+              onPressed: () => context.go(Routes.adminInventory),
+              child: const Text('Inventario'),
+            )
+          : null,
       builder: (context, items) => items.isEmpty
           ? const Text('Todo el stock está sobre su mínimo.')
           : _ItemList([
@@ -394,10 +403,12 @@ class ExpiringCard extends ConsumerWidget {
       subtitle: (items) => items.isEmpty ? null : _products(items.length),
       value: ref.watch(expiringProvider),
       onRetry: () => ref.invalidate(expiringProvider),
-      action: TextButton(
-        onPressed: () => context.go(Routes.adminProducts),
-        child: const Text('Productos'),
-      ),
+      action: _canOpen(ref, Routes.adminProducts)
+          ? TextButton(
+              onPressed: () => context.go(Routes.adminProducts),
+              child: const Text('Productos'),
+            )
+          : null,
       builder: (context, items) => items.isEmpty
           ? const Text('Nada vence en los próximos 7 días.')
           : _ItemList([

@@ -93,12 +93,13 @@ void main() {
   ) async {
     final router = await pumpTeam(tester, role: UserRole.staff);
 
-    expect(location(router), '/admin');
+    expect(location(router), '/admin/sin-acceso');
+    expect(find.text('No tienes acceso a esta sección'), findsOneWidget);
     expect(find.text('Equipo'), findsNothing);
 
     router.go('/admin/roles');
     await tester.pumpAndSettle();
-    expect(location(router), '/admin');
+    expect(location(router), '/admin/sin-acceso');
   });
 
   testWidgets('con staff.manage, el equipo está en la navegación', (

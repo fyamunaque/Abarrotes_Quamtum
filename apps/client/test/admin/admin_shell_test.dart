@@ -44,6 +44,8 @@ void main() {
 
   test('cada ruta marca su sección', () {
     expect(AdminSection.of('/admin'), AdminSection.home);
+    // "Sin acceso" no es ninguna.
+    expect(AdminSection.of('/admin/sin-acceso'), isNull);
     expect(AdminSection.of('/admin/pedidos'), AdminSection.orders);
     expect(AdminSection.of('/admin/promociones/x'), AdminSection.promotions);
     expect(AdminSection.of('/admin/clientes-vip'), AdminSection.vip);
@@ -61,10 +63,19 @@ void main() {
       AdminSection.visibleTo(signedInAs(UserRole.staff)),
       isNot(contains(AdminSection.team)),
     );
-    expect(
-      AdminSection.visibleTo(const SessionLoading()),
-      isNot(contains(AdminSection.team)),
-    );
+    expect(AdminSection.visibleTo(const SessionLoading()), isEmpty);
+  });
+
+  test('cada uno ve las secciones de sus permisos', () {
+    expect(AdminSection.visibleTo(signedInWith(cashierPermissions)), [
+      AdminSection.orders,
+      AdminSection.products,
+    ]);
+    expect(AdminSection.visibleTo(signedInWith(storekeeperPermissions)), [
+      AdminSection.home,
+      AdminSection.products,
+      AdminSection.inventory,
+    ]);
   });
 
   testWidgets('en escritorio, un riel a la izquierda con la sección marcada', (

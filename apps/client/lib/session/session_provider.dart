@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../auth/auth_providers.dart';
 import '../auth/auth_repository.dart';
 import 'session.dart';
+import 'staff_permission.dart';
 
 /// La sesión actual. El router la escucha para proteger /admin.
 final sessionProvider = NotifierProvider<SessionNotifier, Session>(
@@ -30,6 +31,16 @@ final isVipProvider = Provider<bool>(
   (ref) => switch (ref.watch(sessionProvider)) {
     SignedIn(:final user) => user.isVip,
     _ => false,
+  },
+);
+
+/// Los permisos del panel de la cuenta abierta (vacío sin sesión o para un
+/// cliente). Las pantallas los usan para ocultar lo que no puede hacer; el
+/// servidor revisa cada acción igual.
+final permissionsProvider = Provider<Set<StaffPermission>>(
+  (ref) => switch (ref.watch(sessionProvider)) {
+    SignedIn(:final user) => user.permissions,
+    _ => const {},
   },
 );
 

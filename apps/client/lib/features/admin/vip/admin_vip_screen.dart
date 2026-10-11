@@ -6,19 +6,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../admin/emails.dart';
 import '../../../admin/vip/vip_customer.dart';
 import '../../../admin/vip/vip_providers.dart';
-import '../../../session/session.dart';
 import '../../../session/session_provider.dart';
+import '../../../session/staff_permission.dart';
 import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import 'vip_add_form.dart';
 
-/// Los clientes VIP: buscar por correo y, solo para admin, agregar y quitar.
-/// Staff ve la lista en modo lectura (el servidor tampoco lo deja cambiarla).
+/// Los clientes VIP: buscar por correo y, con `vip.manage`, agregar y
+/// quitar. Sin ese permiso, la lista en modo lectura (el servidor tampoco lo
+/// deja cambiarla).
 class AdminVipScreen extends ConsumerStatefulWidget {
   const AdminVipScreen({super.key});
 
@@ -100,10 +102,9 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
   @override
   Widget build(BuildContext context) {
     final provider = vipCustomersProvider(_filter);
-    final isAdmin = switch (ref.watch(sessionProvider)) {
-      SignedIn(:final user) => user.role.isAdmin,
-      _ => false,
-    };
+    final canManage = ref
+        .watch(permissionsProvider)
+        .contains(StaffPermission.vipManage);
     String since(VipCustomer vip) => formatDate(context, vip.createdAt);
     String status(VipCustomer vip) =>
         vip.hasAccount ? 'Registrado' : 'Aún sin cuenta';
@@ -112,7 +113,7 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
       title: 'Clientes VIP',
       actions: [
         RefreshButton(onRefresh: ref.read(provider.notifier).refresh),
-        if (isAdmin)
+        if (canManage)
           FilledButton.icon(
             onPressed: _add,
             icon: const Icon(Icons.person_add_alt_outlined),
@@ -120,7 +121,12 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
           ),
       ],
       children: [
-        _Note(readOnly: !isAdmin),
+        PanelNote(
+          'Ven las promociones VIP cuando ingresan a la tienda con ese '
+          'correo y lo tienen verificado.'
+          '${canManage ? '' : ' Tu rol puede ver la lista, pero no agregar '
+                    'ni quitar clientes VIP.'}',
+        ),
         const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) => SizedBox(
@@ -167,7 +173,7 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
           rowLabel: (vip) =>
               '${vip.email}, ${status(vip).toLowerCase()}, alta ${since(vip)}',
           rowActions: [
-            if (isAdmin)
+            if (canManage)
               AdminRowAction(
                 label: 'Quitar',
                 icon: Icons.person_remove_outlined,
@@ -180,39 +186,10 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
           onRetry: () => ref.invalidate(provider),
           emptyText: _filter.isNotEmpty
               ? 'Ningún correo coincide con la búsqueda.'
-              : isAdmin
+              : canManage
               ? 'Todavía no hay clientes VIP. Agrégalos con '
                     '"Agregar clientes".'
               : 'Todavía no hay clientes VIP.',
-        ),
-      ],
-    );
-  }
-}
-
-/// Qué significa ser VIP y, para staff, por qué no hay botones.
-class _Note extends StatelessWidget {
-  const _Note({required this.readOnly});
-
-  final bool readOnly;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.info_outline, size: 20, color: muted),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            'Ven las promociones VIP cuando ingresan a la tienda con ese '
-            'correo y lo tienen verificado.'
-            '${readOnly ? ' Solo un admin puede agregar o quitar clientes '
-                      'VIP.' : ''}',
-            style: theme.textTheme.bodyMedium?.copyWith(color: muted),
-          ),
         ),
       ],
     );

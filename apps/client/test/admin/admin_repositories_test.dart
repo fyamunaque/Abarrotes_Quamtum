@@ -205,8 +205,22 @@ void main() {
       expect(orders.total, 21);
       final first = orders.items.single;
       expect(first.order.status, OrderStatus.confirmed);
-      expect(first.customerName, 'Ana Quispe');
-      expect(first.customerPhone, '987654321');
+      expect(first.customer!.name, 'Ana Quispe');
+      expect(first.customer!.phone, '987654321');
+    });
+
+    test('sin customers.view, el pedido llega sin el cliente', () async {
+      final orders = await HttpAdminOrdersRepository(
+        api(
+          (_) => page([
+            {...order, 'customer': null},
+          ]),
+        ),
+      ).list();
+
+      final first = orders.items.single;
+      expect(first.customer, isNull);
+      expect(first.order.lines, hasLength(1));
     });
 
     test('cambiar el estado: PATCH con el estado nuevo', () async {

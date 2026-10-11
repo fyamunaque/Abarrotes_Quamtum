@@ -2,6 +2,7 @@ import 'package:neils/admin/staff/staff.dart';
 import 'package:neils/session/staff_permission.dart';
 
 import '../fakes.dart';
+import '../support.dart';
 
 const administrator = StaffRole(
   id: 'r-admin',
@@ -13,23 +14,13 @@ const administrator = StaffRole(
 const cashier = StaffRole(
   id: 'r-cajera',
   name: 'Cajera',
-  permissions: {
-    StaffPermission.productsView,
-    StaffPermission.ordersView,
-    StaffPermission.ordersUpdateStatus,
-    StaffPermission.customersView,
-  },
+  permissions: cashierPermissions,
 );
 
 const storekeeper = StaffRole(
   id: 'r-almacen',
   name: 'Almacenero',
-  permissions: {
-    StaffPermission.productsView,
-    StaffPermission.inventoryView,
-    StaffPermission.inventoryAdjust,
-    StaffPermission.statsView,
-  },
+  permissions: storekeeperPermissions,
 );
 
 /// Inactivo y sin nadie asignado.

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/router/route_guard.dart';
+import 'package:neils/router/routes.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
 
@@ -46,8 +47,11 @@ void main() {
     test('el equipo y los roles, solo con staff.manage', () {
       for (final path in ['/admin/equipo', '/admin/roles']) {
         expect(redirect(signedInAs(UserRole.admin), path), isNull);
-        // Del personal, pero sin el permiso: al inicio del panel.
-        expect(redirect(signedInAs(UserRole.staff), path), '/admin');
+        // Del personal, pero sin el permiso: "No tienes acceso".
+        expect(
+          redirect(signedInAs(UserRole.staff), path),
+          '/admin/sin-acceso?seccion=${Uri.encodeComponent(path)}',
+        );
         expect(redirect(signedInAs(UserRole.customer), path), '/');
         expect(
           redirect(const SignedOut(), path),
@@ -68,6 +72,64 @@ void main() {
       expect(redirect(manager, '/admin/equipo'), isNull);
     });
 
+    group('cada sección, con su permiso', () {
+      final cashier = signedInWith(cashierPermissions, roleName: 'Cajera');
+      final storekeeper = signedInWith(storekeeperPermissions);
+
+      test('lo que pide cada una', () {
+        expect(Routes.permissionsFor('/admin'), {StaffPermission.statsView});
+        expect(Routes.permissionsFor('/admin/pedidos'), {
+          StaffPermission.ordersView,
+        });
+        expect(Routes.permissionsFor('/admin/inventario/x'), {
+          StaffPermission.inventoryView,
+        });
+        // Con uno de los dos alcanza.
+        expect(Routes.permissionsFor('/admin/productos'), {
+          StaffPermission.productsView,
+          StaffPermission.productsManage,
+        });
+        expect(Routes.permissionsFor('/admin/promociones'), {
+          StaffPermission.promotionsManage,
+        });
+        expect(Routes.permissionsFor('/admin/clientes-vip'), {
+          StaffPermission.vipView,
+        });
+        expect(Routes.permissionsFor('/admin/sin-acceso'), isNull);
+        expect(
+          Routes.allows(const {
+            StaffPermission.productsManage,
+          }, '/admin/productos'),
+          isTrue,
+        );
+      });
+
+      test('sin el permiso, "No tienes acceso" con la sección pedida', () {
+        expect(redirect(cashier, '/admin/pedidos'), isNull);
+        expect(redirect(cashier, '/admin/productos'), isNull);
+        expect(
+          redirect(cashier, '/admin/inventario'),
+          '/admin/sin-acceso?seccion=%2Fadmin%2Finventario',
+        );
+        expect(
+          redirect(cashier, '/admin/promociones'),
+          '/admin/sin-acceso?seccion=%2Fadmin%2Fpromociones',
+        );
+        expect(redirect(storekeeper, '/admin/inventario'), isNull);
+        expect(
+          redirect(storekeeper, '/admin/pedidos'),
+          '/admin/sin-acceso?seccion=%2Fadmin%2Fpedidos',
+        );
+        // "Sin acceso" lo ve cualquiera del personal: no hay vueltas.
+        expect(redirect(cashier, '/admin/sin-acceso'), isNull);
+      });
+
+      test('/admin sin las estadísticas lleva a la sección principal', () {
+        expect(redirect(cashier, '/admin'), '/admin/pedidos');
+        expect(redirect(storekeeper, '/admin'), isNull);
+      });
+    });
+
     test('una ruta que solo empieza parecido no está protegida', () {
       expect(redirect(const SignedOut(), '/administracion'), isNull);
     });
@@ -81,10 +143,57 @@ void main() {
   group('después de ingresar', () {
     SessionUser user(UserRole role) => signedInAs(role).user;
 
-    test('un cliente va al catálogo; admin y staff al panel', () {
+    test('un cliente va al catálogo; el personal, a su sección', () {
       expect(routeAfterSignIn(user(UserRole.customer), null), '/catalogo');
       expect(routeAfterSignIn(user(UserRole.admin), null), '/admin');
-      expect(routeAfterSignIn(user(UserRole.staff), null), '/admin');
+      expect(
+        routeAfterSignIn(signedInWith(storekeeperPermissions).user, null),
+        '/admin/inventario',
+      );
+      expect(
+        routeAfterSignIn(signedInWith(cashierPermissions).user, null),
+        '/admin/pedidos',
+      );
+    });
+
+    test('la sección principal: la de su tarea, o la primera que ve', () {
+      SessionUser only(Set<StaffPermission> permissions) =>
+          signedInWith(permissions).user;
+
+      // Quien administra la tienda, al inicio.
+      expect(panelHomeFor(user(UserRole.admin)), '/admin');
+      // Lo primero que puede cambiar.
+      expect(panelHomeFor(only(storekeeperPermissions)), '/admin/inventario');
+      expect(panelHomeFor(only(cashierPermissions)), '/admin/pedidos');
+      expect(
+        panelHomeFor(
+          only(const {
+            StaffPermission.productsView,
+            StaffPermission.promotionsManage,
+          }),
+        ),
+        '/admin/promociones',
+      );
+      // Si no cambia nada, la primera que ve.
+      expect(
+        panelHomeFor(
+          only(const {
+            StaffPermission.productsView,
+            StaffPermission.ordersView,
+          }),
+        ),
+        '/admin/pedidos',
+      );
+      // Administra el equipo, pero no ve las estadísticas.
+      expect(
+        panelHomeFor(only(const {StaffPermission.staffManage})),
+        '/admin/equipo',
+      );
+      // Ninguna sección.
+      expect(
+        panelHomeFor(only(const {StaffPermission.customersView})),
+        '/admin/sin-acceso',
+      );
     });
 
     test('admin y staff vuelven a la ruta del panel que pidieron', () {
@@ -94,8 +203,11 @@ void main() {
       );
     });
 
-    test('sin staff.manage, del equipo vuelve al inicio del panel', () {
-      expect(routeAfterSignIn(user(UserRole.staff), '/admin/equipo'), '/admin');
+    test('sin el permiso de la sección pedida, a la suya', () {
+      expect(
+        routeAfterSignIn(user(UserRole.staff), '/admin/equipo'),
+        '/admin/pedidos',
+      );
       expect(
         routeAfterSignIn(user(UserRole.admin), '/admin/equipo'),
         '/admin/equipo',

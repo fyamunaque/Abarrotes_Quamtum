@@ -45,32 +45,6 @@ class TeamTabs extends StatelessWidget {
   }
 }
 
-/// Un texto de ayuda bajo el título, con el ícono de información.
-class TeamNote extends StatelessWidget {
-  const TeamNote(this.text, {super.key});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.colorScheme.onSurfaceVariant;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(Icons.info_outline, size: 20, color: muted),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            text,
-            style: theme.textTheme.bodyMedium?.copyWith(color: muted),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 /// El estado de una persona del equipo, en texto y con su color.
 class StaffStatusBadge extends StatelessWidget {
   const StaffStatusBadge(this.status, {super.key});
