@@ -293,11 +293,9 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
    en `/catalogo`, con el nombre en la barra.
 2. Agregar productos, abrir el carrito y confirmar el pedido: termina en `/mis-pedidos`, con el
    aviso y el pedido en "Pendiente".
-3. Pasar la cuenta a admin en la base del servidor:
-
-   ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U abarrotes -d abarrotes_server -c "UPDATE users SET role = 'admin' WHERE email = 'correo@ejemplo.com'"
-   ```
+3. Hacer admin a esa cuenta: en el servidor, `firstAdminEmail` en `config/passwords.yaml` con
+   su correo y reiniciarlo (ver "Primer admin" en el README del servidor). El correo tiene que
+   estar verificado: el aviso "Verifica tu correo" de la app manda el correo.
 
 4. **Salir** e ingresar de nuevo: termina en `/admin`, con las ventas de los pedidos de ejemplo.
 5. En **Pedidos**, abrir el pedido y avanzarlo ("Confirmar", "Marcar en camino"…). En "Mis

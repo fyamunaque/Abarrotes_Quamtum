@@ -140,25 +140,31 @@ protegida trae el ID token de Firebase en `Authorization: Bearer <token>`, y el 
   descargar si Google las rota.
 - Exige `iss = https://securetoken.google.com/<project id>`, `aud = <project id>`, el token
   vigente y un `sub` (el uid) no vacío.
-- Busca al usuario por `firebaseUid` en `users`. Ahí viven el **rol** y los datos de la tienda.
+- Busca al usuario por `firebaseUid` en `users`, con sus datos de la tienda. Los permisos del
+  personal no están ahí: salen de `staff_members` y su rol, por el correo (ver
+  [Roles y permisos del personal](#roles-y-permisos-del-personal)).
 
 Código en `lib/src/auth/`: `GooglePublicKeys` (llaves), `FirebaseTokenVerifier`,
 `firebaseAuthMiddleware` (rutas REST) y `firebaseAuthenticationHandler`. Este último autentica
 también la sesión de Serverpod con el uid, para los endpoints que se agreguen después.
 
 No hay registro ni login propios: los hace Firebase. El "registro" en la tienda es la primera
-llamada a `GET /users/me`, que siempre crea un `customer`. Ningún rol que mande el cliente se
-toma en cuenta.
+llamada a `GET /users/me`, que crea la cuenta. Nada de lo que mande el cliente da permisos.
 
-### Proteger una ruta por rol
+### Proteger una ruta por permiso
 
-`RoleGuard` protege una ruta por rol: la envuelve y responde 401 (sin
-token o inválido), 503 (sin llaves de Google) o 403 (el rol no alcanza) antes de que la ruta lea
-el body. Si deja pasar, la ruta tiene al usuario en `request.currentUser` (y la identidad del
-token en `request.firebaseIdentity`). Los conjuntos de roles están en `role_guard.dart`:
-`staffRoles` (admin y staff), `adminRoles` (solo admin: cuentas del personal y clientes VIP) y
-`anyRole`. Las lecturas públicas que muestran más al staff (p. ej. productos inactivos) usan
-`optionalUser`: un token ausente o inválido cuenta como visitante.
+Cada dominio recibe un `Guards` (`auth/guards.dart`) y envuelve sus rutas:
+
+- `guards.require(Permission.x, ruta)` (`RequirePermission`): 401 sin token o inválido, 503
+  sin llaves de Google, 403 si la cuenta no existe o no tiene el permiso. Todo antes de que la
+  ruta lea el body. Si deja pasar, la ruta tiene `request.currentUser`, `request.staffAccess`
+  (el rol y los permisos) y `request.firebaseIdentity`.
+- `guards.signedIn(ruta)` (`RequireAccount`): cualquier cuenta (p. ej. hacer un pedido).
+- `guards.optionalAccess(session, request)`: para rutas públicas que muestran más al personal
+  (p. ej. productos inactivos con `products.view`). Sin token o con uno inválido, nada.
+
+Los guards dependen de la interfaz `AuthorizationService` (`auth/authorization.dart`), no de
+dónde se guardan los permisos.
 
 ## CORS (la app web)
 
@@ -184,9 +190,9 @@ el preflight no trae token, y el de Firebase en `/users` lo rechazaría.
 Cada dominio expone una lista de rutas `(path, ruta)` y su servicio (ver `lib/src/categories/`):
 
 ```dart
-List<RouteEntry> categoriesRoutes(CategoriesService categories, FirebaseTokenVerifier verifier) => [
+List<RouteEntry> categoriesRoutes(CategoriesService categories, Guards guards) => [
   ('/categories', ApiRoute(Method.get, (session, request) async => ...)),            // pública
-  ('/categories', RoleGuard(staffRoles, ApiRoute(Method.post, ...), verifier: verifier)),
+  ('/categories', guards.require(Permission.categoriesManage, ApiRoute(Method.post, ...))),
 ];
 ```
 
@@ -212,38 +218,46 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 
 | Método y ruta | Quién | Qué hace |
 |---|---|---|
-| `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. Incluye `isVip`: si puede usar las promociones VIP. Guarda si el correo está verificado (`email_verified` del token). |
+| `GET /users/me` | cualquiera con token | Devuelve el usuario del token; la primera vez lo crea con el email y el nombre de Firebase. Incluye `isVip` (si puede usar las promociones VIP), `staffRole {id, name}` y `permissions` (sus permisos efectivos, leídos ahora: vacíos si no es del personal o no verificó el correo) y un `role` derivado para la app: `admin` con `staff.manage`, `staff` con algún otro permiso, `customer` sin ninguno. Guarda si el correo está verificado. |
 | `PUT /users/me/devices` | cualquiera con token | `{token, platform?}` (`platform`: `android` o `web`): registra el token de FCM de un dispositivo para los avisos push. Repetirlo no lo duplica; si el token era de otra cuenta, pasa a esta. 204. |
 | `DELETE /users/me/devices?token=…` | cualquiera con token | Lo quita (al cerrar sesión). Solo los tokens propios. 204. |
-| `POST /users` | solo `admin` | Crea una cuenta `admin` o `staff` vinculada a un `firebaseUid` existente. Es la única forma de tener esos roles. |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
-| `POST /categories`, `PATCH /categories/:id` | admin, staff | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
-| `DELETE /categories/:id` | admin, staff | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
-| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto para admin y staff). |
-| `GET /products/:id` | público | Un inactivo es 404, salvo para admin y staff. |
-| `POST /products` | admin, staff | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. |
-| `PATCH /products/:id` | admin, staff | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. |
-| `DELETE /products/:id` | admin, staff | Baja lógica (`active: false`); devuelve el producto. |
-| `GET /promotions`, `GET /promotions/:id` | admin, staff | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
-| `POST /promotions` | admin, staff | `{productId, promoPrice, startDate, endDate, active?, audience?, title?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto) o `vip`; `title`: hasta 100 caracteres. |
-| `PATCH /promotions/:id` | admin, staff | Cambia precio, fechas, `active`, `audience` o `title` (`null` lo borra); el producto no cambia. |
+| `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
+| `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
+| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto con `products.view`). |
+| `GET /products/:id` | público | Un inactivo es 404, salvo con `products.view`. |
+| `POST /products` | `products.manage` | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. |
+| `PATCH /products/:id` | `products.manage` | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. |
+| `DELETE /products/:id` | `products.manage` | Baja lógica (`active: false`); devuelve el producto. |
+| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
+| `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto) o `vip`; `title`: hasta 100 caracteres. |
+| `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience` o `title` (`null` lo borra); el producto no cambia. |
 | `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl}`. Sin token, o sin ser VIP, solo salen las de `everyone`. |
-| `DELETE /promotions/:id` | admin, staff | 204. |
-| `GET /vip-customers` | admin, staff | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
-| `POST /vip-customers` | solo `admin` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
-| `DELETE /vip-customers/:id` | solo `admin` | Baja lógica (`active: false`): queda quién lo agregó y cuándo. Devuelve el VIP. |
-| `POST /inventory/movements` | admin, staff | `{productId, type, quantity, reason?}` con `type` igual a `incoming`, `outgoing` o `adjustment`. Actualiza `currentStock` y registra el movimiento a nombre de quien lo hace, en una sola transacción. Responde el movimiento con el stock nuevo. |
-| `GET /inventory/movements` | admin, staff | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
-| `GET /inventory/alerts/low-stock` | admin, staff | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
-| `GET /inventory/alerts/expiring?days=7` | admin, staff | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
+| `DELETE /promotions/:id` | `promotions.manage` | 204. |
+| `GET /vip-customers` | `vip.view` | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
+| `POST /vip-customers` | `vip.manage` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
+| `DELETE /vip-customers/:id` | `vip.manage` | Baja lógica (`active: false`): queda quién lo agregó y cuándo. Devuelve el VIP. |
+| `POST /inventory/movements` | `inventory.adjust` | `{productId, type, quantity, reason?}` con `type` igual a `incoming`, `outgoing` o `adjustment`. Actualiza `currentStock` y registra el movimiento a nombre de quien lo hace, en una sola transacción. Responde el movimiento con el stock nuevo. |
+| `GET /inventory/movements` | `inventory.view` | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
+| `GET /inventory/alerts/low-stock` | `inventory.view` | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
+| `GET /inventory/alerts/expiring?days=7` | `inventory.view` | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
 | `POST /orders` | cualquiera con cuenta | `{deliveryAddress, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
 | `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero. |
-| `GET /orders` | admin, staff | Pedidos con sus líneas y cliente, paginados, los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
-| `PATCH /orders/:id/status` | admin, staff | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
-| `GET /stats/overview` | admin, staff | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
-| `GET /stats/sales?from=&to=` | admin, staff | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
-| `GET /stats/top-products?from=&to=&limit=5` | admin, staff | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
-| `GET /stats/low-stock`, `GET /stats/expiring?days=7` | admin, staff | Las mismas alertas (y el mismo JSON) que `/inventory/alerts/*`. |
+| `GET /orders` | `orders.view` | Pedidos con sus líneas, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
+| `PATCH /orders/:id/status` | `orders.updateStatus` | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
+| `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
+| `GET /stats/sales?from=&to=` | `stats.view` | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
+| `GET /stats/top-products?from=&to=&limit=5` | `stats.view` | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
+| `GET /stats/low-stock`, `GET /stats/expiring?days=7` | `stats.view` |
+| `GET /staff/roles`, `GET /staff/roles/:id` | `staff.manage` | Los roles (el de sistema primero) con sus permisos efectivos y cuántas personas activas tienen. |
+| `POST /staff/roles` | `staff.manage` | `{name, permissions}` con las claves del catálogo (al menos una). El nombre no se repite, sin distinguir mayúsculas (409). 201. |
+| `PATCH /staff/roles/:id` | `staff.manage` | `{name?, permissions?, active?}`. Un rol inactivo no da permisos ni se asigna. El de sistema no se edita (409). |
+| `DELETE /staff/roles/:id` | `staff.manage` | 204. No el de sistema ni uno con personal asignado, aunque esté dado de baja (409). |
+| `GET /staff/members` | `staff.manage` | Paginado, por correo, con el rol, quién lo agregó y `hasAccount`. Filtros: `search` (en el correo) e `includeInactive=true`. |
+| `POST /staff/members` | `staff.manage` | `{emails: [...], roleId}` (de 1 a 500). Responde `{added, duplicates, invalid}`; un correo dado de baja vuelve con ese rol. |
+| `PATCH /staff/members/:id` | `staff.manage` | `{roleId}`: cambia el rol. |
+| `DELETE /staff/members/:id` | `staff.manage` | Baja lógica: pierde sus permisos en la petición siguiente. |
+| `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. | Las mismas alertas (y el mismo JSON) que `/inventory/alerts/*`. |
 
 Estados de pedido (`lib/src/orders/states/`, una clase por estado): `pendingConfirmation` →
 `confirmed` → `outForDelivery` → `delivered`. Se puede cancelar (`cancelled`) mientras no se haya
@@ -363,28 +377,60 @@ desactivado"):
 4. Reiniciar el servidor. Si el proyecto de la cuenta no es el de `firebaseProjectId`, lo
    avisa al arrancar.
 
-Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}` (y `isVip` en
-`/users/me`). Errores comunes a
+### Roles y permisos del personal
+
+El acceso al panel sale del **personal** (`staff_members`, por correo) y su **rol**
+(`staff_roles`), no de la cuenta. Todo en `lib/src/staff/`:
+
+- **El catálogo de permisos** es el enum `Permission` (`staff/permission.spy.yaml`), la fuente
+  de verdad. En la API viajan como `dominio.acción` (`products.view`, `orders.updateStatus`),
+  con `permissionKey`:
+  `products.view`, `products.manage`, `categories.manage`, `orders.view`,
+  `orders.updateStatus`, `inventory.view`, `inventory.adjust`, `promotions.manage`,
+  `vip.view`, `vip.manage`, `stats.view`, `customers.view` y `staff.manage`.
+- **Los roles:** "Administrador" es de sistema (tiene siempre todos los permisos, no se edita
+  ni se borra). Las plantillas "Almacenero" (`products.view`, `inventory.view`,
+  `inventory.adjust`, `stats.view`) y "Cajera" (`products.view`, `orders.view`,
+  `orders.updateStatus`, `customers.view`) las edita un admin. La migración agregó "Solo
+  lectura" (`products.view`, `orders.view`) para quienes eran `staff`.
+- **Quién tiene permisos:** `DbAuthorizationService` busca el correo del token en el personal
+  activo, con su rol activo, y exige `email_verified`. Se lee en cada petición, sin caché:
+  quitar un acceso rige en la petición siguiente.
+- **Reglas** (409 con el motivo): no se puede quitar ni degradar al último Administrador activo
+  (se controla con sus filas bloqueadas, así dos cambios a la vez no lo saltean), nadie se
+  cambia el rol ni se da de baja a sí mismo, no se asigna un rol inactivo.
+- **La bitácora** (`audit_logs`): cada cambio de roles o personal, con quién lo hizo, en la
+  misma transacción que el cambio.
+- **El arranque** (`StaffBootstrap`): una base nueva no tiene roles (las bases nuevas se crean
+  con `definition.sql`, sin la siembra de la migración); al arrancar se crean el
+  Administrador y las plantillas.
+
+**Sumar un permiso:** agregar el valor a `Permission`, `serverpod generate` y usarlo en su
+ruta con `guards.require(Permission.nuevo, …)`. El guard no cambia y el Administrador lo tiene
+solo. Para los demás roles, un admin lo agrega con `PATCH /staff/roles/:id`.
+
+Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}` (y `isVip`,
+`staffRole` y `permissions` en `/users/me`). Errores comunes a
 todas las rutas, siempre con la forma `{statusCode, message, error}`:
 
 - 400: body o query inválidos (con la lista de errores), o token sin email en `/users/me`.
 - 401: sin token o con uno inválido.
-- 403: el rol no alcanza.
+- 403: falta el permiso (o la cuenta todavía no existe).
 - 404: no existe.
 - 409: conflicto (duplicados, categoría con productos, promociones que se cruzan, stock
-  insuficiente).
+  insuficiente, las reglas de roles y personal).
 - 503: no se pudieron obtener las llaves de Google.
 
 ### Primer admin
 
-`POST /users` exige un admin, así que el primero se crea a mano:
+1. En `config/passwords.yaml`, en la sección del modo (p. ej. `development:`):
+   `firstAdminEmail: 'correo@ejemplo.com'` (o la variable de entorno `FIRST_ADMIN_EMAIL`).
+2. Arrancar el servidor: si ese correo todavía no está en el personal, lo agrega como
+   Administrador y lo anota en la bitácora. Si ya está, aunque esté dado de baja, no lo toca.
+3. La persona ingresa con ese correo **verificado** (la app manda el correo de verificación).
+   Sin verificar, no tiene permisos de personal.
 
-1. La persona inicia sesión una vez en la app o la web; `GET /users/me` la crea como cliente.
-2. Se le cambia el rol en la base:
-
-   ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U abarrotes -d abarrotes_server -c "UPDATE users SET role = 'admin' WHERE email = 'correo@ejemplo.com'"
-   ```
+Los demás los agrega un admin con `POST /staff/members`.
 
 ### Probar con un token real
 
