@@ -221,6 +221,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /users/me` | cualquiera con token | Devuelve el usuario del token; la primera vez lo crea con el email y el nombre de Firebase. Incluye `isVip` (si puede usar las promociones VIP), `staffRole {id, name}` y `permissions` (sus permisos efectivos, leídos ahora: vacíos si no es del personal o no verificó el correo) y un `role` derivado para la app: `admin` con `staff.manage`, `staff` con algún otro permiso, `customer` sin ninguno. Guarda si el correo está verificado. |
 | `PUT /users/me/devices` | cualquiera con token | `{token, platform?}` (`platform`: `android` o `web`): registra el token de FCM de un dispositivo para los avisos push. Repetirlo no lo duplica; si el token era de otra cuenta, pasa a esta. 204. |
 | `DELETE /users/me/devices?token=…` | cualquiera con token | Lo quita (al cerrar sesión). Solo los tokens propios. 204. |
+| `GET /customers` | `customers.view` | El listado de clientes del panel: las cuentas de la tienda, paginadas, por nombre, con `{id, name, email, phone, address, emailVerified, createdAt}`. Filtro: `search` (en el nombre o el correo). |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
 | `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
 | `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
@@ -248,7 +249,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
 | `GET /stats/sales?from=&to=` | `stats.view` | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
 | `GET /stats/top-products?from=&to=&limit=5` | `stats.view` | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
-| `GET /stats/low-stock`, `GET /stats/expiring?days=7` | `stats.view` |
+| `GET /stats/low-stock`, `GET /stats/expiring?days=7` | `stats.view` | Las mismas alertas (y el mismo JSON) que `/inventory/alerts/*`. |
 | `GET /staff/roles`, `GET /staff/roles/:id` | `staff.manage` | Los roles (el de sistema primero) con sus permisos efectivos y cuántas personas activas tienen. |
 | `POST /staff/roles` | `staff.manage` | `{name, permissions}` con las claves del catálogo (al menos una). El nombre no se repite, sin distinguir mayúsculas (409). 201. |
 | `PATCH /staff/roles/:id` | `staff.manage` | `{name?, permissions?, active?}`. Un rol inactivo no da permisos ni se asigna. El de sistema no se edita (409). |
@@ -257,7 +258,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `POST /staff/members` | `staff.manage` | `{emails: [...], roleId}` (de 1 a 500). Responde `{added, duplicates, invalid}`; un correo dado de baja vuelve con ese rol. |
 | `PATCH /staff/members/:id` | `staff.manage` | `{roleId}`: cambia el rol. |
 | `DELETE /staff/members/:id` | `staff.manage` | Baja lógica: pierde sus permisos en la petición siguiente. |
-| `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. | Las mismas alertas (y el mismo JSON) que `/inventory/alerts/*`. |
+| `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. |
 
 Estados de pedido (`lib/src/orders/states/`, una clase por estado): `pendingConfirmation` →
 `confirmed` → `outForDelivery` → `delivered`. Se puede cancelar (`cancelled`) mientras no se haya
@@ -408,6 +409,11 @@ El acceso al panel sale del **personal** (`staff_members`, por correo) y su **ro
 **Sumar un permiso:** agregar el valor a `Permission`, `serverpod generate` y usarlo en su
 ruta con `guards.require(Permission.nuevo, …)`. El guard no cambia y el Administrador lo tiene
 solo. Para los demás roles, un admin lo agrega con `PATCH /staff/roles/:id`.
+
+**Ninguna ruta queda protegida solo por "ser del personal":** cada una pide su permiso, una
+cuenta (`RequireAccount`) o nada. `test/unit/auth/route_permissions_test.dart` arma las rutas
+de todos los dominios y compara cada `MÉTODO path` con su protección: una ruta nueva hace
+fallar el test hasta que se le pone su fila.
 
 Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}` (y `isVip`,
 `staffRole` y `permissions` en `/users/me`). Errores comunes a

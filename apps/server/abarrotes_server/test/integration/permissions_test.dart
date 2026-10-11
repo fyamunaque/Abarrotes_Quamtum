@@ -13,6 +13,8 @@ import 'package:abarrotes_server/src/products/products_routes.dart';
 import 'package:abarrotes_server/src/products/products_service.dart';
 import 'package:abarrotes_server/src/staff/db_authorization_service.dart';
 import 'package:abarrotes_server/src/staff/staff_bootstrap.dart';
+import 'package:abarrotes_server/src/users/users_routes.dart';
+import 'package:abarrotes_server/src/users/users_service.dart';
 import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
@@ -226,6 +228,7 @@ void main() {
             guards,
             shoppers: testShoppers,
           ),
+          ...usersRoutes(const UsersService(), guards, shoppers: testShoppers),
         ]);
         client = TestClient(server, google);
         addTearDown(server.close);
@@ -282,11 +285,17 @@ void main() {
         );
       });
 
-      Future<int> adjust(String as) async => (await client.post(
-        '/inventory/movements',
-        {'productId': rice.id.toString(), 'type': 'incoming', 'quantity': 5},
-        as: as,
-      )).$1;
+      Future<int> adjust(String as, {bool emailVerified = true}) async =>
+          (await client.post(
+            '/inventory/movements',
+            {
+              'productId': rice.id.toString(),
+              'type': 'incoming',
+              'quantity': 5,
+            },
+            as: as,
+            emailVerified: emailVerified,
+          )).$1;
 
       Future<int> confirm(String as) async => (await client.patch(
         '/orders/${order.id}/status',
@@ -303,17 +312,116 @@ void main() {
         },
       );
 
+      test('la Cajera confirma pedidos, pero no ve el inventario', () async {
+        expect(await confirm('uid-cajera'), 200);
+        expect(
+          (await client.get('/inventory/movements', as: 'uid-cajera')).$1,
+          403,
+        );
+      });
+
+      test('una Cajera recibe 403 en inventory.adjust', () async {
+        final (status, body) = await client.post('/inventory/movements', {
+          'productId': rice.id.toString(),
+          'type': 'incoming',
+          'quantity': 5,
+        }, as: 'uid-cajera');
+
+        expect(status, 403);
+        expect(body['message'], 'Tu rol no tiene permiso para esta acción');
+        expect(
+          (await Product.db.findById(session, rice.id!))!.currentStock,
+          10,
+        );
+        expect(await InventoryMovement.db.count(session), 0);
+      });
+
       test(
-        'la Cajera confirma pedidos, pero no ajusta el inventario',
+        'un correo sin verificar no obtiene permisos de personal',
         () async {
-          expect(await confirm('uid-cajera'), 200);
-          expect(await adjust('uid-cajera'), 403);
-          expect(
-            (await client.get('/inventory/movements', as: 'uid-cajera')).$1,
-            403,
-          );
+          await insertStaff(session, 'uid-admin');
+
+          // Ni el Administrador ni la Cajera: con el correo sin verificar son
+          // como un cliente.
+          for (final as in ['uid-admin', 'uid-cajera']) {
+            expect(await adjust(as, emailVerified: false), 403);
+            expect(
+              (await client.get('/orders', as: as, emailVerified: false)).$1,
+              403,
+            );
+            expect(
+              (await client.get(
+                '/customers',
+                as: as,
+                emailVerified: false,
+              )).$1,
+              403,
+            );
+            final (_, products) = await client.get(
+              '/products?includeInactive=true',
+              as: as,
+              emailVerified: false,
+            );
+            expect(products['data'], hasLength(1));
+          }
+          expect(await InventoryMovement.db.count(session), 0);
+
+          // Con el correo verificado, el mismo rol vuelve a valer.
+          expect(await adjust('uid-admin'), 201);
+          expect((await client.get('/orders', as: 'uid-cajera')).$1, 200);
         },
       );
+
+      test('el listado de clientes, solo con customers.view', () async {
+        final (status, found) = await client.get(
+          '/customers?search=CLIENTE',
+          as: 'uid-cajera',
+        );
+
+        expect(status, 200);
+        expect(found['data'], [
+          {
+            'id': isA<String>(),
+            'name': 'Usuario uid-cliente',
+            'email': 'uid-cliente@tienda.pe',
+            'phone': null,
+            'address': null,
+            'emailVerified': false,
+            'createdAt': isA<String>(),
+          },
+        ]);
+        expect(found['meta']['total'], 1);
+        expect((await client.get('/customers', as: 'uid-almacen')).$1, 403);
+        expect((await client.get('/customers', as: 'uid-ver')).$1, 403);
+        expect((await client.get('/customers', as: 'uid-cliente')).$1, 403);
+        expect((await client.get('/customers')).$1, 401);
+      });
+
+      test('el listado de clientes va por nombre y por páginas', () async {
+        Future<List<String>> names(String query) async => [
+          for (final customer
+              in (await client.get(
+                    '/customers$query',
+                    as: 'uid-cajera',
+                  )).$2['data']
+                  as List)
+            customer['name'] as String,
+        ];
+
+        expect(await names('?limit=2&page=2'), [
+          'Usuario uid-cliente',
+          'Usuario uid-ver',
+        ]);
+        // El correo también se busca; un % se busca tal cual.
+        expect(await names('?search=almacen%40tienda'), [
+          'Usuario uid-almacen',
+        ]);
+        expect(await names('?search=%25'), isEmpty);
+        expect(
+          (await client.get('/customers?orden=nombre', as: 'uid-cajera')).$1,
+          400,
+        );
+      });
 
       test('el contacto del cliente solo va con customers.view', () async {
         final (_, cajera) = await client.get('/orders', as: 'uid-cajera');

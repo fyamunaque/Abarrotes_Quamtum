@@ -36,15 +36,15 @@ CLAUDE.md
 
 **El servidor:** cada dominio tiene su carpeta en `apps/server/abarrotes_server/lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082):
 
-- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea.
-- `staff`: roles y permisos del personal. Un catálogo de permisos (`Permission`), roles editables más el Administrador de sistema, el personal por correo (con el correo verificado) y una bitácora. Cada ruta del panel pide su permiso (`guards.require`); `/staff/*` (`staff.manage`) los administra.
-- `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
-- `promotions`: CRUD para admin/staff, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
-- `vip`: la lista de clientes VIP por correo (`/vip-customers`): admin la modifica, staff solo la lee. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
+- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea. `GET /customers` (`customers.view`): el listado de clientes para el panel.
+- `staff`: roles y permisos del personal. Un catálogo de permisos (`Permission`), roles editables más el Administrador de sistema, el personal por correo (con el correo verificado) y una bitácora. Cada ruta del panel pide su permiso (`guards.require`), nunca solo "ser del personal": un test compara cada ruta con su permiso. `/staff/*` (`staff.manage`) los administra.
+- `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
+- `promotions`: CRUD con `promotions.manage`, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
+- `vip`: la lista de clientes VIP por correo (`/vip-customers`): se ve con `vip.view` y se modifica con `vip.manage`. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
 - `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`.
-- `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
-- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` con filtros y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`).
-- `stats` (admin/staff): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
+- `inventory`: movimientos de stock (registrarlos pide `inventory.adjust`; verlos y las alertas, `inventory.view`) (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
+- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` (`orders.view`) con filtros y `PATCH /orders/:id/status` (`orders.updateStatus`) con el patrón State (una clase por estado en `lib/src/orders/states/`).
+- `stats` (`stats.view`): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
@@ -102,6 +102,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
 6. **Más gestión en el panel:**
    - roles y personal: la pantalla para `/staff/*`, y que el panel muestre solo las secciones y los botones que permiten los `permissions` de `/users/me` (hoy un rol con pocos permisos ve todo el panel y el servidor le responde 403);
+   - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;
    - exportar a CSV;

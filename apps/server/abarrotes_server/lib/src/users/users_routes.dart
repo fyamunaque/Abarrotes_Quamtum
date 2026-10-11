@@ -6,6 +6,7 @@ import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
+import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import '../staff/permissions.dart';
@@ -22,7 +23,8 @@ void addUsersRoutes(
   addRoutes(webServer, usersRoutes(users, guards, shoppers: shoppers));
 }
 
-/// Las rutas de la cuenta propia.
+/// Las rutas de la cuenta propia y el listado de clientes (con
+/// `customers.view`).
 List<RouteEntry> usersRoutes(
   UsersService users,
   Guards guards, {
@@ -91,7 +93,46 @@ List<RouteEntry> usersRoutes(
       return Response.noContent();
     }),
   ),
+  // El listado de clientes del panel: las cuentas de la tienda, con sus
+  // datos de contacto.
+  (
+    '/customers',
+    guards.require(
+      Permission.customersView,
+      ApiRoute(Method.get, (session, request) async {
+        final query = InputReader.query(
+          request,
+          allowed: {...PageQuery.fields, 'search'},
+        );
+        final page = PageQuery.read(query);
+        final search = query.text('search', maxLength: 100, required: false);
+        query.check();
+
+        final (list, total) = await users.listCustomers(
+          session,
+          page,
+          search: search,
+        );
+        return jsonResponse(
+          200,
+          page.wrap(list.map(customerJson).toList(), total),
+        );
+      }),
+    ),
+  ),
 ];
+
+/// Un cliente en el listado del panel: sus datos de contacto, nunca el
+/// firebaseUid.
+Map<String, Object?> customerJson(User user) => {
+  'id': user.id.toString(),
+  'name': user.name,
+  'email': user.email,
+  'phone': user.phone,
+  'address': user.address,
+  'emailVerified': user.emailVerified,
+  'createdAt': user.createdAt.toUtc().toIso8601String(),
+};
 
 /// Dónde corre la app que registra el dispositivo.
 enum DevicePlatform { android, web }

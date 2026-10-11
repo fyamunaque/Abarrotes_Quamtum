@@ -1,7 +1,9 @@
 import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_identity.dart';
+import '../common/api_route.dart';
 import '../common/http_json.dart';
+import '../common/pagination.dart';
 import '../generated/protocol.dart';
 
 /// Cuentas de usuario: el vínculo entre un uid de Firebase y la tienda, y los
@@ -49,6 +51,30 @@ class UsersService {
         'Ese email ya está registrado con otra cuenta',
       );
     }
+  }
+
+  /// Las cuentas de la tienda, por nombre. [search] busca en el nombre y el
+  /// correo.
+  Future<(List<User>, int)> listCustomers(
+    Session session,
+    PageQuery page, {
+    String? search,
+  }) async {
+    Expression where(UserTable user) {
+      if (search == null) return Constant.bool(true);
+      final pattern = '%${escapeLike(search)}%';
+      return user.name.ilike(pattern) | user.email.ilike(pattern);
+    }
+
+    final customers = await User.db.find(
+      session,
+      where: where,
+      orderByList: (user) => [user.name.asc(), user.id.asc()],
+      limit: page.limit,
+      offset: page.offset,
+    );
+    final total = await User.db.count(session, where: where);
+    return (customers, total);
   }
 
   /// Registra el token de FCM de un dispositivo de [user]. Si ya estaba, lo
