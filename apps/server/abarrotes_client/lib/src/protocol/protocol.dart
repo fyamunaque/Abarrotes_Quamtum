@@ -15,6 +15,7 @@ import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import 'categories/category.dart' as _iwxpkdmg;
 import 'inventory/inventory_movement.dart' as _i976ojya;
 import 'inventory/movement_type.dart' as _i0rwgybl;
+import 'orders/fulfillment_type.dart' as _iwaszz1h;
 import 'orders/order.dart' as _ia2sbmwd;
 import 'orders/order_item.dart' as _is46w9g4;
 import 'orders/order_status.dart' as _ishke5og;
@@ -33,6 +34,7 @@ import 'vip/vip_customer.dart' as _i4hmll1q;
 export 'categories/category.dart';
 export 'inventory/inventory_movement.dart';
 export 'inventory/movement_type.dart';
+export 'orders/fulfillment_type.dart';
 export 'orders/order.dart';
 export 'orders/order_item.dart';
 export 'orders/order_status.dart';
@@ -93,6 +95,9 @@ class Protocol extends _isc.SerializationManager {
     if (t == _i0rwgybl.MovementType) {
       return _i0rwgybl.MovementType.fromJson(data) as T;
     }
+    if (t == _iwaszz1h.FulfillmentType) {
+      return _iwaszz1h.FulfillmentType.fromJson(data) as T;
+    }
     if (t == _ia2sbmwd.Order) {
       return _ia2sbmwd.Order.fromJson(data) as T;
     }
@@ -147,6 +152,10 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _isc.getType<_i0rwgybl.MovementType?>()) {
       return (data != null ? _i0rwgybl.MovementType.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_iwaszz1h.FulfillmentType?>()) {
+      return (data != null ? _iwaszz1h.FulfillmentType.fromJson(data) : null)
+          as T;
     }
     if (t == _isc.getType<_ia2sbmwd.Order?>()) {
       return (data != null ? _ia2sbmwd.Order.fromJson(data) : null) as T;
@@ -332,6 +341,7 @@ class Protocol extends _isc.SerializationManager {
       _iwxpkdmg.Category => 'Category',
       _i976ojya.InventoryMovement => 'InventoryMovement',
       _i0rwgybl.MovementType => 'MovementType',
+      _iwaszz1h.FulfillmentType => 'FulfillmentType',
       _ia2sbmwd.Order => 'Order',
       _is46w9g4.OrderItem => 'OrderItem',
       _ishke5og.OrderStatus => 'OrderStatus',
@@ -367,6 +377,8 @@ class Protocol extends _isc.SerializationManager {
         return 'InventoryMovement';
       case _i0rwgybl.MovementType():
         return 'MovementType';
+      case _iwaszz1h.FulfillmentType():
+        return 'FulfillmentType';
       case _ia2sbmwd.Order():
         return 'Order';
       case _is46w9g4.OrderItem():
@@ -415,6 +427,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'MovementType') {
       return deserialize<_i0rwgybl.MovementType>(data['data']);
+    }
+    if (dataClassName == 'FulfillmentType') {
+      return deserialize<_iwaszz1h.FulfillmentType>(data['data']);
     }
     if (dataClassName == 'Order') {
       return deserialize<_ia2sbmwd.Order>(data['data']);

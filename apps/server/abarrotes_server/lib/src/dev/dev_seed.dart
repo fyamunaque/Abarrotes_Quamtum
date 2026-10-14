@@ -5,6 +5,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
+import '../orders/pickup_code.dart';
 import '../promotions/promotion_rules.dart';
 
 /// Datos de ejemplo para probar la app contra el servidor local: las
@@ -183,6 +184,7 @@ Future<int> _seedOrders(
     }
 
     const count = 40;
+    final pickupCodes = <String>{};
     for (var i = 0; i < count; i++) {
       // Del día 29 hacia atrás hasta hoy, unos por día.
       final daysAgo = 29 - (i * 29) ~/ (count - 1);
@@ -194,14 +196,29 @@ Future<int> _seedOrders(
         ),
       );
       // Fijo, para que el panel siempre tenga de todo: los más recientes
-      // esperan acción y los viejos ya terminaron.
-      final status = switch (count - 1 - i) {
+      // esperan acción y los viejos ya terminaron. Uno de cada cuatro (y
+      // los que se preparan o esperan) es de recojo en tienda.
+      final recent = count - 1 - i;
+      final status = switch (recent) {
         0 || 1 => OrderStatus.pendingConfirmation,
         2 || 3 => OrderStatus.confirmed,
         4 || 5 => OrderStatus.outForDelivery,
+        6 => OrderStatus.preparing,
+        7 => OrderStatus.readyForPickup,
         _ when i % 8 == 3 => OrderStatus.cancelled,
         _ => OrderStatus.delivered,
       };
+      final pickup =
+          recent == 3 ||
+          status == OrderStatus.preparing ||
+          status == OrderStatus.readyForPickup ||
+          (recent > 7 && i % 4 == 1);
+      String? pickupCode;
+      if (pickup) {
+        do {
+          pickupCode = randomPickupCode();
+        } while (!pickupCodes.add(pickupCode));
+      }
 
       final lines = [
         for (final product in (List.of(products)..shuffle(random)).take(
@@ -219,11 +236,23 @@ Future<int> _seedOrders(
         session,
         Order(
           status: status,
+          fulfillmentType: pickup
+              ? FulfillmentType.pickup
+              : FulfillmentType.delivery,
           totalCents: lines.fold(
             0,
             (sum, line) => sum + line.unitPrice * line.quantity,
           ),
-          deliveryAddress: customer.address ?? 'Av. Arequipa 1234, Lince',
+          deliveryAddress: pickup
+              ? null
+              : customer.address ?? 'Av. Arequipa 1234, Lince',
+          pickupCode: pickupCode,
+          readyForPickupAt:
+              pickup &&
+                  (status == OrderStatus.readyForPickup ||
+                      status == OrderStatus.delivered)
+              ? createdAt.add(const Duration(hours: 1))
+              : null,
           createdAt: createdAt,
           updatedAt: createdAt,
           customerId: customer.id!,

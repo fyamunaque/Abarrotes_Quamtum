@@ -230,6 +230,9 @@ void main() {
           'outForDelivery': 1,
           'delivered': 1,
           'cancelled': 1,
+          // Los del recojo en tienda, sin pedidos: en 0.
+          'preparing': 0,
+          'readyForPickup': 0,
         });
       },
     );

@@ -3,11 +3,14 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import 'report_provider.dart';
 
-/// Pedidos que cuentan como venta: los que la tienda aceptó. Los pendientes
-/// todavía pueden rechazarse y los cancelados devuelven el stock.
+/// Pedidos que cuentan como venta: los que la tienda aceptó, a domicilio o
+/// para recoger. Los pendientes todavía pueden rechazarse y los cancelados
+/// devuelven el stock.
 const saleStatuses = [
   OrderStatus.confirmed,
   OrderStatus.outForDelivery,
+  OrderStatus.preparing,
+  OrderStatus.readyForPickup,
   OrderStatus.delivered,
 ];
 

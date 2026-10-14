@@ -242,10 +242,10 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/movements` | `inventory.view` | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
 | `GET /inventory/alerts/low-stock` | `inventory.view` | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | `inventory.view` | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
-| `POST /orders` | cualquiera con cuenta | `{deliveryAddress, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
-| `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero. |
-| `GET /orders` | `orders.view` | Pedidos con sus líneas, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
-| `PATCH /orders/:id/status` | `orders.updateStatus` | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
+| `POST /orders` | cualquiera con cuenta | `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
+| `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode`. |
+| `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode`, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
+| `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente (400 si falta o no coincide). El código va en la respuesta solo con `orders.view`. |
 | `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
 | `GET /stats/sales?from=&to=` | `stats.view` | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
 | `GET /stats/top-products?from=&to=&limit=5` | `stats.view` | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
@@ -260,9 +260,37 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /staff/members/:id` | `staff.manage` | Baja lógica: pierde sus permisos en la petición siguiente. |
 | `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. |
 
-Estados de pedido (`lib/src/orders/states/`, una clase por estado): `pendingConfirmation` →
-`confirmed` → `outForDelivery` → `delivered`. Se puede cancelar (`cancelled`) mientras no se haya
-entregado; `delivered` y `cancelled` son finales. Reglas del cambio de estado:
+Cada pedido JSON lleva `fulfillmentType`, `deliveryAddress` (null en recojo), `pickupCode` (solo
+para su dueño y el personal con `orders.view`; si no, null), `readyForPickupAt` y
+`allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
+botones con eso, sin las transiciones escritas a mano.
+
+### Estados y tipos de entrega
+
+Cada tipo de entrega es un flujo (patrón Strategy, `lib/src/orders/fulfillment/`):
+
+| Tipo | Pasos |
+|---|---|
+| `delivery` (a domicilio, como todos los pedidos de antes) | `pendingConfirmation` → `confirmed` → `outForDelivery` → `delivered` |
+| `pickup` (recojo en tienda) | `pendingConfirmation` → `confirmed` → `preparing` → `readyForPickup` → `delivered` ("recogido") |
+
+En los dos se puede cancelar (`cancelled`) mientras no se haya entregado; `delivered` y
+`cancelled` son finales. Un pedido de recojo nunca pasa a `outForDelivery`, ni uno a domicilio a
+`preparing` o `readyForPickup`: 400 con el motivo.
+
+Cada estado es una clase (patrón State, `lib/src/orders/states/`) que recibe por constructor el
+flujo del pedido y le pregunta a dónde puede pasar. Además, cada estado suma lo suyo:
+- `ReadyForPickupState`: al entrar guarda `readyForPickupAt`, y para salir a `delivered` pide el
+  código del cliente (sin espacios y sin importar mayúsculas);
+- los handlers no hacen E/S: `OrdersService.changeStatus` los consulta en su transacción.
+
+**El código de recojo** (`orders/pickup_code.dart`): 6 caracteres de
+`23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (sin 0/O/1/I), al azar con `Random.secure()`. Es único en
+toda la tabla (índice único `orders_pickup_code_idx`): al crear el pedido se busca uno libre, y
+si dos pedidos sacan el mismo a la vez, el índice deja pasar uno y el otro recibe 409 "vuelve a
+intentarlo".
+
+Reglas del cambio de estado:
 
 - Cancelar devuelve al inventario lo que el pedido descontó: una entrada por línea, a nombre de
   quien cancela. Lo hace el servicio de inventory dentro de la misma transacción.

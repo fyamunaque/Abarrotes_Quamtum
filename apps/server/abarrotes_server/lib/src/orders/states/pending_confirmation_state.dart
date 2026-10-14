@@ -3,14 +3,8 @@ import 'order_state_handler.dart';
 
 /// Recién creado: la tienda lo confirma o lo cancela.
 class PendingConfirmationState extends OrderStateHandler {
-  const PendingConfirmationState();
+  const PendingConfirmationState(super.flow);
 
   @override
   OrderStatus get status => OrderStatus.pendingConfirmation;
-
-  @override
-  List<OrderStatus> get nextStatuses => const [
-    OrderStatus.confirmed,
-    OrderStatus.cancelled,
-  ];
 }

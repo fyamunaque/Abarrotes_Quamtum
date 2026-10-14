@@ -11,11 +11,13 @@ import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'orders_service.dart';
+import 'states/order_states.dart';
 
 /// Rutas de pedidos: crear y ver los propios, para cualquier cuenta; el
 /// listado, con `orders.view`, y los cambios de estado, con
 /// `orders.updateStatus`. El contacto del cliente solo va con
-/// `customers.view`.
+/// `customers.view`, y el código de recojo, para el dueño del pedido y para
+/// el personal con `orders.view`.
 List<RouteEntry> ordersRoutes(
   OrdersService orders,
   Guards guards, {
@@ -29,6 +31,7 @@ List<RouteEntry> ordersRoutes(
       adminOrderJson(
         order,
         withCustomer: request.staffAccess.can(Permission.customersView),
+        withPickupCode: request.staffAccess.can(Permission.ordersView),
       );
 
   return [
@@ -37,13 +40,35 @@ List<RouteEntry> ordersRoutes(
       // El pedido queda a nombre de quien lo crea. Los precios y el total los
       // pone el servidor con los precios de hoy para ese cliente. Cada ítem
       // puede traer el unitPrice que mostraba el carrito: nunca se cobra, solo
-      // se compara, y si cambió va en priceChanges.
+      // se compara, y si cambió va en priceChanges. A domicilio (por defecto)
+      // lleva la dirección; con recojo en tienda no, y el servidor le genera
+      // su código.
       signedIn(Method.post, (session, request) async {
         final body = InputReader.body(
           await readJsonBody(request),
-          allowed: const {'deliveryAddress', 'items'},
+          allowed: const {'fulfillmentType', 'deliveryAddress', 'items'},
         );
-        final deliveryAddress = body.text('deliveryAddress', maxLength: 255);
+        final fulfillmentType =
+            body.oneOf(
+              'fulfillmentType',
+              FulfillmentType.values,
+              required: false,
+            ) ??
+            FulfillmentType.delivery;
+        final deliveryAddress = body.text(
+          'deliveryAddress',
+          maxLength: 255,
+          required: false,
+        );
+        switch (fulfillmentType) {
+          case FulfillmentType.delivery when !body.has('deliveryAddress'):
+            body.reject('deliveryAddress es obligatorio a domicilio');
+          case FulfillmentType.pickup when body.has('deliveryAddress'):
+            body.reject(
+              'deliveryAddress no va en un pedido de recojo en tienda',
+            );
+          default:
+        }
         final items = body.objects(
           'items',
           allowed: const {'productId', 'quantity', 'unitPrice'},
@@ -68,7 +93,8 @@ List<RouteEntry> ordersRoutes(
           session,
           customer: request.currentUser,
           shopper: await shoppers.resolve(session, request.firebaseIdentity),
-          deliveryAddress: deliveryAddress!,
+          fulfillmentType: fulfillmentType,
+          deliveryAddress: deliveryAddress,
           lines: [
             for (final line in lines)
               (
@@ -79,7 +105,7 @@ List<RouteEntry> ordersRoutes(
           ],
         );
         return jsonResponse(201, {
-          ...orderJson(placed.order),
+          ...orderJson(placed.order, withPickupCode: true),
           'priceChanges': placed.priceChanges.map(priceChangeJson).toList(),
         });
       }),
@@ -98,7 +124,10 @@ List<RouteEntry> ordersRoutes(
         );
         return jsonResponse(
           200,
-          page.wrap(list.map(orderJson).toList(), total),
+          page.wrap(
+            [for (final order in list) orderJson(order, withPickupCode: true)],
+            total,
+          ),
         );
       }),
     ),
@@ -107,12 +136,23 @@ List<RouteEntry> ordersRoutes(
       requires(Permission.ordersView, Method.get, (session, request) async {
         final query = InputReader.query(
           request,
-          allowed: {...PageQuery.fields, 'status', 'from', 'to'},
+          allowed: {
+            ...PageQuery.fields,
+            'status',
+            'fulfillmentType',
+            'from',
+            'to',
+          },
         );
         final page = PageQuery.read(query);
         final status = query.oneOf(
           'status',
           OrderStatus.values,
+          required: false,
+        );
+        final fulfillmentType = query.oneOf(
+          'fulfillmentType',
+          FulfillmentType.values,
           required: false,
         );
         final from = query.day('from', required: false);
@@ -123,6 +163,7 @@ List<RouteEntry> ordersRoutes(
           session,
           page,
           status: status,
+          fulfillmentType: fulfillmentType,
           from: from,
           to: to,
         );
@@ -142,11 +183,17 @@ List<RouteEntry> ordersRoutes(
         request,
       ) async {
         final id = idParam(request);
+        // pickupCode: el que muestra el cliente al recoger su pedido.
         final body = InputReader.body(
           await readJsonBody(request),
-          allowed: const {'status'},
+          allowed: const {'status', 'pickupCode'},
         );
         final status = body.oneOf('status', OrderStatus.values);
+        final pickupCode = body.text(
+          'pickupCode',
+          maxLength: 20,
+          required: false,
+        );
         body.check();
 
         final order = await orders.changeStatus(
@@ -154,6 +201,7 @@ List<RouteEntry> ordersRoutes(
           id,
           status!,
           by: request.currentUser,
+          pickupCode: pickupCode,
         );
         return jsonResponse(200, panelJson(request, order));
       }),
@@ -163,13 +211,22 @@ List<RouteEntry> ordersRoutes(
 
 /// El pedido con sus líneas, como lo lee la app (`Order.fromJson`). Montos
 /// como texto ("4.5") y estado como en el modelo (`pendingConfirmation`,
-/// `confirmed`…).
-Map<String, Object?> orderJson(Order order) {
+/// `confirmed`…). `allowedNextStatuses` sale del flujo de su tipo de
+/// entrega: las apps arman sus botones con eso, sin las transiciones escritas
+/// a mano. El código de recojo, solo [withPickupCode] (el dueño del pedido o
+/// el personal con `orders.view`).
+Map<String, Object?> orderJson(Order order, {required bool withPickupCode}) {
   return {
     'id': order.id.toString(),
     'status': order.status.name,
+    'fulfillmentType': order.fulfillmentType.name,
+    'allowedNextStatuses': [
+      for (final status in orderStateOfOrder(order).nextStatuses) status.name,
+    ],
     'total': formatMoney(order.totalCents),
     'deliveryAddress': order.deliveryAddress,
+    'pickupCode': withPickupCode ? order.pickupCode : null,
+    'readyForPickupAt': order.readyForPickupAt?.toUtc().toIso8601String(),
     'createdAt': order.createdAt.toUtc().toIso8601String(),
     'updatedAt': order.updatedAt.toUtc().toIso8601String(),
     'customerId': order.customerId.toString(),
@@ -204,10 +261,11 @@ Map<String, Object?> priceChangeJson(PriceChange change) => {
 Map<String, Object?> adminOrderJson(
   Order order, {
   required bool withCustomer,
+  required bool withPickupCode,
 }) {
   final customer = order.customer!;
   return {
-    ...orderJson(order),
+    ...orderJson(order, withPickupCode: withPickupCode),
     'customer': withCustomer
         ? {
             'id': customer.id.toString(),
