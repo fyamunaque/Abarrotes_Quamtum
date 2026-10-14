@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../admin/orders/admin_order.dart';
 import '../../../admin/orders/admin_orders_providers.dart';
 import '../../../common/money.dart';
+import '../../../orders/fulfillment.dart';
 import '../../../orders/order_status.dart';
 import '../../../session/session_provider.dart';
 import '../../../session/staff_permission.dart';
@@ -104,7 +105,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             AdminColumn(
               'Estado',
               (o) => StatusBadge(
-                label: o.order.status.label,
+                label: o.order.statusLabel,
                 color: orderStatusColor(o.order.status),
               ),
               flex: 3,
@@ -114,7 +115,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           rowLabel: (o) =>
               '${_title(o)}, '
               '${formatDateTime(context, o.order.createdAt)}, '
-              '${formatSoles(o.order.totalCents)}, ${o.order.status.label}',
+              '${formatSoles(o.order.totalCents)}, ${o.order.statusLabel}',
           onRowTap: (order) => showAdminForm<void>(
             context,
             title: _title(order),
@@ -162,6 +163,17 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
   String? _error;
 
   Future<void> _change(AdminOrder order, OrderStatus next) async {
+    // Recoger en caja: el código que muestra el cliente.
+    String? pickupCode;
+    if (order.order.fulfillmentType == FulfillmentType.pickup &&
+        next == OrderStatus.delivered) {
+      pickupCode = await showDialog<String>(
+        context: context,
+        builder: (_) => const _PickupCodeDialog(),
+      );
+      if (pickupCode == null) return;
+    }
+    if (!mounted) return;
     if (next == OrderStatus.cancelled) {
       final confirmed = await confirmAction(
         context,
@@ -179,7 +191,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
     });
     final notifier = ref.read(adminOrdersProvider(widget.filter).notifier);
     try {
-      await notifier.changeStatus(order, next);
+      await notifier.changeStatus(order, next, pickupCode: pickupCode);
     } catch (error) {
       // Lo más común: otra persona ya lo cambió. Se trae como está ahora.
       if (mounted) {
@@ -208,7 +220,9 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
       color: theme.colorScheme.onSurfaceVariant,
     );
     final status = order.order.status;
-    final next = status.nextStatuses;
+    final type = order.order.fulfillmentType;
+    // Lo calcula el servidor con el flujo del tipo de entrega.
+    final next = order.order.allowedNextStatuses;
     final advance = next.where((s) => s != OrderStatus.cancelled).firstOrNull;
     final permissions = ref.watch(permissionsProvider);
     final canUpdate = permissions.contains(StaffPermission.ordersUpdateStatus);
@@ -218,7 +232,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
       children: [
         Text(formatDateTime(context, order.order.createdAt), style: muted),
         const SizedBox(height: 16),
-        OrderTracker(status: status),
+        OrderTracker(status: status, fulfillmentType: type),
         const SizedBox(height: 16),
         if (_error case final error?) ...[
           FormError(error),
@@ -238,7 +252,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
               if (advance != null)
                 FilledButton(
                   onPressed: _busy ? null : () => _change(order, advance),
-                  child: Text(advance.actionLabel),
+                  child: Text(type.actionLabelOf(advance)),
                 ),
               if (next.contains(OrderStatus.cancelled))
                 DestructiveButton(
@@ -272,7 +286,12 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
         const SizedBox(height: 12),
         Text('Entrega', style: theme.textTheme.titleSmall),
         const SizedBox(height: 4),
-        Text(order.order.deliveryAddress),
+        if (type == FulfillmentType.pickup) ...[
+          const Text('Recojo en tienda'),
+          if (order.order.pickupCode case final code?)
+            Text('Código $code', style: muted),
+        ] else
+          Text(order.order.deliveryAddress ?? '—'),
         const Divider(height: 32),
         for (final line in order.order.lines)
           Padding(
@@ -294,6 +313,63 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
               style: theme.textTheme.titleMedium,
             ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// Pide el código de recojo que muestra el cliente en caja. Devuelve lo que
+/// se escribió, o null si se volvió atrás. El servidor lo compara (sin
+/// espacios y sin importar mayúsculas) y responde 400 si no coincide.
+class _PickupCodeDialog extends StatefulWidget {
+  const _PickupCodeDialog();
+
+  @override
+  State<_PickupCodeDialog> createState() => _PickupCodeDialogState();
+}
+
+class _PickupCodeDialogState extends State<_PickupCodeDialog> {
+  final _code = TextEditingController();
+
+  @override
+  void dispose() {
+    _code.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final code = _code.text.trim();
+    if (code.isNotEmpty) Navigator.of(context).pop(code);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Entregar el pedido'),
+      content: TextField(
+        controller: _code,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Código de recojo',
+          helperText: 'El que muestra el cliente.',
+        ),
+        textCapitalization: TextCapitalization.characters,
+        autocorrect: false,
+        maxLength: 6,
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: const Text('Volver'),
+        ),
+        ListenableBuilder(
+          listenable: _code,
+          builder: (_, _) => FilledButton(
+            onPressed: _code.text.trim().isEmpty ? null : _submit,
+            child: const Text('Marcar recogido'),
+          ),
         ),
       ],
     );

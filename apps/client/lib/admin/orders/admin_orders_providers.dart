@@ -28,10 +28,14 @@ class AdminOrdersNotifier extends PagedNotifier<AdminOrder> {
 
   /// Cambia el estado y deja el pedido actualizado en la página. Devuelve el
   /// pedido como quedó.
-  Future<AdminOrder> changeStatus(AdminOrder order, OrderStatus next) async {
+  Future<AdminOrder> changeStatus(
+    AdminOrder order,
+    OrderStatus next, {
+    String? pickupCode,
+  }) async {
     final updated = await ref
         .read(adminOrdersRepositoryProvider)
-        .changeStatus(order.id, next);
+        .changeStatus(order.id, next, pickupCode: pickupCode);
     replace(updated, (current) => current.id == updated.id);
     return updated;
   }

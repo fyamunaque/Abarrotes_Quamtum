@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../common/money.dart';
+import '../../orders/fulfillment.dart';
 import '../../orders/order.dart';
 import '../../orders/orders_providers.dart';
 import '../../router/routes.dart';
@@ -237,7 +238,10 @@ class _OrderCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 16),
-            OrderTracker(status: order.status),
+            OrderTracker(
+              status: order.status,
+              fulfillmentType: order.fulfillmentType,
+            ),
             const SizedBox(height: 16),
             for (final line in order.lines)
               Padding(
@@ -251,7 +255,17 @@ class _OrderCard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-            Text('Entrega en ${order.deliveryAddress}', style: muted),
+            Text(switch (order) {
+              Order(
+                fulfillmentType: FulfillmentType.pickup,
+                :final pickupCode?,
+              ) =>
+                'Recojo en tienda · Código $pickupCode',
+              Order(fulfillmentType: FulfillmentType.pickup) =>
+                'Recojo en tienda',
+              Order(:final deliveryAddress) =>
+                'Entrega en ${deliveryAddress ?? '—'}',
+            }, style: muted),
           ],
         ),
       ),

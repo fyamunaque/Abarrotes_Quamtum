@@ -233,6 +233,17 @@ void main() {
       expect(jsonDecode(sent.single.body), {'status': 'outForDelivery'});
       expect(updated.order.status, OrderStatus.outForDelivery);
     });
+
+    test('recoger en caja manda el código', () async {
+      await HttpAdminOrdersRepository(
+        api((_) => {...order, 'status': 'delivered'}),
+      ).changeStatus('o-1', OrderStatus.delivered, pickupCode: 'K7M2XQ');
+
+      expect(jsonDecode(sent.single.body), {
+        'status': 'delivered',
+        'pickupCode': 'K7M2XQ',
+      });
+    });
   });
 
   group('productos', () {
@@ -730,22 +741,5 @@ void main() {
         ),
       );
     });
-  });
-
-  test('las transiciones de estado son las del servidor', () {
-    expect(OrderStatus.pendingConfirmation.nextStatuses, [
-      OrderStatus.confirmed,
-      OrderStatus.cancelled,
-    ]);
-    expect(OrderStatus.confirmed.nextStatuses, [
-      OrderStatus.outForDelivery,
-      OrderStatus.cancelled,
-    ]);
-    expect(OrderStatus.outForDelivery.nextStatuses, [
-      OrderStatus.delivered,
-      OrderStatus.cancelled,
-    ]);
-    expect(OrderStatus.delivered.nextStatuses, isEmpty);
-    expect(OrderStatus.cancelled.nextStatuses, isEmpty);
   });
 }

@@ -11,6 +11,8 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/orders/fulfillment.dart';
+import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/router/router.dart';
@@ -230,6 +232,32 @@ void main() {
 
     expect(location(router), '/mis-pedidos');
     expect(find.text('Todavía no hiciste pedidos.'), findsOneWidget);
+  });
+
+  testWidgets('un pedido de recojo muestra su código y sus pasos', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    orders.orders.add(
+      Order(
+        id: 'pedido-1',
+        status: OrderStatus.preparing,
+        fulfillmentType: FulfillmentType.pickup,
+        pickupCode: 'K7M2XQ',
+        totalCents: 2490,
+        createdAt: DateTime.utc(2026, 10, 14, 15),
+        lines: const [],
+      ),
+    );
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    expect(find.text('Recojo en tienda · Código K7M2XQ'), findsOneWidget);
+    expect(find.textContaining('Entrega en'), findsNothing);
+    final tracker = tester.widget<OrderTracker>(find.byType(OrderTracker));
+    expect(tracker.fulfillmentType, FulfillmentType.pickup);
+    expect(find.text('Preparando'), findsOneWidget);
   });
 
   testWidgets('"Actualizar" trae el estado nuevo y el seguimiento lo anima', (

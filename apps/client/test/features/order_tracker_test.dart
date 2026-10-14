@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
@@ -14,6 +15,7 @@ void main() {
     WidgetTester tester,
     OrderStatus status, {
     bool reduceMotion = false,
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
   }) => tester.pumpWidget(
     MaterialApp(
       theme: neilsTheme(),
@@ -21,7 +23,13 @@ void main() {
         data: MediaQueryData(disableAnimations: reduceMotion),
         child: Scaffold(
           body: Center(
-            child: SizedBox(width: 360, child: OrderTracker(status: status)),
+            child: SizedBox(
+              width: 360,
+              child: OrderTracker(
+                status: status,
+                fulfillmentType: fulfillmentType,
+              ),
+            ),
           ),
         ),
       ),
@@ -55,6 +63,8 @@ void main() {
       {
         OrderStatus.pendingConfirmation: const Color(0xFFD98C21),
         OrderStatus.confirmed: const Color(0xFF3C7A5F),
+        OrderStatus.preparing: const Color(0xFF7A5C99),
+        OrderStatus.readyForPickup: const Color(0xFF2E6F9E),
         OrderStatus.outForDelivery: const Color(0xFF2E6F9E),
         OrderStatus.delivered: const Color(0xFF3C7A5F),
         OrderStatus.cancelled: const Color(0xFF8C3B33),
@@ -137,6 +147,35 @@ void main() {
     await pumpTracker(tester, OrderStatus.delivered);
     await tester.pumpAndSettle();
     expect(find.byIcon(Icons.check), findsNWidgets(4));
+  });
+
+  testWidgets('de recojo: sus cinco pasos, hasta "Recogido"', (tester) async {
+    final semantics = tester.ensureSemantics();
+
+    await pumpTracker(
+      tester,
+      OrderStatus.readyForPickup,
+      fulfillmentType: FulfillmentType.pickup,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Estado del pedido: En espera de recojo, paso 4 de 5',
+      ),
+      findsOneWidget,
+    );
+    for (final label in [
+      'Pendiente',
+      'Confirmado',
+      'Preparando',
+      'Listo',
+      'Recogido',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('En camino'), findsNothing);
+    // Ocho medios tramos: llena hasta el cuarto paso.
+    expect(fills(tester), [1, 1, 1, 1, 1, 1, 0, 0]);
+    semantics.dispose();
   });
 
   testWidgets('el estado se lee como texto, no solo con color', (tester) async {

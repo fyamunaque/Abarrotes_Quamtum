@@ -19,6 +19,11 @@ abstract final class OrderStatusColors {
   static const pending = Color(0xFFD98C21);
   static const confirmed = Color(0xFF3C7A5F);
   static const onTheWay = Color(0xFF2E6F9E);
+
+  /// Recojo en tienda: preparando, y en espera (como "en camino": va hacia
+  /// el cliente).
+  static const preparing = Color(0xFF7A5C99);
+  static const readyForPickup = onTheWay;
   static const delivered = Color(0xFF3C7A5F);
 
   /// Este sí sirve para texto sobre crema (6,8:1).

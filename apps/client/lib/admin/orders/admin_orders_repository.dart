@@ -11,8 +11,13 @@ abstract interface class AdminOrdersRepository {
   Future<PageList<AdminOrder>> list({int page = 1, OrderStatus? status});
 
   /// Cambia el estado. Si el estado actual no lo permite (p. ej. otra persona
-  /// ya lo cambió), `ApiFailure` 400 con el motivo.
-  Future<AdminOrder> changeStatus(String id, OrderStatus status);
+  /// ya lo cambió), `ApiFailure` 400 con el motivo. Recoger un pedido en
+  /// caja lleva el [pickupCode] que muestra el cliente.
+  Future<AdminOrder> changeStatus(
+    String id,
+    OrderStatus status, {
+    String? pickupCode,
+  });
 }
 
 class HttpAdminOrdersRepository implements AdminOrdersRepository {
@@ -33,9 +38,14 @@ class HttpAdminOrdersRepository implements AdminOrdersRepository {
   }
 
   @override
-  Future<AdminOrder> changeStatus(String id, OrderStatus status) async {
+  Future<AdminOrder> changeStatus(
+    String id,
+    OrderStatus status, {
+    String? pickupCode,
+  }) async {
     final json = await _api.patch('/orders/${Uri.encodeComponent(id)}/status', {
       'status': status.name,
+      'pickupCode': ?pickupCode,
     }, fallback: 'No se pudo cambiar el estado.');
     return decodeResponse(() => AdminOrder.fromJson(json));
   }

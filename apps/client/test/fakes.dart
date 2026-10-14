@@ -23,6 +23,7 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/common/page_list.dart';
 import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_repository.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
@@ -59,8 +60,20 @@ const milk = Product(
   category: dairy,
 );
 
+/// A qué estados puede pasar un pedido, como lo calcula el servidor con el
+/// flujo de su tipo de entrega (`FulfillmentFlow` en apps/server): el paso
+/// siguiente y, mientras no esté entregado, cancelado. La app no lo calcula:
+/// lo lee de `allowedNextStatuses`; esto es para el servidor simulado.
+List<OrderStatus> allowedNextFor(FulfillmentType type, OrderStatus status) {
+  final steps = type.steps;
+  final i = steps.indexOf(status);
+  if (i < 0 || i == steps.length - 1) return const [];
+  return [steps[i + 1], OrderStatus.cancelled];
+}
+
 /// Los pedidos del panel en memoria. Valida el cambio de estado como el
-/// servidor (`nextStatuses`), con su mismo mensaje.
+/// servidor (`allowedNextStatuses` y el código al recoger), con sus
+/// mensajes.
 class FakeAdminOrdersRepository implements AdminOrdersRepository {
   FakeAdminOrdersRepository(this.orders, {this.pageSize = 20});
 
@@ -72,6 +85,9 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
   ApiFailure? failNext;
 
   final changes = <(String, OrderStatus)>[];
+
+  /// El código que se mandó en cada cambio de estado.
+  final pickupCodes = <String?>[];
 
   /// Cuántas veces se pidió una página.
   int listCalls = 0;
@@ -96,22 +112,32 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
   }
 
   @override
-  Future<AdminOrder> changeStatus(String id, OrderStatus status) async {
+  Future<AdminOrder> changeStatus(
+    String id,
+    OrderStatus status, {
+    String? pickupCode,
+  }) async {
+    pickupCodes.add(pickupCode);
     if (failNext case final failure?) {
       failNext = null;
       throw failure;
     }
     final i = orders.indexWhere((order) => order.id == id);
-    final current = orders[i];
-    if (!current.order.status.nextStatuses.contains(status)) {
+    final current = orders[i].order;
+    if (!current.allowedNextStatuses.contains(status)) {
       throw ApiFailure(
-        'Un pedido ${current.order.status.label.toLowerCase()} no puede '
-        'pasar a ${status.label.toLowerCase()}',
+        'Un pedido ${current.statusLabel.toLowerCase()} no puede '
+        'pasar a ${current.fulfillmentType.labelOf(status).toLowerCase()}',
         status: 400,
       );
     }
+    if (current.status == OrderStatus.readyForPickup &&
+        status == OrderStatus.delivered &&
+        pickupCode?.replaceAll(' ', '').toUpperCase() != current.pickupCode) {
+      throw const ApiFailure('El código de recojo no coincide', status: 400);
+    }
     changes.add((id, status));
-    return orders[i] = withStatus(current, status);
+    return orders[i] = withStatus(orders[i], status);
   }
 
   static AdminOrder withStatus(AdminOrder order, OrderStatus status) =>
@@ -119,27 +145,43 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
         order: Order(
           id: order.order.id,
           status: status,
+          fulfillmentType: order.order.fulfillmentType,
           totalCents: order.order.totalCents,
           deliveryAddress: order.order.deliveryAddress,
+          pickupCode: order.order.pickupCode,
           createdAt: order.order.createdAt,
           lines: order.order.lines,
+          allowedNextStatuses: allowedNextFor(
+            order.order.fulfillmentType,
+            status,
+          ),
         ),
         customer: order.customer,
       );
 }
 
-/// Un pedido del panel para los tests.
+/// Un pedido del panel para los tests: a domicilio o, con [pickupCode], de
+/// recojo en tienda. Con los estados siguientes que mandaría el servidor.
 AdminOrder adminOrder(
   String id,
   OrderStatus status, {
   String customer = 'Ana Quispe',
   int day = 4,
+  String? pickupCode,
 }) => AdminOrder(
   order: Order(
     id: id,
     status: status,
+    fulfillmentType: pickupCode == null
+        ? FulfillmentType.delivery
+        : FulfillmentType.pickup,
+    allowedNextStatuses: allowedNextFor(
+      pickupCode == null ? FulfillmentType.delivery : FulfillmentType.pickup,
+      status,
+    ),
+    pickupCode: pickupCode,
     totalCents: 3380,
-    deliveryAddress: 'Av. Arequipa 123, Lince',
+    deliveryAddress: pickupCode == null ? 'Av. Arequipa 123, Lince' : null,
     createdAt: DateTime.utc(2026, 10, day, 15, 30),
     lines: const [
       OrderLine(
@@ -703,8 +745,10 @@ class FakeOrderRepository implements OrderRepository {
     orders[i] = Order(
       id: order.id,
       status: status,
+      fulfillmentType: order.fulfillmentType,
       totalCents: order.totalCents,
       deliveryAddress: order.deliveryAddress,
+      pickupCode: order.pickupCode,
       createdAt: order.createdAt,
       lines: order.lines,
     );

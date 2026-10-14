@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../orders/fulfillment.dart';
 import '../../orders/order_status.dart';
 import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
@@ -8,22 +9,30 @@ import '../../theme/motion.dart';
 Color orderStatusColor(OrderStatus status) => switch (status) {
   OrderStatus.pendingConfirmation => OrderStatusColors.pending,
   OrderStatus.confirmed => OrderStatusColors.confirmed,
+  OrderStatus.preparing => OrderStatusColors.preparing,
+  OrderStatus.readyForPickup => OrderStatusColors.readyForPickup,
   OrderStatus.outForDelivery => OrderStatusColors.onTheWay,
   OrderStatus.delivered => OrderStatusColors.delivered,
   OrderStatus.cancelled => OrderStatusColors.cancelled,
 };
 
-/// Seguimiento de un pedido: los pasos de pendiente a entregado, unidos por
-/// una línea que se llena hasta el estado actual, en el color de ese estado.
+/// Seguimiento de un pedido: los pasos de su tipo de entrega, de pendiente a
+/// entregado (o recogido), unidos por una línea que se llena hasta el estado
+/// actual, en el color de ese estado.
 ///
 /// Al mostrarse no se anima. Cuando [status] cambia, la línea se llena (o se
 /// vacía) hasta el estado nuevo en [NeilsMotion.progress], y el color pasa al
 /// del estado nuevo. Un pedido cancelado muestra los pasos apagados y el
 /// aviso: el servidor no guarda en qué paso se canceló.
 class OrderTracker extends StatefulWidget {
-  const OrderTracker({super.key, required this.status});
+  const OrderTracker({
+    super.key,
+    required this.status,
+    this.fulfillmentType = FulfillmentType.delivery,
+  });
 
   final OrderStatus status;
+  final FulfillmentType fulfillmentType;
 
   @override
   State<OrderTracker> createState() => _OrderTrackerState();
@@ -44,21 +53,24 @@ class _OrderTrackerState extends State<OrderTracker>
     begin: _reachOf(widget.status),
     end: _reachOf(widget.status),
   );
+
+  List<OrderStatus> get _steps => widget.fulfillmentType.steps;
   late var _color = ColorTween(
     begin: orderStatusColor(widget.status),
     end: orderStatusColor(widget.status),
   );
 
   /// Hasta qué paso llega la línea (0 = el primero). Cancelado no avanza.
-  static double _reachOf(OrderStatus status) => OrderStatus.steps
-      .indexOf(status)
-      .clamp(0, OrderStatus.steps.length)
-      .toDouble();
+  double _reachOf(OrderStatus status) =>
+      _steps.indexOf(status).clamp(0, _steps.length).toDouble();
 
   @override
   void didUpdateWidget(OrderTracker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.status == widget.status) return;
+    if (oldWidget.status == widget.status &&
+        oldWidget.fulfillmentType == widget.fulfillmentType) {
+      return;
+    }
     // Parte de donde está ahora, aunque la animación anterior no terminara.
     _reach = Tween(
       begin: _reach.evaluate(_curve),
@@ -91,11 +103,12 @@ class _OrderTrackerState extends State<OrderTracker>
   @override
   Widget build(BuildContext context) {
     final status = widget.status;
+    final type = widget.fulfillmentType;
     final cancelled = status == OrderStatus.cancelled;
-    final steps = OrderStatus.steps;
+    final steps = _steps;
     final semantics = cancelled
-        ? 'Estado del pedido: ${status.label}'
-        : 'Estado del pedido: ${status.label}, '
+        ? 'Estado del pedido: ${type.labelOf(status)}'
+        : 'Estado del pedido: ${type.labelOf(status)}, '
               'paso ${steps.indexOf(status) + 1} de ${steps.length}';
 
     return Semantics(
@@ -116,7 +129,7 @@ class _OrderTrackerState extends State<OrderTracker>
                     for (final (i, step) in steps.indexed)
                       Expanded(
                         child: _Step(
-                          label: step.stepLabel,
+                          label: type.stepLabelOf(step),
                           index: i,
                           count: steps.length,
                           reach: reach,

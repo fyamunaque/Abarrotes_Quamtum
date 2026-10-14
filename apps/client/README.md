@@ -153,8 +153,10 @@ activo, cada animación salta a su estado final.
   El precio va subrayado con el mismo swoosh, quieto (`Swoosh`).
 - **El carrito de la barra** (`CartButton`): cuando sube el contador, el ícono da un rebote de
   300 ms. Al quitar no se mueve.
-- **El seguimiento de pedido** (`OrderTracker`): cuando el estado avanza, la línea se llena
-  hasta el paso nuevo en 500 ms, y el color pasa al del estado nuevo. Al mostrarse no se anima.
+- **El seguimiento de pedido** (`OrderTracker`): los pasos del tipo de entrega del pedido
+  (`FulfillmentType.steps`: a domicilio, 4; con recojo, 5, hasta "Recogido"). Cuando el
+  estado avanza, la línea se llena hasta el paso nuevo en 500 ms, y el color pasa al del
+  estado nuevo. Al mostrarse no se anima.
   Un pedido cancelado muestra los pasos apagados y el aviso: el servidor no guarda en qué paso
   se canceló.
 
@@ -178,7 +180,7 @@ flutter run -d chrome   # y abrir /vitrina
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
-| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega: la dirección o, con recojo en tienda, el código para mostrar en caja. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
 | `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
 | `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
 
@@ -287,7 +289,7 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 | Sección | Qué hace |
 |---|---|
 | Inicio | Ventas de hoy, la semana y el mes con el ticket promedio, pedidos por estado, el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". |
-| Pedidos | Todos los pedidos, con chips por estado. Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega, las líneas y el stepper: el seguimiento con la acción del paso siguiente ("Confirmar", "Marcar en camino", "Marcar entregado") y "Cancelar pedido", que pide confirmación. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Pedidos | Todos los pedidos, con chips por estado. Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Listo para recoger" y "Marcar recogido", que pide el código que muestra el cliente. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |

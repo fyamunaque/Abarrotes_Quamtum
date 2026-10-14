@@ -43,7 +43,7 @@ CLAUDE.md
 - `vip`: la lista de clientes VIP por correo (`/vip-customers`): se ve con `vip.view` y se modifica con `vip.manage`. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
 - `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`.
 - `inventory`: movimientos de stock (registrarlos pide `inventory.adjust`; verlos y las alertas, `inventory.view`) (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
-- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` (`orders.view`) con filtros y `PATCH /orders/:id/status` (`orders.updateStatus`) con el patrón State (una clase por estado en `lib/src/orders/states/`).
+- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` (`orders.view`) con filtros (también por tipo de entrega) y `PATCH /orders/:id/status` (`orders.updateStatus`) con el patrón State (una clase por estado en `lib/src/orders/states/`) y el flujo de cada tipo de entrega como Strategy (`lib/src/orders/fulfillment/`). A domicilio o con recojo en tienda: recoger en caja pide el código del cliente.
 - `stats` (`stats.view`): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
@@ -56,7 +56,7 @@ El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas
 
 Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional) y `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó).
 
-- **Estados de pedido:** `pendingConfirmation → confirmed → outForDelivery → delivered`, con `cancelled` como ruta alterna.
+- **Estados de pedido y tipos de entrega:** cada pedido es a domicilio (`delivery`, por defecto) o de recojo en tienda (`pickup`, con un `pickupCode` de 6 caracteres sin 0/O/1/I, único). A domicilio: `pendingConfirmation → confirmed → outForDelivery → delivered`; con recojo: `pendingConfirmation → confirmed → preparing → readyForPickup → delivered` ("recogido", con el código del cliente). En los dos, `cancelled` es la ruta alterna hasta antes de entregar. El flujo de cada tipo es un Strategy (`FulfillmentFlow`) que consultan los estados (State); el JSON trae `allowedNextStatuses`.
 - **Montos en céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal. En el JSON viajan como texto (`"4.5"`).
 - Enums en camelCase. Movimientos: `incoming`, `outgoing`, `adjustment` (`in` es palabra reservada de Dart).
 - Ids UUID v7, tablas en plural (`users`, `orders`, …) y claves foráneas `ON DELETE RESTRICT ON UPDATE CASCADE`.
@@ -102,7 +102,8 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-6. **Más gestión en el panel:**
+6. **Recojo en tienda en la app** (el servidor y el seguimiento ya lo tienen): elegir domicilio o recojo en el carrito, y en el panel el filtro por tipo de entrega.
+7. **Más gestión en el panel:**
    - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;
