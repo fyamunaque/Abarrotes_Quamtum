@@ -222,6 +222,8 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `PUT /users/me/devices` | cualquiera con token | `{token, platform?}` (`platform`: `android` o `web`): registra el token de FCM de un dispositivo para los avisos push. Repetirlo no lo duplica; si el token era de otra cuenta, pasa a esta. 204. |
 | `DELETE /users/me/devices?token=…` | cualquiera con token | Lo quita (al cerrar sesión). Solo los tokens propios. 204. |
 | `GET /customers` | `customers.view` | El listado de clientes del panel: las cuentas de la tienda, paginadas, por nombre, con `{id, name, email, phone, address, emailVerified, createdAt}`. Filtro: `search` (en el nombre o el correo). |
+| `GET /store` | público | Los datos de la tienda que ve el cliente (p. ej. al elegir recojo): `{name, address, reference, phone, openingHours, pickupInstructions, updatedAt}`. Mientras nadie los cargó, el nombre de la tienda y lo demás vacío (`updatedAt` en null). |
+| `PATCH /store` | `store.manage` | Campos parciales; `null` borra los opcionales. Nombre (hasta 100) y dirección (hasta 255) no pueden quedar vacíos: la primera vez, la dirección es obligatoria. Hay un solo registro (tabla `store_settings`, con un índice único que no deja crear otro). |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
 | `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
 | `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
@@ -416,7 +418,7 @@ El acceso al panel sale del **personal** (`staff_members`, por correo) y su **ro
   con `permissionKey`:
   `products.view`, `products.manage`, `categories.manage`, `orders.view`,
   `orders.updateStatus`, `inventory.view`, `inventory.adjust`, `promotions.manage`,
-  `vip.view`, `vip.manage`, `stats.view`, `customers.view` y `staff.manage`.
+  `vip.view`, `vip.manage`, `stats.view`, `customers.view`, `staff.manage` y `store.manage`.
 - **Los roles:** "Administrador" es de sistema (tiene siempre todos los permisos, no se edita
   ni se borra). Las plantillas "Almacenero" (`products.view`, `inventory.view`,
   `inventory.adjust`, `stats.view`) y "Cajera" (`products.view`, `orders.view`,

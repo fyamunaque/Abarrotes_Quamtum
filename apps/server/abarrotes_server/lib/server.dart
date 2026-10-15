@@ -37,6 +37,8 @@ import 'src/stats/providers/overview_report_provider.dart';
 import 'src/stats/providers/sales_report_provider.dart';
 import 'src/stats/providers/top_products_report_provider.dart';
 import 'src/stats/stats_routes.dart';
+import 'src/store/store_routes.dart';
+import 'src/store/store_settings_service.dart';
 import 'src/users/users_routes.dart';
 import 'src/vip/vip_promotion_announcer.dart';
 import 'src/vip/vip_routes.dart';
@@ -102,6 +104,7 @@ void run(List<String> args) async {
   addUsersRoutes(pod.webServer, guards: guards, shoppers: shoppers);
   addRoutes(pod.webServer, [
     ...categoriesRoutes(const CategoriesService(), guards),
+    ...storeRoutes(const StoreSettingsService(), guards),
     ...productsRoutes(
       ProductsService(pricing: promotions),
       guards,

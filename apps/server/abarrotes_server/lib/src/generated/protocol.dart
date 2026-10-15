@@ -28,6 +28,7 @@ import 'staff/audit_log.dart' as _ias3z63p;
 import 'staff/permission.dart' as _iwx11llg;
 import 'staff/role.dart' as _idva2d1t;
 import 'staff/staff_member.dart' as _ihm1xmqc;
+import 'store/store_settings.dart' as _ii46ae28;
 import 'supplies/supply.dart' as _iae274dd;
 import 'users/device_token.dart' as _ir35tcw0;
 import 'users/user.dart' as _ih6cb19o;
@@ -47,6 +48,7 @@ export 'staff/audit_log.dart';
 export 'staff/permission.dart';
 export 'staff/role.dart';
 export 'staff/staff_member.dart';
+export 'store/store_settings.dart';
 export 'supplies/supply.dart';
 export 'users/device_token.dart';
 export 'users/user.dart';
@@ -850,6 +852,105 @@ class Protocol extends _is.DatabaseSerializationManager {
       managed: true,
     ),
     _isp.TableDefinition(
+      name: 'store_settings',
+      dartName: 'StoreSettings',
+      schema: 'public',
+      module: 'abarrotes',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue?',
+          columnDefault: 'random_v7',
+        ),
+        _isp.ColumnDefinition(
+          name: 'singleton',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'true',
+        ),
+        _isp.ColumnDefinition(
+          name: 'name',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'address',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'reference',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'phone',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'openingHours',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'pickupInstructions',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'updatedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+          columnDefault: 'now',
+        ),
+        _isp.ColumnDefinition(
+          name: 'updatedByUserId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: true,
+          dartType: 'UuidValue?',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'store_settings_fk_0',
+          columns: ['updatedByUserId'],
+          referenceTable: 'users',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.setNull,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'store_settings_singleton_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'singleton',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
       name: 'supplies',
       dartName: 'Supply',
       schema: 'public',
@@ -1133,6 +1234,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _ihm1xmqc.StaffMember) {
       return _ihm1xmqc.StaffMember.fromJson(data) as T;
     }
+    if (t == _ii46ae28.StoreSettings) {
+      return _ii46ae28.StoreSettings.fromJson(data) as T;
+    }
     if (t == _iae274dd.Supply) {
       return _iae274dd.Supply.fromJson(data) as T;
     }
@@ -1192,6 +1296,10 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _is.getType<_ihm1xmqc.StaffMember?>()) {
       return (data != null ? _ihm1xmqc.StaffMember.fromJson(data) : null) as T;
+    }
+    if (t == _is.getType<_ii46ae28.StoreSettings?>()) {
+      return (data != null ? _ii46ae28.StoreSettings.fromJson(data) : null)
+          as T;
     }
     if (t == _is.getType<_iae274dd.Supply?>()) {
       return (data != null ? _iae274dd.Supply.fromJson(data) : null) as T;
@@ -1335,6 +1443,20 @@ class Protocol extends _is.DatabaseSerializationManager {
               : null)
           as T;
     }
+    if (t == List<_ii46ae28.StoreSettings>) {
+      return (data as List)
+              .map((e) => deserialize<_ii46ae28.StoreSettings>(e))
+              .toList()
+          as T;
+    }
+    if (t == _is.getType<List<_ii46ae28.StoreSettings>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_ii46ae28.StoreSettings>(e))
+                    .toList()
+              : null)
+          as T;
+    }
     try {
       return _isp.Protocol().deserialize<T>(data, t);
     } on _is.DeserializationTypeNotFoundException catch (_) {}
@@ -1358,6 +1480,7 @@ class Protocol extends _is.DatabaseSerializationManager {
       _iwx11llg.Permission => 'Permission',
       _idva2d1t.Role => 'Role',
       _ihm1xmqc.StaffMember => 'StaffMember',
+      _ii46ae28.StoreSettings => 'StoreSettings',
       _iae274dd.Supply => 'Supply',
       _ir35tcw0.DeviceToken => 'DeviceToken',
       _ih6cb19o.User => 'User',
@@ -1406,6 +1529,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'Role';
       case _ihm1xmqc.StaffMember():
         return 'StaffMember';
+      case _ii46ae28.StoreSettings():
+        return 'StoreSettings';
       case _iae274dd.Supply():
         return 'Supply';
       case _ir35tcw0.DeviceToken():
@@ -1473,6 +1598,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (dataClassName == 'StaffMember') {
       return deserialize<_ihm1xmqc.StaffMember>(data['data']);
     }
+    if (dataClassName == 'StoreSettings') {
+      return deserialize<_ii46ae28.StoreSettings>(data['data']);
+    }
     if (dataClassName == 'Supply') {
       return deserialize<_iae274dd.Supply>(data['data']);
     }
@@ -1519,6 +1647,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return _idva2d1t.Role.t;
       case _ihm1xmqc.StaffMember:
         return _ihm1xmqc.StaffMember.t;
+      case _ii46ae28.StoreSettings:
+        return _ii46ae28.StoreSettings.t;
       case _iae274dd.Supply:
         return _iae274dd.Supply.t;
       case _ir35tcw0.DeviceToken:

@@ -16,6 +16,7 @@ import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
 import '../staff/audit_log.dart' as _iohhzbvb;
 import '../staff/staff_member.dart' as _i3fhtrko;
+import '../store/store_settings.dart' as _ispes5g9;
 import '../users/device_token.dart' as _iuurxiuf;
 import '../vip/vip_customer.dart' as _icy1qtyi;
 
@@ -39,6 +40,7 @@ abstract class User
     this.deviceTokens,
     this.staffMembersAdded,
     this.auditLogs,
+    this.storeSettingsUpdated,
   }) : emailVerified = emailVerified ?? false,
        createdAt = createdAt ?? DateTime.now();
 
@@ -57,6 +59,7 @@ abstract class User
     List<_iuurxiuf.DeviceToken>? deviceTokens,
     List<_i3fhtrko.StaffMember>? staffMembersAdded,
     List<_iohhzbvb.AuditLog>? auditLogs,
+    List<_ispes5g9.StoreSettings>? storeSettingsUpdated,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -105,6 +108,11 @@ abstract class User
           : _iv4mbvnl.Protocol().deserialize<List<_iohhzbvb.AuditLog>>(
               jsonSerialization['auditLogs'],
             ),
+      storeSettingsUpdated: jsonSerialization['storeSettingsUpdated'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<List<_ispes5g9.StoreSettings>>(
+              jsonSerialization['storeSettingsUpdated'],
+            ),
     );
   }
 
@@ -142,6 +150,8 @@ abstract class User
 
   List<_iohhzbvb.AuditLog>? auditLogs;
 
+  List<_ispes5g9.StoreSettings>? storeSettingsUpdated;
+
   /// Returns a shallow copy of this [User]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -160,6 +170,7 @@ abstract class User
     List<_iuurxiuf.DeviceToken>? deviceTokens,
     List<_i3fhtrko.StaffMember>? staffMembersAdded,
     List<_iohhzbvb.AuditLog>? auditLogs,
+    List<_ispes5g9.StoreSettings>? storeSettingsUpdated,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -191,6 +202,10 @@ abstract class User
         ),
       if (auditLogs != null)
         'auditLogs': auditLogs?.toJson(valueToJson: (v) => v.toJson()),
+      if (storeSettingsUpdated != null)
+        'storeSettingsUpdated': storeSettingsUpdated?.toJson(
+          valueToJson: (v) => v.toJson(),
+        ),
     };
   }
 
@@ -228,6 +243,10 @@ abstract class User
         'auditLogs': auditLogs?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (storeSettingsUpdated != null)
+        'storeSettingsUpdated': storeSettingsUpdated?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
     };
   }
 
@@ -255,6 +274,7 @@ class _UserImpl extends User {
     List<_iuurxiuf.DeviceToken>? deviceTokens,
     List<_i3fhtrko.StaffMember>? staffMembersAdded,
     List<_iohhzbvb.AuditLog>? auditLogs,
+    List<_ispes5g9.StoreSettings>? storeSettingsUpdated,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
@@ -270,6 +290,7 @@ class _UserImpl extends User {
          deviceTokens: deviceTokens,
          staffMembersAdded: staffMembersAdded,
          auditLogs: auditLogs,
+         storeSettingsUpdated: storeSettingsUpdated,
        );
 
   /// Returns a shallow copy of this [User]
@@ -291,6 +312,7 @@ class _UserImpl extends User {
     Object? deviceTokens = _Undefined,
     Object? staffMembersAdded = _Undefined,
     Object? auditLogs = _Undefined,
+    Object? storeSettingsUpdated = _Undefined,
   }) {
     return User(
       id: id is _isc.UuidValue? ? id : this.id,
@@ -320,6 +342,10 @@ class _UserImpl extends User {
       auditLogs: auditLogs is List<_iohhzbvb.AuditLog>?
           ? auditLogs
           : this.auditLogs?.map((e0) => e0.copyWith()).toList(),
+      storeSettingsUpdated:
+          storeSettingsUpdated is List<_ispes5g9.StoreSettings>?
+          ? storeSettingsUpdated
+          : this.storeSettingsUpdated?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }

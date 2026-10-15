@@ -29,7 +29,8 @@ enum Permission implements _isc.SerializableModel {
   vipManage,
   statsView,
   customersView,
-  staffManage;
+  staffManage,
+  storeManage;
 
   static Permission fromJson(String name) {
     switch (name) {
@@ -59,6 +60,8 @@ enum Permission implements _isc.SerializableModel {
         return Permission.customersView;
       case 'staffManage':
         return Permission.staffManage;
+      case 'storeManage':
+        return Permission.storeManage;
       default:
         throw ArgumentError(
           'Value "$name" cannot be converted to "Permission"',

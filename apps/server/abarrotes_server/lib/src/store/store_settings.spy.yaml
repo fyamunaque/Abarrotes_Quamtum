@@ -1,0 +1,25 @@
+### Los datos de la tienda que ve el cliente (p. ej. al elegir recojo). Hay
+### un solo registro: singleton es siempre true y su índice único no deja
+### crear otro.
+class: StoreSettings
+table: store_settings
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  singleton: bool, default=true
+  name: String
+  address: String
+  ### Cómo llegar ("frente al parque Kennedy").
+  reference: String?
+  phone: String?
+  ### Horario de atención, en texto ("Lun a sáb de 8 a 20 h").
+  openingHours: String?
+  ### Qué hacer al llegar a recoger un pedido.
+  pickupInstructions: String?
+  updatedAt: DateTime, default=now
+  ### Quién lo editó por última vez.
+  updatedByUserId: UuidValue?
+  updatedBy: User?, relation(name=user_store_settings_updated, field=updatedByUserId, onDelete=SetNull, onUpdate=Cascade)
+indexes:
+  store_settings_singleton_idx:
+    fields: singleton
+    unique: true

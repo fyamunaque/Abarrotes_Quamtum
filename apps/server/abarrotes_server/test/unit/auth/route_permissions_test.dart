@@ -22,6 +22,8 @@ import 'package:abarrotes_server/src/stats/providers/overview_report_provider.da
 import 'package:abarrotes_server/src/stats/providers/sales_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/top_products_report_provider.dart';
 import 'package:abarrotes_server/src/stats/stats_routes.dart';
+import 'package:abarrotes_server/src/store/store_routes.dart';
+import 'package:abarrotes_server/src/store/store_settings_service.dart';
 import 'package:abarrotes_server/src/users/users_routes.dart';
 import 'package:abarrotes_server/src/users/users_service.dart';
 import 'package:abarrotes_server/src/vip/vip_routes.dart';
@@ -55,6 +57,7 @@ void main() {
     final routes = <RouteEntry>[
       ...usersRoutes(const UsersService(), guards, shoppers: testShoppers),
       ...categoriesRoutes(const CategoriesService(), guards),
+      ...storeRoutes(const StoreSettingsService(), guards),
       ...productsRoutes(
         ProductsService(pricing: testPromotions()),
         guards,
@@ -98,6 +101,9 @@ void main() {
       'PUT /users/me/devices': 'token',
       'DELETE /users/me/devices': 'token',
       'GET /customers': 'customers.view',
+      // Los datos de la tienda: lectura pública.
+      'GET /store': 'pública',
+      'PATCH /store': 'store.manage',
       // Catálogo: lectura pública, escritura con su permiso.
       'GET /categories': 'pública',
       'GET /categories/:id': 'pública',
