@@ -6,6 +6,7 @@ enum PermissionArea {
   promotions('Promociones'),
   vip('Clientes VIP'),
   stats('Estadísticas'),
+  store('Tienda'),
   team('Equipo');
 
   const PermissionArea(this.label);
@@ -97,6 +98,13 @@ enum StaffPermission {
     'Administrar el equipo',
     'Agrega personas, les cambia el rol, las desactiva y edita los roles. '
         'Es el permiso de quien administra la tienda.',
+  ),
+  storeManage(
+    'store.manage',
+    PermissionArea.store,
+    'Editar los datos de la tienda',
+    'Cambia el nombre, la dirección, el horario y las instrucciones de recojo '
+        'que ven los clientes.',
   );
 
   const StaffPermission(this.key, this.area, this.label, this.description);
