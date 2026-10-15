@@ -70,6 +70,7 @@ void main() {
       final overview = OverviewReportProvider(
         sales: sales,
         orderStatus: _FakeOrderStatus(),
+        fulfillment: _FakeFulfillment(),
         // Jueves 1 de octubre, 07:00 en Lima.
         now: () => DateTime.utc(2026, 10, 1, 12),
       );
@@ -83,6 +84,7 @@ void main() {
       ]);
       expect(report.week.range.from, '2026-09-28');
       expect(report.ordersByStatus[OrderStatus.delivered], 7);
+      expect(report.ordersByFulfillment[FulfillmentType.pickup], 2);
       expect(report.generatedAt, DateTime.utc(2026, 10, 1, 12));
     },
   );
@@ -102,6 +104,14 @@ class _FakeOrderStatus extends ReportProvider<void, OrdersByStatus> {
   @override
   Future<OrdersByStatus> getSummary(Session session, void range) async => {
     OrderStatus.delivered: 7,
+  };
+}
+
+class _FakeFulfillment extends ReportProvider<void, OrdersByFulfillment> {
+  @override
+  Future<OrdersByFulfillment> getSummary(Session session, void range) async => {
+    FulfillmentType.delivery: 5,
+    FulfillmentType.pickup: 2,
   };
 }
 

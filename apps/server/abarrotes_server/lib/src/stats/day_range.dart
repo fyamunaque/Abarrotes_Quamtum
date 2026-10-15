@@ -3,16 +3,10 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import 'report_provider.dart';
 
-/// Pedidos que cuentan como venta: los que la tienda aceptó, a domicilio o
-/// para recoger. Los pendientes todavía pueden rechazarse y los cancelados
-/// devuelven el stock.
-const saleStatuses = [
-  OrderStatus.confirmed,
-  OrderStatus.outForDelivery,
-  OrderStatus.preparing,
-  OrderStatus.readyForPickup,
-  OrderStatus.delivered,
-];
+/// Pedidos que cuentan como venta: los completados, es decir entregados a
+/// domicilio o recogidos en tienda (`delivered` en los dos flujos). Un
+/// pedido en camino o en espera todavía puede cancelarse.
+const saleStatuses = [OrderStatus.delivered];
 
 const defaultRangeDays = 30;
 const maxRangeDays = 366;

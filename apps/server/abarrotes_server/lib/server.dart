@@ -32,6 +32,7 @@ import 'src/push/fcm_push_sender.dart';
 import 'src/push/google_access_tokens.dart';
 import 'src/push/push_sender.dart';
 import 'src/stats/providers/expiring_products_report_provider.dart';
+import 'src/stats/providers/fulfillment_report_provider.dart';
 import 'src/stats/providers/low_stock_report_provider.dart';
 import 'src/stats/providers/order_status_report_provider.dart';
 import 'src/stats/providers/overview_report_provider.dart';
@@ -139,6 +140,7 @@ void run(List<String> args) async {
       overview: OverviewReportProvider(
         sales: sales,
         orderStatus: const OrderStatusReportProvider(),
+        fulfillment: const FulfillmentReportProvider(),
       ),
       sales: sales,
       topProducts: const TopProductsReportProvider(),

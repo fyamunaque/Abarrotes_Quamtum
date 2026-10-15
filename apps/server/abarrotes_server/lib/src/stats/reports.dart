@@ -19,6 +19,10 @@ typedef SalesReport = ({
 /// Cantidad de pedidos en cada estado; los estados sin pedidos van en 0.
 typedef OrdersByStatus = Map<OrderStatus, int>;
 
+/// Cantidad de pedidos de cada tipo de entrega; los tipos sin pedidos van
+/// en 0.
+typedef OrdersByFulfillment = Map<FulfillmentType, int>;
+
 /// Resumen del dashboard.
 typedef StatsOverview = ({
   DateTime generatedAt,
@@ -26,6 +30,7 @@ typedef StatsOverview = ({
   SalesReport week,
   SalesReport month,
   OrdersByStatus ordersByStatus,
+  OrdersByFulfillment ordersByFulfillment,
 });
 
 typedef TopProductsRange = ({DayRange range, int limit});

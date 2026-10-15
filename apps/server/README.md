@@ -248,7 +248,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode`. |
 | `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode`, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente (400 si falta o no coincide). El código va en la respuesta solo con `orders.view`. |
-| `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio, y los pedidos en cada estado. |
+| `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio; los pedidos en cada estado (`ordersByStatus`, también `preparing` y `readyForPickup`) y por tipo de entrega (`ordersByFulfillment: {delivery, pickup}`), de cualquier fecha. |
 | `GET /stats/sales?from=&to=` | `stats.view` | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
 | `GET /stats/top-products?from=&to=&limit=5` | `stats.view` | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
 | `GET /stats/low-stock`, `GET /stats/expiring?days=7` | `stats.view` | Las mismas alertas (y el mismo JSON) que `/inventory/alerts/*`. |
@@ -315,10 +315,12 @@ Estadísticas (`lib/src/stats/`): cada reporte es una estrategia que extiende `R
 `LowStockReportProvider`, `ExpiringProductsReportProvider`). Cada uno se inyecta por separado en
 `statsRoutes` desde `server.dart`. Reglas:
 
-- El overview no consulta la base: compone el reporte de ventas y el de pedidos por estado, que
-  recibe como abstracciones.
-- Las ventas cuentan solo pedidos aceptados (`confirmed`, `outForDelivery`, `delivered`) y se
-  agrupan por día de Lima en la base.
+- El overview no consulta la base: compone el reporte de ventas, el de pedidos por estado y el
+  de pedidos por tipo de entrega, que recibe como abstracciones.
+- Una venta cuenta cuando se completa: solo los pedidos `delivered` (entregados a domicilio o
+  recogidos en tienda), por el día en que se hizo el pedido, agrupados por día de Lima en la
+  base. Un pedido confirmado, en camino o en espera de recojo todavía no es venta (puede
+  cancelarse). Lo mismo para los más vendidos.
 - Stock bajo y por vencer reutilizan `StockAlerts` de inventory.
 
 Reglas de los movimientos de inventario:
