@@ -29,6 +29,8 @@ import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
+import 'package:neils/store/store_repository.dart';
+import 'package:neils/store/store_settings.dart';
 import 'package:neils/users/user_repository.dart';
 
 import 'support.dart';
@@ -70,6 +72,29 @@ List<OrderStatus> allowedNextFor(FulfillmentType type, OrderStatus status) {
   if (i < 0 || i == steps.length - 1) return const [];
   return [steps[i + 1], OrderStatus.cancelled];
 }
+
+/// Los datos de la tienda en memoria. Con [failure], `settings` falla.
+class FakeStoreRepository implements StoreRepository {
+  FakeStoreRepository([this.store = sampleStore]);
+
+  StoreSettings store;
+  ApiFailure? failure;
+
+  @override
+  Future<StoreSettings> settings() async {
+    if (failure case final failure?) throw failure;
+    return store;
+  }
+}
+
+/// La tienda de los tests.
+const sampleStore = StoreSettings(
+  name: "Neil's Food Services",
+  address: 'Av. Arequipa 1234, Lince',
+  reference: 'Frente al parque',
+  openingHours: 'Lun a sáb de 8 a 20 h',
+  pickupInstructions: 'Muestra tu código en caja.',
+);
 
 /// Los pedidos del panel en memoria. Valida el cambio de estado como el
 /// servidor (`allowedNextStatuses` y el código al recoger), con sus
@@ -680,15 +705,21 @@ class FakeOrderRepository implements OrderRepository {
   /// Las líneas de cada pedido, como llegaron.
   final placed = <List<OrderLineRequest>>[];
 
+  /// El tipo de entrega y la dirección de cada pedido, como llegaron.
+  final deliveries = <(FulfillmentType, String?)>[];
+
   @override
   Future<Order> place(
     String idToken, {
-    required String deliveryAddress,
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
+    String? deliveryAddress,
     required List<OrderLineRequest> lines,
   }) async {
     tokens.add(idToken);
     if (failure case final failure?) throw failure;
     placed.add(lines);
+    deliveries.add((fulfillmentType, deliveryAddress));
+    final pickup = fulfillmentType == FulfillmentType.pickup;
     final changes = <PriceChange>[];
     final orderLines = [
       for (final line in lines)
@@ -719,8 +750,11 @@ class FakeOrderRepository implements OrderRepository {
     final order = Order(
       id: 'pedido-${orders.length + 1}',
       status: OrderStatus.pendingConfirmation,
+      fulfillmentType: fulfillmentType,
+      // Como el servidor: el código lo genera él, solo con recojo.
+      pickupCode: pickup ? 'K7M2XQ' : null,
       totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
-      deliveryAddress: deliveryAddress,
+      deliveryAddress: pickup ? null : deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,
       priceChanges: changes,

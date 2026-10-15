@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../common/money.dart';
 import '../../orders/fulfillment.dart';
 import '../../orders/order.dart';
+import '../../orders/order_status.dart';
 import '../../orders/orders_providers.dart';
 import '../../router/routes.dart';
 import '../../theme/brand_colors.dart';
@@ -12,6 +13,7 @@ import '../../theme/neils_theme.dart';
 import '../shared/brand.dart';
 import '../shared/date_format.dart';
 import '../shared/error_message.dart';
+import '../shared/store_details.dart';
 import 'order_tracker.dart';
 
 /// Los pedidos de la cuenta, cada uno con su seguimiento. Con [newOrderId]
@@ -237,12 +239,20 @@ class _OrderCard extends StatelessWidget {
                 ),
               ],
             ),
+            if (order.status == OrderStatus.readyForPickup) ...[
+              const SizedBox(height: 12),
+              const _ReadyForPickupNotice(),
+            ],
             const SizedBox(height: 16),
             OrderTracker(
               status: order.status,
               fulfillmentType: order.fulfillmentType,
             ),
             const SizedBox(height: 16),
+            if (order.fulfillmentType == FulfillmentType.pickup) ...[
+              _PickupDetails(order),
+              const SizedBox(height: 16),
+            ],
             for (final line in order.lines)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -254,19 +264,162 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-            const SizedBox(height: 8),
-            Text(switch (order) {
-              Order(
-                fulfillmentType: FulfillmentType.pickup,
-                :final pickupCode?,
-              ) =>
-                'Recojo en tienda · Código $pickupCode',
-              Order(fulfillmentType: FulfillmentType.pickup) =>
-                'Recojo en tienda',
-              Order(:final deliveryAddress) =>
-                'Entrega en ${deliveryAddress ?? '—'}',
-            }, style: muted),
+            if (order.fulfillmentType == FulfillmentType.delivery) ...[
+              const SizedBox(height: 8),
+              Text('Entrega en ${order.deliveryAddress ?? '—'}', style: muted),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Los estados en que el cliente necesita su código: desde que la tienda
+/// confirma el pedido hasta que lo recoge.
+const _codeStatuses = {
+  OrderStatus.confirmed,
+  OrderStatus.preparing,
+  OrderStatus.readyForPickup,
+};
+
+/// Un pedido de recojo: dónde y cuándo recogerlo y, desde que está
+/// confirmado, el código en grande para mostrar en caja. Ya recogido o
+/// cancelado, solo que era de recojo.
+class _PickupDetails extends StatelessWidget {
+  const _PickupDetails(this.order);
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final code = order.pickupCode;
+    if (order.status == OrderStatus.delivered ||
+        order.status == OrderStatus.cancelled) {
+      return Text('Recojo en tienda', style: muted);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_codeStatuses.contains(order.status) && code != null) ...[
+          _PickupCode(code),
+          const SizedBox(height: 12),
+        ],
+        Text('Recojo en tienda', style: theme.textTheme.titleSmall),
+        const StoreDetails(),
+        if (order.status == OrderStatus.pendingConfirmation)
+          Text(
+            'Te damos tu código de recojo cuando la tienda confirme el pedido.',
+            style: muted,
+          ),
+      ],
+    );
+  }
+}
+
+/// El código de recojo, en grande y bien visible, para enseñarlo en caja.
+/// El lector de pantalla lo deletrea.
+class _PickupCode extends StatelessWidget {
+  const _PickupCode(this.code);
+
+  final String code;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      container: true,
+      label: 'Tu código de recojo: ${code.split('').join(' ')}',
+      child: ExcludeSemantics(
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+            child: Column(
+              children: [
+                Text(
+                  'Tu código de recojo',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    code,
+                    style: theme.textTheme.displaySmall?.copyWith(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 6,
+                    ),
+                  ),
+                ),
+                Text(
+                  'Muéstralo en caja al recoger tu pedido.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onPrimaryContainer,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// El pedido ya se puede recoger: se destaca arriba del detalle (el aviso
+/// push también llega).
+class _ReadyForPickupNotice extends StatelessWidget {
+  const _ReadyForPickupNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      liveRegion: true,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLow,
+          border: Border.all(color: OrderStatusColors.readyForPickup, width: 2),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.shopping_bag_outlined,
+                color: OrderStatusColors.readyForPickup,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '¡Tu pedido está listo para recoger!',
+                      style: theme.textTheme.titleMedium,
+                    ),
+                    Text(
+                      'Acércate a la tienda y muestra tu código en caja.',
+                      style: theme.textTheme.bodyMedium,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

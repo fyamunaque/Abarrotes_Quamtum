@@ -4,6 +4,7 @@ import '../auth/auth_providers.dart';
 import '../catalog/catalog_providers.dart';
 import '../catalog/product.dart';
 import '../common/api_client.dart';
+import '../orders/fulfillment.dart';
 import '../orders/order.dart';
 import '../orders/orders_providers.dart';
 import '../session/session.dart';
@@ -68,7 +69,7 @@ class CartNotifier extends Notifier<Cart> {
   void clear() => state = const Cart();
 
   /// Hace el pedido con lo que hay en el carrito, a nombre de la cuenta
-  /// abierta. Manda el precio que mostraba cada línea, para que el servidor
+  /// abierta: a domicilio, a [deliveryAddress], o para recoger en la tienda. Manda el precio que mostraba cada línea, para que el servidor
   /// avise si cobra otro. Si sale bien, vacía el carrito y devuelve el
   /// pedido (también queda en [placedOrderProvider]).
   ///
@@ -76,7 +77,10 @@ class CartNotifier extends Notifier<Cart> {
   /// `AuthFailure` si la sesión terminó), el carrito queda igual. Si el
   /// servidor llegó a ver el pedido, el catálogo se vuelve a cargar: el
   /// stock cambió.
-  Future<Order> placeOrder({required String deliveryAddress}) async {
+  Future<Order> placeOrder({
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
+    String? deliveryAddress,
+  }) async {
     final lines = state.lines;
     if (lines.isEmpty) throw const ApiFailure('Tu carrito está vacío.');
 
@@ -86,6 +90,7 @@ class CartNotifier extends Notifier<Cart> {
           .read(orderRepositoryProvider)
           .place(
             token,
+            fulfillmentType: fulfillmentType,
             deliveryAddress: deliveryAddress,
             lines: [
               for (final line in lines)

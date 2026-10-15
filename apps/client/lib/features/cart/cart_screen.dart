@@ -5,15 +5,18 @@ import 'package:go_router/go_router.dart';
 import '../../cart/cart.dart';
 import '../../cart/cart_provider.dart';
 import '../../common/money.dart';
+import '../../orders/fulfillment.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
+import '../../store/store_providers.dart';
 import '../../theme/neils_theme.dart';
 import '../catalog/product_photo.dart';
 import '../shared/brand.dart';
 import '../shared/error_message.dart';
 import '../shared/press_scale.dart';
 import '../shared/quantity_stepper.dart';
+import '../shared/store_details.dart';
 import '../shared/vip_tag.dart';
 
 /// El carrito: cambiar cantidades, quitar productos, ver el total estimado
@@ -155,8 +158,9 @@ class _Total extends StatelessWidget {
   }
 }
 
-/// La dirección de entrega y "Confirmar pedido". Sin cuenta, lleva a ingresar
-/// y vuelve aquí.
+/// Cómo llega el pedido (a domicilio o para recoger en la tienda) y
+/// "Confirmar pedido". A domicilio pide la dirección; con recojo muestra
+/// dónde y cuándo recogerlo. Sin cuenta, lleva a ingresar y vuelve aquí.
 class _Checkout extends ConsumerStatefulWidget {
   const _Checkout();
 
@@ -167,6 +171,7 @@ class _Checkout extends ConsumerStatefulWidget {
 class _CheckoutState extends ConsumerState<_Checkout> {
   final _formKey = GlobalKey<FormState>();
   final _address = TextEditingController();
+  FulfillmentType _type = FulfillmentType.delivery;
   bool _prefilled = false;
   bool _busy = false;
   String? _error;
@@ -200,7 +205,12 @@ class _CheckoutState extends ConsumerState<_Checkout> {
     try {
       final order = await ref
           .read(cartProvider.notifier)
-          .placeOrder(deliveryAddress: _address.text.trim());
+          .placeOrder(
+            fulfillmentType: _type,
+            deliveryAddress: _type == FulfillmentType.delivery
+                ? _address.text.trim()
+                : null,
+          );
       if (mounted) context.go(Routes.myOrdersWithNew(order.id));
     } catch (error) {
       if (mounted) {
@@ -233,16 +243,50 @@ class _CheckoutState extends ConsumerState<_Checkout> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextFormField(
-              controller: _address,
-              decoration: const InputDecoration(
-                labelText: 'Dirección de entrega',
-                helperText: 'Calle, número y distrito',
+            Semantics(
+              header: true,
+              child: Text(
+                '¿Cómo quieres recibirlo?',
+                style: theme.textTheme.titleMedium,
               ),
-              textCapitalization: TextCapitalization.sentences,
-              autofillHints: const [AutofillHints.fullStreetAddress],
-              validator: validateDeliveryAddress,
             ),
+            const SizedBox(height: 8),
+            SegmentedButton<FulfillmentType>(
+              segments: const [
+                ButtonSegment(
+                  value: FulfillmentType.delivery,
+                  label: Text('Entrega a domicilio'),
+                  icon: Icon(Icons.local_shipping_outlined),
+                ),
+                ButtonSegment(
+                  value: FulfillmentType.pickup,
+                  label: Text('Recoger en tienda'),
+                  icon: Icon(Icons.storefront_outlined),
+                ),
+              ],
+              selected: {_type},
+              showSelectedIcon: false,
+              onSelectionChanged: _busy
+                  ? null
+                  : (selected) => setState(() {
+                      _type = selected.single;
+                      _error = null;
+                    }),
+            ),
+            const SizedBox(height: 16),
+            if (_type == FulfillmentType.delivery)
+              TextFormField(
+                controller: _address,
+                decoration: const InputDecoration(
+                  labelText: 'Dirección de entrega',
+                  helperText: 'Calle, número y distrito',
+                ),
+                textCapitalization: TextCapitalization.sentences,
+                autofillHints: const [AutofillHints.fullStreetAddress],
+                validator: validateDeliveryAddress,
+              )
+            else
+              const _PickupSummary(),
             if (_error case final error?) ...[
               const SizedBox(height: 16),
               Semantics(
@@ -272,6 +316,47 @@ class _CheckoutState extends ConsumerState<_Checkout> {
         ),
       ),
     };
+  }
+}
+
+/// Con recojo: el pedido se recoge en la tienda, dónde y cuándo, y cómo
+/// (el código que se da al confirmar).
+class _PickupSummary extends ConsumerWidget {
+  const _PickupSummary();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    final store = ref.watch(storeSettingsProvider);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerLowest,
+        border: Border.all(color: theme.colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Recoges tu pedido en ${storeNameOf(store)}',
+              style: theme.textTheme.titleMedium,
+            ),
+            const SizedBox(height: 4),
+            const StoreDetails(),
+            const SizedBox(height: 4),
+            Text(
+              'No hay costo de envío. Te avisamos cuando esté listo y, al '
+              'confirmarlo, te damos un código para mostrar en caja.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

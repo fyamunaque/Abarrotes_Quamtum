@@ -5,7 +5,7 @@
 enum OrderStatus {
   pendingConfirmation(
     'Pendiente de confirmación',
-    'Pendiente',
+    'Por confirmar',
     'Volver a pendiente',
   ),
   confirmed('Confirmado', 'Confirmado', 'Confirmar'),
@@ -14,7 +14,11 @@ enum OrderStatus {
   preparing('Preparando', 'Preparando', 'Empezar a preparar'),
 
   /// Solo recojo en tienda: el cliente ya puede pasar a recogerlo.
-  readyForPickup('En espera de recojo', 'Listo', 'Listo para recoger'),
+  readyForPickup(
+    'En espera de recojo',
+    'En espera de recojo',
+    'Listo para recoger',
+  ),
 
   /// Solo a domicilio.
   outForDelivery('En camino', 'En camino', 'Marcar en camino'),

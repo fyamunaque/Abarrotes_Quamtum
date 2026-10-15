@@ -154,9 +154,13 @@ activo, cada animación salta a su estado final.
 - **El carrito de la barra** (`CartButton`): cuando sube el contador, el ícono da un rebote de
   300 ms. Al quitar no se mueve.
 - **El seguimiento de pedido** (`OrderTracker`): los pasos del tipo de entrega del pedido
-  (`FulfillmentType.steps`: a domicilio, 4; con recojo, 5, hasta "Recogido"). Cuando el
-  estado avanza, la línea se llena hasta el paso nuevo en 500 ms, y el color pasa al del
-  estado nuevo. Al mostrarse no se anima.
+  (`FulfillmentType.steps`): a domicilio, Por confirmar → Confirmado → En camino →
+  Entregado; con recojo, Por confirmar → Confirmado → Preparando → En espera de recojo →
+  Recogido. Dibuja los pasos y el estado actual que manda el servidor: no sabe de
+  transiciones. Cuando el estado avanza, la línea se llena hasta el paso nuevo en 500 ms, y el
+  color pasa al del estado nuevo (preparando `#7A5A9E`, en espera de recojo `#2A8C82`, en
+  `OrderStatusColors`). Al mostrarse no se anima. En un ancho angosto los nombres se achican
+  todos por igual y cortan solo en los espacios, en dos líneas como máximo.
   Un pedido cancelado muestra los pasos apagados y el aviso: el servidor no guarda en qué paso
   se canceló.
 
@@ -179,8 +183,8 @@ flutter run -d chrome   # y abrir /vitrina
 | `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
-| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
-| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega: la dirección o, con recojo en tienda, el código para mostrar en caja. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`). Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega: la dirección o, con recojo en tienda, la dirección y el horario de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
 | `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
 | `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
 

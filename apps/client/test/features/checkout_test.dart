@@ -16,6 +16,7 @@ import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/router/router.dart';
+import 'package:neils/store/store_providers.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -28,6 +29,7 @@ void main() {
   late FakeAuthRepository auth;
   late FakeCatalogRepository catalog;
   late FakeOrderRepository orders;
+  late FakeStoreRepository store;
   late ProviderContainer container;
 
   setUp(() {
@@ -35,6 +37,7 @@ void main() {
       ..addAccount('ana@tienda.pe', 'secreta', name: 'Ana Quispe');
     catalog = FakeCatalogRepository();
     orders = FakeOrderRepository(catalog);
+    store = FakeStoreRepository();
   });
 
   Future<GoRouter> pumpApp(
@@ -52,6 +55,7 @@ void main() {
           ),
           catalogRepositoryProvider.overrideWithValue(catalog),
           orderRepositoryProvider.overrideWithValue(orders),
+          storeRepositoryProvider.overrideWithValue(store),
         ],
         child: const NeilsApp(),
       ),
@@ -234,30 +238,135 @@ void main() {
     expect(find.text('Todavía no hiciste pedidos.'), findsOneWidget);
   });
 
-  testWidgets('un pedido de recojo muestra su código y sus pasos', (
-    tester,
-  ) async {
-    auth = FakeAuthRepository()
-      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
-    orders.orders.add(
-      Order(
-        id: 'pedido-1',
-        status: OrderStatus.preparing,
-        fulfillmentType: FulfillmentType.pickup,
-        pickupCode: 'K7M2XQ',
-        totalCents: 2490,
-        createdAt: DateTime.utc(2026, 10, 14, 15),
-        lines: const [],
-      ),
+  group('recoger en tienda', () {
+    setUp(() {
+      auth = FakeAuthRepository()
+        ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    });
+
+    Future<void> choosePickup(WidgetTester tester) async {
+      await tester.ensureVisible(find.text('Recoger en tienda'));
+      await tester.tap(find.text('Recoger en tienda'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('oculta la dirección, muestra la tienda y pide sin ella', (
+      tester,
+    ) async {
+      final router = await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+        findsOneWidget,
+      );
+
+      await choosePickup(tester);
+
+      expect(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+        findsNothing,
+      );
+      expect(
+        find.text("Recoges tu pedido en Neil's Food Services"),
+        findsOneWidget,
+      );
+      for (final text in [
+        'Av. Arequipa 1234, Lince',
+        'Frente al parque',
+        'Lun a sáb de 8 a 20 h',
+        'Muestra tu código en caja.',
+      ]) {
+        expect(find.text(text), findsOneWidget, reason: text);
+      }
+
+      await tester.ensureVisible(find.text('Confirmar pedido'));
+      await tester.tap(find.text('Confirmar pedido'));
+      await tester.pumpAndSettle();
+
+      expect(orders.deliveries.single, (FulfillmentType.pickup, null));
+      expect(location(router), startsWith('/mis-pedidos?nuevo='));
+      // Pendiente: el código llega cuando la tienda lo confirma.
+      expect(find.text('K7M2XQ'), findsNothing);
+      expect(
+        find.text(
+          'Te damos tu código de recojo cuando la tienda confirme el pedido.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('si no cargan los datos de la tienda, se puede reintentar', (
+      tester,
+    ) async {
+      store.failure = const ApiFailure('Sin conexión');
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      await choosePickup(tester);
+
+      expect(
+        find.text('No se pudieron cargar los datos de la tienda.'),
+        findsOneWidget,
+      );
+      store.failure = null;
+      await tester.tap(find.text('Reintentar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Av. Arequipa 1234, Lince'), findsOneWidget);
+    });
+
+    Order pickupOrder(OrderStatus status) => Order(
+      id: 'pedido-1',
+      status: status,
+      fulfillmentType: FulfillmentType.pickup,
+      pickupCode: 'K7M2XQ',
+      totalCents: 2490,
+      createdAt: DateTime.utc(2026, 10, 14, 15),
+      lines: const [],
     );
 
-    await pumpApp(tester, '/mis-pedidos');
+    testWidgets('confirmado: el código en grande, con la tienda', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      orders.orders.add(pickupOrder(OrderStatus.preparing));
 
-    expect(find.text('Recojo en tienda · Código K7M2XQ'), findsOneWidget);
-    expect(find.textContaining('Entrega en'), findsNothing);
-    final tracker = tester.widget<OrderTracker>(find.byType(OrderTracker));
-    expect(tracker.fulfillmentType, FulfillmentType.pickup);
-    expect(find.text('Preparando'), findsOneWidget);
+      await pumpApp(tester, '/mis-pedidos');
+
+      expect(find.text('Tu código de recojo'), findsOneWidget);
+      expect(find.text('K7M2XQ'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Tu código de recojo: K 7 M 2 X Q'),
+        findsOneWidget,
+      );
+      expect(find.text('Av. Arequipa 1234, Lince'), findsOneWidget);
+      expect(find.text('Lun a sáb de 8 a 20 h'), findsOneWidget);
+      expect(find.textContaining('Entrega en'), findsNothing);
+      expect(find.text('¡Tu pedido está listo para recoger!'), findsNothing);
+      final tracker = tester.widget<OrderTracker>(find.byType(OrderTracker));
+      expect(tracker.fulfillmentType, FulfillmentType.pickup);
+      expect(find.text('Preparando'), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('en espera de recojo: el aviso destacado', (tester) async {
+      orders.orders.add(pickupOrder(OrderStatus.readyForPickup));
+
+      await pumpApp(tester, '/mis-pedidos');
+
+      expect(find.text('¡Tu pedido está listo para recoger!'), findsOneWidget);
+      expect(find.text('K7M2XQ'), findsOneWidget);
+    });
+
+    testWidgets('ya recogido: sin el código', (tester) async {
+      orders.orders.add(pickupOrder(OrderStatus.delivered));
+
+      await pumpApp(tester, '/mis-pedidos');
+
+      expect(find.text('K7M2XQ'), findsNothing);
+      expect(find.text('Recojo en tienda'), findsOneWidget);
+      expect(find.text('Recogido'), findsOneWidget);
+    });
   });
 
   testWidgets('"Actualizar" trae el estado nuevo y el seguimiento lo anima', (

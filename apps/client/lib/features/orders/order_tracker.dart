@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../../orders/fulfillment.dart';
@@ -123,23 +125,35 @@ class _OrderTrackerState extends State<OrderTracker>
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final (i, step) in steps.indexed)
-                      Expanded(
-                        child: _Step(
-                          label: type.stepLabelOf(step),
-                          index: i,
-                          count: steps.length,
-                          reach: reach,
-                          color: color,
-                          cancelled: cancelled,
-                          finished: status == OrderStatus.delivered,
-                          current: step == status,
-                        ),
-                      ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final labels = [for (final s in steps) type.stepLabelOf(s)];
+                    final scale = _labelScale(
+                      context,
+                      labels,
+                      // El ancho de cada paso, sin el margen del nombre.
+                      constraints.maxWidth / steps.length - 4,
+                    );
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final (i, step) in steps.indexed)
+                          Expanded(
+                            child: _Step(
+                              label: labels[i],
+                              labelScale: scale,
+                              index: i,
+                              count: steps.length,
+                              reach: reach,
+                              color: color,
+                              cancelled: cancelled,
+                              finished: status == OrderStatus.delivered,
+                              current: step == status,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 if (cancelled) ...[
                   const SizedBox(height: 12),
@@ -160,6 +174,7 @@ class _OrderTrackerState extends State<OrderTracker>
 class _Step extends StatelessWidget {
   const _Step({
     required this.label,
+    required this.labelScale,
     required this.index,
     required this.count,
     required this.reach,
@@ -170,6 +185,9 @@ class _Step extends StatelessWidget {
   });
 
   final String label;
+
+  /// Cuánto se achican los nombres de todos los pasos (1 = nada).
+  final double labelScale;
   final int index;
   final int count;
 
@@ -220,7 +238,12 @@ class _Step extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             maxLines: 2,
-            style: theme.textTheme.labelMedium?.copyWith(
+            style: _stepLabelStyle(theme).copyWith(
+              // El tamaño y el espacio entre letras, los dos: si no, el
+              // ancho no baja en la misma proporción.
+              fontSize: _stepLabelStyle(theme).fontSize! * labelScale,
+              letterSpacing:
+                  (_stepLabelStyle(theme).letterSpacing ?? 0) * labelScale,
               color: reached
                   ? theme.colorScheme.onSurface
                   : theme.colorScheme.onSurfaceVariant,
@@ -231,6 +254,50 @@ class _Step extends StatelessWidget {
       ],
     );
   }
+}
+
+/// El estilo de los nombres de los pasos (antes de la escala).
+TextStyle _stepLabelStyle(ThemeData theme) => theme.textTheme.labelMedium!;
+
+/// Cuánto hay que achicar los nombres de [labels] para que cada uno entre en
+/// [width] cortando solo en los espacios (nunca a mitad de palabra) y en dos
+/// líneas como máximo. La misma escala para todos, así se ven parejos; 1 si
+/// entran (p. ej. en pantallas anchas).
+double _labelScale(BuildContext context, List<String> labels, double width) {
+  final style = _stepLabelStyle(Theme.of(context))
+      .copyWith(fontWeight: FontWeight.w600);
+  final direction = Directionality.of(context);
+  final scaler = MediaQuery.textScalerOf(context);
+  double widthOf(String text) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: direction,
+      textScaler: scaler,
+    )..layout();
+    final result = painter.width;
+    painter.dispose();
+    return result;
+  }
+
+  // El ancho que necesita cada nombre: en una línea si entra; si no, el del
+  // mejor corte en dos (la línea más ancha, lo más angosta posible).
+  double needed(String label) {
+    final words = label.split(' ');
+    final oneLine = widthOf(label);
+    if (oneLine <= width || words.length == 1) return oneLine;
+    return [
+      for (var i = 1; i < words.length; i++)
+        math.max(
+          widthOf(words.take(i).join(' ')),
+          widthOf(words.skip(i).join(' ')),
+        ),
+    ].reduce(math.min);
+  }
+
+  if (width <= 0) return 1;
+  final widest = labels.map(needed).reduce(math.max);
+  // Un píxel de margen: el redondeo no debe forzar otra línea.
+  return math.min(1, width / (widest + 1));
 }
 
 /// Media línea: el riel apagado y, encima, la parte llena desde la izquierda.
