@@ -8,6 +8,7 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../inventory/inventory_service.dart';
 import '../promotions/promotion_pricing.dart';
+import 'order_status_notifier.dart';
 import 'pickup_code.dart';
 import 'states/order_states.dart';
 
@@ -40,12 +41,14 @@ class OrdersService {
     required this._pricing,
     this._inventory = const InventoryService(),
     this._pickupCode = randomPickupCode,
+    this._notifier = const NoOrderStatusNotifier(),
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final PromotionPricing _pricing;
   final InventoryService _inventory;
   final PickupCodeGenerator _pickupCode;
+  final OrderStatusNotifier _notifier;
   final DateTime Function() _now;
 
   /// Cuántos códigos de recojo se prueban antes de rendirse: con mil
@@ -308,7 +311,35 @@ class OrdersService {
   /// bloqueada: si dos personas lo cambian a la vez, la segunda espera y se
   /// valida contra el estado ya cambiado (así el stock nunca se devuelve dos
   /// veces).
+  ///
+  /// Ya guardado el cambio, avisa al cliente (ver [OrderStatusNotifier]): sin
+  /// esperar, y si el aviso falla, el cambio de estado queda igual.
   Future<Order> changeStatus(
+    Session session,
+    UuidValue id,
+    OrderStatus next, {
+    required User by,
+    String? pickupCode,
+  }) async {
+    final changed = await _changeStatus(
+      session,
+      id,
+      next,
+      by: by,
+      pickupCode: pickupCode,
+    );
+    try {
+      _notifier.statusChanged(changed);
+    } on Object catch (error) {
+      session.log(
+        'No se pudo avisar del pedido ${changed.id}: $error',
+        level: LogLevel.warning,
+      );
+    }
+    return changed;
+  }
+
+  Future<Order> _changeStatus(
     Session session,
     UuidValue id,
     OrderStatus next, {

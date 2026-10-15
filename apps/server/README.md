@@ -371,6 +371,24 @@ No hace falta tocar `PromotionsService`, ni products, ni orders. El test
 
 ### Avisos push (FCM)
 
+**Al cambiar el estado de un pedido**, el servidor avisa al dueño, a cada uno de sus
+dispositivos, con un texto según el tipo de entrega y el estado
+(`orders/push_order_status_notifier.dart`):
+
+| Estado | A domicilio | Recojo en tienda |
+|---|---|---|
+| `confirmed` | "Confirmamos tu pedido" | "Confirmamos tu pedido" |
+| `preparing` | — | "Estamos preparando tu pedido" |
+| `readyForPickup` | — | "Tu pedido está listo para recoger en tienda, tu código es K7M2XQ." |
+| `outForDelivery` | "Tu pedido está en camino" | — |
+| `delivered` | "Entregamos tu pedido" | "Recogiste tu pedido" |
+| `cancelled` | "Cancelamos tu pedido" | "Cancelamos tu pedido" |
+
+La dirección nunca va en el aviso (se ve en la pantalla bloqueada), y `data` lleva
+`{type: order_status, orderId, status}` para que la app abra el pedido. `OrdersService` llama a
+`OrderStatusNotifier.statusChanged` ya guardado el cambio, sin esperar: si el aviso falla, el
+cambio de estado queda igual y el fallo va al log.
+
 Al crear una promoción **VIP que ya rige** (encendida y con hoy dentro de su vigencia), el
 servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado:
 "Nueva oferta exclusiva", con el producto, el precio y hasta qué día rige, y en `data`
@@ -389,7 +407,9 @@ servidor manda un push a cada dispositivo de los clientes VIP activos con el cor
     la cuenta de servicio (RS256) y lo canjea por un access token de OAuth;
   - `promotions/promotion_announcer.dart`: `PromotionsService` llama a
     `PromotionAnnouncer.announce` con cada promoción que se crea y ya rige;
-  - `vip/vip_promotion_announcer.dart`: decide a quién y manda.
+  - `vip/vip_promotion_announcer.dart`: decide a quién y manda;
+  - `push/device_push.dart`: `pushToDevices`, el envío a una lista de dispositivos que usan
+    los dos avisos (uno por token, borra los inválidos, deja los fallos en el log).
 - Los tokens los registra la app con `PUT /users/me/devices` (tabla `device_tokens`, varios
   por cuenta). Si se aprueba un VIP con el correo verificado, lo sabe por `users.emailVerified`,
   que guarda `GET /users/me`.

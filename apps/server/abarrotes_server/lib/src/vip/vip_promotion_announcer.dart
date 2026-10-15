@@ -5,16 +5,9 @@ import 'package:serverpod/serverpod.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_announcer.dart';
+import '../push/device_push.dart';
 import '../push/push_sender.dart';
 import 'vip_service.dart';
-
-/// Corre un trabajo con una sesión propia (`Serverpod.withSession`): sirve
-/// para seguir después de responder la petición.
-typedef SessionRunner = Future<void> Function(Future<void> Function(Session));
-
-/// Cuántos avisos salieron, cuántos tokens inválidos se borraron y cuántos
-/// envíos fallaron.
-typedef AnnounceSummary = ({int sent, int invalid, int failed});
 
 /// Avisa por push de una promoción VIP que empieza a regir, a cada
 /// dispositivo de los clientes VIP activos con el correo verificado. Uno por
@@ -48,7 +41,7 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
   /// Manda el aviso de [promotion] y deja el resumen en el log. Los tokens
   /// que FCM da por inválidos se borran; si un envío falla, sigue con los
   /// demás.
-  Future<AnnounceSummary> announceNow(
+  Future<PushSummary> announceNow(
     Session session,
     Promotion promotion,
   ) async {
@@ -69,24 +62,12 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
                 device.user.email.inSet(emails),
           );
 
-    final message = vipPromotionMessage(promotion);
-    var sent = 0, invalid = 0, failed = 0;
-    for (final device in devices) {
-      final outcome = await _sender.send(device.token, message);
-      switch (outcome.result) {
-        case PushResult.sent:
-          sent++;
-        case PushResult.invalidToken:
-          invalid++;
-          await DeviceToken.db.deleteRow(session, device);
-        case PushResult.failed:
-          failed++;
-          session.log(
-            'No salió el aviso a ${tokenHint(device.token)}: ${outcome.reason}',
-            level: LogLevel.warning,
-          );
-      }
-    }
+    final (:sent, :invalid, :failed) = await pushToDevices(
+      session,
+      _sender,
+      devices,
+      vipPromotionMessage(promotion),
+    );
     session.log(
       'Aviso push de la promoción VIP ${promotion.id}: $sent enviados, '
       '$invalid tokens inválidos borrados, $failed fallidos',

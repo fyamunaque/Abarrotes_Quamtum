@@ -15,6 +15,7 @@ import 'src/inventory/inventory_service.dart';
 import 'src/inventory/stock_alerts.dart';
 import 'src/orders/orders_routes.dart';
 import 'src/orders/orders_service.dart';
+import 'src/orders/push_order_status_notifier.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
 import 'src/staff/audit_log_repository.dart';
@@ -74,6 +75,10 @@ void run(List<String> args) async {
     authorization: const DbAuthorizationService(),
   );
 
+  // Los avisos push (FCM): las promociones VIP y los cambios de estado de
+  // los pedidos. Sin credenciales, no manda nada.
+  final push = _pushSender(pod, projectId);
+
   // Quién es cada cliente (VIP o no) y qué audiencias de promociones puede
   // usar. Un segmento nuevo es una regla más en esta lista.
   const vips = VipService();
@@ -82,7 +87,7 @@ void run(List<String> args) async {
     audienceRules: const [EveryoneAudienceRule(), VipAudienceRule()],
     // Una promoción VIP que ya rige se avisa por push a los VIP.
     announcer: VipPromotionAnnouncer(
-      sender: _pushSender(pod, projectId),
+      sender: push,
       run: pod.withSession,
       vips: vips,
     ),
@@ -113,7 +118,11 @@ void run(List<String> args) async {
     ...promotionsRoutes(promotions, guards, shoppers: shoppers),
     ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
     ...ordersRoutes(
-      OrdersService(pricing: promotions),
+      OrdersService(
+        pricing: promotions,
+        // Cada cambio de estado se avisa por push al cliente.
+        notifier: PushOrderStatusNotifier(sender: push, run: pod.withSession),
+      ),
       guards,
       shoppers: shoppers,
     ),

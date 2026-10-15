@@ -7,6 +7,7 @@ import 'package:abarrotes_server/src/orders/orders_service.dart';
 import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
+import '../support/fake_push.dart';
 import '../support/http_harness.dart';
 import '../support/staff_setup.dart';
 import '../support/promotions_setup.dart';
@@ -649,6 +650,70 @@ void main() {
         expect(
           (await client.get('/orders/mine?estado=x', as: 'uid-cliente')).$1,
           400,
+        );
+      });
+    });
+
+    group('aviso al cliente', () {
+      Future<TestClient> serve(OrdersService service) async {
+        final server = await serveRoutes(
+          () => session,
+          ordersRoutes(service, testGuards(google), shoppers: testShoppers),
+        );
+        addTearDown(server.close);
+        return TestClient(server, google);
+      }
+
+      test('cada cambio de estado avisa, con el pedido ya cambiado', () async {
+        final notifier = RecordingOrderNotifier();
+        final client = await serve(
+          OrdersService(
+            pricing: testPromotions(),
+            notifier: notifier,
+            now: () => testNow,
+          ),
+        );
+        final order = await shop.order(pickupCode: 'K7M2XQ');
+
+        for (final next in ['confirmed', 'preparing']) {
+          await client.patch('/orders/${order.id}/status', {
+            'status': next,
+          }, as: 'uid-staff');
+        }
+        // Un cambio rechazado no avisa.
+        await client.patch('/orders/${order.id}/status', {
+          'status': 'outForDelivery',
+        }, as: 'uid-staff');
+
+        expect(
+          [for (final o in notifier.changed) (o.id, o.status, o.pickupCode)],
+          [
+            (order.id, OrderStatus.confirmed, 'K7M2XQ'),
+            (order.id, OrderStatus.preparing, 'K7M2XQ'),
+          ],
+        );
+      });
+
+      test('si el aviso falla, el cambio de estado queda igual', () async {
+        final client = await serve(
+          OrdersService(
+            pricing: testPromotions(),
+            notifier: ThrowingOrderNotifier(),
+            now: () => testNow,
+          ),
+        );
+        final order = await shop.order();
+
+        final (status, body) = await client.patch(
+          '/orders/${order.id}/status',
+          {'status': 'confirmed'},
+          as: 'uid-staff',
+        );
+
+        expect((status, body['status']), (200, 'confirmed'));
+        expect(
+          (await Order.db.findById(session, order.id!))!.status,
+          OrderStatus.confirmed,
         );
       });
     });

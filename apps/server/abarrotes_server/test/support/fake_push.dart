@@ -1,4 +1,5 @@
 import 'package:abarrotes_server/src/generated/protocol.dart';
+import 'package:abarrotes_server/src/orders/order_status_notifier.dart';
 import 'package:abarrotes_server/src/promotions/promotion_announcer.dart';
 import 'package:abarrotes_server/src/push/push_sender.dart';
 
@@ -36,6 +37,20 @@ class RecordingAnnouncer implements PromotionAnnouncer {
 
   @override
   void announce(Promotion promotion) => announced.add(promotion);
+}
+
+/// Guarda los pedidos de los que se le pidió avisar.
+class RecordingOrderNotifier implements OrderStatusNotifier {
+  final changed = <Order>[];
+
+  @override
+  void statusChanged(Order order) => changed.add(order);
+}
+
+/// Siempre falla al avisar.
+class ThrowingOrderNotifier implements OrderStatusNotifier {
+  @override
+  void statusChanged(Order order) => throw StateError('FCM caído');
 }
 
 /// Siempre falla al anunciar.
