@@ -17,7 +17,7 @@ enum OrderStatus {
   readyForPickup(
     'En espera de recojo',
     'En espera de recojo',
-    'Listo para recoger',
+    'Marcar listo para recoger',
   ),
 
   /// Solo a domicilio.

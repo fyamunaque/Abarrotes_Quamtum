@@ -80,10 +80,23 @@ class FakeStoreRepository implements StoreRepository {
   StoreSettings store;
   ApiFailure? failure;
 
+  /// Si no es null, `update` falla con esto.
+  ApiFailure? updateFailure;
+
+  /// Lo que se guardó, en orden.
+  final saved = <StoreSettings>[];
+
   @override
   Future<StoreSettings> settings() async {
     if (failure case final failure?) throw failure;
     return store;
+  }
+
+  @override
+  Future<StoreSettings> update(StoreSettings settings) async {
+    if (updateFailure case final failure?) throw failure;
+    saved.add(settings);
+    return store = settings;
   }
 }
 
@@ -121,18 +134,27 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
   ApiFailure? failList;
 
   @override
-  Future<PageList<AdminOrder>> list({int page = 1, OrderStatus? status}) async {
+  Future<PageList<AdminOrder>> list({
+    int page = 1,
+    OrderStatus? status,
+    FulfillmentType? fulfillmentType,
+    int? limit,
+  }) async {
     listCalls++;
     if (failList case final failure?) throw failure;
+    final size = limit ?? pageSize;
     final matching = [
       for (final order in orders)
-        if (status == null || order.order.status == status) order,
+        if ((status == null || order.order.status == status) &&
+            (fulfillmentType == null ||
+                order.order.fulfillmentType == fulfillmentType))
+          order,
     ];
     return PageList(
-      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      matching.skip((page - 1) * size).take(size).toList(),
       total: matching.length,
       page: page,
-      pageSize: pageSize,
+      pageSize: size,
     );
   }
 
@@ -174,6 +196,9 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
           totalCents: order.order.totalCents,
           deliveryAddress: order.order.deliveryAddress,
           pickupCode: order.order.pickupCode,
+          readyForPickupAt: status == OrderStatus.readyForPickup
+              ? DateTime.now()
+              : order.order.readyForPickupAt,
           createdAt: order.order.createdAt,
           lines: order.order.lines,
           allowedNextStatuses: allowedNextFor(
@@ -193,10 +218,12 @@ AdminOrder adminOrder(
   String customer = 'Ana Quispe',
   int day = 4,
   String? pickupCode,
+  DateTime? readyForPickupAt,
 }) => AdminOrder(
   order: Order(
     id: id,
     status: status,
+    readyForPickupAt: readyForPickupAt,
     fulfillmentType: pickupCode == null
         ? FulfillmentType.delivery
         : FulfillmentType.pickup,

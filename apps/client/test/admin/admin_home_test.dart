@@ -6,6 +6,7 @@ import 'package:neils/admin/stats/stats_providers.dart';
 import 'package:neils/common/days.dart';
 import 'package:neils/features/admin/home/home_cards.dart';
 import 'package:neils/features/admin/home/sales_chart.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
 
 import '../fakes.dart';
@@ -44,6 +45,12 @@ void main() {
           OrderStatus.outForDelivery: 1,
           OrderStatus.delivered: 20,
           OrderStatus.cancelled: 4,
+          OrderStatus.preparing: 2,
+          OrderStatus.readyForPickup: 1,
+        },
+        ordersByFulfillment: const {
+          FulfillmentType.delivery: 27,
+          FulfillmentType.pickup: 6,
         },
       ),
       sales: SalesReport(summary: summary(68250, 30), daily: days),
@@ -135,6 +142,8 @@ void main() {
       ('En camino', '1'),
       ('Entregado', '20'),
       ('Cancelado', '4'),
+      ('Preparando', '2'),
+      ('En espera de recojo', '1'),
     ]) {
       final row = find.ancestor(
         of: find.text(status),
@@ -146,6 +155,16 @@ void main() {
         reason: status,
       );
     }
+  });
+
+  testWidgets('los pedidos por tipo de entrega, con su parte', (tester) async {
+    await pumpHome(tester);
+
+    expect(find.text('Pedidos por tipo de entrega'), findsOneWidget);
+    expect(find.text('A domicilio'), findsOneWidget);
+    expect(find.text('27 (82 %)'), findsOneWidget);
+    expect(find.text('Recojo en tienda'), findsOneWidget);
+    expect(find.text('6 (18 %)'), findsOneWidget);
   });
 
   testWidgets('el gráfico de 30 días, con su resumen para el lector', (

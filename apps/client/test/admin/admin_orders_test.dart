@@ -84,6 +84,45 @@ void main() {
     expect(find.text('1–3 de 3'), findsOneWidget);
   });
 
+  testWidgets('la columna y el filtro "Entrega"', (tester) async {
+    repository.orders.add(
+      adminOrder(
+        'o-4',
+        OrderStatus.preparing,
+        customer: 'Rosa Recojo',
+        pickupCode: 'K7M2XQ',
+      ),
+    );
+    await pumpOrders(tester);
+    Finder inTable(Finder finder) => find.descendant(
+      of: find.byType(AdminTable<AdminOrder>),
+      matching: finder,
+    );
+
+    expect(inTable(find.text('Entrega')), findsOneWidget);
+    expect(inTable(find.text('Domicilio')), findsNWidgets(3));
+    expect(inTable(find.text('Recojo')), findsOneWidget);
+    expect(inTable(find.byIcon(Icons.storefront_outlined)), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Recojo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rosa Recojo'), findsOneWidget);
+    expect(find.text('Ana Quispe'), findsNothing);
+
+    // Los dos filtros juntos.
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Confirmado'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Confirmado'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Ningún pedido coincide con los filtros.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Domicilio y recojo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Luis Rojas'), findsOneWidget);
+  });
+
   testWidgets('filtrar por estado', (tester) async {
     await pumpOrders(tester);
 
@@ -237,7 +276,9 @@ void main() {
       expect(find.text('Marcar en camino'), findsNothing);
       await tester.tap(find.widgetWithText(FilledButton, 'Empezar a preparar'));
       await tester.pumpAndSettle();
-      await tester.tap(find.widgetWithText(FilledButton, 'Listo para recoger'));
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Marcar listo para recoger'),
+      );
       await tester.pumpAndSettle();
 
       expect(repository.changes, [
@@ -274,23 +315,30 @@ void main() {
       await tester.pumpAndSettle();
       expect(repository.pickupCodes, isEmpty);
 
-      // Un código que no coincide: el motivo del servidor.
+      // Un código que no coincide: el motivo del servidor, en el mismo
+      // diálogo, para volver a escribirlo.
       await tester.tap(find.widgetWithText(FilledButton, 'Marcar recogido'));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, 'K7M2XA');
       await tester.pump();
       await tester.tap(confirmButton());
       await tester.pumpAndSettle();
-      expect(find.text('El código de recojo no coincide'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('El código de recojo no coincide'),
+        ),
+        findsOneWidget,
+      );
       expect(repository.changes, isEmpty);
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Marcar recogido'));
-      await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField).last, 'k7m2xq');
       await tester.pump();
+      expect(find.text('El código de recojo no coincide'), findsNothing);
       await tester.tap(confirmButton());
       await tester.pumpAndSettle();
 
+      expect(find.byType(AlertDialog), findsNothing);
       expect(repository.pickupCodes.last, 'k7m2xq');
       expect(repository.changes, [('o-1', OrderStatus.delivered)]);
       expect(badgeText(tester, 'Ana Quispe'), 'Recogido');

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../admin/staff/staff.dart';
 import '../../../admin/staff/staff_providers.dart';
 import '../../../router/routes.dart';
 import '../../../theme/brand_colors.dart';
 import '../../shared/error_message.dart';
+import '../shared/panel_tabs.dart';
 import '../shared/status_badge.dart';
 
 /// Las dos pestañas de la sección Equipo: las personas y los roles.
@@ -19,28 +19,19 @@ class TeamTabs extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: AlignmentDirectional.centerStart,
-      child: SegmentedButton<TeamTab>(
-        segments: const [
-          ButtonSegment(
-            value: TeamTab.people,
-            label: Text('Personas'),
-            icon: Icon(Icons.badge_outlined),
-          ),
-          ButtonSegment(
-            value: TeamTab.roles,
-            label: Text('Roles'),
-            icon: Icon(Icons.admin_panel_settings_outlined),
-          ),
-        ],
-        selected: {current},
-        showSelectedIcon: false,
-        onSelectionChanged: (selected) => context.go(switch (selected.single) {
-          TeamTab.people => Routes.adminTeam,
-          TeamTab.roles => Routes.adminRoles,
-        }),
-      ),
+    return PanelTabs(
+      tabs: const [
+        (label: 'Personas', icon: Icons.badge_outlined, path: Routes.adminTeam),
+        (
+          label: 'Roles',
+          icon: Icons.admin_panel_settings_outlined,
+          path: Routes.adminRoles,
+        ),
+      ],
+      current: switch (current) {
+        TeamTab.people => Routes.adminTeam,
+        TeamTab.roles => Routes.adminRoles,
+      },
     );
   }
 }

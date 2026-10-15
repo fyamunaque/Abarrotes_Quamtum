@@ -8,6 +8,7 @@ import '../../../admin/orders/admin_orders_providers.dart';
 import '../../../common/money.dart';
 import '../../../orders/fulfillment.dart';
 import '../../../orders/order_status.dart';
+import '../../../router/routes.dart';
 import '../../../session/session_provider.dart';
 import '../../../session/staff_permission.dart';
 import '../../orders/order_tracker.dart';
@@ -17,13 +18,31 @@ import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/filter_chips.dart';
+import '../shared/fulfillment_badge.dart';
 import '../shared/panel_note.dart';
+import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
+import 'pickup_code_dialog.dart';
 
-/// Los pedidos de todos los clientes, filtrados por estado. Tocar uno abre su
-/// detalle, con el stepper para avanzarlo o cancelarlo (con
-/// `orders.updateStatus`). Quién lo hizo, solo con `customers.view`.
+/// Las dos vistas de Pedidos: todos, y los de recojo para caja.
+const ordersTabs = <PanelTab>[
+  (
+    label: 'Todos los pedidos',
+    icon: Icons.receipt_long_outlined,
+    path: Routes.adminOrders,
+  ),
+  (
+    label: 'Para recoger',
+    icon: Icons.storefront_outlined,
+    path: Routes.adminPickup,
+  ),
+];
+
+/// Los pedidos de todos los clientes, filtrados por estado y por tipo de
+/// entrega. Tocar uno abre su detalle, con el stepper para avanzarlo o
+/// cancelarlo (con `orders.updateStatus`). Quién lo hizo, solo con
+/// `customers.view`.
 class AdminOrdersScreen extends ConsumerStatefulWidget {
   const AdminOrdersScreen({super.key});
 
@@ -36,7 +55,7 @@ class AdminOrdersScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
-  OrderStatus? _status;
+  AdminOrdersFilter _filter = allOrders;
   Timer? _autoRefresh;
 
   @override
@@ -47,7 +66,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
     _autoRefresh = Timer.periodic(
       AdminOrdersScreen.autoRefreshEvery,
       (_) => ref
-          .read(adminOrdersProvider(_status).notifier)
+          .read(adminOrdersProvider(_filter).notifier)
           .refresh()
           .catchError((Object _) {}),
     );
@@ -61,7 +80,9 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final provider = adminOrdersProvider(_status);
+    final provider = adminOrdersProvider(_filter);
+    final status = _filter.status;
+    final type = _filter.fulfillmentType;
     final canSeeCustomers = ref
         .watch(permissionsProvider)
         .contains(StaffPermission.customersView);
@@ -69,13 +90,36 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       title: 'Pedidos',
       actions: [RefreshButton(onRefresh: ref.read(provider.notifier).refresh)],
       children: [
+        const PanelTabs(tabs: ordersTabs, current: Routes.adminOrders),
+        const SizedBox(height: 16),
         FilterChips<OrderStatus?>(
           options: [
             (null, 'Todos'),
             for (final status in OrderStatus.values) (status, status.label),
           ],
-          selected: _status,
-          onSelected: (status) => setState(() => _status = status),
+          selected: status,
+          onSelected: (status) =>
+              setState(() => _filter = (status: status, fulfillmentType: type)),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: [
+            Text('Entrega', style: Theme.of(context).textTheme.labelLarge),
+            const SizedBox(width: 12),
+            Expanded(
+              child: FilterChips<FulfillmentType?>(
+                options: [
+                  (null, 'Domicilio y recojo'),
+                  for (final type in FulfillmentType.values)
+                    (type, FulfillmentBadge.label(type)),
+                ],
+                selected: type,
+                onSelected: (type) => setState(
+                  () => _filter = (status: status, fulfillmentType: type),
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         AdminTable<AdminOrder>(
@@ -92,6 +136,10 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
                 (o) => Text(o.customer?.name ?? '—'),
                 flex: 3,
               ),
+            AdminColumn(
+              'Entrega',
+              (o) => FulfillmentBadge(o.order.fulfillmentType),
+            ),
             AdminColumn(
               'Productos',
               (o) => Text('${o.order.lines.length}'),
@@ -115,18 +163,23 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           rowLabel: (o) =>
               '${_title(o)}, '
               '${formatDateTime(context, o.order.createdAt)}, '
-              '${formatSoles(o.order.totalCents)}, ${o.order.statusLabel}',
+              '${formatSoles(o.order.totalCents)}, '
+              '${FulfillmentBadge.label(o.order.fulfillmentType)}, '
+              '${o.order.statusLabel}',
           onRowTap: (order) => showAdminForm<void>(
             context,
             title: _title(order),
             builder: (_) =>
-                AdminOrderDetail(orderId: order.id, filter: _status),
+                AdminOrderDetail(orderId: order.id, filter: _filter),
           ),
           onPage: (page) => ref.read(provider.notifier).goTo(page),
           onRetry: () => ref.invalidate(provider),
-          emptyText: _status == null
-              ? 'Todavía no hay pedidos.'
-              : 'No hay pedidos en estado "${_status!.label}".',
+          emptyText: switch ((status, type)) {
+            (null, null) => 'Todavía no hay pedidos.',
+            (final status?, null) =>
+              'No hay pedidos en estado "${status.label}".',
+            _ => 'Ningún pedido coincide con los filtros.',
+          },
         ),
       ],
     );
@@ -152,7 +205,7 @@ class AdminOrderDetail extends ConsumerStatefulWidget {
   final String orderId;
 
   /// El filtro de la tabla de donde se abrió (el argumento de su provider).
-  final OrderStatus? filter;
+  final AdminOrdersFilter filter;
 
   @override
   ConsumerState<AdminOrderDetail> createState() => _AdminOrderDetailState();
@@ -163,17 +216,19 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
   String? _error;
 
   Future<void> _change(AdminOrder order, OrderStatus next) async {
-    // Recoger en caja: el código que muestra el cliente.
-    String? pickupCode;
+    final notifier = ref.read(adminOrdersProvider(widget.filter).notifier);
+    // Recoger en caja: el código que muestra el cliente. Si no coincide, el
+    // diálogo lo dice y deja volver a escribirlo.
     if (order.order.fulfillmentType == FulfillmentType.pickup &&
         next == OrderStatus.delivered) {
-      pickupCode = await showDialog<String>(
-        context: context,
-        builder: (_) => const _PickupCodeDialog(),
+      setState(() => _error = null);
+      await showPickupCodeDialog(
+        context,
+        onSubmit: (code) =>
+            notifier.changeStatus(order, next, pickupCode: code),
       );
-      if (pickupCode == null) return;
+      return;
     }
-    if (!mounted) return;
     if (next == OrderStatus.cancelled) {
       final confirmed = await confirmAction(
         context,
@@ -189,9 +244,8 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
       _busy = true;
       _error = null;
     });
-    final notifier = ref.read(adminOrdersProvider(widget.filter).notifier);
     try {
-      await notifier.changeStatus(order, next, pickupCode: pickupCode);
+      await notifier.changeStatus(order, next);
     } catch (error) {
       // Lo más común: otra persona ya lo cambió. Se trae como está ahora.
       if (mounted) {
@@ -313,63 +367,6 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
               style: theme.textTheme.titleMedium,
             ),
           ],
-        ),
-      ],
-    );
-  }
-}
-
-/// Pide el código de recojo que muestra el cliente en caja. Devuelve lo que
-/// se escribió, o null si se volvió atrás. El servidor lo compara (sin
-/// espacios y sin importar mayúsculas) y responde 400 si no coincide.
-class _PickupCodeDialog extends StatefulWidget {
-  const _PickupCodeDialog();
-
-  @override
-  State<_PickupCodeDialog> createState() => _PickupCodeDialogState();
-}
-
-class _PickupCodeDialogState extends State<_PickupCodeDialog> {
-  final _code = TextEditingController();
-
-  @override
-  void dispose() {
-    _code.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final code = _code.text.trim();
-    if (code.isNotEmpty) Navigator.of(context).pop(code);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('Entregar el pedido'),
-      content: TextField(
-        controller: _code,
-        autofocus: true,
-        decoration: const InputDecoration(
-          labelText: 'Código de recojo',
-          helperText: 'El que muestra el cliente.',
-        ),
-        textCapitalization: TextCapitalization.characters,
-        autocorrect: false,
-        maxLength: 6,
-        onSubmitted: (_) => _submit(),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Volver'),
-        ),
-        ListenableBuilder(
-          listenable: _code,
-          builder: (_, _) => FilledButton(
-            onPressed: _code.text.trim().isEmpty ? null : _submit,
-            child: const Text('Marcar recogido'),
-          ),
         ),
       ],
     );

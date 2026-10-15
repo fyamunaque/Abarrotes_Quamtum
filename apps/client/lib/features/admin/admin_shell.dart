@@ -52,6 +52,13 @@ enum AdminSection {
     shortLabel: 'VIP',
   ),
 
+  store(
+    Routes.adminStore,
+    'Tienda',
+    Icons.storefront_outlined,
+    Icons.storefront,
+  ),
+
   /// Las personas del equipo y, en otra pestaña, los roles: un solo destino
   /// para no sumar dos a la barra del teléfono.
   team(
@@ -115,7 +122,9 @@ enum AdminSection {
 /// La navegación muestra solo las secciones de los permisos de la sesión.
 /// Desde [wideFrom] es un riel a la izquierda; por debajo, una barra abajo,
 /// que necesita al menos dos secciones y una elegida: si no (una sola
-/// sección, o "Sin acceso"), no hay barra.
+/// sección, o "Sin acceso"), no hay barra. La barra lleva hasta
+/// [barDestinations]: con más secciones, las primeras y "Más", que abre las
+/// demás.
 class AdminShell extends ConsumerWidget {
   const AdminShell({super.key, required this.location, required this.child});
 
@@ -124,6 +133,10 @@ class AdminShell extends ConsumerWidget {
   final Widget child;
 
   static const wideFrom = 840.0;
+
+  /// Cuántos destinos entran en la barra del teléfono (Material recomienda
+  /// de 3 a 5).
+  static const barDestinations = 5;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -199,23 +212,83 @@ class AdminShell extends ConsumerWidget {
           ),
           bottomNavigationBar: wide || sections.length < 2 || selectedIndex < 0
               ? null
-              : NavigationBar(
+              : _BottomBar(
+                  sections: sections,
                   selectedIndex: selectedIndex,
-                  onDestinationSelected: go,
-                  labelBehavior:
-                      NavigationDestinationLabelBehavior.onlyShowSelected,
-                  destinations: [
-                    for (final section in sections)
-                      NavigationDestination(
-                        icon: Icon(section.icon),
-                        selectedIcon: Icon(section.selectedIcon),
-                        label: section.shortLabel,
-                        tooltip: section.label,
-                      ),
-                  ],
+                  onSelected: go,
                 ),
         ),
       ),
+    );
+  }
+}
+
+/// La barra de abajo del teléfono. Si las secciones no entran
+/// ([AdminShell.barDestinations]), las primeras y "Más": abre una hoja con
+/// las demás, y se marca cuando la sección actual es una de ellas.
+class _BottomBar extends StatelessWidget {
+  const _BottomBar({
+    required this.sections,
+    required this.selectedIndex,
+    required this.onSelected,
+  });
+
+  final List<AdminSection> sections;
+  final int selectedIndex;
+  final ValueChanged<int> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final overflows = sections.length > AdminShell.barDestinations;
+    final shown = overflows ? AdminShell.barDestinations - 1 : sections.length;
+    final more = shown;
+
+    Future<void> openMore() async {
+      final index = await showModalBottomSheet<int>(
+        context: context,
+        showDragHandle: true,
+        builder: (context) => SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var i = shown; i < sections.length; i++)
+                ListTile(
+                  leading: Icon(
+                    i == selectedIndex
+                        ? sections[i].selectedIcon
+                        : sections[i].icon,
+                  ),
+                  title: Text(sections[i].label),
+                  selected: i == selectedIndex,
+                  onTap: () => Navigator.of(context).pop(i),
+                ),
+            ],
+          ),
+        ),
+      );
+      if (index != null) onSelected(index);
+    }
+
+    return NavigationBar(
+      selectedIndex: selectedIndex < shown ? selectedIndex : more,
+      onDestinationSelected: (index) =>
+          overflows && index == more ? openMore() : onSelected(index),
+      labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
+      destinations: [
+        for (final section in sections.take(shown))
+          NavigationDestination(
+            icon: Icon(section.icon),
+            selectedIcon: Icon(section.selectedIcon),
+            label: section.shortLabel,
+            tooltip: section.label,
+          ),
+        if (overflows)
+          const NavigationDestination(
+            icon: Icon(Icons.more_horiz),
+            label: 'Más',
+            tooltip: 'Más secciones',
+          ),
+      ],
     );
   }
 }

@@ -75,8 +75,10 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - carrito guardado en el dispositivo;
   - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger".
 - **Panel:**
-  - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
-  - pedidos con el stepper de estado y actualización automática;
+  - inicio con ventas de hoy, la semana y el mes (lo entregado o recogido), ticket promedio, pedidos por estado y por tipo de entrega, gráfico de 30 días, stock bajo, por vencer y top 5;
+  - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido pide el código del cliente;
+  - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
+  - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
   - productos, inventario (entradas, salidas y ajustes) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
   - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;
@@ -103,8 +105,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-6. **Recojo en tienda en el panel** (la tienda ya lo tiene: elegir recojo en el carrito, los datos de la tienda, el código y el aviso de "listo"): el filtro por tipo de entrega, la sección para editar los datos de la tienda (`store.manage`) y "pedidos por tipo de entrega" en el inicio.
-7. **Más gestión en el panel:**
+6. **Más gestión en el panel:**
    - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;
