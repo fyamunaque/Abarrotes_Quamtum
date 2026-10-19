@@ -17,6 +17,7 @@ import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/store/store_providers.dart';
+import 'package:neils/store/store_settings.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -315,6 +316,40 @@ void main() {
       expect(find.text('Av. Arequipa 1234, Lince'), findsOneWidget);
     });
 
+    testWidgets('el teléfono de la tienda, si lo tiene', (tester) async {
+      store.store = const StoreSettings(
+        name: "Neil's Food Services",
+        address: 'Av. Arequipa 1234, Lince',
+        phone: '01 422 3344',
+      );
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      await choosePickup(tester);
+
+      expect(find.text('01 422 3344'), findsOneWidget);
+      expect(find.byIcon(Icons.phone_outlined), findsOneWidget);
+    });
+
+    testWidgets('en un teléfono, las opciones van sin ícono', (tester) async {
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      Finder icon(IconData data) => find.descendant(
+        of: find.byType(SegmentedButton<FulfillmentType>),
+        matching: find.byIcon(data),
+      );
+      expect(icon(Icons.storefront_outlined), findsOneWidget);
+
+      tester.view.physicalSize = const Size(375, 900);
+      await tester.pumpAndSettle();
+
+      expect(icon(Icons.storefront_outlined), findsNothing);
+      expect(icon(Icons.local_shipping_outlined), findsNothing);
+      expect(find.text('Recoger en tienda'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     Order pickupOrder(OrderStatus status) => Order(
       id: 'pedido-1',
       status: status,
@@ -367,6 +402,34 @@ void main() {
       expect(find.text('Recojo en tienda'), findsOneWidget);
       expect(find.text('Recogido'), findsOneWidget);
     });
+  });
+
+  testWidgets('a domicilio: adónde va, como la tienda en uno de recojo', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    Order delivery(String id, OrderStatus status) => Order(
+      id: id,
+      status: status,
+      deliveryAddress: 'Av. Brasil 450, $id',
+      totalCents: 2490,
+      createdAt: DateTime.utc(2026, 10, 14, 15),
+      lines: const [],
+    );
+    orders.orders.addAll([
+      delivery('Breña', OrderStatus.outForDelivery),
+      delivery('Jesús María', OrderStatus.delivered),
+    ]);
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    // En curso: con su título y el ícono, como los datos de la tienda.
+    expect(find.text('Entrega a domicilio'), findsOneWidget);
+    expect(find.text('Av. Brasil 450, Breña'), findsOneWidget);
+    expect(find.byIcon(Icons.place_outlined), findsOneWidget);
+    // Ya entregado: en una línea.
+    expect(find.text('Entrega en Av. Brasil 450, Jesús María'), findsOneWidget);
   });
 
   testWidgets('"Actualizar" trae el estado nuevo y el seguimiento lo anima', (

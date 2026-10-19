@@ -647,7 +647,7 @@ class _ItemList extends StatelessWidget {
 }
 
 /// Columnas de al menos [minWidth], entre 1 y [maxColumns], todas del mismo
-/// ancho.
+/// ancho. Las tarjetas de una fila tienen el alto de la más alta.
 class ResponsiveGrid extends StatelessWidget {
   const ResponsiveGrid({
     super.key,
@@ -670,12 +670,28 @@ class ResponsiveGrid extends StatelessWidget {
           1,
           maxColumns,
         );
-        final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
-        return Wrap(
-          spacing: _gap,
-          runSpacing: _gap,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final child in children) SizedBox(width: width, child: child),
+            for (var start = 0; start < children.length; start += columns) ...[
+              if (start > 0) const SizedBox(height: _gap),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = start; i < start + columns; i++) ...[
+                      if (i > start) const SizedBox(width: _gap),
+                      // La última fila, si queda incompleta, con huecos.
+                      Expanded(
+                        child: i < children.length
+                            ? children[i]
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },

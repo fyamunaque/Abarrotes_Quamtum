@@ -92,34 +92,33 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       children: [
         const PanelTabs(tabs: ordersTabs, current: Routes.adminOrders),
         const SizedBox(height: 16),
-        FilterChips<OrderStatus?>(
-          options: [
-            (null, 'Todos'),
-            for (final status in OrderStatus.values) (status, status.label),
-          ],
-          selected: status,
-          onSelected: (status) =>
-              setState(() => _filter = (status: status, fulfillmentType: type)),
+        _FilterRow(
+          label: 'Estado',
+          child: FilterChips<OrderStatus?>(
+            options: [
+              (null, 'Todos'),
+              for (final status in OrderStatus.values) (status, status.label),
+            ],
+            selected: status,
+            onSelected: (status) => setState(
+              () => _filter = (status: status, fulfillmentType: type),
+            ),
+          ),
         ),
         const SizedBox(height: 8),
-        Row(
-          children: [
-            Text('Entrega', style: Theme.of(context).textTheme.labelLarge),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilterChips<FulfillmentType?>(
-                options: [
-                  (null, 'Domicilio y recojo'),
-                  for (final type in FulfillmentType.values)
-                    (type, FulfillmentBadge.label(type)),
-                ],
-                selected: type,
-                onSelected: (type) => setState(
-                  () => _filter = (status: status, fulfillmentType: type),
-                ),
-              ),
+        _FilterRow(
+          label: 'Entrega',
+          child: FilterChips<FulfillmentType?>(
+            options: [
+              (null, 'Domicilio y recojo'),
+              for (final type in FulfillmentType.values)
+                (type, FulfillmentBadge.label(type)),
+            ],
+            selected: type,
+            onSelected: (type) => setState(
+              () => _filter = (status: status, fulfillmentType: type),
             ),
-          ],
+          ),
         ),
         const SizedBox(height: 16),
         AdminTable<AdminOrder>(
@@ -181,6 +180,35 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             _ => 'Ningún pedido coincide con los filtros.',
           },
         ),
+      ],
+    );
+  }
+}
+
+/// Una fila de filtros con su nombre adelante. Los nombres miden lo mismo,
+/// así los chips de las dos filas empiezan en la misma columna; si los
+/// chips bajan a otra línea, el nombre queda a la altura de la primera.
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 68,
+          // El alto de un chip, con su área táctil.
+          height: kMinInteractiveDimension,
+          child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: Text(label, style: Theme.of(context).textTheme.labelLarge),
+          ),
+        ),
+        Expanded(child: child),
       ],
     );
   }

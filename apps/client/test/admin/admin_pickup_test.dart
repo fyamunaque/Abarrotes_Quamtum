@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:neils/admin/orders/admin_orders_providers.dart';
+import 'package:neils/features/admin/shared/panel_tabs.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/staff_permission.dart';
 
@@ -200,9 +201,30 @@ void main() {
     expect(location(router), '/admin/pedidos/recoger');
   });
 
-  testWidgets('en el teléfono, sin desbordes', (tester) async {
+  testWidgets('en el teléfono, sin desbordes y las pestañas sin ícono', (
+    tester,
+  ) async {
     await pumpPickup(tester, width: 320);
     expect(tester.takeException(), isNull);
     expect(codes(tester), hasLength(3));
+    // Sin ícono, "Todos los pedidos" entra en una línea.
+    expect(
+      find.descendant(
+        of: find.byType(PanelTabs),
+        matching: find.byIcon(Icons.storefront_outlined),
+      ),
+      findsNothing,
+    );
+  });
+
+  testWidgets('en escritorio, las pestañas con su ícono', (tester) async {
+    await pumpPickup(tester);
+    expect(
+      find.descendant(
+        of: find.byType(PanelTabs),
+        matching: find.byIcon(Icons.storefront_outlined),
+      ),
+      findsOneWidget,
+    );
   });
 }

@@ -183,8 +183,8 @@ flutter run -d chrome   # y abrir /vitrina
 | `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
-| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`). Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
-| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega: la dirección o, con recojo en tienda, la dirección y el horario de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega, en el mismo lugar y con el mismo formato (`InfoLine`): "Entrega a domicilio" con la dirección o, con recojo en tienda, los datos de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
 | `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos` (y `/admin/pedidos/recoger`), `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/tienda`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
 | `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
 
@@ -279,7 +279,8 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
   elegido cuando se está en una de ellas);
 - dos secciones tienen pestañas (`PanelTabs`), así no suman destinos a la barra: Pedidos,
   "Todos los pedidos" (`/admin/pedidos`) y "Para recoger" (`/admin/pedidos/recoger`), y
-  Equipo, Personas (`/admin/equipo`) y Roles (`/admin/roles`).
+  Equipo, Personas (`/admin/equipo`) y Roles (`/admin/roles`). En un teléfono van sin
+  ícono, así cada nombre entra en una línea.
 
 | Sección | Para verla | Lo que pide además |
 |---|---|---|
@@ -297,8 +298,8 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 
 | Sección | Qué hace |
 |---|---|
-| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". |
-| Pedidos: Todos los pedidos | Todos los pedidos, con chips por estado y por entrega ("Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). |
+| Pedidos: Todos los pedidos | Todos los pedidos, con chips por estado ("Estado") y por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas) o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
@@ -327,9 +328,13 @@ Las piezas compartidas están en `features/admin/shared/`:
   de una acción rechazada por el servidor, en un aviso.
 - `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
   lo avisa sin vaciar la tabla.
-- `FilterChips`, `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es
-  solo para clientes VIP), `FulfillmentBadge` ("Domicilio" o "Recojo" con su ícono),
-  `PanelTabs` (las pestañas de una sección, cada una con su ruta) y `confirmAction`.
+- `PanelSearchField`: el buscador de cada sección (lupa y "x" para borrar). Mide 320 px y queda
+  a la izquierda; en un teléfono ocupa todo el ancho.
+- `FilterChips`: los chips de un filtro. En el teléfono se deslizan de lado; desde 600 px bajan
+  a otra línea si no entran, porque con el mouse no se desliza de lado.
+- `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es solo para
+  clientes VIP), `FulfillmentBadge` ("Domicilio" o "Recojo" con su ícono), `PanelTabs` (las
+  pestañas de una sección, cada una con su ruta) y `confirmAction`.
 
 Los datos van por sección en `lib/admin/<dominio>/` (modelo, repositorio HTTP con el ID token
 y providers). Las tablas usan `PagedNotifier<T>`, con los filtros como argumento del provider
@@ -385,7 +390,9 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   - carrito, cantidades y quitar;
   - sin cuenta: ingresar, volver al carrito y pedir;
   - el 409, la dirección vacía;
-  - `/mis-pedidos` y "Actualizar" animando el seguimiento.
+  - recoger en tienda: los datos de la tienda (con su teléfono), el código y las opciones sin
+    ícono en un teléfono;
+  - `/mis-pedidos` con la entrega de cada pedido y "Actualizar" animando el seguimiento.
 - `test/auth/auth_error_message_test.dart`: los mensajes de cada error de Firebase.
 - `test/features/account_bar_test.dart`: la barra con sesión entra en un teléfono de 320 y 375
   px (la cuenta va en un menú).

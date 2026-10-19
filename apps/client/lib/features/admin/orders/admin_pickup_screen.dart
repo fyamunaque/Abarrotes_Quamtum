@@ -17,6 +17,7 @@ import '../shared/admin_page.dart';
 import '../shared/panel_note.dart';
 import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
+import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'admin_orders_screen.dart';
 import 'pickup_code_dialog.dart';
@@ -76,36 +77,16 @@ class _AdminPickupScreenState extends ConsumerState<AdminPickupScreen> {
           'Busca por el código que te dice el cliente o por su nombre.',
         ),
         const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) => Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: SizedBox(
-              width: constraints.maxWidth < 560 ? constraints.maxWidth : 360,
-              child: TextField(
-                controller: _search,
-                decoration: InputDecoration(
-                  labelText: 'Buscar por código o nombre',
-                  prefixIcon: const Icon(Icons.search),
-                  suffixIcon: ListenableBuilder(
-                    listenable: _search,
-                    builder: (_, _) => _search.text.isEmpty
-                        ? const SizedBox.shrink()
-                        : IconButton(
-                            tooltip: 'Borrar la búsqueda',
-                            icon: const Icon(Icons.close),
-                            onPressed: () => setState(() {
-                              _search.clear();
-                              _query = '';
-                            }),
-                          ),
-                  ),
-                ),
-                textCapitalization: TextCapitalization.characters,
-                textInputAction: TextInputAction.search,
-                onChanged: (text) => setState(() => _query = text),
-              ),
-            ),
-          ),
+        PanelSearchField(
+          controller: _search,
+          label: 'Buscar por código o nombre',
+          width: 360,
+          textCapitalization: TextCapitalization.characters,
+          onChanged: (text) => setState(() => _query = text),
+          onClear: () => setState(() {
+            _search.clear();
+            _query = '';
+          }),
         ),
         const SizedBox(height: 16),
         switch (queue) {

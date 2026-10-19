@@ -227,6 +227,34 @@ void main() {
     );
   });
 
+  testWidgets('las tarjetas de una fila tienen el mismo alto', (tester) async {
+    double heightOf(WidgetTester tester, String title) => tester
+        .getSize(
+          find.ancestor(of: find.text(title), matching: find.byType(Card)),
+        )
+        .height;
+
+    await pumpHome(tester);
+    // Más vendidos tiene más filas que las otras dos.
+    expect(heightOf(tester, 'Stock bajo'), heightOf(tester, 'Más vendidos'));
+    expect(
+      heightOf(tester, 'Por vencer en 7 días'),
+      heightOf(tester, 'Más vendidos'),
+    );
+  });
+
+  testWidgets('en el teléfono, los KPI de una fila miden lo mismo', (
+    tester,
+  ) async {
+    await pumpHome(tester, width: 375);
+
+    // "Ventas de la semana" ocupa dos líneas; "Ventas de hoy", una.
+    Size sizeOf(String label) => tester.getSize(
+      find.ancestor(of: find.text(label), matching: find.byType(Card)),
+    );
+    expect(sizeOf('Ventas de hoy'), sizeOf('Ventas de la semana'));
+  });
+
   testWidgets('si un reporte falla, solo su tarjeta lo dice', (tester) async {
     stats.failing.add('sales');
     await pumpHome(tester);

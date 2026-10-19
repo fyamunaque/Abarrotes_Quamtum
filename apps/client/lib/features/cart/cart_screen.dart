@@ -140,8 +140,10 @@ class _Total extends StatelessWidget {
       children: [
         Row(
           children: [
-            Text('Total estimado', style: text.titleLarge),
-            const Spacer(),
+            // Con el texto agrandado, "Total estimado" baja de línea antes
+            // que el monto se salga de la pantalla.
+            Expanded(child: Text('Total estimado', style: text.titleLarge)),
+            const SizedBox(width: 12),
             Text(
               formatSoles(cart.totalCents),
               style: NeilsText.price(fontSize: 26),
@@ -157,6 +159,9 @@ class _Total extends StatelessWidget {
     );
   }
 }
+
+/// Desde este ancho, las opciones de entrega llevan su ícono.
+const _segmentIconsMinWidth = 440.0;
 
 /// Cómo llega el pedido (a domicilio o para recoger en la tienda) y
 /// "Confirmar pedido". A domicilio pide la dirección; con recojo muestra
@@ -251,27 +256,37 @@ class _CheckoutState extends ConsumerState<_Checkout> {
               ),
             ),
             const SizedBox(height: 8),
-            SegmentedButton<FulfillmentType>(
-              segments: const [
-                ButtonSegment(
-                  value: FulfillmentType.delivery,
-                  label: Text('Entrega a domicilio'),
-                  icon: Icon(Icons.local_shipping_outlined),
-                ),
-                ButtonSegment(
-                  value: FulfillmentType.pickup,
-                  label: Text('Recoger en tienda'),
-                  icon: Icon(Icons.storefront_outlined),
-                ),
-              ],
-              selected: {_type},
-              showSelectedIcon: false,
-              onSelectionChanged: _busy
-                  ? null
-                  : (selected) => setState(() {
-                      _type = selected.single;
-                      _error = null;
-                    }),
+            // En un teléfono, sin íconos: así cada opción entra en una línea.
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final icons = constraints.maxWidth >= _segmentIconsMinWidth;
+                return SegmentedButton<FulfillmentType>(
+                  segments: [
+                    ButtonSegment(
+                      value: FulfillmentType.delivery,
+                      label: const Text('Entrega a domicilio'),
+                      icon: icons
+                          ? const Icon(Icons.local_shipping_outlined)
+                          : null,
+                    ),
+                    ButtonSegment(
+                      value: FulfillmentType.pickup,
+                      label: const Text('Recoger en tienda'),
+                      icon: icons
+                          ? const Icon(Icons.storefront_outlined)
+                          : null,
+                    ),
+                  ],
+                  selected: {_type},
+                  showSelectedIcon: false,
+                  onSelectionChanged: _busy
+                      ? null
+                      : (selected) => setState(() {
+                          _type = selected.single;
+                          _error = null;
+                        }),
+                );
+              },
             ),
             const SizedBox(height: 16),
             if (_type == FulfillmentType.delivery)

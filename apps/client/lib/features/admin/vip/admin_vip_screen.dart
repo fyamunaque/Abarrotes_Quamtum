@@ -15,6 +15,7 @@ import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
+import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'vip_add_form.dart';
 
@@ -128,30 +129,12 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
                     'ni quitar clientes VIP.'}',
         ),
         const SizedBox(height: 16),
-        LayoutBuilder(
-          builder: (context, constraints) => SizedBox(
-            width: constraints.maxWidth < 560 ? constraints.maxWidth : 320,
-            child: TextField(
-              controller: _search,
-              decoration: InputDecoration(
-                labelText: 'Buscar por correo',
-                prefixIcon: const Icon(Icons.search),
-                suffixIcon: ListenableBuilder(
-                  listenable: _search,
-                  builder: (_, _) => _search.text.isEmpty
-                      ? const SizedBox.shrink()
-                      : IconButton(
-                          tooltip: 'Borrar la búsqueda',
-                          icon: const Icon(Icons.close),
-                          onPressed: _clearSearch,
-                        ),
-                ),
-              ),
-              keyboardType: TextInputType.emailAddress,
-              textInputAction: TextInputAction.search,
-              onChanged: _onSearch,
-            ),
-          ),
+        PanelSearchField(
+          controller: _search,
+          label: 'Buscar por correo',
+          keyboardType: TextInputType.emailAddress,
+          onChanged: _onSearch,
+          onClear: _clearSearch,
         ),
         const SizedBox(height: 16),
         AdminTable<VipCustomer>(

@@ -13,6 +13,7 @@ import '../../theme/neils_theme.dart';
 import '../shared/brand.dart';
 import '../shared/date_format.dart';
 import '../shared/error_message.dart';
+import '../shared/info_line.dart';
 import '../shared/store_details.dart';
 import 'order_tracker.dart';
 
@@ -208,9 +209,6 @@ class _OrderCard extends StatelessWidget {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final date = formatDateTime(context, order.createdAt);
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: scheme.onSurfaceVariant,
-    );
 
     return Card.outlined(
       margin: EdgeInsets.zero,
@@ -249,10 +247,11 @@ class _OrderCard extends StatelessWidget {
               fulfillmentType: order.fulfillmentType,
             ),
             const SizedBox(height: 16),
-            if (order.fulfillmentType == FulfillmentType.pickup) ...[
-              _PickupDetails(order),
-              const SizedBox(height: 16),
-            ],
+            switch (order.fulfillmentType) {
+              FulfillmentType.pickup => _PickupDetails(order),
+              FulfillmentType.delivery => _DeliveryDetails(order),
+            },
+            const SizedBox(height: 16),
             for (final line in order.lines)
               Padding(
                 padding: const EdgeInsets.only(bottom: 4),
@@ -264,13 +263,39 @@ class _OrderCard extends StatelessWidget {
                   ],
                 ),
               ),
-            if (order.fulfillmentType == FulfillmentType.delivery) ...[
-              const SizedBox(height: 8),
-              Text('Entrega en ${order.deliveryAddress ?? '—'}', style: muted),
-            ],
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Un pedido a domicilio: adónde va, en el mismo lugar que los datos de la
+/// tienda en uno de recojo. Ya entregado o cancelado, en una línea tenue.
+class _DeliveryDetails extends StatelessWidget {
+  const _DeliveryDetails(this.order);
+
+  final Order order;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final address = order.deliveryAddress ?? '—';
+    if (order.status == OrderStatus.delivered ||
+        order.status == OrderStatus.cancelled) {
+      return Text(
+        'Entrega en $address',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Entrega a domicilio', style: theme.textTheme.titleSmall),
+        InfoLine(icon: Icons.place_outlined, text: address),
+      ],
     );
   }
 }

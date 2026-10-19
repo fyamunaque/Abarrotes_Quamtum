@@ -123,6 +123,30 @@ void main() {
     expect(find.text('Luis Rojas'), findsOneWidget);
   });
 
+  testWidgets('en escritorio, los chips que no entran bajan de línea', (
+    tester,
+  ) async {
+    // Con el mouse no se desliza de lado: ningún chip puede quedar cortado.
+    await pumpOrders(tester, width: 1000);
+
+    for (final status in OrderStatus.values) {
+      final chip = find.widgetWithText(ChoiceChip, status.label);
+      expect(
+        tester.getRect(chip).right,
+        lessThanOrEqualTo(1000),
+        reason: status.label,
+      );
+    }
+    final first = tester.getRect(find.widgetWithText(ChoiceChip, 'Todos'));
+    final last = tester.getRect(find.widgetWithText(ChoiceChip, 'Cancelado'));
+    expect(last.top, greaterThan(first.top));
+    // "Estado" a la altura de la primera fila de chips.
+    expect(
+      tester.getCenter(find.text('Estado').first).dy,
+      closeTo(first.center.dy, 2),
+    );
+  });
+
   testWidgets('filtrar por estado', (tester) async {
     await pumpOrders(tester);
 
