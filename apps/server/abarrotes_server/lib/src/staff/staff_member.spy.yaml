@@ -1,0 +1,21 @@
+### Una persona del personal: su correo (en minúsculas y sin espacios) y su
+### rol. Sus permisos rigen si ingresa con ese correo verificado. Se da de
+### baja con active, sin borrar la fila.
+class: StaffMember
+table: staff_members
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  email: String
+  roleId: UuidValue
+  role: Role?, relation(name=role_staff_members, field=roleId, onDelete=Restrict, onUpdate=Cascade)
+  ### Quién lo agregó; null si lo agregó el sistema (siembra o migración).
+  addedByUserId: UuidValue?
+  addedBy: User?, relation(name=user_staff_members_added, field=addedByUserId, onDelete=SetNull, onUpdate=Cascade)
+  createdAt: DateTime, default=now
+  active: bool, default=true
+indexes:
+  staff_members_email_idx:
+    fields: email
+    unique: true
+  staff_members_role_idx:
+    fields: roleId

@@ -18,7 +18,7 @@ Las dos están en **una sola app Flutter** (`apps/client`), contra un servidor *
 | App (Android + web) | **Flutter** + Riverpod + go_router | Pedido del cliente: una sola base de código para Android y la web, para la tienda y el panel. |
 | Servidor | **Serverpod 4** (Dart) | Pedido del cliente: el mismo lenguaje que la app, con modelos y migraciones generados. |
 | Base de datos | **PostgreSQL** | Relacional, con transacciones ACID: un pedido descuenta stock y registra el movimiento a la vez. |
-| Cuentas | **Firebase Auth** | Registro, ingreso y contraseñas los maneja Firebase. El servidor verifica el ID token en cada petición y guarda el rol (`customer`, `staff`, `admin`) en Postgres. |
+| Cuentas | **Firebase Auth** | Registro, ingreso y contraseñas los maneja Firebase. El servidor verifica el ID token en cada petición; los permisos del personal (roles con permisos, asignados por correo) viven en Postgres. |
 
 ## 3. Estructura del repo
 
@@ -36,14 +36,15 @@ CLAUDE.md
 
 **El servidor:** cada dominio tiene su carpeta en `apps/server/abarrotes_server/lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082):
 
-- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`) y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
-- `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
-- `promotions`: CRUD para admin/staff, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
-- `vip`: la lista de clientes VIP por correo (`/vip-customers`): admin la modifica, staff solo la lee. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
+- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea. `GET /customers` (`customers.view`): el listado de clientes para el panel.
+- `staff`: roles y permisos del personal. Un catálogo de permisos (`Permission`), roles editables más el Administrador de sistema, el personal por correo (con el correo verificado) y una bitácora. Cada ruta del panel pide su permiso (`guards.require`), nunca solo "ser del personal": un test compara cada ruta con su permiso. `/staff/*` (`staff.manage`) los administra.
+- `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
+- `promotions`: CRUD con `promotions.manage`, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
+- `vip`: la lista de clientes VIP por correo (`/vip-customers`): se ve con `vip.view` y se modifica con `vip.manage`. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
 - `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`.
-- `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
-- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` con filtros y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`).
-- `stats` (admin/staff): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
+- `inventory`: movimientos de stock (registrarlos pide `inventory.adjust`; verlos y las alertas, `inventory.view`) (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
+- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` (`orders.view`) con filtros y `PATCH /orders/:id/status` (`orders.updateStatus`) con el patrón State (una clase por estado en `lib/src/orders/states/`).
+- `stats` (`stats.view`): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
@@ -53,7 +54,7 @@ El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas
 
 ## 4. Modelo de datos
 
-Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid` y rol), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional) y `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó).
+Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional) y `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó).
 
 - **Estados de pedido:** `pendingConfirmation → confirmed → outForDelivery → delivered`, con `cancelled` como ruta alterna.
 - **Montos en céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal. En el JSON viajan como texto (`"4.5"`).
@@ -66,7 +67,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 **Hecho:**
 
-- **Fundamentos:** el repo, el CI, PostgreSQL, el servidor Serverpod con el modelo completo y su migración inicial, y la verificación del Firebase ID token con el guard por rol.
+- **Fundamentos:** el repo, el CI, PostgreSQL, el servidor Serverpod con el modelo completo y su migración inicial, y la verificación del Firebase ID token con los guards por permiso.
 - **Tienda (cliente):**
   - registro e ingreso con Firebase;
   - catálogo con búsqueda y categorías, y detalle de producto;
@@ -76,7 +77,10 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
   - pedidos con el stepper de estado y actualización automática;
   - productos, inventario (entradas, salidas y ajustes) y promociones;
-  - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve.
+  - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
+  - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;
+  - cada sección y cada botón según los `permissions` de `/users/me` (lo demás, "No tienes acceso a esta sección"), y al ingresar cada uno llega a su sección: la Cajera a Pedidos, el Almacenero a Inventario. Un rol que cambió rige al volver a la app, sin cerrar sesión.
+- **Roles y permisos del personal:** en el servidor, permisos por rol, el Administrador de sistema, las plantillas Almacenero y Cajera, el personal por correo, la bitácora y las reglas para no quedarse sin administrador; en el panel, las pestañas Personas y Roles de la sección Equipo, solo con `staff.manage`.
 - **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia y el título en el formulario de promociones; en la tienda, el precio VIP en el catálogo, las "Ofertas exclusivas", el carrito como estimación con el precio final al pedir, el refresco del perfil sin cerrar sesión y el aviso para verificar el correo.
 - **Para la demo:**
   - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
@@ -99,8 +103,8 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
 6. **Más gestión en el panel:**
+   - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
-   - cuentas del personal;
    - insumos;
    - exportar a CSV;
    - gráficos por rango de fechas.

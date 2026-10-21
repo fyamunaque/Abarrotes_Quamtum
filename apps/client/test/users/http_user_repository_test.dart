@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:neils/auth/auth_repository.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/session/session.dart';
+import 'package:neils/session/staff_permission.dart';
 import 'package:neils/users/http_user_repository.dart';
 
 void main() {
@@ -64,6 +65,31 @@ void main() {
       (_) async => json(200, {...profile, 'isVip': true}),
     ).me('t');
     expect(vip.isVip, isTrue);
+  });
+
+  test('el rol del equipo y los permisos que la app conoce', () async {
+    final user = await repository(
+      (_) async => json(200, {
+        ...profile,
+        'staffRole': {'id': 'r-1', 'name': 'Cajera'},
+        'permissions': ['orders.view', 'orders.updateStatus', 'otro.nuevo'],
+      }),
+    ).me('t');
+
+    expect(user.staffRoleName, 'Cajera');
+    expect(user.permissions, {
+      StaffPermission.ordersView,
+      StaffPermission.ordersUpdateStatus,
+    });
+    expect(user.can(StaffPermission.ordersView), isTrue);
+    expect(user.can(StaffPermission.staffManage), isFalse);
+
+    // Sin los campos (un servidor anterior, o un cliente): ninguno.
+    final customer = await repository(
+      (_) async => json(200, {...profile, 'staffRole': null}),
+    ).me('t');
+    expect(customer.staffRoleName, isNull);
+    expect(customer.permissions, isEmpty);
   });
 
   test('respeta el path de API_URL y la barra final', () async {

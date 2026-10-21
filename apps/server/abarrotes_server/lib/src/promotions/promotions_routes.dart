@@ -1,8 +1,7 @@
 import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_auth_middleware.dart';
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
@@ -13,15 +12,15 @@ import '../generated/protocol.dart';
 import 'promotion_rules.dart';
 import 'promotions_service.dart';
 
-/// Rutas de promociones: la gestión, solo para admin y staff; y
+/// Rutas de promociones: la gestión, con `promotions.manage`; y
 /// `/promotions/active`, pública, con las que puede usar quien pregunta.
 List<RouteEntry> promotionsRoutes(
   PromotionsService promotions,
-  FirebaseTokenVerifier verifier, {
+  Guards guards, {
   required ShopperResolver shoppers,
 }) {
   Route staffOnly(Method method, ApiHandler handler) =>
-      RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+      guards.require(Permission.promotionsManage, ApiRoute(method, handler));
 
   Map<String, Object?> json(Promotion promotion) =>
       promotionJson(promotion, promotions.now());
@@ -38,7 +37,7 @@ List<RouteEntry> promotionsRoutes(
 
         final shopper = await shoppers.resolve(
           session,
-          await optionalIdentity(verifier, request),
+          await optionalIdentity(guards.verifier, request),
         );
         final (list, total) = await promotions.activeFor(
           session,

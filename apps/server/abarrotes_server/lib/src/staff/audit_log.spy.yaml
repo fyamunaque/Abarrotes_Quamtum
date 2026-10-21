@@ -1,0 +1,17 @@
+### La bitácora de los cambios del personal: quién hizo qué, a quién y cuándo.
+class: AuditLog
+table: audit_logs
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  ### Quién lo hizo; null si fue el sistema.
+  actorUserId: UuidValue?
+  actor: User?, relation(name=user_audit_logs, field=actorUserId, onDelete=SetNull, onUpdate=Cascade)
+  action: AuditAction
+  ### El correo de la persona afectada (null en los cambios de un rol).
+  targetEmail: String?
+  ### Lo que cambió, como JSON (p. ej. {"from":"Almacenero","to":"Cajera"}).
+  details: String?
+  createdAt: DateTime, default=now
+indexes:
+  audit_logs_created_idx:
+    fields: createdAt

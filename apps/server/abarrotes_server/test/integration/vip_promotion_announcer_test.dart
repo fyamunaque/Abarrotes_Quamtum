@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 
 import '../support/fake_push.dart';
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
@@ -31,11 +32,7 @@ void main() {
     }) async {
       final user = await User.db.updateRow(
         session,
-        (await insertUser(
-          session,
-          uid,
-          UserRole.customer,
-        )).copyWith(emailVerified: verified),
+        (await insertUser(session, uid)).copyWith(emailVerified: verified),
       );
       for (final token in devices) {
         await DeviceToken.db.insertRow(
@@ -58,7 +55,7 @@ void main() {
     setUp(() async {
       session = sessionBuilder.build();
       push = FakePushSender();
-      admin = await insertUser(session, 'uid-admin', UserRole.admin);
+      admin = await insertStaff(session, 'uid-admin');
       final category = await Category.db.insertRow(
         session,
         Category(name: 'Abarrotes'),
@@ -192,7 +189,7 @@ void main() {
   withServerpod('Aviso que falla', (sessionBuilder, _) {
     test('si el aviso falla, la promoción se crea igual', () async {
       final session = sessionBuilder.build();
-      await insertUser(session, 'uid-staff', UserRole.staff);
+      await insertStaff(session, 'uid-staff');
       final category = await Category.db.insertRow(
         session,
         Category(name: 'Abarrotes'),
@@ -211,7 +208,7 @@ void main() {
         () => session,
         promotionsRoutes(
           testPromotions(announcer: ThrowingAnnouncer()),
-          testVerifier(google),
+          testGuards(google),
           shoppers: testShoppers,
         ),
       );

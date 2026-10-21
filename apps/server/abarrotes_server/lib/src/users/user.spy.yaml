@@ -1,5 +1,6 @@
 ### Cuenta de la plataforma. La autenticación vive en Firebase: aquí se guarda
-### el uid de Firebase y el rol, nunca una contraseña.
+### el uid de Firebase, nunca una contraseña. Los permisos del personal no
+### están aquí: salen de StaffMember y su Role, por el correo.
 class: User
 table: users
 fields:
@@ -12,13 +13,14 @@ fields:
   emailVerified: bool, default=false
   name: String
   phone: String?
-  role: UserRole, default=customer
   address: String?
   createdAt: DateTime, default=now
   orders: List<Order>?, relation(name=user_orders)
   inventoryMovements: List<InventoryMovement>?, relation(name=user_inventory_movements)
   vipCustomersAdded: List<VipCustomer>?, relation(name=user_vip_customers)
   deviceTokens: List<DeviceToken>?, relation(name=user_device_tokens)
+  staffMembersAdded: List<StaffMember>?, relation(name=user_staff_members_added)
+  auditLogs: List<AuditLog>?, relation(name=user_audit_logs)
 indexes:
   users_firebase_uid_idx:
     fields: firebaseUid

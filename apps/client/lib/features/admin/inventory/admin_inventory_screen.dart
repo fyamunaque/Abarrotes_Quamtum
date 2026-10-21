@@ -3,14 +3,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../admin/inventory/inventory_providers.dart';
 import '../../../admin/inventory/movement.dart';
+import '../../../session/session_provider.dart';
+import '../../../session/staff_permission.dart';
 import '../../shared/date_format.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import 'movement_form.dart';
 
-/// El historial de movimientos de stock (el más reciente primero) y
-/// "Registrar movimiento": entradas, salidas y ajustes.
+/// El historial de movimientos de stock (el más reciente primero) y, con
+/// `inventory.adjust`, "Registrar movimiento": entradas, salidas y ajustes.
 class AdminInventoryScreen extends ConsumerWidget {
   const AdminInventoryScreen({super.key});
 
@@ -36,17 +39,27 @@ class AdminInventoryScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final canAdjust = ref
+        .watch(permissionsProvider)
+        .contains(StaffPermission.inventoryAdjust);
     return AdminPage(
       title: 'Inventario',
       actions: [
         RefreshButton(onRefresh: ref.read(movementsProvider.notifier).refresh),
-        FilledButton.icon(
-          onPressed: () => _record(context, ref),
-          icon: const Icon(Icons.add),
-          label: const Text('Registrar movimiento'),
-        ),
+        if (canAdjust)
+          FilledButton.icon(
+            onPressed: () => _record(context, ref),
+            icon: const Icon(Icons.add),
+            label: const Text('Registrar movimiento'),
+          ),
       ],
       children: [
+        if (!canAdjust) ...[
+          const PanelNote(
+            'Tu rol puede ver el inventario, pero no registrar movimientos.',
+          ),
+          const SizedBox(height: 16),
+        ],
         AdminTable<Movement>(
           value: ref.watch(movementsProvider),
           columns: [

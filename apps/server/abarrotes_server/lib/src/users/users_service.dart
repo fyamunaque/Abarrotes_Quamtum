@@ -1,12 +1,14 @@
 import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_identity.dart';
+import '../common/api_route.dart';
 import '../common/http_json.dart';
+import '../common/pagination.dart';
 import '../generated/protocol.dart';
-import 'create_user_request.dart';
 
-/// Cuentas de usuario: el vínculo entre un uid de Firebase y su rol, y los
-/// dispositivos donde reciben avisos push.
+/// Cuentas de usuario: el vínculo entre un uid de Firebase y la tienda, y los
+/// dispositivos donde reciben avisos push. Los permisos del personal no viven
+/// aquí (ver staff/).
 class UsersService {
   const UsersService();
 
@@ -39,7 +41,6 @@ class UsersService {
           email: email,
           emailVerified: identity.emailVerified,
           name: _displayName(identity.name, email),
-          role: UserRole.customer,
         ),
       );
     } on DatabaseUniqueViolationException {
@@ -52,48 +53,28 @@ class UsersService {
     }
   }
 
-  /// Crea una cuenta admin o staff. Es la única forma de tener esos roles.
-  /// La ruta ya pasó por `RoleGuard`; la regla se repite aquí por si el
-  /// servicio se usa desde otro lado.
-  Future<User> createStaff(
-    Session session, {
-    required User admin,
-    required CreateUserRequest input,
+  /// Las cuentas de la tienda, por nombre. [search] busca en el nombre y el
+  /// correo.
+  Future<(List<User>, int)> listCustomers(
+    Session session,
+    PageQuery page, {
+    String? search,
   }) async {
-    if (admin.role != UserRole.admin) {
-      throw const ApiException.forbidden(
-        'Solo un administrador puede crear cuentas admin o staff',
-      );
-    }
-    if (input.role == UserRole.customer) {
-      throw const ApiException.badRequest(['role debe ser admin o staff']);
-    }
-    if (await _findByFirebaseUid(session, input.firebaseUid) != null) {
-      throw const ApiException.conflict(
-        'Ya existe un usuario con ese firebaseUid',
-      );
-    }
-    if (await _findByEmail(session, input.email) != null) {
-      throw const ApiException.conflict('Ya existe un usuario con ese email');
+    Expression where(UserTable user) {
+      if (search == null) return Constant.bool(true);
+      final pattern = '%${escapeLike(search)}%';
+      return user.name.ilike(pattern) | user.email.ilike(pattern);
     }
 
-    try {
-      return await User.db.insertRow(
-        session,
-        User(
-          firebaseUid: input.firebaseUid,
-          email: input.email,
-          name: input.name,
-          phone: input.phone,
-          address: input.address,
-          role: input.role,
-        ),
-      );
-    } on DatabaseUniqueViolationException {
-      throw const ApiException.conflict(
-        'Ya existe un usuario con ese firebaseUid o email',
-      );
-    }
+    final customers = await User.db.find(
+      session,
+      where: where,
+      orderByList: (user) => [user.name.asc(), user.id.asc()],
+      limit: page.limit,
+      offset: page.offset,
+    );
+    final total = await User.db.count(session, where: where);
+    return (customers, total);
   }
 
   /// Registra el token de FCM de un dispositivo de [user]. Si ya estaba, lo

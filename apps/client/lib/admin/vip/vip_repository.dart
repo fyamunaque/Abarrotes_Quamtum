@@ -1,5 +1,6 @@
 import '../../common/api_client.dart';
 import '../../common/page_list.dart';
+import '../emails.dart';
 import 'vip_customer.dart';
 
 /// Los clientes VIP. Admin y staff los ven; solo admin agrega y quita (el
@@ -11,7 +12,7 @@ abstract interface class VipRepository {
 
   /// Agrega [emails] y devuelve qué se agregó, qué ya estaba y qué no es un
   /// correo válido.
-  Future<VipAddSummary> add(List<String> emails);
+  Future<EmailAddSummary> add(List<String> emails);
 
   /// Lo da de baja (no se borra) y lo devuelve.
   Future<VipCustomer> remove(String id);
@@ -39,11 +40,11 @@ class HttpVipRepository implements VipRepository {
   }
 
   @override
-  Future<VipAddSummary> add(List<String> emails) async {
+  Future<EmailAddSummary> add(List<String> emails) async {
     final json = await _api.post('/vip-customers', {
       'emails': emails,
     }, fallback: 'No se pudieron agregar los correos.');
-    return decodeResponse(() => VipAddSummary.fromJson(json));
+    return decodeResponse(() => EmailAddSummary.fromJson(json));
   }
 
   @override

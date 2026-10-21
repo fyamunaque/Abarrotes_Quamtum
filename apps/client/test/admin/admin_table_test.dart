@@ -15,12 +15,14 @@ void main() {
 
   late List<String> tapped;
   late List<String> removed;
+  late List<String> restocked;
   late List<int> pages;
   late int retries;
 
   setUp(() {
     tapped = [];
     removed = [];
+    restocked = [];
     pages = [];
     retries = 0;
   });
@@ -30,6 +32,7 @@ void main() {
     AsyncValue<PageList<(String, int)>> value, {
     double width = 1280,
     bool withAction = false,
+    bool withRestock = false,
   }) async {
     tester.view.physicalSize = Size(width, 900);
     tester.view.devicePixelRatio = 1;
@@ -49,15 +52,25 @@ void main() {
               rowKey: (row) => row.$1,
               rowLabel: (row) => '${row.$1}, stock ${row.$2}',
               onRowTap: (row) => tapped.add(row.$1),
-              rowAction: withAction
-                  ? AdminRowAction(
-                      label: 'Quitar',
-                      icon: Icons.person_remove_outlined,
-                      semanticLabel: (row) => 'Quitar ${row.$1}',
-                      onPressed: (row) => removed.add(row.$1),
-                      destructive: true,
-                    )
-                  : null,
+              rowActions: [
+                // Solo las filas con poco stock.
+                if (withRestock)
+                  AdminRowAction(
+                    label: 'Reponer',
+                    icon: Icons.add,
+                    semanticLabel: (row) => 'Reponer ${row.$1}',
+                    onPressed: (row) => restocked.add(row.$1),
+                    showFor: (row) => row.$2 < 10,
+                  ),
+                if (withAction)
+                  AdminRowAction(
+                    label: 'Quitar',
+                    icon: Icons.person_remove_outlined,
+                    semanticLabel: (row) => 'Quitar ${row.$1}',
+                    onPressed: (row) => removed.add(row.$1),
+                    destructive: true,
+                  ),
+              ],
               onPage: pages.add,
               onRetry: () => retries++,
               emptyText: 'No hay productos.',
@@ -144,6 +157,41 @@ void main() {
     );
     await tester.tap(quitar.last);
     expect(removed, ['Leche']);
+  });
+
+  testWidgets('varias acciones: cada fila solo las suyas, alineadas', (
+    tester,
+  ) async {
+    await pumpTable(tester, data(), withAction: true, withRestock: true);
+
+    final reponer = find.widgetWithText(TextButton, 'Reponer');
+    final quitar = find.widgetWithText(TextButton, 'Quitar');
+    expect(reponer, findsOneWidget);
+    expect(quitar, findsNWidgets(3));
+    // "Quitar" queda en la misma columna, tenga la fila "Reponer" o no.
+    expect(
+      tester.getRect(quitar.at(0)).center.dx,
+      closeTo(tester.getRect(quitar.at(1)).center.dx, 1),
+    );
+    expect(
+      tester.getRect(reponer).right,
+      lessThanOrEqualTo(tester.getRect(quitar.at(1)).left),
+    );
+
+    await tester.tap(reponer);
+    expect(restocked, ['Aceite']);
+
+    // En el teléfono, abajo de la tarjeta, solo las que tiene cada una.
+    await pumpTable(
+      tester,
+      data(),
+      width: 320,
+      withAction: true,
+      withRestock: true,
+    );
+    expect(tester.takeException(), isNull);
+    expect(reponer, findsOneWidget);
+    expect(quitar, findsNWidgets(3));
   });
 
   testWidgets('pasa de página con las flechas', (tester) async {

@@ -67,7 +67,9 @@ class _UserName extends StatelessWidget {
           child: Center(
             widthFactor: 1,
             child: Text(
-              showRole ? '$firstName · ${user.role.name}' : firstName,
+              showRole
+                  ? '$firstName · ${user.staffRoleName ?? user.role.name}'
+                  : firstName,
               overflow: TextOverflow.ellipsis,
             ),
           ),

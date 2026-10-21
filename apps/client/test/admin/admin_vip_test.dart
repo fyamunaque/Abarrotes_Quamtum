@@ -7,6 +7,7 @@ import 'package:neils/features/admin/shared/admin_table.dart';
 import 'package:neils/features/admin/shared/status_badge.dart';
 import 'package:neils/features/admin/vip/vip_add_form.dart';
 import 'package:neils/session/session.dart';
+import 'package:neils/session/staff_permission.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -41,11 +42,13 @@ void main() {
   Future<void> pumpVip(
     WidgetTester tester, {
     UserRole role = UserRole.admin,
+    Set<StaffPermission>? permissions,
     double width = 1280,
   }) => pumpPanel(
     tester,
     at: '/admin/clientes-vip',
     role: role,
+    permissions: permissions,
     width: width,
     overrides: [vipRepositoryProvider.overrideWithValue(repository)],
   );
@@ -99,14 +102,16 @@ void main() {
     expect(removeButtons(), findsNWidgets(3));
   });
 
-  testWidgets('staff ve la lista en modo lectura', (tester) async {
-    await pumpVip(tester, role: UserRole.staff);
+  testWidgets('con vip.view y sin vip.manage, la lista en modo lectura', (
+    tester,
+  ) async {
+    await pumpVip(tester, permissions: const {StaffPermission.vipView});
 
     expect(statuses(tester), hasLength(3));
     expect(find.text('Agregar clientes'), findsNothing);
     expect(removeButtons(), findsNothing);
     expect(
-      find.textContaining('Solo un admin puede agregar o quitar'),
+      find.textContaining('Tu rol puede ver la lista, pero no agregar'),
       findsOneWidget,
     );
   });

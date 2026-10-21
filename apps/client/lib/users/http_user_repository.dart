@@ -1,6 +1,7 @@
 import '../auth/auth_repository.dart';
 import '../common/api_client.dart';
 import '../session/session.dart';
+import '../session/staff_permission.dart';
 import 'user_repository.dart';
 
 /// [UserRepository] contra las rutas REST del servidor.
@@ -41,6 +42,15 @@ class HttpUserRepository implements UserRepository {
           role: userRole,
           address: json['address'] as String?,
           isVip: json['isVip'] == true,
+          staffRoleName: switch (json['staffRole']) {
+            {'name': final String name} => name,
+            _ => null,
+          },
+          // Sin el campo (un servidor anterior), ninguno.
+          permissions: switch (json['permissions']) {
+            final List<Object?> keys => StaffPermission.fromKeys(keys),
+            _ => const {},
+          },
         );
       }
     }

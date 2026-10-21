@@ -1,7 +1,0 @@
-### Rol de la cuenta. Solo un admin puede crear cuentas admin o staff.
-enum: UserRole
-serialized: byName
-values:
-  - customer
-  - admin
-  - staff

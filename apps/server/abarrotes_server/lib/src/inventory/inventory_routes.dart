@@ -1,7 +1,6 @@
 import 'package:serverpod/serverpod.dart';
 
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
@@ -11,19 +10,22 @@ import 'inventory_service.dart';
 import 'stock_alerts.dart';
 import 'stock_alerts_json.dart';
 
-/// Rutas de inventario: todas solo para admin y staff.
+/// Rutas de inventario: verlo pide `inventory.view` y registrar un
+/// movimiento, `inventory.adjust`.
 List<RouteEntry> inventoryRoutes(
   InventoryService inventory,
   StockAlerts alerts,
-  FirebaseTokenVerifier verifier,
+  Guards guards,
 ) {
-  Route staffOnly(Method method, ApiHandler handler) =>
-      RoleGuard(staffRoles, ApiRoute(method, handler), verifier: verifier);
+  Route view(Method method, ApiHandler handler) =>
+      guards.require(Permission.inventoryView, ApiRoute(method, handler));
+  Route adjust(Method method, ApiHandler handler) =>
+      guards.require(Permission.inventoryAdjust, ApiRoute(method, handler));
 
   return [
     (
       '/inventory/movements',
-      staffOnly(Method.post, (session, request) async {
+      adjust(Method.post, (session, request) async {
         final input = _readMovement(await readJsonBody(request));
         final movement = await inventory.record(
           session,
@@ -42,7 +44,7 @@ List<RouteEntry> inventoryRoutes(
     ),
     (
       '/inventory/movements',
-      staffOnly(Method.get, (session, request) async {
+      view(Method.get, (session, request) async {
         final query = InputReader.query(
           request,
           allowed: {...PageQuery.fields, 'productId'},
@@ -64,7 +66,7 @@ List<RouteEntry> inventoryRoutes(
     ),
     (
       '/inventory/alerts/low-stock',
-      staffOnly(Method.get, (session, request) async {
+      view(Method.get, (session, request) async {
         InputReader.query(request, allowed: const {}).check();
         return jsonResponse(
           200,
@@ -74,7 +76,7 @@ List<RouteEntry> inventoryRoutes(
     ),
     (
       '/inventory/alerts/expiring',
-      staffOnly(Method.get, (session, request) async {
+      view(Method.get, (session, request) async {
         final query = InputReader.query(request, allowed: const {'days'});
         final days =
             query.integer('days', min: 1, max: 365, required: false) ?? 7;

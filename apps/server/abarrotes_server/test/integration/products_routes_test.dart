@@ -9,6 +9,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
@@ -52,14 +53,14 @@ void main() {
         () => session,
         productsRoutes(
           ProductsService(pricing: testPromotions(), now: () => testNow),
-          testVerifier(google),
+          testGuards(google),
           shoppers: testShoppers,
         ),
       );
       client = TestClient(server, google);
       addTearDown(server.close);
-      await insertUser(session, 'uid-staff', UserRole.staff);
-      await insertUser(session, 'uid-cliente', UserRole.customer);
+      await insertStaff(session, 'uid-staff');
+      await insertUser(session, 'uid-cliente');
       abarrotes = await Category.db.insertRow(
         session,
         Category(name: 'Abarrotes'),
@@ -257,8 +258,8 @@ void main() {
           promoPriceCents: 400,
           audience: PromotionAudience.vip,
         );
-        final admin = await insertUser(session, 'uid-admin', UserRole.admin);
-        await insertUser(session, 'uid-vip', UserRole.customer);
+        final admin = await insertStaff(session, 'uid-admin');
+        await insertUser(session, 'uid-vip');
         await insertVips(session, admin, ['vip@tienda.pe']);
       });
 

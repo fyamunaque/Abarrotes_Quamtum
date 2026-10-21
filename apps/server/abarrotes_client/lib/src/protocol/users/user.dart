@@ -14,12 +14,14 @@ import 'package:abarrotes_client/src/protocol/protocol.dart' as _iv4mbvnl;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
+import '../staff/audit_log.dart' as _iohhzbvb;
+import '../staff/staff_member.dart' as _i3fhtrko;
 import '../users/device_token.dart' as _iuurxiuf;
-import '../users/user_role.dart' as _iww5kqrp;
 import '../vip/vip_customer.dart' as _icy1qtyi;
 
 /// Cuenta de la plataforma. La autenticación vive en Firebase: aquí se guarda
-/// el uid de Firebase y el rol, nunca una contraseña.
+/// el uid de Firebase, nunca una contraseña. Los permisos del personal no
+/// están aquí: salen de StaffMember y su Role, por el correo.
 abstract class User
     implements _isc.SerializableModel, _isc.ProtocolSerialization {
   User._({
@@ -29,15 +31,15 @@ abstract class User
     bool? emailVerified,
     required this.name,
     this.phone,
-    _iww5kqrp.UserRole? role,
     this.address,
     DateTime? createdAt,
     this.orders,
     this.inventoryMovements,
     this.vipCustomersAdded,
     this.deviceTokens,
+    this.staffMembersAdded,
+    this.auditLogs,
   }) : emailVerified = emailVerified ?? false,
-       role = role ?? _iww5kqrp.UserRole.customer,
        createdAt = createdAt ?? DateTime.now();
 
   factory User({
@@ -47,13 +49,14 @@ abstract class User
     bool? emailVerified,
     required String name,
     String? phone,
-    _iww5kqrp.UserRole? role,
     String? address,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
     List<_iuurxiuf.DeviceToken>? deviceTokens,
+    List<_i3fhtrko.StaffMember>? staffMembersAdded,
+    List<_iohhzbvb.AuditLog>? auditLogs,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -68,9 +71,6 @@ abstract class User
           : _isc.BoolJsonExtension.fromJson(jsonSerialization['emailVerified']),
       name: jsonSerialization['name'] as String,
       phone: jsonSerialization['phone'] as String?,
-      role: jsonSerialization['role'] == null
-          ? null
-          : _iww5kqrp.UserRole.fromJson((jsonSerialization['role'] as String)),
       address: jsonSerialization['address'] as String?,
       createdAt: jsonSerialization['createdAt'] == null
           ? null
@@ -95,6 +95,16 @@ abstract class User
           : _iv4mbvnl.Protocol().deserialize<List<_iuurxiuf.DeviceToken>>(
               jsonSerialization['deviceTokens'],
             ),
+      staffMembersAdded: jsonSerialization['staffMembersAdded'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<List<_i3fhtrko.StaffMember>>(
+              jsonSerialization['staffMembersAdded'],
+            ),
+      auditLogs: jsonSerialization['auditLogs'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<List<_iohhzbvb.AuditLog>>(
+              jsonSerialization['auditLogs'],
+            ),
     );
   }
 
@@ -116,8 +126,6 @@ abstract class User
 
   String? phone;
 
-  _iww5kqrp.UserRole role;
-
   String? address;
 
   DateTime createdAt;
@@ -130,6 +138,10 @@ abstract class User
 
   List<_iuurxiuf.DeviceToken>? deviceTokens;
 
+  List<_i3fhtrko.StaffMember>? staffMembersAdded;
+
+  List<_iohhzbvb.AuditLog>? auditLogs;
+
   /// Returns a shallow copy of this [User]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -140,13 +152,14 @@ abstract class User
     bool? emailVerified,
     String? name,
     String? phone,
-    _iww5kqrp.UserRole? role,
     String? address,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
     List<_iuurxiuf.DeviceToken>? deviceTokens,
+    List<_i3fhtrko.StaffMember>? staffMembersAdded,
+    List<_iohhzbvb.AuditLog>? auditLogs,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -158,7 +171,6 @@ abstract class User
       'emailVerified': emailVerified,
       'name': name,
       if (phone != null) 'phone': phone,
-      'role': role.toJson(),
       if (address != null) 'address': address,
       'createdAt': createdAt.toJson(),
       if (orders != null)
@@ -173,6 +185,12 @@ abstract class User
         ),
       if (deviceTokens != null)
         'deviceTokens': deviceTokens?.toJson(valueToJson: (v) => v.toJson()),
+      if (staffMembersAdded != null)
+        'staffMembersAdded': staffMembersAdded?.toJson(
+          valueToJson: (v) => v.toJson(),
+        ),
+      if (auditLogs != null)
+        'auditLogs': auditLogs?.toJson(valueToJson: (v) => v.toJson()),
     };
   }
 
@@ -186,7 +204,6 @@ abstract class User
       'emailVerified': emailVerified,
       'name': name,
       if (phone != null) 'phone': phone,
-      'role': role.toJson(),
       if (address != null) 'address': address,
       'createdAt': createdAt.toJson(),
       if (orders != null)
@@ -201,6 +218,14 @@ abstract class User
         ),
       if (deviceTokens != null)
         'deviceTokens': deviceTokens?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
+      if (staffMembersAdded != null)
+        'staffMembersAdded': staffMembersAdded?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
+      if (auditLogs != null)
+        'auditLogs': auditLogs?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
     };
@@ -222,13 +247,14 @@ class _UserImpl extends User {
     bool? emailVerified,
     required String name,
     String? phone,
-    _iww5kqrp.UserRole? role,
     String? address,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
     List<_icy1qtyi.VipCustomer>? vipCustomersAdded,
     List<_iuurxiuf.DeviceToken>? deviceTokens,
+    List<_i3fhtrko.StaffMember>? staffMembersAdded,
+    List<_iohhzbvb.AuditLog>? auditLogs,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
@@ -236,13 +262,14 @@ class _UserImpl extends User {
          emailVerified: emailVerified,
          name: name,
          phone: phone,
-         role: role,
          address: address,
          createdAt: createdAt,
          orders: orders,
          inventoryMovements: inventoryMovements,
          vipCustomersAdded: vipCustomersAdded,
          deviceTokens: deviceTokens,
+         staffMembersAdded: staffMembersAdded,
+         auditLogs: auditLogs,
        );
 
   /// Returns a shallow copy of this [User]
@@ -256,13 +283,14 @@ class _UserImpl extends User {
     bool? emailVerified,
     String? name,
     Object? phone = _Undefined,
-    _iww5kqrp.UserRole? role,
     Object? address = _Undefined,
     DateTime? createdAt,
     Object? orders = _Undefined,
     Object? inventoryMovements = _Undefined,
     Object? vipCustomersAdded = _Undefined,
     Object? deviceTokens = _Undefined,
+    Object? staffMembersAdded = _Undefined,
+    Object? auditLogs = _Undefined,
   }) {
     return User(
       id: id is _isc.UuidValue? ? id : this.id,
@@ -271,7 +299,6 @@ class _UserImpl extends User {
       emailVerified: emailVerified ?? this.emailVerified,
       name: name ?? this.name,
       phone: phone is String? ? phone : this.phone,
-      role: role ?? this.role,
       address: address is String? ? address : this.address,
       createdAt: createdAt ?? this.createdAt,
       orders: orders is List<_ij3i88ow.Order>?
@@ -287,6 +314,12 @@ class _UserImpl extends User {
       deviceTokens: deviceTokens is List<_iuurxiuf.DeviceToken>?
           ? deviceTokens
           : this.deviceTokens?.map((e0) => e0.copyWith()).toList(),
+      staffMembersAdded: staffMembersAdded is List<_i3fhtrko.StaffMember>?
+          ? staffMembersAdded
+          : this.staffMembersAdded?.map((e0) => e0.copyWith()).toList(),
+      auditLogs: auditLogs is List<_iohhzbvb.AuditLog>?
+          ? auditLogs
+          : this.auditLogs?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }

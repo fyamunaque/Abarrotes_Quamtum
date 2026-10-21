@@ -4,6 +4,7 @@ import 'dart:io';
 import 'src/auth/firebase_authentication_handler.dart';
 import 'src/auth/firebase_token_verifier.dart';
 import 'src/auth/google_public_keys.dart';
+import 'src/auth/guards.dart';
 import 'src/categories/categories_routes.dart';
 import 'src/categories/categories_service.dart';
 import 'src/common/api_route.dart';
@@ -16,6 +17,12 @@ import 'src/orders/orders_routes.dart';
 import 'src/orders/orders_service.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
+import 'src/staff/audit_log_repository.dart';
+import 'src/staff/db_authorization_service.dart';
+import 'src/staff/roles_service.dart';
+import 'src/staff/staff_bootstrap.dart';
+import 'src/staff/staff_routes.dart';
+import 'src/staff/staff_service.dart';
 import 'src/promotions/audience/everyone_audience_rule.dart';
 import 'src/promotions/audience/vip_audience_rule.dart';
 import 'src/promotions/promotions_routes.dart';
@@ -58,6 +65,13 @@ void run(List<String> args) async {
   final stockAlerts = StockAlerts();
   const sales = SalesReportProvider();
 
+  // Qué puede hacer cada persona del personal: su rol, leído de la base en
+  // cada petición. Cada dominio protege sus rutas con un permiso.
+  final guards = Guards(
+    verifier: verifier,
+    authorization: const DbAuthorizationService(),
+  );
+
   // Quién es cada cliente (VIP o no) y qué audiencias de promociones puede
   // usar. Un segmento nuevo es una regla más en esta lista.
   const vips = VipService();
@@ -85,22 +99,28 @@ void run(List<String> args) async {
   );
 
   // Un dominio por bloque de rutas.
-  addUsersRoutes(pod.webServer, verifier: verifier, shoppers: shoppers);
+  addUsersRoutes(pod.webServer, guards: guards, shoppers: shoppers);
   addRoutes(pod.webServer, [
-    ...categoriesRoutes(const CategoriesService(), verifier),
+    ...categoriesRoutes(const CategoriesService(), guards),
     ...productsRoutes(
       ProductsService(pricing: promotions),
-      verifier,
+      guards,
       shoppers: shoppers,
     ),
-    ...promotionsRoutes(promotions, verifier, shoppers: shoppers),
-    ...inventoryRoutes(const InventoryService(), stockAlerts, verifier),
+    ...promotionsRoutes(promotions, guards, shoppers: shoppers),
+    ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
     ...ordersRoutes(
       OrdersService(pricing: promotions),
-      verifier,
+      guards,
       shoppers: shoppers,
     ),
-    ...vipRoutes(vips, verifier),
+    ...vipRoutes(vips, guards),
+    ...staffRoutes(
+      roles: const RolesService(),
+      staff: const StaffService(),
+      audit: const DbAuditLogRepository(),
+      guards: guards,
+    ),
     // Cada reporte se inyecta por separado: cambiar una estrategia es cambiar
     // la clase que se pasa aquí.
     ...statsRoutes(
@@ -112,11 +132,44 @@ void run(List<String> args) async {
       topProducts: const TopProductsReportProvider(),
       lowStock: LowStockReportProvider(stockAlerts),
       expiring: ExpiringProductsReportProvider(stockAlerts),
-      verifier: verifier,
+      guards: guards,
     ),
   ]);
 
   await pod.start();
+
+  // Una base nueva arranca sin roles: el Administrador y las plantillas. Y
+  // el primer administrador, si está configurado.
+  await pod.withSession((session) async {
+    const bootstrap = StaffBootstrap();
+    await bootstrap.ensureRoles(session);
+    final email = _firstAdminEmail(pod);
+    if (email == null) return;
+    try {
+      final added = await bootstrap.seedFirstAdmin(session, email);
+      session.log(
+        added
+            ? 'Primer administrador agregado: $email'
+            : 'Primer administrador: $email ya estaba en el personal',
+      );
+    } on ArgumentError {
+      session.log(
+        'firstAdminEmail no es un correo válido: no se agregó a nadie',
+        level: LogLevel.warning,
+      );
+    }
+  });
+}
+
+/// El correo del primer administrador: `firstAdminEmail` en
+/// config/passwords.yaml o la variable de entorno FIRST_ADMIN_EMAIL. Solo se
+/// usa si ese correo todavía no está en el personal.
+String? _firstAdminEmail(Serverpod pod) {
+  final email =
+      (pod.getPassword('firstAdminEmail') ??
+              Platform.environment['FIRST_ADMIN_EMAIL'])
+          ?.trim();
+  return email == null || email.isEmpty ? null : email;
 }
 
 /// El envío push con FCM, si hay una cuenta de servicio configurada:

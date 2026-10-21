@@ -1,6 +1,7 @@
 import 'package:serverpod/serverpod.dart';
 
 import '../common/api_route.dart';
+import '../common/emails.dart' as emails;
 import '../common/http_json.dart';
 import '../common/pagination.dart';
 import '../generated/protocol.dart';
@@ -8,14 +9,8 @@ import '../generated/protocol.dart';
 /// Un VIP como lo muestra el panel: con si su correo ya tiene cuenta.
 typedef VipListItem = ({VipCustomer vip, bool hasAccount});
 
-/// El resultado de agregar varios correos a la vez. Los agregados y los
-/// duplicados van normalizados; los inválidos, como llegaron (sin espacios en
-/// los bordes), para que se reconozcan.
-typedef VipAddSummary = ({
-  List<String> added,
-  List<String> duplicates,
-  List<String> invalid,
-});
+/// El resultado de agregar varios correos a la vez (ver `EmailAddSummary`).
+typedef VipAddSummary = emails.EmailAddSummary;
 
 /// Los clientes VIP: alta, baja y consulta. Las promociones solo preguntan
 /// [isActiveVip] (a través de `VipShopperResolver`), así que este servicio no
@@ -27,15 +22,10 @@ class VipService {
   static const maxPerRequest = 500;
 
   /// Como se guardan: en minúsculas y sin espacios (en ninguna parte).
-  static String normalizeEmail(String email) =>
-      email.replaceAll(RegExp(r'\s'), '').toLowerCase();
+  static String normalizeEmail(String email) => emails.normalizeEmail(email);
 
-  /// Un formato razonable de correo ya normalizado: `algo@dominio.tld`, hasta
-  /// 254 caracteres. No comprueba que el correo exista.
-  static bool isValidEmail(String email) =>
-      email.length <= 254 && _emailPattern.hasMatch(email);
-
-  static final _emailPattern = RegExp(r'^[^@\s]+@([^@\s.]+\.)+[^@\s.]{2,}$');
+  /// Un formato razonable de correo ya normalizado (ver `common/emails.dart`).
+  static bool isValidEmail(String email) => emails.isValidEmail(email);
 
   /// Por correo. Sin [includeInactive], solo los activos. [search] busca en
   /// el correo.
@@ -71,24 +61,11 @@ class VipService {
   /// correo dado de baja que vuelve se reactiva y cuenta como agregado.
   Future<VipAddSummary> add(
     Session session,
-    List<String> emails, {
+    List<String> requested, {
     required User by,
   }) async {
     final added = <String>[];
-    final duplicates = <String>[];
-    final invalid = <String>[];
-    final candidates = <String>[];
-    final seen = <String>{};
-    for (final raw in emails) {
-      final email = normalizeEmail(raw);
-      if (!isValidEmail(email)) {
-        invalid.add(raw.trim());
-      } else if (!seen.add(email)) {
-        duplicates.add(email);
-      } else {
-        candidates.add(email);
-      }
-    }
+    final (:candidates, :duplicates, :invalid) = emails.sortEmails(requested);
     if (candidates.isEmpty) {
       return (added: added, duplicates: duplicates, invalid: invalid);
     }

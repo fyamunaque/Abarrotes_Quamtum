@@ -8,6 +8,7 @@ import 'package:test/test.dart';
 
 import '../support/fake_push.dart';
 import '../support/http_harness.dart';
+import '../support/staff_setup.dart';
 import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
@@ -34,14 +35,14 @@ void main() {
         () => session,
         promotionsRoutes(
           testPromotions(announcer: announcer),
-          testVerifier(google),
+          testGuards(google),
           shoppers: testShoppers,
         ),
       );
       client = TestClient(server, google);
       addTearDown(server.close);
-      await insertUser(session, 'uid-staff', UserRole.staff);
-      await insertUser(session, 'uid-cliente', UserRole.customer);
+      await insertStaff(session, 'uid-staff');
+      await insertUser(session, 'uid-cliente');
       final category = await Category.db.insertRow(
         session,
         Category(name: 'Abarrotes'),
@@ -355,8 +356,8 @@ void main() {
         await create({'active': false, 'audience': 'vip'});
         await create({'productId': apagado.id.toString(), 'promoPrice': 8});
 
-        final admin = await insertUser(session, 'uid-admin', UserRole.admin);
-        await insertUser(session, 'uid-vip', UserRole.customer);
+        final admin = await insertStaff(session, 'uid-admin');
+        await insertUser(session, 'uid-vip');
         await insertVips(session, admin, ['vip@tienda.pe']);
       });
 

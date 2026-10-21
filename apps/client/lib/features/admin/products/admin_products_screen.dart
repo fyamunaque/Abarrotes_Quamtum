@@ -7,15 +7,19 @@ import '../../../admin/products/admin_products_providers.dart';
 import '../../../catalog/catalog_providers.dart';
 import '../../../catalog/product.dart';
 import '../../../common/money.dart';
+import '../../../session/session_provider.dart';
+import '../../../session/staff_permission.dart';
 import '../../../theme/brand_colors.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import 'product_form.dart';
 
-/// Los productos, también los dados de baja: buscar, filtrar por categoría,
-/// crear, editar y dar de baja.
+/// Los productos, también los dados de baja (con `products.view`): buscar y
+/// filtrar por categoría. Con `products.manage`, crear, editar y dar de
+/// baja.
 class AdminProductsScreen extends ConsumerStatefulWidget {
   const AdminProductsScreen({super.key});
 
@@ -94,17 +98,27 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
   Widget build(BuildContext context) {
     final provider = adminProductsProvider(_filter);
     final filtered = _filter.search.isNotEmpty || _filter.categoryId != null;
+    final canManage = ref
+        .watch(permissionsProvider)
+        .contains(StaffPermission.productsManage);
     return AdminPage(
       title: 'Productos',
       actions: [
         RefreshButton(onRefresh: ref.read(provider.notifier).refresh),
-        FilledButton.icon(
-          onPressed: _create,
-          icon: const Icon(Icons.add),
-          label: const Text('Nuevo producto'),
-        ),
+        if (canManage)
+          FilledButton.icon(
+            onPressed: _create,
+            icon: const Icon(Icons.add),
+            label: const Text('Nuevo producto'),
+          ),
       ],
       children: [
+        if (!canManage) ...[
+          const PanelNote(
+            'Tu rol puede ver los productos, pero no crearlos ni editarlos.',
+          ),
+          const SizedBox(height: 16),
+        ],
         LayoutBuilder(
           builder: (context, constraints) {
             final narrow = constraints.maxWidth < 560;
@@ -167,7 +181,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
           ],
           rowKey: (p) => p.id,
           rowLabel: _rowLabel,
-          onRowTap: _edit,
+          onRowTap: canManage ? _edit : null,
           onPage: (page) => ref.read(provider.notifier).goTo(page),
           onRetry: () => ref.invalidate(provider),
           emptyText: filtered

@@ -179,7 +179,8 @@ flutter run -d chrome   # y abrir /vitrina
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
-| `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones` y `/admin/clientes-vip` (ver "El panel") |
+| `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
+| `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
 
 **Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
 SharedPreferences en Android, `localStorage` en la web), así que sigue ahí al recargar o volver a
@@ -203,13 +204,20 @@ servidor devolvió su perfil.
 - Al arrancar es `SessionLoading`, hasta saber si quedó una cuenta abierta. Firebase la guarda de
   forma segura en cada plataforma y renueva el ID token solo.
 - Registrarse crea la cuenta en Firebase con su nombre. Después, `GET /users/me` la crea en la
-  tienda, siempre como `customer`. Las cuentas admin y staff las crea un admin.
+  tienda, siempre como `customer`. Al equipo lo agrega por correo quien tiene `staff.manage`
+  (`/admin/equipo`).
+- El perfil trae `permissions` (`SessionUser.permissions`, el catálogo en
+  `session/staff_permission.dart`) y el nombre del rol (`staffRoleName`, que el panel muestra
+  junto al nombre). La app solo muestra u oculta con ellos (`permissionsProvider`): el
+  servidor revisa cada acción.
 - Si el servidor no responde, la app cierra también la cuenta de Firebase y muestra el error: sin
   perfil no hay rol.
 - `refreshProfile` vuelve a pedir el perfil sin cerrar la sesión: al abrir el catálogo, al
   volver la app a primer plano (`RefreshOnResume`, con `AppLifecycleListener`; en la web, al
   volver a la pestaña) y al deslizar hacia abajo en el inicio y el catálogo. Así un correo que un
-  admin hizo VIP se ve sin volver a ingresar. Si falla, la sesión queda como estaba.
+  admin hizo VIP, o un rol que cambió, se ve sin volver a ingresar: el panel muestra las
+  secciones nuevas y, si la abierta ya no le corresponde, el guard la cierra. Si falla, la
+  sesión queda como estaba.
 - **Correo sin verificar:** las pantallas de la tienda muestran "Verifica tu correo para
   completar tu cuenta", con "Enviar el correo" y "Ya lo verifiqué". Al registrarse se manda el
   correo una vez. Si se acaba de confirmar, `refreshProfile` renueva el ID token para que el
@@ -229,12 +237,22 @@ servidor devolvió su perfil.
 - si el ingreso lo pidió el carrito o "Mis pedidos" (`/login?from=...`), vuelve ahí, con
   cualquier cuenta;
 - si no, un cliente va a `/catalogo`;
-- admin y staff van a `/admin`, o a la ruta del panel que pidió el ingreso.
+- el personal va a la ruta del panel que pidió el ingreso, si la puede ver, o a su sección
+  principal (`panelHomeFor`): quien tiene `staff.manage`, al inicio; los demás, a la de su
+  tarea, lo primero que pueden cambiar en este orden: pedidos, inventario, productos,
+  promociones, clientes VIP. Así la Cajera llega a Pedidos y el Almacenero a Inventario. Si no
+  pueden cambiar nada, a la primera sección que ven.
 
 **El guard** protege `/mis-pedidos` y `/admin`:
 - sin sesión, manda a `/login?from=...`;
 - con una cuenta de cliente, `/admin` vuelve al inicio;
+- cada sección del panel pide alguno de sus permisos (`Routes.permissionsFor`, los mismos que
+  sus rutas en el servidor; ver "El panel"). Sin ellos, `/admin` lleva a la sección principal
+  y cualquier otra a "No tienes acceso a esta sección" (`/admin/sin-acceso`), con el camino a
+  la suya;
 - mientras la sesión carga, la pantalla muestra un indicador.
+
+Es solo experiencia de usuario: la seguridad la aplica el servidor en cada ruta.
 
 Si la sesión cambia (p. ej. "Salir"), el router vuelve a evaluar la ruta actual.
 
@@ -247,7 +265,24 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 `AdminShell` (`features/admin/admin_shell.dart`) es el layout de todas las secciones:
 - desde 840 px, la navegación es un riel a la izquierda; más angosto, una barra abajo;
 - las secciones salen del enum `AdminSection` (ruta, nombre, ícono), y el router arma una ruta
-  por cada una.
+  por cada una;
+- la navegación muestra solo las que la sesión puede abrir (`AdminSection.visibleTo`). La
+  barra del teléfono necesita al menos dos y una elegida: con una sola, o en "No tienes
+  acceso", no se muestra. Equipo tiene dos pestañas, Personas (`/admin/equipo`) y Roles
+  (`/admin/roles`), así no suma dos destinos a la barra.
+
+| Sección | Para verla | Lo que pide además |
+|---|---|---|
+| Inicio (`/admin`) | `stats.view` | Sus enlaces a otras secciones salen si se pueden abrir |
+| Pedidos | `orders.view` | Avanzar o cancelar, `orders.updateStatus`; la columna y los datos del cliente, `customers.view` |
+| Productos | `products.view` o `products.manage` | Crear, editar y dar de baja, `products.manage` |
+| Inventario | `inventory.view` | "Registrar movimiento", `inventory.adjust` |
+| Promociones | `promotions.manage` | — |
+| Clientes VIP | `vip.view` | Agregar y quitar, `vip.manage` |
+| Equipo (Personas y Roles) | `staff.manage` | — |
+
+Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`PanelNote`, p. ej.
+"Tu rol puede ver el inventario, pero no registrar movimientos.").
 
 | Sección | Qué hace |
 |---|---|
@@ -256,7 +291,9 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |
-| Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Solo admin agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación. Staff ve la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
+| Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Con `vip.manage` agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación; sin él, la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
+| Equipo: Personas | Solo con `staff.manage`. El equipo por correo, con búsqueda: el rol y el estado ("Activo", "Pendiente de registro" si todavía no creó su cuenta, "Desactivado"). Agregar uno o varios correos con un mismo rol, con el mismo formulario y resumen que los VIP (un desactivado vuelve con ese rol). "Cambiar rol" y "Desactivar" (con confirmación) en cada fila, menos en la propia. Si el servidor lo rechaza (el último Administrador), el motivo sale en un aviso o en el formulario. |
+| Equipo: Roles | Solo con `staff.manage`. Los roles con cuántos permisos tienen, cuántas personas activas y si están activos. El editor es un checklist por área (Productos, Pedidos, Inventario, Promociones, Clientes VIP, Estadísticas, Equipo) con lo que permite cada permiso; marcar uno que necesita otro (cambiar el estado de los pedidos necesita verlos) marca los dos. El rol del sistema (Administrador) se abre bloqueado. Crear, editar, desactivar y borrar; un nombre repetido o un rol con personal asignado muestran el motivo del servidor. |
 
 Las piezas compartidas están en `features/admin/shared/`:
 - `AdminTable<T>`:
@@ -265,11 +302,16 @@ Las piezas compartidas están en `features/admin/shared/`:
   - desde 720 px de ancho es una tabla; más angosto, cada fila es una tarjeta con
     `etiqueta: valor`;
   - cada fila es un botón con su descripción para el lector de pantalla;
-  - con `rowAction` (`AdminRowAction`), cada fila tiene además un botón propio (p. ej.
-    "Quitar"), fuera de la descripción de la fila: al final en la tabla y abajo en las tarjetas.
+  - con `rowActions` (`AdminRowAction`), cada fila tiene además sus botones (p. ej.
+    "Cambiar rol" y "Desactivar"), fuera de la descripción de la fila: al final en la tabla y
+    abajo en las tarjetas. Con `showFor`, una acción sale solo en las filas que la tienen.
+- `EmailsAddForm`: agregar uno o varios correos pegados, con el resumen del servidor
+  (agregados, ya estaban, no válidos). Lo usan los clientes VIP y el equipo (con el rol como
+  campo extra).
 - `showAdminForm`: un formulario en un diálogo en pantallas anchas y a pantalla completa en el
   teléfono. Con `admin_form.dart` (campos de a dos, el error del servidor y los botones) y
-  `ProductPicker` (el buscador de productos con autocompletado).
+  `ProductPicker` (el buscador de productos con autocompletado). `showRejected`: el motivo
+  de una acción rechazada por el servidor, en un aviso.
 - `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
   lo avisa sin vaciar la tabla.
 - `FilterChips`, `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es
@@ -293,11 +335,9 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
    en `/catalogo`, con el nombre en la barra.
 2. Agregar productos, abrir el carrito y confirmar el pedido: termina en `/mis-pedidos`, con el
    aviso y el pedido en "Pendiente".
-3. Pasar la cuenta a admin en la base del servidor:
-
-   ```powershell
-   & "C:\Program Files\PostgreSQL\18\bin\psql.exe" -h localhost -U abarrotes -d abarrotes_server -c "UPDATE users SET role = 'admin' WHERE email = 'correo@ejemplo.com'"
-   ```
+3. Hacer admin a esa cuenta: en el servidor, `firstAdminEmail` en `config/passwords.yaml` con
+   su correo y reiniciarlo (ver "Primer admin" en el README del servidor). El correo tiene que
+   estar verificado: el aviso "Verifica tu correo" de la app manda el correo.
 
 4. **Salir** e ingresar de nuevo: termina en `/admin`, con las ventas de los pedidos de ejemplo.
 5. En **Pedidos**, abrir el pedido y avanzarlo ("Confirmar", "Marcar en camino"…). En "Mis
@@ -347,18 +387,22 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
 - `test/features/order_tracker_test.dart`: cuánto se llena cada tramo por estado, la animación al
   avanzar (a mitad de camino y al final), cancelado y el estado como texto.
 - `test/theme/theme_test.dart`: colores, contraste y fuentes del tema.
-- `test/admin/`: el panel, con repositorios en memoria y una sesión de staff, o del rol que se
-  pida (`pumpPanel` en `panel_support.dart`):
+- `test/admin/`: el panel, con repositorios en memoria y una sesión de staff, del rol que se
+  pida o con justo los permisos que se pidan (`pumpPanel` en `panel_support.dart`; las
+  plantillas Almacenero y Cajera en `test/support.dart`):
+  - `admin_access_test.dart`: el menú y las rutas de cada rol, "No tienes acceso", los botones
+    según el permiso, a dónde llega cada uno al ingresar y un rol que cambia al volver a la app;
   - `admin_repositories_test.dart`: cada repositorio del panel con `MockClient`;
   - `admin_table_test.dart` y `admin_shell_test.dart`: tabla o tarjetas según el ancho,
     paginación, estados, y la navegación (riel o barra);
   - `admin_home_test.dart`: los KPI, el gráfico (30 puntos, la tabla de datos), las alertas, el
     top 5 y una tarjeta que falla sola;
   - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart`,
-    `admin_promotions_test.dart` y `admin_vip_test.dart`: filtros, formularios (validación y lo
-    que se manda), los errores del servidor (400, 403 y 409), las confirmaciones, lo que ve
-    staff y lo que ve admin, y que no se desborde en 320 y 375 px;
-  - `vip_emails_test.dart`: separar los correos pegados y validarlos como el servidor.
+    `admin_promotions_test.dart`, `admin_vip_test.dart`, `admin_team_test.dart` y
+    `admin_roles_test.dart`: filtros, formularios (validación y lo que se manda), los errores
+    del servidor (400, 403 y 409: el último Administrador, un rol con personal), las
+    confirmaciones, lo que ve staff y lo que ve admin, y que no se desborde en 320 y 375 px;
+  - `emails_test.dart`: separar los correos pegados y validarlos como el servidor.
 
 Los tests de movimiento usan `MediaQueryData(disableAnimations: true)` para "reducir
 animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándose. Flutter da por

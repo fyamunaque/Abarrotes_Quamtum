@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:neils/admin/vip/vip_customer.dart';
+import 'package:neils/admin/emails.dart';
 
-/// Las mismas reglas que el servidor (`VipService` en apps/server).
+/// Las mismas reglas que el servidor (`common/emails.dart` en apps/server).
 void main() {
   test('normalizeEmail: minúsculas y sin espacios en ninguna parte', () {
     expect(normalizeEmail('  Ana.Rojas@Gmail.COM '), 'ana.rojas@gmail.com');

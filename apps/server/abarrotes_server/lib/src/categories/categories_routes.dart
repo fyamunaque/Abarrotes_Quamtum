@@ -1,7 +1,6 @@
 import 'package:serverpod/serverpod.dart';
 
-import '../auth/firebase_token_verifier.dart';
-import '../auth/role_guard.dart';
+import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
@@ -9,13 +8,13 @@ import '../generated/protocol.dart';
 import 'categories_service.dart';
 
 /// Rutas de categorías: lectura pública (el marketplace y la app la usan) y
-/// escritura solo para admin y staff.
+/// escritura con `categories.manage`.
 List<RouteEntry> categoriesRoutes(
   CategoriesService categories,
-  FirebaseTokenVerifier verifier,
+  Guards guards,
 ) {
-  Route staffOnly(Route route) =>
-      RoleGuard(staffRoles, route, verifier: verifier);
+  Route manage(Route route) =>
+      guards.require(Permission.categoriesManage, route);
 
   return [
     (
@@ -35,7 +34,7 @@ List<RouteEntry> categoriesRoutes(
     ),
     (
       '/categories',
-      staffOnly(
+      manage(
         ApiRoute(Method.post, (session, request) async {
           final name = _readName(await readJsonBody(request), required: true);
           final category = await categories.create(session, name!);
@@ -45,7 +44,7 @@ List<RouteEntry> categoriesRoutes(
     ),
     (
       '/categories/:id',
-      staffOnly(
+      manage(
         ApiRoute(Method.patch, (session, request) async {
           final id = idParam(request);
           final name = _readName(await readJsonBody(request), required: false);
@@ -56,7 +55,7 @@ List<RouteEntry> categoriesRoutes(
     ),
     (
       '/categories/:id',
-      staffOnly(
+      manage(
         ApiRoute(Method.delete, (session, request) async {
           await categories.delete(session, idParam(request));
           return Response.noContent();
