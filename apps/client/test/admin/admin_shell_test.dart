@@ -99,9 +99,20 @@ void main() {
     final bar = tester.widget<NavigationBar>(find.byType(NavigationBar));
     expect(bar.selectedIndex, AdminSection.products.index);
 
-    await tester.tap(find.byIcon(Icons.sell_outlined));
+    // Staff ve 7 secciones: entran 4 y "Más", que abre las demás.
+    expect(bar.destinations, hasLength(AdminShell.barDestinations));
+    await tester.tap(find.text('Más'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Promociones'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Tienda'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Promociones'));
     await tester.pumpAndSettle();
     expect(location(router), '/admin/promociones');
+    // La sección está en "Más": se marca "Más".
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      AdminShell.barDestinations - 1,
+    );
   });
 
   testWidgets('el panel usa la paleta calmada: lo elegido en naranja claro', (

@@ -135,6 +135,11 @@ Map<String, Object?> overviewJson(StatsOverview report) => {
         in report.ordersByStatus.entries)
       status.name: count,
   },
+  'ordersByFulfillment': {
+    for (final MapEntry(key: type, value: count)
+        in report.ordersByFulfillment.entries)
+      type.name: count,
+  },
 };
 
 /// Los productos más vendidos.

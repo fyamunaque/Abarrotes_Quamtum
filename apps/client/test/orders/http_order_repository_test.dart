@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/http_order_repository.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_status.dart';
@@ -85,6 +86,7 @@ void main() {
     expect(sent.url.path, '/orders');
     expect(sent.headers['authorization'], 'Bearer el-token');
     expect(jsonDecode(sent.body), {
+      'fulfillmentType': 'delivery',
       'deliveryAddress': 'Av. Arequipa 123',
       'items': [
         {'productId': 'p-arroz', 'quantity': 2, 'unitPrice': 3.5},
@@ -93,6 +95,31 @@ void main() {
     });
     expectOrder(placed);
     expect(placed.priceChanges, isEmpty);
+  });
+
+  test('para recoger en tienda: sin dirección', () async {
+    late http.Request sent;
+    await repository((request) async {
+      sent = request;
+      return json(201, {
+        ...order,
+        'fulfillmentType': 'pickup',
+        'deliveryAddress': null,
+        'pickupCode': 'K7M2XQ',
+      });
+    }).place(
+      't',
+      fulfillmentType: FulfillmentType.pickup,
+      deliveryAddress: 'no se manda',
+      lines: [(productId: 'p-arroz', quantity: 1, shownUnitPriceCents: null)],
+    );
+
+    expect(jsonDecode(sent.body), {
+      'fulfillmentType': 'pickup',
+      'items': [
+        {'productId': 'p-arroz', 'quantity': 1},
+      ],
+    });
   });
 
   test('la respuesta trae los precios que cambiaron', () async {

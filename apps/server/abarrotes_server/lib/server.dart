@@ -15,6 +15,7 @@ import 'src/inventory/inventory_service.dart';
 import 'src/inventory/stock_alerts.dart';
 import 'src/orders/orders_routes.dart';
 import 'src/orders/orders_service.dart';
+import 'src/orders/push_order_status_notifier.dart';
 import 'src/products/products_routes.dart';
 import 'src/products/products_service.dart';
 import 'src/staff/audit_log_repository.dart';
@@ -31,12 +32,15 @@ import 'src/push/fcm_push_sender.dart';
 import 'src/push/google_access_tokens.dart';
 import 'src/push/push_sender.dart';
 import 'src/stats/providers/expiring_products_report_provider.dart';
+import 'src/stats/providers/fulfillment_report_provider.dart';
 import 'src/stats/providers/low_stock_report_provider.dart';
 import 'src/stats/providers/order_status_report_provider.dart';
 import 'src/stats/providers/overview_report_provider.dart';
 import 'src/stats/providers/sales_report_provider.dart';
 import 'src/stats/providers/top_products_report_provider.dart';
 import 'src/stats/stats_routes.dart';
+import 'src/store/store_routes.dart';
+import 'src/store/store_settings_service.dart';
 import 'src/users/users_routes.dart';
 import 'src/vip/vip_promotion_announcer.dart';
 import 'src/vip/vip_routes.dart';
@@ -72,6 +76,10 @@ void run(List<String> args) async {
     authorization: const DbAuthorizationService(),
   );
 
+  // Los avisos push (FCM): las promociones VIP y los cambios de estado de
+  // los pedidos. Sin credenciales, no manda nada.
+  final push = _pushSender(pod, projectId);
+
   // Quién es cada cliente (VIP o no) y qué audiencias de promociones puede
   // usar. Un segmento nuevo es una regla más en esta lista.
   const vips = VipService();
@@ -80,7 +88,7 @@ void run(List<String> args) async {
     audienceRules: const [EveryoneAudienceRule(), VipAudienceRule()],
     // Una promoción VIP que ya rige se avisa por push a los VIP.
     announcer: VipPromotionAnnouncer(
-      sender: _pushSender(pod, projectId),
+      sender: push,
       run: pod.withSession,
       vips: vips,
     ),
@@ -102,6 +110,7 @@ void run(List<String> args) async {
   addUsersRoutes(pod.webServer, guards: guards, shoppers: shoppers);
   addRoutes(pod.webServer, [
     ...categoriesRoutes(const CategoriesService(), guards),
+    ...storeRoutes(const StoreSettingsService(), guards),
     ...productsRoutes(
       ProductsService(pricing: promotions),
       guards,
@@ -110,7 +119,11 @@ void run(List<String> args) async {
     ...promotionsRoutes(promotions, guards, shoppers: shoppers),
     ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
     ...ordersRoutes(
-      OrdersService(pricing: promotions),
+      OrdersService(
+        pricing: promotions,
+        // Cada cambio de estado se avisa por push al cliente.
+        notifier: PushOrderStatusNotifier(sender: push, run: pod.withSession),
+      ),
       guards,
       shoppers: shoppers,
     ),
@@ -127,6 +140,7 @@ void run(List<String> args) async {
       overview: OverviewReportProvider(
         sales: sales,
         orderStatus: const OrderStatusReportProvider(),
+        fulfillment: const FulfillmentReportProvider(),
       ),
       sales: sales,
       topProducts: const TopProductsReportProvider(),

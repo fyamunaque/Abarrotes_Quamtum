@@ -153,8 +153,14 @@ activo, cada animación salta a su estado final.
   El precio va subrayado con el mismo swoosh, quieto (`Swoosh`).
 - **El carrito de la barra** (`CartButton`): cuando sube el contador, el ícono da un rebote de
   300 ms. Al quitar no se mueve.
-- **El seguimiento de pedido** (`OrderTracker`): cuando el estado avanza, la línea se llena
-  hasta el paso nuevo en 500 ms, y el color pasa al del estado nuevo. Al mostrarse no se anima.
+- **El seguimiento de pedido** (`OrderTracker`): los pasos del tipo de entrega del pedido
+  (`FulfillmentType.steps`): a domicilio, Por confirmar → Confirmado → En camino →
+  Entregado; con recojo, Por confirmar → Confirmado → Preparando → En espera de recojo →
+  Recogido. Dibuja los pasos y el estado actual que manda el servidor: no sabe de
+  transiciones. Cuando el estado avanza, la línea se llena hasta el paso nuevo en 500 ms, y el
+  color pasa al del estado nuevo (preparando `#7A5A9E`, en espera de recojo `#2A8C82`, en
+  `OrderStatusColors`). Al mostrarse no se anima. En un ancho angosto los nombres se achican
+  todos por igual y cortan solo en los espacios, en dos líneas como máximo.
   Un pedido cancelado muestra los pasos apagados y el aviso: el servidor no guarda en qué paso
   se canceló.
 
@@ -177,9 +183,9 @@ flutter run -d chrome   # y abrir /vitrina
 | `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
-| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
-| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
-| `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega, en el mismo lugar y con el mismo formato (`InfoLine`): "Entrega a domicilio" con la dirección o, con recojo en tienda, los datos de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
+| `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos` (y `/admin/pedidos/recoger`), `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/tienda`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
 | `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
 
 **Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
@@ -268,17 +274,23 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
   por cada una;
 - la navegación muestra solo las que la sesión puede abrir (`AdminSection.visibleTo`). La
   barra del teléfono necesita al menos dos y una elegida: con una sola, o en "No tienes
-  acceso", no se muestra. Equipo tiene dos pestañas, Personas (`/admin/equipo`) y Roles
-  (`/admin/roles`), así no suma dos destinos a la barra.
+  acceso", no se muestra. Muestra hasta cinco destinos (`AdminShell.barDestinations`): con
+  más secciones, el quinto es "Más", que abre una hoja abajo con las que no entran (y queda
+  elegido cuando se está en una de ellas);
+- dos secciones tienen pestañas (`PanelTabs`), así no suman destinos a la barra: Pedidos,
+  "Todos los pedidos" (`/admin/pedidos`) y "Para recoger" (`/admin/pedidos/recoger`), y
+  Equipo, Personas (`/admin/equipo`) y Roles (`/admin/roles`). En un teléfono van sin
+  ícono, así cada nombre entra en una línea.
 
 | Sección | Para verla | Lo que pide además |
 |---|---|---|
 | Inicio (`/admin`) | `stats.view` | Sus enlaces a otras secciones salen si se pueden abrir |
-| Pedidos | `orders.view` | Avanzar o cancelar, `orders.updateStatus`; la columna y los datos del cliente, `customers.view` |
+| Pedidos (y "Para recoger") | `orders.view` | Avanzar o cancelar, `orders.updateStatus`; la columna y los datos del cliente (y buscar por nombre en "Para recoger"), `customers.view` |
 | Productos | `products.view` o `products.manage` | Crear, editar y dar de baja, `products.manage` |
 | Inventario | `inventory.view` | "Registrar movimiento", `inventory.adjust` |
 | Promociones | `promotions.manage` | — |
 | Clientes VIP | `vip.view` | Agregar y quitar, `vip.manage` |
+| Tienda | `store.manage` | — |
 | Equipo (Personas y Roles) | `staff.manage` | — |
 
 Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`PanelNote`, p. ej.
@@ -286,14 +298,16 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 
 | Sección | Qué hace |
 |---|---|
-| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio, pedidos por estado, el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". |
-| Pedidos | Todos los pedidos, con chips por estado. Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega, las líneas y el stepper: el seguimiento con la acción del paso siguiente ("Confirmar", "Marcar en camino", "Marcar entregado") y "Cancelar pedido", que pide confirmación. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). |
+| Pedidos: Todos los pedidos | Todos los pedidos, con chips por estado ("Estado") y por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas) o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |
 | Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Con `vip.manage` agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación; sin él, la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
+| Tienda | Solo con `store.manage`. El formulario con los datos que ven los clientes al elegir recojo: nombre y dirección (obligatorios), referencia, teléfono, horario de atención e instrucciones de recojo. Un campo opcional vacío se borra. Guarda con `PATCH /store` y muestra el motivo si el servidor lo rechaza. |
 | Equipo: Personas | Solo con `staff.manage`. El equipo por correo, con búsqueda: el rol y el estado ("Activo", "Pendiente de registro" si todavía no creó su cuenta, "Desactivado"). Agregar uno o varios correos con un mismo rol, con el mismo formulario y resumen que los VIP (un desactivado vuelve con ese rol). "Cambiar rol" y "Desactivar" (con confirmación) en cada fila, menos en la propia. Si el servidor lo rechaza (el último Administrador), el motivo sale en un aviso o en el formulario. |
-| Equipo: Roles | Solo con `staff.manage`. Los roles con cuántos permisos tienen, cuántas personas activas y si están activos. El editor es un checklist por área (Productos, Pedidos, Inventario, Promociones, Clientes VIP, Estadísticas, Equipo) con lo que permite cada permiso; marcar uno que necesita otro (cambiar el estado de los pedidos necesita verlos) marca los dos. El rol del sistema (Administrador) se abre bloqueado. Crear, editar, desactivar y borrar; un nombre repetido o un rol con personal asignado muestran el motivo del servidor. |
+| Equipo: Roles | Solo con `staff.manage`. Los roles con cuántos permisos tienen, cuántas personas activas y si están activos. El editor es un checklist por área (Productos, Pedidos, Inventario, Promociones, Clientes VIP, Estadísticas, Tienda, Equipo) con lo que permite cada permiso; marcar uno que necesita otro (cambiar el estado de los pedidos necesita verlos) marca los dos. El rol del sistema (Administrador) se abre bloqueado. Crear, editar, desactivar y borrar; un nombre repetido o un rol con personal asignado muestran el motivo del servidor. |
 
 Las piezas compartidas están en `features/admin/shared/`:
 - `AdminTable<T>`:
@@ -314,8 +328,13 @@ Las piezas compartidas están en `features/admin/shared/`:
   de una acción rechazada por el servidor, en un aviso.
 - `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
   lo avisa sin vaciar la tabla.
-- `FilterChips`, `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es
-  solo para clientes VIP) y `confirmAction`.
+- `PanelSearchField`: el buscador de cada sección (lupa y "x" para borrar). Mide 320 px y queda
+  a la izquierda; en un teléfono ocupa todo el ancho.
+- `FilterChips`: los chips de un filtro. En el teléfono se deslizan de lado; desde 600 px bajan
+  a otra línea si no entran, porque con el mouse no se desliza de lado.
+- `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es solo para
+  clientes VIP), `FulfillmentBadge` ("Domicilio" o "Recojo" con su ícono), `PanelTabs` (las
+  pestañas de una sección, cada una con su ruta) y `confirmAction`.
 
 Los datos van por sección en `lib/admin/<dominio>/` (modelo, repositorio HTTP con el ID token
 y providers). Las tablas usan `PagedNotifier<T>`, con los filtros como argumento del provider
@@ -356,8 +375,8 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   como el real: así se prueba que el registro no crea la cuenta sin nombre en el servidor.
 - `test/features/auth_screens_test.dart`: ingreso, registro, validación, errores, carga y salir,
   con la app completa.
-- `test/users/http_user_repository_test.dart`, `test/catalog/http_catalog_repository_test.dart`
-  y `test/orders/http_order_repository_test.dart`: cada ruta REST con un cliente HTTP simulado
+- `test/users/http_user_repository_test.dart`, `test/catalog/http_catalog_repository_test.dart`,
+  `test/orders/http_order_repository_test.dart` y `test/store/http_store_repository_test.dart`: cada ruta REST con un cliente HTTP simulado
   (`MockClient`): la URL, el query, el token, el body y cómo se lee la respuesta.
 - `test/common/api_client_test.dart`: los errores (sin conexión, sin respuesta, 401, 5xx, el
   mensaje del servidor o su lista).
@@ -371,7 +390,9 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   - carrito, cantidades y quitar;
   - sin cuenta: ingresar, volver al carrito y pedir;
   - el 409, la dirección vacía;
-  - `/mis-pedidos` y "Actualizar" animando el seguimiento.
+  - recoger en tienda: los datos de la tienda (con su teléfono), el código y las opciones sin
+    ícono en un teléfono;
+  - `/mis-pedidos` con la entrega de cada pedido y "Actualizar" animando el seguimiento.
 - `test/auth/auth_error_message_test.dart`: los mensajes de cada error de Firebase.
 - `test/features/account_bar_test.dart`: la barra con sesión entra en un teléfono de 320 y 375
   px (la cuenta va en un menú).
@@ -395,8 +416,13 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   - `admin_repositories_test.dart`: cada repositorio del panel con `MockClient`;
   - `admin_table_test.dart` y `admin_shell_test.dart`: tabla o tarjetas según el ancho,
     paginación, estados, y la navegación (riel o barra);
-  - `admin_home_test.dart`: los KPI, el gráfico (30 puntos, la tabla de datos), las alertas, el
-    top 5 y una tarjeta que falla sola;
+  - `admin_home_test.dart`: los KPI, los pedidos por estado (con los de recojo) y por tipo de
+    entrega, el gráfico (30 puntos, la tabla de datos), las alertas, el top 5 y una tarjeta que
+    falla sola;
+  - `admin_pickup_test.dart`: "Para recoger": el orden, el tiempo de espera, la búsqueda,
+    marcar listo y entregar con el código (el error en el diálogo), los permisos y el teléfono;
+  - `admin_store_test.dart`: el formulario de la tienda (lo que manda, lo obligatorio, el
+    rechazo del servidor) y que solo se ve con `store.manage`;
   - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart`,
     `admin_promotions_test.dart`, `admin_vip_test.dart`, `admin_team_test.dart` y
     `admin_roles_test.dart`: filtros, formularios (validación y lo que se manda), los errores

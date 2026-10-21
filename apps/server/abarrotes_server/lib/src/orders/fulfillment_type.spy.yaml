@@ -1,0 +1,6 @@
+### Cómo llega el pedido al cliente: a domicilio o lo recoge en la tienda.
+enum: FulfillmentType
+serialized: byName
+values:
+  - delivery
+  - pickup

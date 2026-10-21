@@ -14,6 +14,7 @@ import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
+import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'product_form.dart';
 
@@ -121,31 +122,18 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
         ],
         LayoutBuilder(
           builder: (context, constraints) {
-            final narrow = constraints.maxWidth < 560;
+            final narrow = constraints.maxWidth < PanelSearchField.narrowBelow;
             return Wrap(
               spacing: 12,
               runSpacing: 12,
               children: [
                 SizedBox(
                   width: narrow ? constraints.maxWidth : 320,
-                  child: TextField(
+                  child: PanelSearchField(
                     controller: _search,
-                    decoration: InputDecoration(
-                      labelText: 'Buscar por nombre o SKU',
-                      prefixIcon: const Icon(Icons.search),
-                      suffixIcon: ListenableBuilder(
-                        listenable: _search,
-                        builder: (_, _) => _search.text.isEmpty
-                            ? const SizedBox.shrink()
-                            : IconButton(
-                                tooltip: 'Borrar la búsqueda',
-                                icon: const Icon(Icons.close),
-                                onPressed: _clearSearch,
-                              ),
-                      ),
-                    ),
-                    textInputAction: TextInputAction.search,
+                    label: 'Buscar por nombre o SKU',
                     onChanged: _onSearch,
+                    onClear: _clearSearch,
                   ),
                 ),
                 SizedBox(

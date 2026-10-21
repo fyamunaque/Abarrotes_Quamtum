@@ -41,10 +41,11 @@ CLAUDE.md
 - `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
 - `promotions`: CRUD con `promotions.manage`, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
 - `vip`: la lista de clientes VIP por correo (`/vip-customers`): se ve con `vip.view` y se modifica con `vip.manage`. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
-- `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`.
+- `store`: los datos de la tienda (nombre, dirección, referencia, teléfono, horario e instrucciones de recojo), un solo registro. `GET /store` es público; editarlos pide `store.manage`.
+- `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`. Lo usan los avisos de promociones VIP y los de cambio de estado de cada pedido (al dueño, con un texto según el tipo de entrega: "Tu pedido está listo para recoger en tienda, tu código es …"), sin bloquear el cambio si el envío falla.
 - `inventory`: movimientos de stock (registrarlos pide `inventory.adjust`; verlos y las alertas, `inventory.view`) (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
-- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` (`orders.view`) con filtros y `PATCH /orders/:id/status` (`orders.updateStatus`) con el patrón State (una clase por estado en `lib/src/orders/states/`).
-- `stats` (`stats.view`): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
+- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` (`orders.view`) con filtros (también por tipo de entrega) y `PATCH /orders/:id/status` (`orders.updateStatus`) con el patrón State (una clase por estado en `lib/src/orders/states/`) y el flujo de cada tipo de entrega como Strategy (`lib/src/orders/fulfillment/`). A domicilio o con recojo en tienda: recoger en caja pide el código del cliente.
+- `stats` (`stats.view`): resumen (con pedidos por estado y por tipo de entrega), ventas por día, más vendidos, stock bajo y por vencer. Una venta cuenta al completarse: pedidos entregados o recogidos (`delivered`). Cada reporte es una estrategia (`ReportProvider`).
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
 
@@ -54,9 +55,9 @@ El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas
 
 ## 4. Modelo de datos
 
-Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional) y `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó).
+Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional), `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó) y `StoreSettings` (los datos de la tienda: un solo registro).
 
-- **Estados de pedido:** `pendingConfirmation → confirmed → outForDelivery → delivered`, con `cancelled` como ruta alterna.
+- **Estados de pedido y tipos de entrega:** cada pedido es a domicilio (`delivery`, por defecto) o de recojo en tienda (`pickup`, con un `pickupCode` de 6 caracteres sin 0/O/1/I, único). A domicilio: `pendingConfirmation → confirmed → outForDelivery → delivered`; con recojo: `pendingConfirmation → confirmed → preparing → readyForPickup → delivered` ("recogido", con el código del cliente). En los dos, `cancelled` es la ruta alterna hasta antes de entregar. El flujo de cada tipo es un Strategy (`FulfillmentFlow`) que consultan los estados (State); el JSON trae `allowedNextStatuses`.
 - **Montos en céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal. En el JSON viajan como texto (`"4.5"`).
 - Enums en camelCase. Movimientos: `incoming`, `outgoing`, `adjustment` (`in` es palabra reservada de Dart).
 - Ids UUID v7, tablas en plural (`users`, `orders`, …) y claves foráneas `ON DELETE RESTRICT ON UPDATE CASCADE`.
@@ -72,10 +73,12 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - registro e ingreso con Firebase;
   - catálogo con búsqueda y categorías, y detalle de producto;
   - carrito guardado en el dispositivo;
-  - pedido, y "Mis pedidos" con el seguimiento de cada uno.
+  - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger".
 - **Panel:**
-  - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
-  - pedidos con el stepper de estado y actualización automática;
+  - inicio con ventas de hoy, la semana y el mes (lo entregado o recogido), ticket promedio, pedidos por estado y por tipo de entrega, gráfico de 30 días, stock bajo, por vencer y top 5;
+  - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido pide el código del cliente;
+  - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
+  - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
   - productos, inventario (entradas, salidas y ajustes) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
   - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;

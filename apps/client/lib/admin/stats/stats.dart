@@ -1,8 +1,10 @@
 import '../../common/money.dart';
+import '../../orders/fulfillment.dart';
 import '../../orders/order_status.dart';
 
-/// Ventas de un periodo: lo cobrado en pedidos aceptados (confirmados, en
-/// camino o entregados), cuántos y el ticket promedio. Montos en céntimos.
+/// Ventas de un periodo: lo cobrado en pedidos completados (entregados a
+/// domicilio o recogidos en tienda), cuántos y el ticket promedio. Montos en
+/// céntimos.
 class SalesSummary {
   const SalesSummary({
     required this.totalCents,
@@ -30,13 +32,14 @@ class SalesSummary {
 }
 
 /// `GET /stats/overview`: ventas de hoy, la semana (desde el lunes) y el mes,
-/// y cuántos pedidos hay en cada estado.
+/// y cuántos pedidos hay en cada estado y de cada tipo de entrega.
 class StatsOverview {
   const StatsOverview({
     required this.today,
     required this.week,
     required this.month,
     required this.ordersByStatus,
+    this.ordersByFulfillment = const {},
   });
 
   factory StatsOverview.fromJson(Object? json) => switch (json) {
@@ -54,6 +57,15 @@ class StatsOverview {
           for (final status in OrderStatus.values)
             status: byStatus[status.name] as int? ?? 0,
         },
+        // Sin el campo (un servidor anterior), todos en 0.
+        ordersByFulfillment: {
+          for (final type in FulfillmentType.values)
+            type: switch (json['ordersByFulfillment']) {
+              final Map<String, Object?> byType =>
+                byType[type.name] as int? ?? 0,
+              _ => 0,
+            },
+        },
       ),
     _ => throw FormatException('No es un resumen del panel', json),
   };
@@ -62,6 +74,9 @@ class StatsOverview {
   final SalesSummary week;
   final SalesSummary month;
   final Map<OrderStatus, int> ordersByStatus;
+
+  /// Cuántos pedidos hay de cada tipo de entrega, de cualquier fecha.
+  final Map<FulfillmentType, int> ordersByFulfillment;
 }
 
 /// Las ventas de un día (`AAAA-MM-DD`, hora de Lima).

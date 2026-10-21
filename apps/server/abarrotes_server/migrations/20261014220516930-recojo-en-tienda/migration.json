@@ -1,0 +1,95 @@
+{
+  "__className__": "serverpod.DatabaseMigration",
+  "actions": [
+    {
+      "__className__": "serverpod.DatabaseMigrationAction",
+      "type": "alterTable",
+      "alterTable": {
+        "__className__": "serverpod.TableMigration",
+        "name": "orders",
+        "schema": "public",
+        "addColumns": [
+          {
+            "__className__": "serverpod.ColumnDefinition",
+            "name": "fulfillmentType",
+            "fieldName": "fulfillmentType",
+            "columnType": 0,
+            "isNullable": false,
+            "columnDefault": "'delivery'",
+            "dartType": "protocol:FulfillmentType"
+          },
+          {
+            "__className__": "serverpod.ColumnDefinition",
+            "name": "pickupCode",
+            "fieldName": "pickupCode",
+            "columnType": 0,
+            "isNullable": true,
+            "dartType": "String?"
+          },
+          {
+            "__className__": "serverpod.ColumnDefinition",
+            "name": "readyForPickupAt",
+            "fieldName": "readyForPickupAt",
+            "columnType": 4,
+            "isNullable": true,
+            "dartType": "DateTime?"
+          }
+        ],
+        "deleteColumns": [],
+        "modifyColumns": [
+          {
+            "__className__": "serverpod.ColumnMigration",
+            "columnName": "deliveryAddress",
+            "addNullable": true,
+            "removeNullable": false,
+            "changeDefault": false
+          }
+        ],
+        "addIndexes": [
+          {
+            "__className__": "serverpod.IndexDefinition",
+            "indexName": "orders_pickup_code_idx",
+            "elements": [
+              {
+                "__className__": "serverpod.IndexElementDefinition",
+                "type": 0,
+                "definition": "pickupCode"
+              }
+            ],
+            "type": "btree",
+            "isUnique": true,
+            "isPrimary": false
+          }
+        ],
+        "deleteIndexes": [],
+        "addForeignKeys": [],
+        "deleteForeignKeys": [],
+        "warnings": [
+          {
+            "__className__": "serverpod.DatabaseMigrationWarning",
+            "type": "uniqueIndexCreated",
+            "message": "Unique index \"orders_pickup_code_idx\" is added to table \"orders\". If there are existing rows with duplicate values, this migration will fail.",
+            "table": "orders",
+            "columns": [
+              "pickupCode"
+            ],
+            "destrucive": false
+          }
+        ]
+      }
+    }
+  ],
+  "warnings": [
+    {
+      "__className__": "serverpod.DatabaseMigrationWarning",
+      "type": "uniqueIndexCreated",
+      "message": "Unique index \"orders_pickup_code_idx\" is added to table \"orders\". If there are existing rows with duplicate values, this migration will fail.",
+      "table": "orders",
+      "columns": [
+        "pickupCode"
+      ],
+      "destrucive": false
+    }
+  ],
+  "migrationApiVersion": 1
+}

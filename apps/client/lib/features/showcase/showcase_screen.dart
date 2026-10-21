@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
+import '../../orders/fulfillment.dart';
 import '../../orders/order_status.dart';
 import '../catalog/product_card.dart';
 import '../catalog/product_grid.dart';
@@ -77,7 +78,14 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
             style: text.bodyMedium,
           ),
           const SizedBox(height: 16),
-          OrderTracker(status: _status),
+          OrderTracker(
+            status: _status,
+            fulfillmentType:
+                FulfillmentType.delivery.steps.contains(_status) ||
+                    _status == OrderStatus.cancelled
+                ? FulfillmentType.delivery
+                : FulfillmentType.pickup,
+          ),
           const SizedBox(height: 20),
           Wrap(
             spacing: 8,

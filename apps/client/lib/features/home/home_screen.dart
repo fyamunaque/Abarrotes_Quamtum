@@ -32,8 +32,9 @@ class HomeScreen extends ConsumerWidget {
           const _Headline(),
           const SizedBox(height: 12),
           Text(
-            'Arroz, aceite, lácteos y todo lo de la semana, con los precios '
-            'y promociones de la tienda.',
+            'Arroz, aceite, lácteos y todo lo de la semana, con nuestros '
+            'precios y promociones. Te lo llevamos a casa o lo recoges en la '
+            'tienda.',
             style: text.bodyLarge,
           ),
           const SizedBox(height: 24),

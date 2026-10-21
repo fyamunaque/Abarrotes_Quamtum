@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
+import '../../orders/fulfillment.dart';
 import '../../orders/order_status.dart';
 import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
@@ -8,22 +11,30 @@ import '../../theme/motion.dart';
 Color orderStatusColor(OrderStatus status) => switch (status) {
   OrderStatus.pendingConfirmation => OrderStatusColors.pending,
   OrderStatus.confirmed => OrderStatusColors.confirmed,
+  OrderStatus.preparing => OrderStatusColors.preparing,
+  OrderStatus.readyForPickup => OrderStatusColors.readyForPickup,
   OrderStatus.outForDelivery => OrderStatusColors.onTheWay,
   OrderStatus.delivered => OrderStatusColors.delivered,
   OrderStatus.cancelled => OrderStatusColors.cancelled,
 };
 
-/// Seguimiento de un pedido: los pasos de pendiente a entregado, unidos por
-/// una línea que se llena hasta el estado actual, en el color de ese estado.
+/// Seguimiento de un pedido: los pasos de su tipo de entrega, de pendiente a
+/// entregado (o recogido), unidos por una línea que se llena hasta el estado
+/// actual, en el color de ese estado.
 ///
 /// Al mostrarse no se anima. Cuando [status] cambia, la línea se llena (o se
 /// vacía) hasta el estado nuevo en [NeilsMotion.progress], y el color pasa al
 /// del estado nuevo. Un pedido cancelado muestra los pasos apagados y el
 /// aviso: el servidor no guarda en qué paso se canceló.
 class OrderTracker extends StatefulWidget {
-  const OrderTracker({super.key, required this.status});
+  const OrderTracker({
+    super.key,
+    required this.status,
+    this.fulfillmentType = FulfillmentType.delivery,
+  });
 
   final OrderStatus status;
+  final FulfillmentType fulfillmentType;
 
   @override
   State<OrderTracker> createState() => _OrderTrackerState();
@@ -44,21 +55,24 @@ class _OrderTrackerState extends State<OrderTracker>
     begin: _reachOf(widget.status),
     end: _reachOf(widget.status),
   );
+
+  List<OrderStatus> get _steps => widget.fulfillmentType.steps;
   late var _color = ColorTween(
     begin: orderStatusColor(widget.status),
     end: orderStatusColor(widget.status),
   );
 
   /// Hasta qué paso llega la línea (0 = el primero). Cancelado no avanza.
-  static double _reachOf(OrderStatus status) => OrderStatus.steps
-      .indexOf(status)
-      .clamp(0, OrderStatus.steps.length)
-      .toDouble();
+  double _reachOf(OrderStatus status) =>
+      _steps.indexOf(status).clamp(0, _steps.length).toDouble();
 
   @override
   void didUpdateWidget(OrderTracker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.status == widget.status) return;
+    if (oldWidget.status == widget.status &&
+        oldWidget.fulfillmentType == widget.fulfillmentType) {
+      return;
+    }
     // Parte de donde está ahora, aunque la animación anterior no terminara.
     _reach = Tween(
       begin: _reach.evaluate(_curve),
@@ -91,11 +105,12 @@ class _OrderTrackerState extends State<OrderTracker>
   @override
   Widget build(BuildContext context) {
     final status = widget.status;
+    final type = widget.fulfillmentType;
     final cancelled = status == OrderStatus.cancelled;
-    final steps = OrderStatus.steps;
+    final steps = _steps;
     final semantics = cancelled
-        ? 'Estado del pedido: ${status.label}'
-        : 'Estado del pedido: ${status.label}, '
+        ? 'Estado del pedido: ${type.labelOf(status)}'
+        : 'Estado del pedido: ${type.labelOf(status)}, '
               'paso ${steps.indexOf(status) + 1} de ${steps.length}';
 
     return Semantics(
@@ -110,23 +125,35 @@ class _OrderTrackerState extends State<OrderTracker>
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final (i, step) in steps.indexed)
-                      Expanded(
-                        child: _Step(
-                          label: step.stepLabel,
-                          index: i,
-                          count: steps.length,
-                          reach: reach,
-                          color: color,
-                          cancelled: cancelled,
-                          finished: status == OrderStatus.delivered,
-                          current: step == status,
-                        ),
-                      ),
-                  ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final labels = [for (final s in steps) type.stepLabelOf(s)];
+                    final scale = _labelScale(
+                      context,
+                      labels,
+                      // El ancho de cada paso, sin el margen del nombre.
+                      constraints.maxWidth / steps.length - 4,
+                    );
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final (i, step) in steps.indexed)
+                          Expanded(
+                            child: _Step(
+                              label: labels[i],
+                              labelScale: scale,
+                              index: i,
+                              count: steps.length,
+                              reach: reach,
+                              color: color,
+                              cancelled: cancelled,
+                              finished: status == OrderStatus.delivered,
+                              current: step == status,
+                            ),
+                          ),
+                      ],
+                    );
+                  },
                 ),
                 if (cancelled) ...[
                   const SizedBox(height: 12),
@@ -147,6 +174,7 @@ class _OrderTrackerState extends State<OrderTracker>
 class _Step extends StatelessWidget {
   const _Step({
     required this.label,
+    required this.labelScale,
     required this.index,
     required this.count,
     required this.reach,
@@ -157,6 +185,9 @@ class _Step extends StatelessWidget {
   });
 
   final String label;
+
+  /// Cuánto se achican los nombres de todos los pasos (1 = nada).
+  final double labelScale;
   final int index;
   final int count;
 
@@ -207,7 +238,12 @@ class _Step extends StatelessWidget {
             label,
             textAlign: TextAlign.center,
             maxLines: 2,
-            style: theme.textTheme.labelMedium?.copyWith(
+            style: _stepLabelStyle(theme).copyWith(
+              // El tamaño y el espacio entre letras, los dos: si no, el
+              // ancho no baja en la misma proporción.
+              fontSize: _stepLabelStyle(theme).fontSize! * labelScale,
+              letterSpacing:
+                  (_stepLabelStyle(theme).letterSpacing ?? 0) * labelScale,
               color: reached
                   ? theme.colorScheme.onSurface
                   : theme.colorScheme.onSurfaceVariant,
@@ -218,6 +254,50 @@ class _Step extends StatelessWidget {
       ],
     );
   }
+}
+
+/// El estilo de los nombres de los pasos (antes de la escala).
+TextStyle _stepLabelStyle(ThemeData theme) => theme.textTheme.labelMedium!;
+
+/// Cuánto hay que achicar los nombres de [labels] para que cada uno entre en
+/// [width] cortando solo en los espacios (nunca a mitad de palabra) y en dos
+/// líneas como máximo. La misma escala para todos, así se ven parejos; 1 si
+/// entran (p. ej. en pantallas anchas).
+double _labelScale(BuildContext context, List<String> labels, double width) {
+  final style = _stepLabelStyle(Theme.of(context))
+      .copyWith(fontWeight: FontWeight.w600);
+  final direction = Directionality.of(context);
+  final scaler = MediaQuery.textScalerOf(context);
+  double widthOf(String text) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: direction,
+      textScaler: scaler,
+    )..layout();
+    final result = painter.width;
+    painter.dispose();
+    return result;
+  }
+
+  // El ancho que necesita cada nombre: en una línea si entra; si no, el del
+  // mejor corte en dos (la línea más ancha, lo más angosta posible).
+  double needed(String label) {
+    final words = label.split(' ');
+    final oneLine = widthOf(label);
+    if (oneLine <= width || words.length == 1) return oneLine;
+    return [
+      for (var i = 1; i < words.length; i++)
+        math.max(
+          widthOf(words.take(i).join(' ')),
+          widthOf(words.skip(i).join(' ')),
+        ),
+    ].reduce(math.min);
+  }
+
+  if (width <= 0) return 1;
+  final widest = labels.map(needed).reduce(math.max);
+  // Un píxel de margen: el redondeo no debe forzar otra línea.
+  return math.min(1, width / (widest + 1));
 }
 
 /// Media línea: el riel apagado y, encima, la parte llena desde la izquierda.

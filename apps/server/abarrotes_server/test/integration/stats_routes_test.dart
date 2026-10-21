@@ -3,6 +3,7 @@ import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/inventory/stock_alerts.dart';
 import 'package:abarrotes_server/src/stats/providers/expiring_products_report_provider.dart';
+import 'package:abarrotes_server/src/stats/providers/fulfillment_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/low_stock_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/order_status_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/overview_report_provider.dart';
@@ -34,8 +35,9 @@ void main() {
     Future<void> insertOrder(
       OrderStatus status,
       DateTime createdAt,
-      List<(Product, int quantity, int unitCents)> lines,
-    ) async {
+      List<(Product, int quantity, int unitCents)> lines, {
+      bool pickup = false,
+    }) async {
       final customer = (await User.db.findFirstRow(
         session,
         where: (u) => u.firebaseUid.equals('uid-cliente'),
@@ -44,8 +46,11 @@ void main() {
         session,
         Order(
           status: status,
+          fulfillmentType: pickup
+              ? FulfillmentType.pickup
+              : FulfillmentType.delivery,
           totalCents: lines.fold(0, (sum, l) => sum + l.$2 * l.$3),
-          deliveryAddress: 'Av. Arequipa 123',
+          deliveryAddress: pickup ? null : 'Av. Arequipa 123',
           customerId: customer.id!,
           createdAt: createdAt,
           updatedAt: createdAt,
@@ -72,6 +77,7 @@ void main() {
           overview: OverviewReportProvider(
             sales: sales,
             orderStatus: const OrderStatusReportProvider(),
+            fulfillment: const FulfillmentReportProvider(),
             now: () => testNow,
           ),
           sales: sales,
@@ -108,28 +114,35 @@ void main() {
       aceite = await product('Aceite', stock: 0);
       leche = await product('Leche', expires: '2026-10-03');
 
-      // Ventas (aceptadas por la tienda):
+      // Ventas (completadas: entregadas o recogidas):
       await insertOrder(OrderStatus.delivered, DateTime.utc(2026, 9, 28, 15), [
         (arroz, 2, 390),
         (aceite, 3, 100),
       ]); // 10.80 el 28/09
-      // 23:59 del 30/09 en Lima.
+      // 23:59 del 30/09 en Lima; recogido en tienda.
       await insertOrder(
-        OrderStatus.confirmed,
+        OrderStatus.delivered,
         DateTime.utc(2026, 10, 1, 4, 59),
-        [
-          (leche, 5, 100),
-        ],
+        [(leche, 5, 100)],
+        pickup: true,
       ); // 5.00 el 30/09
       // 00:00 del 01/10 en Lima.
+      await insertOrder(OrderStatus.delivered, DateTime.utc(2026, 10, 1, 5), [
+        (arroz, 1, 333),
+      ]); // 3.33 el 01/10
+      // No cuentan todavía: aceptados, pero en camino o en espera de recojo.
       await insertOrder(
         OrderStatus.outForDelivery,
-        DateTime.utc(2026, 10, 1, 5),
-        [
-          (arroz, 1, 333),
-        ],
-      ); // 3.33 el 01/10
-      // No cuentan: pendiente y cancelado.
+        DateTime.utc(2026, 10, 1, 10),
+        [(leche, 40, 100)],
+      );
+      await insertOrder(
+        OrderStatus.readyForPickup,
+        DateTime.utc(2026, 9, 30, 15),
+        [(aceite, 20, 100)],
+        pickup: true,
+      );
+      // Ni pendiente ni cancelado.
       await insertOrder(
         OrderStatus.pendingConfirmation,
         DateTime.utc(2026, 10, 1, 10),
@@ -147,7 +160,8 @@ void main() {
     }
 
     test(
-      'GET /stats/sales: solo pedidos aceptados, por día de Lima, con días en 0',
+      'GET /stats/sales: solo los entregados o recogidos, por día de Lima, '
+      'con días en 0',
       () async {
         final body = await get('/stats/sales?from=2026-09-28&to=2026-10-01');
 
@@ -226,11 +240,14 @@ void main() {
         );
         expect(body['ordersByStatus'], {
           'pendingConfirmation': 1,
-          'confirmed': 1,
+          'confirmed': 0,
           'outForDelivery': 1,
-          'delivered': 1,
+          'delivered': 3,
           'cancelled': 1,
+          'preparing': 0,
+          'readyForPickup': 1,
         });
+        expect(body['ordersByFulfillment'], {'delivery': 5, 'pickup': 2});
       },
     );
 

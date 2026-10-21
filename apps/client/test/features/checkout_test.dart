@@ -11,9 +11,13 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/orders/fulfillment.dart';
+import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/router/router.dart';
+import 'package:neils/store/store_providers.dart';
+import 'package:neils/store/store_settings.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -26,6 +30,7 @@ void main() {
   late FakeAuthRepository auth;
   late FakeCatalogRepository catalog;
   late FakeOrderRepository orders;
+  late FakeStoreRepository store;
   late ProviderContainer container;
 
   setUp(() {
@@ -33,6 +38,7 @@ void main() {
       ..addAccount('ana@tienda.pe', 'secreta', name: 'Ana Quispe');
     catalog = FakeCatalogRepository();
     orders = FakeOrderRepository(catalog);
+    store = FakeStoreRepository();
   });
 
   Future<GoRouter> pumpApp(
@@ -50,6 +56,7 @@ void main() {
           ),
           catalogRepositoryProvider.overrideWithValue(catalog),
           orderRepositoryProvider.overrideWithValue(orders),
+          storeRepositoryProvider.overrideWithValue(store),
         ],
         child: const NeilsApp(),
       ),
@@ -230,6 +237,199 @@ void main() {
 
     expect(location(router), '/mis-pedidos');
     expect(find.text('Todavía no hiciste pedidos.'), findsOneWidget);
+  });
+
+  group('recoger en tienda', () {
+    setUp(() {
+      auth = FakeAuthRepository()
+        ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    });
+
+    Future<void> choosePickup(WidgetTester tester) async {
+      await tester.ensureVisible(find.text('Recoger en tienda'));
+      await tester.tap(find.text('Recoger en tienda'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('oculta la dirección, muestra la tienda y pide sin ella', (
+      tester,
+    ) async {
+      final router = await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      expect(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+        findsOneWidget,
+      );
+
+      await choosePickup(tester);
+
+      expect(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+        findsNothing,
+      );
+      expect(
+        find.text("Recoges tu pedido en Neil's Food Services"),
+        findsOneWidget,
+      );
+      for (final text in [
+        'Av. Arequipa 1234, Lince',
+        'Frente al parque',
+        'Lun a sáb de 8 a 20 h',
+        'Muestra tu código en caja.',
+      ]) {
+        expect(find.text(text), findsOneWidget, reason: text);
+      }
+
+      await tester.ensureVisible(find.text('Confirmar pedido'));
+      await tester.tap(find.text('Confirmar pedido'));
+      await tester.pumpAndSettle();
+
+      expect(orders.deliveries.single, (FulfillmentType.pickup, null));
+      expect(location(router), startsWith('/mis-pedidos?nuevo='));
+      // Pendiente: el código llega cuando la tienda lo confirma.
+      expect(find.text('K7M2XQ'), findsNothing);
+      expect(
+        find.text(
+          'Te damos tu código de recojo cuando la tienda confirme el pedido.',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('si no cargan los datos de la tienda, se puede reintentar', (
+      tester,
+    ) async {
+      store.failure = const ApiFailure('Sin conexión');
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      await choosePickup(tester);
+
+      expect(
+        find.text('No se pudieron cargar los datos de la tienda.'),
+        findsOneWidget,
+      );
+      store.failure = null;
+      await tester.tap(find.text('Reintentar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Av. Arequipa 1234, Lince'), findsOneWidget);
+    });
+
+    testWidgets('el teléfono de la tienda, si lo tiene', (tester) async {
+      store.store = const StoreSettings(
+        name: "Neil's Food Services",
+        address: 'Av. Arequipa 1234, Lince',
+        phone: '01 422 3344',
+      );
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      await choosePickup(tester);
+
+      expect(find.text('01 422 3344'), findsOneWidget);
+      expect(find.byIcon(Icons.phone_outlined), findsOneWidget);
+    });
+
+    testWidgets('en un teléfono, las opciones van sin ícono', (tester) async {
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+      Finder icon(IconData data) => find.descendant(
+        of: find.byType(SegmentedButton<FulfillmentType>),
+        matching: find.byIcon(data),
+      );
+      expect(icon(Icons.storefront_outlined), findsOneWidget);
+
+      tester.view.physicalSize = const Size(375, 900);
+      await tester.pumpAndSettle();
+
+      expect(icon(Icons.storefront_outlined), findsNothing);
+      expect(icon(Icons.local_shipping_outlined), findsNothing);
+      expect(find.text('Recoger en tienda'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    Order pickupOrder(OrderStatus status) => Order(
+      id: 'pedido-1',
+      status: status,
+      fulfillmentType: FulfillmentType.pickup,
+      pickupCode: 'K7M2XQ',
+      totalCents: 2490,
+      createdAt: DateTime.utc(2026, 10, 14, 15),
+      lines: const [],
+    );
+
+    testWidgets('confirmado: el código en grande, con la tienda', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      orders.orders.add(pickupOrder(OrderStatus.preparing));
+
+      await pumpApp(tester, '/mis-pedidos');
+
+      expect(find.text('Tu código de recojo'), findsOneWidget);
+      expect(find.text('K7M2XQ'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel('Tu código de recojo: K 7 M 2 X Q'),
+        findsOneWidget,
+      );
+      expect(find.text('Av. Arequipa 1234, Lince'), findsOneWidget);
+      expect(find.text('Lun a sáb de 8 a 20 h'), findsOneWidget);
+      expect(find.textContaining('Entrega en'), findsNothing);
+      expect(find.text('¡Tu pedido está listo para recoger!'), findsNothing);
+      final tracker = tester.widget<OrderTracker>(find.byType(OrderTracker));
+      expect(tracker.fulfillmentType, FulfillmentType.pickup);
+      expect(find.text('Preparando'), findsOneWidget);
+      semantics.dispose();
+    });
+
+    testWidgets('en espera de recojo: el aviso destacado', (tester) async {
+      orders.orders.add(pickupOrder(OrderStatus.readyForPickup));
+
+      await pumpApp(tester, '/mis-pedidos');
+
+      expect(find.text('¡Tu pedido está listo para recoger!'), findsOneWidget);
+      expect(find.text('K7M2XQ'), findsOneWidget);
+    });
+
+    testWidgets('ya recogido: sin el código', (tester) async {
+      orders.orders.add(pickupOrder(OrderStatus.delivered));
+
+      await pumpApp(tester, '/mis-pedidos');
+
+      expect(find.text('K7M2XQ'), findsNothing);
+      expect(find.text('Recojo en tienda'), findsOneWidget);
+      expect(find.text('Recogido'), findsOneWidget);
+    });
+  });
+
+  testWidgets('a domicilio: adónde va, como la tienda en uno de recojo', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    Order delivery(String id, OrderStatus status) => Order(
+      id: id,
+      status: status,
+      deliveryAddress: 'Av. Brasil 450, $id',
+      totalCents: 2490,
+      createdAt: DateTime.utc(2026, 10, 14, 15),
+      lines: const [],
+    );
+    orders.orders.addAll([
+      delivery('Breña', OrderStatus.outForDelivery),
+      delivery('Jesús María', OrderStatus.delivered),
+    ]);
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    // En curso: con su título y el ícono, como los datos de la tienda.
+    expect(find.text('Entrega a domicilio'), findsOneWidget);
+    expect(find.text('Av. Brasil 450, Breña'), findsOneWidget);
+    expect(find.byIcon(Icons.place_outlined), findsOneWidget);
+    // Ya entregado: en una línea.
+    expect(find.text('Entrega en Av. Brasil 450, Jesús María'), findsOneWidget);
   });
 
   testWidgets('"Actualizar" trae el estado nuevo y el seguimiento lo anima', (

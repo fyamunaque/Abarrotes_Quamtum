@@ -16,12 +16,15 @@ import 'package:abarrotes_server/src/staff/roles_service.dart';
 import 'package:abarrotes_server/src/staff/staff_routes.dart';
 import 'package:abarrotes_server/src/staff/staff_service.dart';
 import 'package:abarrotes_server/src/stats/providers/expiring_products_report_provider.dart';
+import 'package:abarrotes_server/src/stats/providers/fulfillment_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/low_stock_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/order_status_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/overview_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/sales_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/top_products_report_provider.dart';
 import 'package:abarrotes_server/src/stats/stats_routes.dart';
+import 'package:abarrotes_server/src/store/store_routes.dart';
+import 'package:abarrotes_server/src/store/store_settings_service.dart';
 import 'package:abarrotes_server/src/users/users_routes.dart';
 import 'package:abarrotes_server/src/users/users_service.dart';
 import 'package:abarrotes_server/src/vip/vip_routes.dart';
@@ -55,6 +58,7 @@ void main() {
     final routes = <RouteEntry>[
       ...usersRoutes(const UsersService(), guards, shoppers: testShoppers),
       ...categoriesRoutes(const CategoriesService(), guards),
+      ...storeRoutes(const StoreSettingsService(), guards),
       ...productsRoutes(
         ProductsService(pricing: testPromotions()),
         guards,
@@ -78,6 +82,7 @@ void main() {
         overview: OverviewReportProvider(
           sales: sales,
           orderStatus: const OrderStatusReportProvider(),
+          fulfillment: const FulfillmentReportProvider(),
         ),
         sales: sales,
         topProducts: const TopProductsReportProvider(),
@@ -98,6 +103,9 @@ void main() {
       'PUT /users/me/devices': 'token',
       'DELETE /users/me/devices': 'token',
       'GET /customers': 'customers.view',
+      // Los datos de la tienda: lectura pública.
+      'GET /store': 'pública',
+      'PATCH /store': 'store.manage',
       // Catálogo: lectura pública, escritura con su permiso.
       'GET /categories': 'pública',
       'GET /categories/:id': 'pública',

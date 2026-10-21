@@ -18,6 +18,7 @@ void main() {
       'stats.view',
       'customers.view',
       'staff.manage',
+      'store.manage',
     ]);
   });
 

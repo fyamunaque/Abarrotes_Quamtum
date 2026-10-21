@@ -1,5 +1,6 @@
 import '../common/api_client.dart';
 import '../common/page_list.dart';
+import 'fulfillment.dart';
 import 'order.dart';
 import 'order_repository.dart';
 
@@ -14,13 +15,17 @@ class HttpOrderRepository implements OrderRepository {
   @override
   Future<Order> place(
     String idToken, {
-    required String deliveryAddress,
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
+    String? deliveryAddress,
     required List<OrderLineRequest> lines,
   }) async {
     final json = await _api.post(
       '/orders',
       {
-        'deliveryAddress': deliveryAddress,
+        'fulfillmentType': fulfillmentType.name,
+        // Con recojo en tienda no va: el servidor la rechaza.
+        if (fulfillmentType == FulfillmentType.delivery)
+          'deliveryAddress': deliveryAddress,
         'items': [
           for (final line in lines)
             {

@@ -7,6 +7,7 @@ import 'package:abarrotes_server/src/orders/orders_service.dart';
 import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
+import '../support/fake_push.dart';
 import '../support/http_harness.dart';
 import '../support/staff_setup.dart';
 import '../support/promotions_setup.dart';
@@ -45,16 +46,22 @@ class _Shop {
   }
 
   /// Un pedido de 2 arroces y 1 aceite (el stock ya se descontó al crearlo).
+  /// A domicilio, o de recojo con [pickupCode].
   Future<Order> order({
     OrderStatus status = OrderStatus.pendingConfirmation,
     DateTime? createdAt,
+    String? pickupCode,
   }) async {
     final order = await Order.db.insertRow(
       session,
       Order(
         status: status,
+        fulfillmentType: pickupCode == null
+            ? FulfillmentType.delivery
+            : FulfillmentType.pickup,
         totalCents: 2 * 390 + 1250,
-        deliveryAddress: 'Av. Arequipa 123',
+        deliveryAddress: pickupCode == null ? 'Av. Arequipa 123' : null,
+        pickupCode: pickupCode,
         customerId: customer.id!,
         createdAt: createdAt,
         updatedAt: createdAt,
@@ -206,7 +213,7 @@ void main() {
 
         expect((await changeStatus(order, 'shipped')).$2['message'], [
           'status debe ser pendingConfirmation, confirmed, outForDelivery, '
-              'delivered o cancelled',
+              'delivered, cancelled, preparing o readyForPickup',
         ]);
         expect(
           (await client.patch('/orders/123/status', {
@@ -249,6 +256,9 @@ void main() {
           final order = body['data'].single;
           expect(order['id'], latest.id.toString());
           expect(order['status'], 'pendingConfirmation');
+          expect(order['fulfillmentType'], 'delivery');
+          expect(order['allowedNextStatuses'], ['confirmed', 'cancelled']);
+          expect(order['pickupCode'], isNull);
           expect(order['total'], '20.3');
           expect(order['customer'], {
             'id': shop.customer.id.toString(),
@@ -564,7 +574,7 @@ void main() {
 
           final arroz = shop.arroz.id.toString();
           expect(await errors({'items': []}), [
-            'deliveryAddress es obligatorio',
+            'deliveryAddress es obligatorio a domicilio',
             'items debe tener entre 1 y 100 elementos',
           ]);
           expect(
@@ -644,6 +654,287 @@ void main() {
       });
     });
 
+    group('aviso al cliente', () {
+      Future<TestClient> serve(OrdersService service) async {
+        final server = await serveRoutes(
+          () => session,
+          ordersRoutes(service, testGuards(google), shoppers: testShoppers),
+        );
+        addTearDown(server.close);
+        return TestClient(server, google);
+      }
+
+      test('cada cambio de estado avisa, con el pedido ya cambiado', () async {
+        final notifier = RecordingOrderNotifier();
+        final client = await serve(
+          OrdersService(
+            pricing: testPromotions(),
+            notifier: notifier,
+            now: () => testNow,
+          ),
+        );
+        final order = await shop.order(pickupCode: 'K7M2XQ');
+
+        for (final next in ['confirmed', 'preparing']) {
+          await client.patch('/orders/${order.id}/status', {
+            'status': next,
+          }, as: 'uid-staff');
+        }
+        // Un cambio rechazado no avisa.
+        await client.patch('/orders/${order.id}/status', {
+          'status': 'outForDelivery',
+        }, as: 'uid-staff');
+
+        expect(
+          [for (final o in notifier.changed) (o.id, o.status, o.pickupCode)],
+          [
+            (order.id, OrderStatus.confirmed, 'K7M2XQ'),
+            (order.id, OrderStatus.preparing, 'K7M2XQ'),
+          ],
+        );
+      });
+
+      test('si el aviso falla, el cambio de estado queda igual', () async {
+        final client = await serve(
+          OrdersService(
+            pricing: testPromotions(),
+            notifier: ThrowingOrderNotifier(),
+            now: () => testNow,
+          ),
+        );
+        final order = await shop.order();
+
+        final (status, body) = await client.patch(
+          '/orders/${order.id}/status',
+          {'status': 'confirmed'},
+          as: 'uid-staff',
+        );
+
+        expect((status, body['status']), (200, 'confirmed'));
+        expect(
+          (await Order.db.findById(session, order.id!))!.status,
+          OrderStatus.confirmed,
+        );
+      });
+    });
+
+    group('recojo en tienda', () {
+      final codePattern = RegExp(r'^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$');
+      List<Object?> items() => [
+        {'productId': shop.arroz.id.toString(), 'quantity': 1},
+      ];
+
+      test('se crea sin dirección y con su código', () async {
+        final (status, order) = await client.post('/orders', {
+          'fulfillmentType': 'pickup',
+          'items': items(),
+        }, as: 'uid-cliente');
+
+        expect(status, 201);
+        expect(order['fulfillmentType'], 'pickup');
+        expect(order['deliveryAddress'], isNull);
+        expect(order['pickupCode'], matches(codePattern));
+        expect(order['readyForPickupAt'], isNull);
+        expect(order['allowedNextStatuses'], ['confirmed', 'cancelled']);
+        final saved = (await Order.db.find(session)).single;
+        expect(saved.pickupCode, order['pickupCode']);
+        expect(saved.deliveryAddress, isNull);
+      });
+
+      test('sin tipo, a domicilio; la dirección según el tipo', () async {
+        final (status, order) = await client.post('/orders', {
+          'deliveryAddress': 'Av. Arequipa 123',
+          'items': items(),
+        }, as: 'uid-cliente');
+        expect(status, 201);
+        expect(order['fulfillmentType'], 'delivery');
+        expect(order['pickupCode'], isNull);
+
+        Future<Object?> error(Map<String, Object?> body) async {
+          final (status, error) = await client.post('/orders', {
+            ...body,
+            'items': items(),
+          }, as: 'uid-cliente');
+          expect(status, 400, reason: '$body');
+          return error['message'];
+        }
+
+        expect(await error({'fulfillmentType': 'delivery'}), [
+          'deliveryAddress es obligatorio a domicilio',
+        ]);
+        expect(
+          await error({
+            'fulfillmentType': 'pickup',
+            'deliveryAddress': 'Av. Arequipa 123',
+          }),
+          ['deliveryAddress no va en un pedido de recojo en tienda'],
+        );
+        expect(
+          await error({
+            'fulfillmentType': 'dron',
+            'deliveryAddress': 'Av. Arequipa 123',
+          }),
+          ['fulfillmentType debe ser delivery o pickup'],
+        );
+        expect(await Order.db.count(session), 1);
+      });
+
+      test('si el código sale repetido, se genera otro', () async {
+        final codes = ['K7M2XQ', 'K7M2XQ', 'P4R9TW'];
+        final service = OrdersService(
+          pricing: testPromotions(),
+          pickupCode: () => codes.removeAt(0),
+          now: () => testNow,
+        );
+        Future<String?> place() async => (await service.create(
+          session,
+          customer: shop.customer,
+          shopper: Shopper.anonymous,
+          fulfillmentType: FulfillmentType.pickup,
+          lines: [
+            (productId: shop.arroz.id!, quantity: 1, shownUnitPriceCents: null),
+          ],
+        )).order.pickupCode;
+
+        expect(await place(), 'K7M2XQ');
+        expect(await place(), 'P4R9TW');
+      });
+
+      test(
+        'recorre su flujo hasta recogido, con el código del cliente',
+        () async {
+          final order = await shop.order(pickupCode: 'K7M2XQ');
+
+          for (final next in ['confirmed', 'preparing']) {
+            expect((await changeStatus(order, next)).$1, 200, reason: next);
+          }
+          final (status, ready) = await changeStatus(order, 'readyForPickup');
+          expect(status, 200);
+          expect(ready['readyForPickupAt'], testNow.toIso8601String());
+          expect(ready['allowedNextStatuses'], ['delivered', 'cancelled']);
+
+          Future<ApiResult> pickUp(String? code) => client.patch(
+            '/orders/${order.id}/status',
+            {'status': 'delivered', 'pickupCode': ?code},
+            as: 'uid-staff',
+          );
+          expect(
+            (await pickUp(null)).$2['message'],
+            'Falta el código de recojo: pídeselo al cliente',
+          );
+          final wrong = await pickUp('K7M2XA');
+          expect(
+            (wrong.$1, wrong.$2['message']),
+            (400, 'El código de recojo no coincide'),
+          );
+          expect(
+            (await Order.db.findById(session, order.id!))!.status,
+            OrderStatus.readyForPickup,
+          );
+
+          final (picked, done) = await pickUp(' k7m2xq ');
+          expect(picked, 200);
+          expect(done['status'], 'delivered');
+          expect(done['allowedNextStatuses'], isEmpty);
+        },
+      );
+
+      test('cada tipo, solo sus estados: 400 con el motivo', () async {
+        final pickup = await shop.order(
+          status: OrderStatus.confirmed,
+          pickupCode: 'K7M2XQ',
+        );
+        final delivery = await shop.order(status: OrderStatus.confirmed);
+
+        final toTheStreet = await changeStatus(pickup, 'outForDelivery');
+        final toTheCounter = await changeStatus(delivery, 'preparing');
+        final waiting = await changeStatus(delivery, 'readyForPickup');
+
+        expect(toTheStreet.$1, 400);
+        expect(
+          toTheStreet.$2['message'],
+          'Un pedido de recojo en tienda no puede pasar a en camino: '
+          'no sale a reparto',
+        );
+        expect(
+          toTheCounter.$2['message'],
+          'Un pedido a domicilio no puede pasar a preparando: '
+          'eso es solo para recojo en tienda',
+        );
+        expect(waiting.$1, 400);
+      });
+
+      test(
+        'se cancela antes de recogerlo, sin código, y devuelve el stock',
+        () async {
+          final order = await shop.order(
+            status: OrderStatus.readyForPickup,
+            pickupCode: 'K7M2XQ',
+          );
+
+          final (status, body) = await changeStatus(order, 'cancelled');
+
+          expect((status, body['status']), (200, 'cancelled'));
+          expect(await shop.stockOf(shop.arroz), 10);
+        },
+      );
+
+      test(
+        'el código: para el dueño y para el personal con orders.view',
+        () async {
+          await shop.order(pickupCode: 'K7M2XQ');
+          final order = await shop.order(pickupCode: 'P4R9TW');
+          await insertStaff(
+            session,
+            'uid-solo-estado',
+            permissions: {Permission.ordersUpdateStatus},
+          );
+
+          final (_, mine) = await client.get('/orders/mine', as: 'uid-cliente');
+          expect(
+            [for (final o in mine['data']) o['pickupCode']],
+            unorderedEquals(['K7M2XQ', 'P4R9TW']),
+          );
+          final (_, panel) = await client.get('/orders', as: 'uid-staff');
+          expect(
+            [for (final o in panel['data']) o['pickupCode']],
+            unorderedEquals(['K7M2XQ', 'P4R9TW']),
+          );
+          // Cambia el estado, pero no ve los pedidos: no recibe el código.
+          final (status, changed) = await client.patch(
+            '/orders/${order.id}/status',
+            {'status': 'confirmed'},
+            as: 'uid-solo-estado',
+          );
+          expect(status, 200);
+          expect(changed['pickupCode'], isNull);
+          expect(changed['fulfillmentType'], 'pickup');
+        },
+      );
+
+      test('el panel filtra por tipo de entrega', () async {
+        await shop.order();
+        await shop.order(pickupCode: 'K7M2XQ');
+
+        Future<List<Object?>> types(String query) async => [
+          for (final o
+              in (await client.get(
+                    '/orders?$query',
+                    as: 'uid-staff',
+                  )).$2['data']
+                  as List)
+            o['fulfillmentType'],
+        ];
+
+        expect(await types('fulfillmentType=pickup'), ['pickup']);
+        expect(await types('fulfillmentType=delivery'), ['delivery']);
+        expect(
+          (await client.get('/orders?fulfillmentType=x', as: 'uid-staff')).$1,
+          400,
+        );
+      });
+    });
+
     test(
       'el listado y los cambios de estado son solo para admin y staff',
       () async {
@@ -715,6 +1006,7 @@ void main() {
                 sessionBuilder.build(),
                 customer: shop.customer,
                 shopper: Shopper.anonymous,
+                fulfillmentType: FulfillmentType.delivery,
                 deliveryAddress: 'Av. Arequipa 123',
                 lines: [
                   (

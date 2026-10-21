@@ -23,11 +23,14 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/common/page_list.dart';
 import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_repository.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
+import 'package:neils/store/store_repository.dart';
+import 'package:neils/store/store_settings.dart';
 import 'package:neils/users/user_repository.dart';
 
 import 'support.dart';
@@ -59,8 +62,56 @@ const milk = Product(
   category: dairy,
 );
 
+/// A qué estados puede pasar un pedido, como lo calcula el servidor con el
+/// flujo de su tipo de entrega (`FulfillmentFlow` en apps/server): el paso
+/// siguiente y, mientras no esté entregado, cancelado. La app no lo calcula:
+/// lo lee de `allowedNextStatuses`; esto es para el servidor simulado.
+List<OrderStatus> allowedNextFor(FulfillmentType type, OrderStatus status) {
+  final steps = type.steps;
+  final i = steps.indexOf(status);
+  if (i < 0 || i == steps.length - 1) return const [];
+  return [steps[i + 1], OrderStatus.cancelled];
+}
+
+/// Los datos de la tienda en memoria. Con [failure], `settings` falla.
+class FakeStoreRepository implements StoreRepository {
+  FakeStoreRepository([this.store = sampleStore]);
+
+  StoreSettings store;
+  ApiFailure? failure;
+
+  /// Si no es null, `update` falla con esto.
+  ApiFailure? updateFailure;
+
+  /// Lo que se guardó, en orden.
+  final saved = <StoreSettings>[];
+
+  @override
+  Future<StoreSettings> settings() async {
+    if (failure case final failure?) throw failure;
+    return store;
+  }
+
+  @override
+  Future<StoreSettings> update(StoreSettings settings) async {
+    if (updateFailure case final failure?) throw failure;
+    saved.add(settings);
+    return store = settings;
+  }
+}
+
+/// La tienda de los tests.
+const sampleStore = StoreSettings(
+  name: "Neil's Food Services",
+  address: 'Av. Arequipa 1234, Lince',
+  reference: 'Frente al parque',
+  openingHours: 'Lun a sáb de 8 a 20 h',
+  pickupInstructions: 'Muestra tu código en caja.',
+);
+
 /// Los pedidos del panel en memoria. Valida el cambio de estado como el
-/// servidor (`nextStatuses`), con su mismo mensaje.
+/// servidor (`allowedNextStatuses` y el código al recoger), con sus
+/// mensajes.
 class FakeAdminOrdersRepository implements AdminOrdersRepository {
   FakeAdminOrdersRepository(this.orders, {this.pageSize = 20});
 
@@ -73,6 +124,9 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
 
   final changes = <(String, OrderStatus)>[];
 
+  /// El código que se mandó en cada cambio de estado.
+  final pickupCodes = <String?>[];
+
   /// Cuántas veces se pidió una página.
   int listCalls = 0;
 
@@ -80,38 +134,57 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
   ApiFailure? failList;
 
   @override
-  Future<PageList<AdminOrder>> list({int page = 1, OrderStatus? status}) async {
+  Future<PageList<AdminOrder>> list({
+    int page = 1,
+    OrderStatus? status,
+    FulfillmentType? fulfillmentType,
+    int? limit,
+  }) async {
     listCalls++;
     if (failList case final failure?) throw failure;
+    final size = limit ?? pageSize;
     final matching = [
       for (final order in orders)
-        if (status == null || order.order.status == status) order,
+        if ((status == null || order.order.status == status) &&
+            (fulfillmentType == null ||
+                order.order.fulfillmentType == fulfillmentType))
+          order,
     ];
     return PageList(
-      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      matching.skip((page - 1) * size).take(size).toList(),
       total: matching.length,
       page: page,
-      pageSize: pageSize,
+      pageSize: size,
     );
   }
 
   @override
-  Future<AdminOrder> changeStatus(String id, OrderStatus status) async {
+  Future<AdminOrder> changeStatus(
+    String id,
+    OrderStatus status, {
+    String? pickupCode,
+  }) async {
+    pickupCodes.add(pickupCode);
     if (failNext case final failure?) {
       failNext = null;
       throw failure;
     }
     final i = orders.indexWhere((order) => order.id == id);
-    final current = orders[i];
-    if (!current.order.status.nextStatuses.contains(status)) {
+    final current = orders[i].order;
+    if (!current.allowedNextStatuses.contains(status)) {
       throw ApiFailure(
-        'Un pedido ${current.order.status.label.toLowerCase()} no puede '
-        'pasar a ${status.label.toLowerCase()}',
+        'Un pedido ${current.statusLabel.toLowerCase()} no puede '
+        'pasar a ${current.fulfillmentType.labelOf(status).toLowerCase()}',
         status: 400,
       );
     }
+    if (current.status == OrderStatus.readyForPickup &&
+        status == OrderStatus.delivered &&
+        pickupCode?.replaceAll(' ', '').toUpperCase() != current.pickupCode) {
+      throw const ApiFailure('El código de recojo no coincide', status: 400);
+    }
     changes.add((id, status));
-    return orders[i] = withStatus(current, status);
+    return orders[i] = withStatus(orders[i], status);
   }
 
   static AdminOrder withStatus(AdminOrder order, OrderStatus status) =>
@@ -119,27 +192,48 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
         order: Order(
           id: order.order.id,
           status: status,
+          fulfillmentType: order.order.fulfillmentType,
           totalCents: order.order.totalCents,
           deliveryAddress: order.order.deliveryAddress,
+          pickupCode: order.order.pickupCode,
+          readyForPickupAt: status == OrderStatus.readyForPickup
+              ? DateTime.now()
+              : order.order.readyForPickupAt,
           createdAt: order.order.createdAt,
           lines: order.order.lines,
+          allowedNextStatuses: allowedNextFor(
+            order.order.fulfillmentType,
+            status,
+          ),
         ),
         customer: order.customer,
       );
 }
 
-/// Un pedido del panel para los tests.
+/// Un pedido del panel para los tests: a domicilio o, con [pickupCode], de
+/// recojo en tienda. Con los estados siguientes que mandaría el servidor.
 AdminOrder adminOrder(
   String id,
   OrderStatus status, {
   String customer = 'Ana Quispe',
   int day = 4,
+  String? pickupCode,
+  DateTime? readyForPickupAt,
 }) => AdminOrder(
   order: Order(
     id: id,
     status: status,
+    readyForPickupAt: readyForPickupAt,
+    fulfillmentType: pickupCode == null
+        ? FulfillmentType.delivery
+        : FulfillmentType.pickup,
+    allowedNextStatuses: allowedNextFor(
+      pickupCode == null ? FulfillmentType.delivery : FulfillmentType.pickup,
+      status,
+    ),
+    pickupCode: pickupCode,
     totalCents: 3380,
-    deliveryAddress: 'Av. Arequipa 123, Lince',
+    deliveryAddress: pickupCode == null ? 'Av. Arequipa 123, Lince' : null,
     createdAt: DateTime.utc(2026, 10, day, 15, 30),
     lines: const [
       OrderLine(
@@ -638,15 +732,21 @@ class FakeOrderRepository implements OrderRepository {
   /// Las líneas de cada pedido, como llegaron.
   final placed = <List<OrderLineRequest>>[];
 
+  /// El tipo de entrega y la dirección de cada pedido, como llegaron.
+  final deliveries = <(FulfillmentType, String?)>[];
+
   @override
   Future<Order> place(
     String idToken, {
-    required String deliveryAddress,
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
+    String? deliveryAddress,
     required List<OrderLineRequest> lines,
   }) async {
     tokens.add(idToken);
     if (failure case final failure?) throw failure;
     placed.add(lines);
+    deliveries.add((fulfillmentType, deliveryAddress));
+    final pickup = fulfillmentType == FulfillmentType.pickup;
     final changes = <PriceChange>[];
     final orderLines = [
       for (final line in lines)
@@ -677,8 +777,11 @@ class FakeOrderRepository implements OrderRepository {
     final order = Order(
       id: 'pedido-${orders.length + 1}',
       status: OrderStatus.pendingConfirmation,
+      fulfillmentType: fulfillmentType,
+      // Como el servidor: el código lo genera él, solo con recojo.
+      pickupCode: pickup ? 'K7M2XQ' : null,
       totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
-      deliveryAddress: deliveryAddress,
+      deliveryAddress: pickup ? null : deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,
       priceChanges: changes,
@@ -703,8 +806,10 @@ class FakeOrderRepository implements OrderRepository {
     orders[i] = Order(
       id: order.id,
       status: status,
+      fulfillmentType: order.fulfillmentType,
       totalCents: order.totalCents,
       deliveryAddress: order.deliveryAddress,
+      pickupCode: order.pickupCode,
       createdAt: order.createdAt,
       lines: order.lines,
     );

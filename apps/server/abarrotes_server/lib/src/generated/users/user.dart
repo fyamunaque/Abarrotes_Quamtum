@@ -17,6 +17,7 @@ import '../inventory/inventory_movement.dart' as _i4yp9mtd;
 import '../orders/order.dart' as _ij3i88ow;
 import '../staff/audit_log.dart' as _iohhzbvb;
 import '../staff/staff_member.dart' as _i3fhtrko;
+import '../store/store_settings.dart' as _ispes5g9;
 import '../users/device_token.dart' as _iuurxiuf;
 import '../vip/vip_customer.dart' as _icy1qtyi;
 
@@ -40,6 +41,7 @@ abstract class User
     this.deviceTokens,
     this.staffMembersAdded,
     this.auditLogs,
+    this.storeSettingsUpdated,
   }) : emailVerified = emailVerified ?? false,
        createdAt = createdAt ?? DateTime.now();
 
@@ -58,6 +60,7 @@ abstract class User
     List<_iuurxiuf.DeviceToken>? deviceTokens,
     List<_i3fhtrko.StaffMember>? staffMembersAdded,
     List<_iohhzbvb.AuditLog>? auditLogs,
+    List<_ispes5g9.StoreSettings>? storeSettingsUpdated,
   }) = _UserImpl;
 
   factory User.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -106,6 +109,11 @@ abstract class User
           : _i1p9jj0z.Protocol().deserialize<List<_iohhzbvb.AuditLog>>(
               jsonSerialization['auditLogs'],
             ),
+      storeSettingsUpdated: jsonSerialization['storeSettingsUpdated'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<List<_ispes5g9.StoreSettings>>(
+              jsonSerialization['storeSettingsUpdated'],
+            ),
     );
   }
 
@@ -145,6 +153,8 @@ abstract class User
 
   List<_iohhzbvb.AuditLog>? auditLogs;
 
+  List<_ispes5g9.StoreSettings>? storeSettingsUpdated;
+
   @override
   _is.Table<_is.UuidValue?> get table => t;
 
@@ -166,6 +176,7 @@ abstract class User
     List<_iuurxiuf.DeviceToken>? deviceTokens,
     List<_i3fhtrko.StaffMember>? staffMembersAdded,
     List<_iohhzbvb.AuditLog>? auditLogs,
+    List<_ispes5g9.StoreSettings>? storeSettingsUpdated,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -197,6 +208,10 @@ abstract class User
         ),
       if (auditLogs != null)
         'auditLogs': auditLogs?.toJson(valueToJson: (v) => v.toJson()),
+      if (storeSettingsUpdated != null)
+        'storeSettingsUpdated': storeSettingsUpdated?.toJson(
+          valueToJson: (v) => v.toJson(),
+        ),
     };
   }
 
@@ -234,6 +249,10 @@ abstract class User
         'auditLogs': auditLogs?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (storeSettingsUpdated != null)
+        'storeSettingsUpdated': storeSettingsUpdated?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
     };
   }
 
@@ -244,6 +263,7 @@ abstract class User
     _iuurxiuf.DeviceTokenIncludeList? deviceTokens,
     _i3fhtrko.StaffMemberIncludeList? staffMembersAdded,
     _iohhzbvb.AuditLogIncludeList? auditLogs,
+    _ispes5g9.StoreSettingsIncludeList? storeSettingsUpdated,
   }) {
     return UserInclude._(
       orders: orders,
@@ -252,6 +272,7 @@ abstract class User
       deviceTokens: deviceTokens,
       staffMembersAdded: staffMembersAdded,
       auditLogs: auditLogs,
+      storeSettingsUpdated: storeSettingsUpdated,
     );
   }
 
@@ -297,6 +318,7 @@ class _UserImpl extends User {
     List<_iuurxiuf.DeviceToken>? deviceTokens,
     List<_i3fhtrko.StaffMember>? staffMembersAdded,
     List<_iohhzbvb.AuditLog>? auditLogs,
+    List<_ispes5g9.StoreSettings>? storeSettingsUpdated,
   }) : super._(
          id: id,
          firebaseUid: firebaseUid,
@@ -312,6 +334,7 @@ class _UserImpl extends User {
          deviceTokens: deviceTokens,
          staffMembersAdded: staffMembersAdded,
          auditLogs: auditLogs,
+         storeSettingsUpdated: storeSettingsUpdated,
        );
 
   /// Returns a shallow copy of this [User]
@@ -333,6 +356,7 @@ class _UserImpl extends User {
     Object? deviceTokens = _Undefined,
     Object? staffMembersAdded = _Undefined,
     Object? auditLogs = _Undefined,
+    Object? storeSettingsUpdated = _Undefined,
   }) {
     return User(
       id: id is _is.UuidValue? ? id : this.id,
@@ -362,6 +386,10 @@ class _UserImpl extends User {
       auditLogs: auditLogs is List<_iohhzbvb.AuditLog>?
           ? auditLogs
           : this.auditLogs?.map((e0) => e0.copyWith()).toList(),
+      storeSettingsUpdated:
+          storeSettingsUpdated is List<_ispes5g9.StoreSettings>?
+          ? storeSettingsUpdated
+          : this.storeSettingsUpdated?.map((e0) => e0.copyWith()).toList(),
     );
   }
 }
@@ -484,6 +512,10 @@ class UserTable extends _is.Table<_is.UuidValue?> {
 
   _is.ManyRelation<_iohhzbvb.AuditLogTable>? _auditLogs;
 
+  _ispes5g9.StoreSettingsTable? ___storeSettingsUpdated;
+
+  _is.ManyRelation<_ispes5g9.StoreSettingsTable>? _storeSettingsUpdated;
+
   _ij3i88ow.OrderTable get __orders {
     if (___orders != null) return ___orders!;
     ___orders = _is.createRelationTable(
@@ -560,6 +592,19 @@ class UserTable extends _is.Table<_is.UuidValue?> {
           _iohhzbvb.AuditLogTable(tableRelation: foreignTableRelation),
     );
     return ___auditLogs!;
+  }
+
+  _ispes5g9.StoreSettingsTable get __storeSettingsUpdated {
+    if (___storeSettingsUpdated != null) return ___storeSettingsUpdated!;
+    ___storeSettingsUpdated = _is.createRelationTable(
+      relationFieldName: '__storeSettingsUpdated',
+      field: User.t.id,
+      foreignField: _ispes5g9.StoreSettings.t.updatedByUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _ispes5g9.StoreSettingsTable(tableRelation: foreignTableRelation),
+    );
+    return ___storeSettingsUpdated!;
   }
 
   _is.ManyRelation<_ij3i88ow.OrderTable> get orders {
@@ -676,6 +721,25 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     return _auditLogs!;
   }
 
+  _is.ManyRelation<_ispes5g9.StoreSettingsTable> get storeSettingsUpdated {
+    if (_storeSettingsUpdated != null) return _storeSettingsUpdated!;
+    var relationTable = _is.createRelationTable(
+      relationFieldName: 'storeSettingsUpdated',
+      field: User.t.id,
+      foreignField: _ispes5g9.StoreSettings.t.updatedByUserId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _ispes5g9.StoreSettingsTable(tableRelation: foreignTableRelation),
+    );
+    _storeSettingsUpdated = _is.ManyRelation<_ispes5g9.StoreSettingsTable>(
+      tableWithRelations: relationTable,
+      table: _ispes5g9.StoreSettingsTable(
+        tableRelation: relationTable.tableRelation!.lastRelation,
+      ),
+    );
+    return _storeSettingsUpdated!;
+  }
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -708,6 +772,9 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'auditLogs') {
       return __auditLogs;
     }
+    if (relationField == 'storeSettingsUpdated') {
+      return __storeSettingsUpdated;
+    }
     return null;
   }
 }
@@ -720,6 +787,7 @@ class UserInclude extends _is.IncludeObject {
     _iuurxiuf.DeviceTokenIncludeList? deviceTokens,
     _i3fhtrko.StaffMemberIncludeList? staffMembersAdded,
     _iohhzbvb.AuditLogIncludeList? auditLogs,
+    _ispes5g9.StoreSettingsIncludeList? storeSettingsUpdated,
   }) {
     _orders = orders;
     _inventoryMovements = inventoryMovements;
@@ -727,6 +795,7 @@ class UserInclude extends _is.IncludeObject {
     _deviceTokens = deviceTokens;
     _staffMembersAdded = staffMembersAdded;
     _auditLogs = auditLogs;
+    _storeSettingsUpdated = storeSettingsUpdated;
   }
 
   _ij3i88ow.OrderIncludeList? _orders;
@@ -741,6 +810,8 @@ class UserInclude extends _is.IncludeObject {
 
   _iohhzbvb.AuditLogIncludeList? _auditLogs;
 
+  _ispes5g9.StoreSettingsIncludeList? _storeSettingsUpdated;
+
   @override
   Map<String, _is.Include?> get includes => {
     'orders': _orders,
@@ -749,6 +820,7 @@ class UserInclude extends _is.IncludeObject {
     'deviceTokens': _deviceTokens,
     'staffMembersAdded': _staffMembersAdded,
     'auditLogs': _auditLogs,
+    'storeSettingsUpdated': _storeSettingsUpdated,
   };
 
   @override
@@ -1333,6 +1405,31 @@ class UserAttachRepository {
       transaction: transaction,
     );
   }
+
+  /// Creates a relation between this [User] and the given [StoreSettings]s
+  /// by setting each [StoreSettings]'s foreign key `updatedByUserId` to refer to this [User].
+  Future<void> storeSettingsUpdated(
+    _is.DatabaseSession session,
+    User user,
+    List<_ispes5g9.StoreSettings> storeSettings, {
+    _is.Transaction? transaction,
+  }) async {
+    if (storeSettings.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('storeSettings.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $storeSettings = storeSettings
+        .map((e) => e.copyWith(updatedByUserId: user.id))
+        .toList();
+    await session.db.update<_ispes5g9.StoreSettings>(
+      $storeSettings,
+      columns: [_ispes5g9.StoreSettings.t.updatedByUserId],
+      transaction: transaction,
+    );
+  }
 }
 
 class UserAttachRowRepository {
@@ -1475,6 +1572,29 @@ class UserAttachRowRepository {
       transaction: transaction,
     );
   }
+
+  /// Creates a relation between this [User] and the given [StoreSettings]
+  /// by setting the [StoreSettings]'s foreign key `updatedByUserId` to refer to this [User].
+  Future<void> storeSettingsUpdated(
+    _is.DatabaseSession session,
+    User user,
+    _ispes5g9.StoreSettings storeSettings, {
+    _is.Transaction? transaction,
+  }) async {
+    if (storeSettings.id == null) {
+      throw ArgumentError.notNull('storeSettings.id');
+    }
+    if (user.id == null) {
+      throw ArgumentError.notNull('user.id');
+    }
+
+    var $storeSettings = storeSettings.copyWith(updatedByUserId: user.id);
+    await session.db.updateRow<_ispes5g9.StoreSettings>(
+      $storeSettings,
+      columns: [_ispes5g9.StoreSettings.t.updatedByUserId],
+      transaction: transaction,
+    );
+  }
 }
 
 class UserDetachRepository {
@@ -1525,6 +1645,30 @@ class UserDetachRepository {
       transaction: transaction,
     );
   }
+
+  /// Detaches the relation between this [User] and the given [StoreSettings]
+  /// by setting the [StoreSettings]'s foreign key `updatedByUserId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> storeSettingsUpdated(
+    _is.DatabaseSession session,
+    List<_ispes5g9.StoreSettings> storeSettings, {
+    _is.Transaction? transaction,
+  }) async {
+    if (storeSettings.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('storeSettings.id');
+    }
+
+    var $storeSettings = storeSettings
+        .map((e) => e.copyWith(updatedByUserId: null))
+        .toList();
+    await session.db.update<_ispes5g9.StoreSettings>(
+      $storeSettings,
+      columns: [_ispes5g9.StoreSettings.t.updatedByUserId],
+      transaction: transaction,
+    );
+  }
 }
 
 class UserDetachRowRepository {
@@ -1570,6 +1714,28 @@ class UserDetachRowRepository {
     await session.db.updateRow<_iohhzbvb.AuditLog>(
       $auditLog,
       columns: [_iohhzbvb.AuditLog.t.actorUserId],
+      transaction: transaction,
+    );
+  }
+
+  /// Detaches the relation between this [User] and the given [StoreSettings]
+  /// by setting the [StoreSettings]'s foreign key `updatedByUserId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> storeSettingsUpdated(
+    _is.DatabaseSession session,
+    _ispes5g9.StoreSettings storeSettings, {
+    _is.Transaction? transaction,
+  }) async {
+    if (storeSettings.id == null) {
+      throw ArgumentError.notNull('storeSettings.id');
+    }
+
+    var $storeSettings = storeSettings.copyWith(updatedByUserId: null);
+    await session.db.updateRow<_ispes5g9.StoreSettings>(
+      $storeSettings,
+      columns: [_ispes5g9.StoreSettings.t.updatedByUserId],
       transaction: transaction,
     );
   }

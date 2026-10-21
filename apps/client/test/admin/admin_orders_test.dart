@@ -8,6 +8,7 @@ import 'package:neils/features/admin/orders/admin_orders_screen.dart';
 import 'package:neils/features/admin/shared/admin_table.dart';
 import 'package:neils/features/admin/shared/status_badge.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
 
 import '../fakes.dart';
@@ -83,6 +84,69 @@ void main() {
     expect(find.text('1–3 de 3'), findsOneWidget);
   });
 
+  testWidgets('la columna y el filtro "Entrega"', (tester) async {
+    repository.orders.add(
+      adminOrder(
+        'o-4',
+        OrderStatus.preparing,
+        customer: 'Rosa Recojo',
+        pickupCode: 'K7M2XQ',
+      ),
+    );
+    await pumpOrders(tester);
+    Finder inTable(Finder finder) => find.descendant(
+      of: find.byType(AdminTable<AdminOrder>),
+      matching: finder,
+    );
+
+    expect(inTable(find.text('Entrega')), findsOneWidget);
+    expect(inTable(find.text('Domicilio')), findsNWidgets(3));
+    expect(inTable(find.text('Recojo')), findsOneWidget);
+    expect(inTable(find.byIcon(Icons.storefront_outlined)), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Recojo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Rosa Recojo'), findsOneWidget);
+    expect(find.text('Ana Quispe'), findsNothing);
+
+    // Los dos filtros juntos.
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Confirmado'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Confirmado'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Ningún pedido coincide con los filtros.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Domicilio y recojo'));
+    await tester.pumpAndSettle();
+    expect(find.text('Luis Rojas'), findsOneWidget);
+  });
+
+  testWidgets('en escritorio, los chips que no entran bajan de línea', (
+    tester,
+  ) async {
+    // Con el mouse no se desliza de lado: ningún chip puede quedar cortado.
+    await pumpOrders(tester, width: 1000);
+
+    for (final status in OrderStatus.values) {
+      final chip = find.widgetWithText(ChoiceChip, status.label);
+      expect(
+        tester.getRect(chip).right,
+        lessThanOrEqualTo(1000),
+        reason: status.label,
+      );
+    }
+    final first = tester.getRect(find.widgetWithText(ChoiceChip, 'Todos'));
+    final last = tester.getRect(find.widgetWithText(ChoiceChip, 'Cancelado'));
+    expect(last.top, greaterThan(first.top));
+    // "Estado" a la altura de la primera fila de chips.
+    expect(
+      tester.getCenter(find.text('Estado').first).dy,
+      closeTo(first.center.dy, 2),
+    );
+  });
+
   testWidgets('filtrar por estado', (tester) async {
     await pumpOrders(tester);
 
@@ -92,6 +156,7 @@ void main() {
     expect(find.text('Luis Rojas'), findsOneWidget);
     expect(find.text('Ana Quispe'), findsNothing);
 
+    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'En camino'));
     await tester.tap(find.widgetWithText(ChoiceChip, 'En camino'));
     await tester.pumpAndSettle();
     expect(find.text('No hay pedidos en estado "En camino".'), findsOneWidget);
@@ -205,6 +270,104 @@ void main() {
       find.widgetWithText(FilledButton, 'Marcar en camino'),
       findsOneWidget,
     );
+  });
+
+  group('recojo en tienda', () {
+    setUp(() {
+      repository = FakeAdminOrdersRepository([
+        adminOrder(
+          'o-1',
+          OrderStatus.confirmed,
+          customer: 'Ana Quispe',
+          pickupCode: 'K7M2XQ',
+        ),
+      ]);
+    });
+
+    testWidgets('los botones salen de lo que manda el servidor', (
+      tester,
+    ) async {
+      await pumpOrders(tester);
+      await open(tester, 'Ana Quispe');
+
+      expect(find.text('Recojo en tienda'), findsOneWidget);
+      expect(find.text('Código K7M2XQ'), findsOneWidget);
+      expect(
+        tester.widget<OrderTracker>(find.byType(OrderTracker)).fulfillmentType,
+        FulfillmentType.pickup,
+      );
+      // De confirmado a preparando: nunca "en camino".
+      expect(find.text('Marcar en camino'), findsNothing);
+      await tester.tap(find.widgetWithText(FilledButton, 'Empezar a preparar'));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.widgetWithText(FilledButton, 'Marcar listo para recoger'),
+      );
+      await tester.pumpAndSettle();
+
+      expect(repository.changes, [
+        ('o-1', OrderStatus.preparing),
+        ('o-1', OrderStatus.readyForPickup),
+      ]);
+      expect(badgeText(tester, 'Ana Quispe'), 'En espera de recojo');
+      expect(
+        find.widgetWithText(FilledButton, 'Marcar recogido'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('recogerlo pide el código del cliente', (tester) async {
+      repository.orders[0] = adminOrder(
+        'o-1',
+        OrderStatus.readyForPickup,
+        customer: 'Ana Quispe',
+        pickupCode: 'K7M2XQ',
+      );
+      await pumpOrders(tester);
+      await open(tester, 'Ana Quispe');
+      Finder confirmButton() => find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.widgetWithText(FilledButton, 'Marcar recogido'),
+      );
+
+      // Volver atrás no cambia nada.
+      await tester.tap(find.widgetWithText(FilledButton, 'Marcar recogido'));
+      await tester.pumpAndSettle();
+      expect(find.text('Código de recojo'), findsOneWidget);
+      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNull);
+      await tester.tap(find.text('Volver'));
+      await tester.pumpAndSettle();
+      expect(repository.pickupCodes, isEmpty);
+
+      // Un código que no coincide: el motivo del servidor, en el mismo
+      // diálogo, para volver a escribirlo.
+      await tester.tap(find.widgetWithText(FilledButton, 'Marcar recogido'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'K7M2XA');
+      await tester.pump();
+      await tester.tap(confirmButton());
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(
+          of: find.byType(AlertDialog),
+          matching: find.text('El código de recojo no coincide'),
+        ),
+        findsOneWidget,
+      );
+      expect(repository.changes, isEmpty);
+
+      await tester.enterText(find.byType(TextField).last, 'k7m2xq');
+      await tester.pump();
+      expect(find.text('El código de recojo no coincide'), findsNothing);
+      await tester.tap(confirmButton());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(repository.pickupCodes.last, 'k7m2xq');
+      expect(repository.changes, [('o-1', OrderStatus.delivered)]);
+      expect(badgeText(tester, 'Ana Quispe'), 'Recogido');
+      expect(find.text('Este pedido ya no cambia de estado.'), findsOneWidget);
+    });
   });
 
   testWidgets('"Actualizar" trae los pedidos nuevos', (tester) async {

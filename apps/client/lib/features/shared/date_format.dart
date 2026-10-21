@@ -34,3 +34,18 @@ String formatStoreRange(BuildContext context, DateTime start, DateTime end) {
       : localizations.formatShortMonthDay(start);
   return '$from – ${formatStoreDay(context, end)}';
 }
+
+/// Cuánto pasó desde [since] hasta [now]: "hace menos de 1 min",
+/// "hace 12 min", "hace 1 h 5 min" o "hace 2 d".
+String formatElapsed(DateTime since, DateTime now) {
+  final elapsed = now.difference(since);
+  if (elapsed.inMinutes < 1) return 'hace menos de 1 min';
+  if (elapsed.inHours < 1) return 'hace ${elapsed.inMinutes} min';
+  if (elapsed.inDays < 1) {
+    final minutes = elapsed.inMinutes % 60;
+    return minutes == 0
+        ? 'hace ${elapsed.inHours} h'
+        : 'hace ${elapsed.inHours} h $minutes min';
+  }
+  return 'hace ${elapsed.inDays} d';
+}

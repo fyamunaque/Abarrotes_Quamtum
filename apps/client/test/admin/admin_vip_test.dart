@@ -239,6 +239,13 @@ void main() {
 
     expect(statuses(tester), hasLength(2));
     expect(find.text('1–2 de 3'), findsOneWidget);
+    // En escritorio, el buscador no ocupa todo el ancho: queda a la izquierda.
+    final search = find.widgetWithText(TextField, 'Buscar por correo');
+    expect(tester.getSize(search).width, 320);
+    expect(
+      tester.getTopLeft(search).dx,
+      tester.getTopLeft(find.byType(AdminTable<VipCustomer>)).dx,
+    );
     await tapAndSettle(tester, find.byTooltip('Página siguiente'));
     expect(inTable('maria@tienda.pe'), findsOneWidget);
 

@@ -1,16 +1,11 @@
 import '../../generated/protocol.dart';
 import 'order_state_handler.dart';
 
-/// Aceptado por la tienda: sale a reparto o se cancela.
+/// Aceptado por la tienda: según el flujo, sale a reparto o se prepara para
+/// recoger; o se cancela.
 class ConfirmedState extends OrderStateHandler {
-  const ConfirmedState();
+  const ConfirmedState(super.flow);
 
   @override
   OrderStatus get status => OrderStatus.confirmed;
-
-  @override
-  List<OrderStatus> get nextStatuses => const [
-    OrderStatus.outForDelivery,
-    OrderStatus.cancelled,
-  ];
 }

@@ -1,4 +1,5 @@
 import '../common/page_list.dart';
+import 'fulfillment.dart';
 import 'order.dart';
 
 /// Lo que se pide de un producto. [shownUnitPriceCents] es el precio que
@@ -14,10 +15,13 @@ typedef OrderLineRequest = ({
 /// errores salen como `ApiFailure` (p. ej. 409 si un producto ya no tiene
 /// stock, con el mensaje del servidor).
 abstract interface class OrderRepository {
-  /// Crea el pedido (`POST /orders`); queda pendiente de confirmación.
+  /// Crea el pedido (`POST /orders`); queda pendiente de confirmación. A
+  /// domicilio lleva [deliveryAddress]; con recojo en tienda, no (el
+  /// servidor le genera su código).
   Future<Order> place(
     String idToken, {
-    required String deliveryAddress,
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
+    String? deliveryAddress,
     required List<OrderLineRequest> lines,
   });
 

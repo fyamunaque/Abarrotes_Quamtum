@@ -21,6 +21,7 @@ fields:
   deviceTokens: List<DeviceToken>?, relation(name=user_device_tokens)
   staffMembersAdded: List<StaffMember>?, relation(name=user_staff_members_added)
   auditLogs: List<AuditLog>?, relation(name=user_audit_logs)
+  storeSettingsUpdated: List<StoreSettings>?, relation(name=user_store_settings_updated)
 indexes:
   users_firebase_uid_idx:
     fields: firebaseUid

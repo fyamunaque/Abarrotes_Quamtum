@@ -3,11 +3,24 @@ table: orders
 fields:
   id: UuidValue?, defaultPersist=random_v7
   status: OrderStatus, default=pendingConfirmation
+  ### A domicilio (por defecto, como todos los pedidos de antes) o recojo en
+  ### tienda.
+  fulfillmentType: FulfillmentType, default=delivery
   ### Total en céntimos.
   totalCents: int
-  deliveryAddress: String
+  ### Solo a domicilio: el servidor la exige ahí; en recojo va null.
+  deliveryAddress: String?
+  ### Solo en recojo: 6 caracteres sin 0/O/1/I, que el cliente muestra en caja.
+  ### Lo genera el servidor; único en toda la tabla.
+  pickupCode: String?
+  ### Cuándo quedó listo para recoger.
+  readyForPickupAt: DateTime?
   createdAt: DateTime, default=now
   ### Serverpod no tiene @updatedAt: lo actualiza quien modifica el pedido.
   updatedAt: DateTime, default=now
   customer: User?, relation(name=user_orders, onDelete=Restrict, onUpdate=Cascade)
   items: List<OrderItem>?, relation(name=order_items)
+indexes:
+  orders_pickup_code_idx:
+    fields: pickupCode
+    unique: true

@@ -8,6 +8,8 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../inventory/inventory_service.dart';
 import '../promotions/promotion_pricing.dart';
+import 'order_status_notifier.dart';
+import 'pickup_code.dart';
 import 'states/order_states.dart';
 
 /// Una línea del pedido tal como la manda el cliente. Los precios los pone el
@@ -31,21 +33,34 @@ typedef PriceChange = ({
 typedef PlacedOrder = ({Order order, List<PriceChange> priceChanges});
 
 /// Pedidos: los del cliente (crear y ver los suyos) y los del dashboard
-/// (listado y cambios de estado).
+/// (listado y cambios de estado). A domicilio o con recojo en tienda: el
+/// camino de cada uno lo deciden su flujo y sus estados (`fulfillment/` y
+/// `states/`).
 class OrdersService {
   OrdersService({
     required this._pricing,
     this._inventory = const InventoryService(),
+    this._pickupCode = randomPickupCode,
+    this._notifier = const NoOrderStatusNotifier(),
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
   final PromotionPricing _pricing;
   final InventoryService _inventory;
+  final PickupCodeGenerator _pickupCode;
+  final OrderStatusNotifier _notifier;
   final DateTime Function() _now;
+
+  /// Cuántos códigos de recojo se prueban antes de rendirse: con mil
+  /// millones posibles, el segundo ya casi nunca hace falta.
+  static const _pickupCodeAttempts = 10;
 
   /// Crea el pedido de [customer] en `pendingConfirmation` y descuenta el
   /// stock, todo en una transacción: si un producto no está disponible o no
   /// alcanza, no se guarda nada.
+  ///
+  /// A domicilio lleva [deliveryAddress] (las rutas la exigen); con recojo en
+  /// tienda no lleva dirección y se le genera su código, único en la tabla.
   ///
   /// Cobra por producto la mejor promoción vigente que [shopper] puede usar
   /// (la más barata) o, si no hay, el precio normal. Si el carrito mostraba
@@ -61,9 +76,14 @@ class OrdersService {
     Session session, {
     required User customer,
     required Shopper shopper,
-    required String deliveryAddress,
+    required FulfillmentType fulfillmentType,
+    String? deliveryAddress,
     required List<OrderLineInput> lines,
-  }) {
+  }) async {
+    final pickup = fulfillmentType == FulfillmentType.pickup;
+    if (!pickup && deliveryAddress == null) {
+      throw ArgumentError.notNull('deliveryAddress');
+    }
     final quantities = <UuidValue, int>{};
     final shownPrices = <UuidValue, int>{};
     for (final line in lines) {
@@ -76,6 +96,34 @@ class OrdersService {
         shownPrices.putIfAbsent(line.productId, () => shown);
       }
     }
+    try {
+      return await _create(
+        session,
+        customer: customer,
+        shopper: shopper,
+        fulfillmentType: fulfillmentType,
+        deliveryAddress: pickup ? null : deliveryAddress,
+        quantities: quantities,
+        shownPrices: shownPrices,
+      );
+    } on DatabaseUniqueViolationException {
+      // Dos pedidos de recojo sacaron el mismo código a la vez: el índice
+      // único de pickupCode deja pasar uno solo.
+      throw const ApiException.conflict(
+        'No se pudo reservar el código de recojo: vuelve a intentarlo',
+      );
+    }
+  }
+
+  Future<PlacedOrder> _create(
+    Session session, {
+    required User customer,
+    required Shopper shopper,
+    required FulfillmentType fulfillmentType,
+    required String? deliveryAddress,
+    required Map<UuidValue, int> quantities,
+    required Map<UuidValue, int> shownPrices,
+  }) {
     final productIds = quantities.keys.toList()
       ..sort((a, b) => a.toString().compareTo(b.toString()));
 
@@ -129,8 +177,12 @@ class OrdersService {
         session,
         Order(
           status: OrderStatus.pendingConfirmation,
+          fulfillmentType: fulfillmentType,
           totalCents: total,
           deliveryAddress: deliveryAddress,
+          pickupCode: fulfillmentType == FulfillmentType.pickup
+              ? await _freePickupCode(session, transaction)
+              : null,
           createdAt: now,
           updatedAt: now,
           customerId: customer.id!,
@@ -173,6 +225,25 @@ class OrdersService {
     });
   }
 
+  /// Un código de recojo que ningún pedido tiene todavía.
+  Future<String> _freePickupCode(
+    Session session,
+    Transaction transaction,
+  ) async {
+    for (var attempt = 0; attempt < _pickupCodeAttempts; attempt++) {
+      final code = _pickupCode();
+      final taken = await Order.db.count(
+        session,
+        where: (order) => order.pickupCode.equals(code),
+        transaction: transaction,
+      );
+      if (taken == 0) return code;
+    }
+    throw const ApiException.conflict(
+      'No se pudo generar un código de recojo: vuelve a intentarlo',
+    );
+  }
+
   /// Los pedidos de [customer], paginados, los más recientes primero.
   Future<(List<Order>, int)> mine(
     Session session,
@@ -199,6 +270,7 @@ class OrdersService {
     Session session,
     PageQuery page, {
     OrderStatus? status,
+    FulfillmentType? fulfillmentType,
     String? from,
     String? to,
   }) async {
@@ -208,6 +280,9 @@ class OrdersService {
     Expression where(OrderTable order) {
       Expression filter = Constant.bool(true);
       if (status != null) filter &= order.status.equals(status);
+      if (fulfillmentType != null) {
+        filter &= order.fulfillmentType.equals(fulfillmentType);
+      }
       if (from != null) filter &= order.createdAt >= storeDayStart(from);
       if (to != null) {
         filter &= order.createdAt < storeDayStart(addDays(to, 1));
@@ -227,17 +302,49 @@ class OrdersService {
     return (orders, total);
   }
 
-  /// Cambia el estado si el estado actual lo permite (patrón State, ver
-  /// states/). Al cancelar, devuelve al inventario el stock que descontó el
-  /// pedido, a nombre de [by]. Todo pasa en una transacción con la fila del
-  /// pedido bloqueada: si dos personas lo cambian a la vez, la segunda espera
-  /// y se valida contra el estado ya cambiado (así el stock nunca se devuelve
-  /// dos veces).
+  /// Cambia el estado si el flujo del pedido lo permite y el estado actual
+  /// deja salir (patrón State con el flujo como Strategy, ver states/ y
+  /// fulfillment/): un pedido de recojo se entrega con su [pickupCode]. El
+  /// estado nuevo guarda lo suyo (p. ej. cuándo quedó listo para recoger).
+  /// Al cancelar, devuelve al inventario el stock que descontó el pedido, a
+  /// nombre de [by]. Todo pasa en una transacción con la fila del pedido
+  /// bloqueada: si dos personas lo cambian a la vez, la segunda espera y se
+  /// valida contra el estado ya cambiado (así el stock nunca se devuelve dos
+  /// veces).
+  ///
+  /// Ya guardado el cambio, avisa al cliente (ver [OrderStatusNotifier]): sin
+  /// esperar, y si el aviso falla, el cambio de estado queda igual.
   Future<Order> changeStatus(
     Session session,
     UuidValue id,
     OrderStatus next, {
     required User by,
+    String? pickupCode,
+  }) async {
+    final changed = await _changeStatus(
+      session,
+      id,
+      next,
+      by: by,
+      pickupCode: pickupCode,
+    );
+    try {
+      _notifier.statusChanged(changed);
+    } on Object catch (error) {
+      session.log(
+        'No se pudo avisar del pedido ${changed.id}: $error',
+        level: LogLevel.warning,
+      );
+    }
+    return changed;
+  }
+
+  Future<Order> _changeStatus(
+    Session session,
+    UuidValue id,
+    OrderStatus next, {
+    required User by,
+    String? pickupCode,
   }) {
     return session.db.transaction((transaction) async {
       final order = await Order.db.findById(
@@ -250,15 +357,28 @@ class OrdersService {
         throw const ApiException(404, 'Pedido no encontrado');
       }
 
-      final current = orderStateOf(order.status);
+      final current = orderStateOfOrder(order);
       if (!current.canTransitionTo(next)) {
         throw ApiException.badRequest(current.rejectionReason(next));
       }
+      if (current.exitProblem(order, next, pickupCode: pickupCode)
+          case final problem?) {
+        throw ApiException.badRequest(problem);
+      }
 
+      final now = _now().toUtc();
+      final entered = orderStateOf(
+        next,
+        current.flow,
+      ).onEnter(order.copyWith(status: next, updatedAt: now), now);
       await Order.db.updateRow(
         session,
-        order.copyWith(status: next, updatedAt: _now().toUtc()),
-        columns: (order) => [order.status, order.updatedAt],
+        entered,
+        columns: (order) => [
+          order.status,
+          order.updatedAt,
+          order.readyForPickupAt,
+        ],
         transaction: transaction,
       );
       if (next == OrderStatus.cancelled) {

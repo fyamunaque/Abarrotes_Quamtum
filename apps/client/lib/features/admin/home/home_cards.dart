@@ -6,6 +6,7 @@ import '../../../admin/stats/stats.dart';
 import '../../../admin/stats/stats_providers.dart';
 import '../../../common/days.dart';
 import '../../../common/money.dart';
+import '../../../orders/fulfillment.dart';
 import '../../../orders/order_status.dart';
 import '../../../router/routes.dart';
 import '../../../session/session_provider.dart';
@@ -97,8 +98,8 @@ class HomeCard<T> extends StatelessWidget {
   }
 }
 
-/// Ventas de hoy, la semana y el mes, el ticket promedio y los pedidos por
-/// estado.
+/// Ventas de hoy, la semana y el mes, el ticket promedio, y los pedidos por
+/// estado y por tipo de entrega.
 class KpiSection extends ConsumerWidget {
   const KpiSection({super.key});
 
@@ -121,6 +122,8 @@ class KpiSection extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           _OrdersByStatus(overview.ordersByStatus),
+          const SizedBox(height: 12),
+          _OrdersByFulfillment(overview.ordersByFulfillment),
         ],
       ),
       AsyncError(:final error) => Card(
@@ -185,6 +188,75 @@ class _StatTile extends StatelessWidget {
 }
 
 String _orders(int count) => count == 1 ? '1 pedido' : '$count pedidos';
+
+/// Cuántos pedidos son a domicilio y cuántos de recojo en tienda, con su
+/// parte del total.
+class _OrdersByFulfillment extends StatelessWidget {
+  const _OrdersByFulfillment(this.counts);
+
+  final Map<FulfillmentType, int> counts;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final total = counts.values.fold(0, (sum, count) => sum + count);
+    String share(int count) =>
+        total == 0 ? '' : ' (${(count * 100 / total).round()} %)';
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                'Pedidos por tipo de entrega',
+                style: theme.textTheme.titleMedium,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 24,
+              runSpacing: 12,
+              children: [
+                for (final type in FulfillmentType.values)
+                  MergeSemantics(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          switch (type) {
+                            FulfillmentType.delivery =>
+                              Icons.local_shipping_outlined,
+                            FulfillmentType.pickup => Icons.storefront_outlined,
+                          },
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            type.label,
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          '${counts[type] ?? 0}${share(counts[type] ?? 0)}',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 /// Si la cuenta puede abrir [path]: los enlaces a otra sección solo salen
 /// con su permiso.
@@ -575,7 +647,7 @@ class _ItemList extends StatelessWidget {
 }
 
 /// Columnas de al menos [minWidth], entre 1 y [maxColumns], todas del mismo
-/// ancho.
+/// ancho. Las tarjetas de una fila tienen el alto de la más alta.
 class ResponsiveGrid extends StatelessWidget {
   const ResponsiveGrid({
     super.key,
@@ -598,12 +670,28 @@ class ResponsiveGrid extends StatelessWidget {
           1,
           maxColumns,
         );
-        final width = (constraints.maxWidth - _gap * (columns - 1)) / columns;
-        return Wrap(
-          spacing: _gap,
-          runSpacing: _gap,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            for (final child in children) SizedBox(width: width, child: child),
+            for (var start = 0; start < children.length; start += columns) ...[
+              if (start > 0) const SizedBox(height: _gap),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = start; i < start + columns; i++) ...[
+                      if (i > start) const SizedBox(width: _gap),
+                      // La última fila, si queda incompleta, con huecos.
+                      Expanded(
+                        child: i < children.length
+                            ? children[i]
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
           ],
         );
       },

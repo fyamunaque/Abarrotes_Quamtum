@@ -13,12 +13,15 @@
 import 'package:serverpod/serverpod.dart' as _is;
 
 /// Enum fijo (CLAUDE.md): no agregar estados sin actualizar la app Flutter.
+/// Las transiciones dependen del tipo de entrega (ver fulfillment/).
 enum OrderStatus implements _is.SerializableModel {
   pendingConfirmation,
   confirmed,
   outForDelivery,
   delivered,
-  cancelled;
+  cancelled,
+  preparing,
+  readyForPickup;
 
   static OrderStatus fromJson(String name) {
     switch (name) {
@@ -32,6 +35,10 @@ enum OrderStatus implements _is.SerializableModel {
         return OrderStatus.delivered;
       case 'cancelled':
         return OrderStatus.cancelled;
+      case 'preparing':
+        return OrderStatus.preparing;
+      case 'readyForPickup':
+        return OrderStatus.readyForPickup;
       default:
         throw ArgumentError(
           'Value "$name" cannot be converted to "OrderStatus"',

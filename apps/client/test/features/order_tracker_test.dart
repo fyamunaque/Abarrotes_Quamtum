@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
@@ -14,6 +15,7 @@ void main() {
     WidgetTester tester,
     OrderStatus status, {
     bool reduceMotion = false,
+    FulfillmentType fulfillmentType = FulfillmentType.delivery,
   }) => tester.pumpWidget(
     MaterialApp(
       theme: neilsTheme(),
@@ -21,7 +23,13 @@ void main() {
         data: MediaQueryData(disableAnimations: reduceMotion),
         child: Scaffold(
           body: Center(
-            child: SizedBox(width: 360, child: OrderTracker(status: status)),
+            child: SizedBox(
+              width: 360,
+              child: OrderTracker(
+                status: status,
+                fulfillmentType: fulfillmentType,
+              ),
+            ),
           ),
         ),
       ),
@@ -55,6 +63,8 @@ void main() {
       {
         OrderStatus.pendingConfirmation: const Color(0xFFD98C21),
         OrderStatus.confirmed: const Color(0xFF3C7A5F),
+        OrderStatus.preparing: const Color(0xFF7A5A9E),
+        OrderStatus.readyForPickup: const Color(0xFF2A8C82),
         OrderStatus.outForDelivery: const Color(0xFF2E6F9E),
         OrderStatus.delivered: const Color(0xFF3C7A5F),
         OrderStatus.cancelled: const Color(0xFF8C3B33),
@@ -139,6 +149,101 @@ void main() {
     expect(find.byIcon(Icons.check), findsNWidgets(4));
   });
 
+  testWidgets('de recojo: sus cinco pasos, hasta "Recogido"', (tester) async {
+    final semantics = tester.ensureSemantics();
+
+    await pumpTracker(
+      tester,
+      OrderStatus.readyForPickup,
+      fulfillmentType: FulfillmentType.pickup,
+    );
+    expect(
+      find.bySemanticsLabel(
+        'Estado del pedido: En espera de recojo, paso 4 de 5',
+      ),
+      findsOneWidget,
+    );
+    for (final label in [
+      'Por confirmar',
+      'Confirmado',
+      'Preparando',
+      'En espera de recojo',
+      'Recogido',
+    ]) {
+      expect(find.text(label), findsOneWidget);
+    }
+    expect(find.text('En camino'), findsNothing);
+    // Ocho medios tramos: llena hasta el cuarto paso, en su color.
+    expect(fills(tester), [1, 1, 1, 1, 1, 1, 0, 0]);
+    expect(fillColor(tester), const Color(0xFF2A8C82));
+    semantics.dispose();
+  });
+
+  testWidgets('de recojo, al avanzar la línea también se llena animada', (
+    tester,
+  ) async {
+    await pumpTracker(
+      tester,
+      OrderStatus.confirmed,
+      fulfillmentType: FulfillmentType.pickup,
+    );
+    await pumpTracker(
+      tester,
+      OrderStatus.preparing,
+      fulfillmentType: FulfillmentType.pickup,
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(tester.hasRunningAnimations, isTrue);
+    await tester.pumpAndSettle();
+    expect(fills(tester), [1, 1, 1, 1, 0, 0, 0, 0]);
+    expect(fillColor(tester), const Color(0xFF7A5A9E));
+  });
+
+  testWidgets('angosto: los nombres se achican parejos, sin cortar palabras', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: neilsTheme(),
+        home: const Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 280,
+              child: OrderTracker(
+                status: OrderStatus.preparing,
+                fulfillmentType: FulfillmentType.pickup,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    const labels = [
+      'Por confirmar',
+      'Confirmado',
+      'Preparando',
+      'En espera de recojo',
+      'Recogido',
+    ];
+    final base = Theme.of(tester.element(find.byType(OrderTracker)))
+        .textTheme
+        .labelMedium!
+        .fontSize!;
+    final sizes = {
+      for (final label in labels)
+        tester.widget<Text>(find.text(label)).style!.fontSize,
+    };
+
+    expect(sizes, hasLength(1));
+    expect(sizes.single, lessThan(base));
+    // Una palabra sola queda en una línea, como "Recogido".
+    final oneLine = tester.getSize(find.text('Recogido')).height;
+    for (final word in ['Confirmado', 'Preparando']) {
+      expect(tester.getSize(find.text(word)).height, oneLine, reason: word);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('el estado se lee como texto, no solo con color', (tester) async {
     final semantics = tester.ensureSemantics();
 
@@ -147,7 +252,12 @@ void main() {
       find.bySemanticsLabel('Estado del pedido: En camino, paso 3 de 4'),
       findsOneWidget,
     );
-    for (final label in ['Pendiente', 'Confirmado', 'En camino', 'Entregado']) {
+    for (final label in [
+      'Por confirmar',
+      'Confirmado',
+      'En camino',
+      'Entregado',
+    ]) {
       expect(find.text(label), findsOneWidget);
     }
 

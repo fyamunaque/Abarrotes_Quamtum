@@ -5,6 +5,7 @@ import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/inventory/stock_alerts.dart';
 import 'package:abarrotes_server/src/promotions/promotion_rules.dart';
 import 'package:abarrotes_server/src/stats/providers/expiring_products_report_provider.dart';
+import 'package:abarrotes_server/src/stats/providers/fulfillment_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/low_stock_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/order_status_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/overview_report_provider.dart';
@@ -136,6 +137,7 @@ void main() {
             overview: OverviewReportProvider(
               sales: sales,
               orderStatus: const OrderStatusReportProvider(),
+              fulfillment: const FulfillmentReportProvider(),
               now: () => testNow,
             ),
             sales: sales,

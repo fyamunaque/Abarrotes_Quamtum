@@ -37,10 +37,16 @@ abstract final class Routes {
   /// route_guard.dart).
   static const admin = '/admin';
   static const adminOrders = '/admin/pedidos';
+
+  /// Para caja: los pedidos de recojo que se preparan o esperan.
+  static const adminPickup = '/admin/pedidos/recoger';
   static const adminProducts = '/admin/productos';
   static const adminInventory = '/admin/inventario';
   static const adminPromotions = '/admin/promociones';
   static const adminVip = '/admin/clientes-vip';
+
+  /// Los datos de la tienda: solo con `store.manage`.
+  static const adminStore = '/admin/tienda';
 
   /// El equipo y sus roles: solo con `staff.manage`.
   static const adminTeam = '/admin/equipo';
@@ -62,6 +68,7 @@ abstract final class Routes {
     adminInventory,
     adminPromotions,
     adminVip,
+    adminStore,
     adminTeam,
   ];
 
@@ -76,6 +83,7 @@ abstract final class Routes {
     adminInventory: {StaffPermission.inventoryView},
     adminPromotions: {StaffPermission.promotionsManage},
     adminVip: {StaffPermission.vipView},
+    adminStore: {StaffPermission.storeManage},
     adminTeam: {StaffPermission.staffManage},
     adminRoles: {StaffPermission.staffManage},
   };

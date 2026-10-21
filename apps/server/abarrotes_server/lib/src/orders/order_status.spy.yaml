@@ -1,4 +1,5 @@
 ### Enum fijo (CLAUDE.md): no agregar estados sin actualizar la app Flutter.
+### Las transiciones dependen del tipo de entrega (ver fulfillment/).
 enum: OrderStatus
 serialized: byName
 values:
@@ -7,3 +8,5 @@ values:
   - outForDelivery
   - delivered
   - cancelled
+  - preparing
+  - readyForPickup
