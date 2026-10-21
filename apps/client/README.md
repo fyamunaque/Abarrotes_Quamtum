@@ -68,20 +68,24 @@ app.dart               MaterialApp.router: tema, router, español
 firebase_options.dart  config de Firebase por plataforma
 config/                URL del servidor (API_URL) y apiClientProvider
 auth/                  AuthRepository (Firebase Auth) y los providers de los repositorios
-users/                 UserRepository: el perfil y el rol desde GET /users/me
-session/               Session y sessionProvider (quién ingresó y con qué rol)
+users/                 UserRepository: el perfil, el rol y si es VIP, desde GET /users/me
+session/               Session, sessionProvider (quién ingresó, con qué rol, si es VIP y si
+                       confirmó su correo) e isVipProvider
 catalog/               Product, Category, CatalogRepository y sus providers
+offers/                Offer, OffersRepository (GET /promotions/active) y exclusiveOffersProvider
 cart/                  Cart, cartProvider (también hace el pedido) y CartStorage (dónde se guarda)
-orders/                Order, OrderStatus, OrderRepository y myOrdersProvider
+orders/                Order (con priceChanges), OrderStatus, OrderRepository, myOrdersProvider
+                       y placedOrderProvider
 admin/                 los datos del panel, un dominio por carpeta (stats, orders, products,
-                       inventory, promotions) y PagedNotifier
+                       inventory, promotions, vip) y PagedNotifier
 common/                ApiClient y AuthedApi (las rutas REST y sus errores), PageList,
                        formatSoles, los días de la tienda (days.dart)
 router/                rutas, guard y GoRouter
 theme/                 tokens de marca y de estados (brand_colors.dart), ThemeData
                        (neils_theme.dart) y movimiento (motion.dart)
-features/<sección>/    pantallas y componentes: home, auth, catalog, cart, orders, admin,
-                       showcase (la vitrina) y shared (logo, barra, swoosh, PressScale)
+features/<sección>/    pantallas y componentes: home, auth, catalog, cart, orders, offers,
+                       admin, showcase (la vitrina) y shared (logo, barra, swoosh,
+                       PressScale, VipTag, el aviso de verificación, RefreshOnResume)
 ```
 
 Las pantallas no hablan con Firebase ni con HTTP: usan providers, que usan los repositorios
@@ -173,19 +177,24 @@ flutter run -d chrome   # y abrir /vitrina
 | `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
-| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
-| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. |
-| `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario` y `/admin/promociones` (ver "El panel") |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, dirección de entrega (propone la del perfil) y "Confirmar pedido". Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento. "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
+| `/admin` y sus subrutas | Solo `admin` y `staff` | El panel: inicio, `/admin/pedidos`, `/admin/productos`, `/admin/inventario`, `/admin/promociones` y `/admin/clientes-vip` (ver "El panel") |
 
 **Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
 SharedPreferences en Android, `localStorage` en la web), así que sigue ahí al recargar o volver a
 abrir la app. Se guarda lo necesario para mostrarlo; datos rotos o de otra versión dejan el
 carrito vacío.
 - La cantidad va de 1 al stock, y como mucho a 999, lo que el servidor acepta por línea.
-- Los precios son los del catálogo al agregar. El servidor cobra los del momento del pedido, el de
-  la promoción vigente si la hay.
-- `placeOrder` hace el pedido con el ID token. Si sale bien, vacía el carrito y recarga "Mis
+- Los precios son los del catálogo al agregar (los VIP, para una cuenta VIP): el total es una
+  **estimación**. El servidor cobra los del momento del pedido, la mejor promoción que la cuenta
+  puede usar.
+- `placeOrder` hace el pedido con el ID token y manda el precio que mostraba cada línea
+  (`unitPrice`), que el servidor solo compara: si cobró otro, lo devuelve en `priceChanges`
+  y el aviso de "Mis pedidos" lo muestra. Si sale bien, vacía el carrito y recarga "Mis
   pedidos" y el catálogo (cambió el stock).
+- Si la cuenta deja de ser VIP (o se cierra la sesión), las líneas con precio VIP vuelven al
+  precio normal: quien no es VIP no ve precios VIP, tampoco en el mismo dispositivo.
 - Si el servidor lo rechaza (409 sin stock, 400 producto dado de baja), muestra su mensaje y el
   carrito queda igual.
 
@@ -197,6 +206,24 @@ servidor devolvió su perfil.
   tienda, siempre como `customer`. Las cuentas admin y staff las crea un admin.
 - Si el servidor no responde, la app cierra también la cuenta de Firebase y muestra el error: sin
   perfil no hay rol.
+- `refreshProfile` vuelve a pedir el perfil sin cerrar la sesión: al abrir el catálogo, al
+  volver la app a primer plano (`RefreshOnResume`, con `AppLifecycleListener`; en la web, al
+  volver a la pestaña) y al deslizar hacia abajo en el inicio y el catálogo. Así un correo que un
+  admin hizo VIP se ve sin volver a ingresar. Si falla, la sesión queda como estaba.
+- **Correo sin verificar:** las pantallas de la tienda muestran "Verifica tu correo para
+  completar tu cuenta", con "Enviar el correo" y "Ya lo verifiqué". Al registrarse se manda el
+  correo una vez. Si se acaba de confirmar, `refreshProfile` renueva el ID token para que el
+  servidor lo vea (`email_verified`).
+
+**Clientes VIP** (`isVipProvider`): lo decide el servidor (VIP activo y correo verificado).
+- El catálogo pide los productos con el ID token: el servidor da a cada cliente su mejor precio.
+  Si la cuenta pasa a ser VIP (o deja de serlo), los productos se vuelven a pedir.
+- Un precio VIP va con el normal tachado, el swoosh y la insignia `VipTag` (`accent` sobre
+  crema). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
+  animaciones".
+- "Ofertas exclusivas" (`features/offers/`), en el inicio y arriba del catálogo completo: las
+  promociones VIP de `/promotions/active`. Tocar una abre el producto.
+- Para quien no es VIP no hay nada: ni la sección, ni la insignia, ni el pedido de ofertas.
 
 **Después de ingresar** (`routeAfterSignIn` en `router/route_guard.dart`):
 - si el ingreso lo pidió el carrito o "Mis pedidos" (`/login?from=...`), vuelve ahí, con
@@ -228,7 +255,8 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 | Pedidos | Todos los pedidos, con chips por estado. Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega, las líneas y el stepper: el seguimiento con la acción del paso siguiente ("Confirmar", "Marcar en camino", "Marcar entregado") y "Cancelar pedido", que pide confirmación. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
-| Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Una promoción que se cruza con otra del producto (409) se muestra. |
+| Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |
+| Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Solo admin agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación. Staff ve la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
 
 Las piezas compartidas están en `features/admin/shared/`:
 - `AdminTable<T>`:
@@ -236,13 +264,16 @@ Las piezas compartidas están en `features/admin/shared/`:
     error con "Reintentar" y vacío;
   - desde 720 px de ancho es una tabla; más angosto, cada fila es una tarjeta con
     `etiqueta: valor`;
-  - cada fila es un botón con su descripción para el lector de pantalla.
+  - cada fila es un botón con su descripción para el lector de pantalla;
+  - con `rowAction` (`AdminRowAction`), cada fila tiene además un botón propio (p. ej.
+    "Quitar"), fuera de la descripción de la fila: al final en la tabla y abajo en las tarjetas.
 - `showAdminForm`: un formulario en un diálogo en pantallas anchas y a pantalla completa en el
   teléfono. Con `admin_form.dart` (campos de a dos, el error del servidor y los botones) y
   `ProductPicker` (el buscador de productos con autocompletado).
 - `RefreshButton`: el "Actualizar" de cada tabla; vuelve a pedir la página que se ve y, si falla,
   lo avisa sin vaciar la tabla.
-- `FilterChips`, `StatusBadge` (punto de color más texto) y `confirmAction`.
+- `FilterChips`, `StatusBadge` (punto de color más texto), `VipBadge` (la insignia de lo que es
+  solo para clientes VIP) y `confirmAction`.
 
 Los datos van por sección en `lib/admin/<dominio>/` (modelo, repositorio HTTP con el ID token
 y providers). Las tablas usan `PagedNotifier<T>`, con los filtros como argumento del provider
@@ -306,21 +337,28 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   px (la cuenta va en un menú).
 - `test/features/swoosh_test.dart` y `home_screen_test.dart`: la forma del trazo, que se dibuja
   una vez y en menos de un segundo, y que con "reducir animaciones" aparece completo.
-- `test/features/product_card_test.dart`: precio, promoción, "Agotado", tarjetas de igual alto y
-  el achique de "Agregar" (que no ocurre con "reducir animaciones").
+- `test/features/product_card_test.dart`: precio, promoción, el precio VIP (insignia, entrada
+  de 300 ms una sola vez), "Agotado", tarjetas de igual alto y el achique de "Agregar" (que no
+  ocurre con "reducir animaciones").
+- `test/features/exclusive_offers_test.dart`: las ofertas de una cuenta VIP en el inicio y el
+  catálogo, y que un visitante o un cliente que no es VIP no ven nada VIP (ni se piden).
+- `test/features/verify_email_test.dart`: el aviso para confirmar el correo y el refresco del
+  perfil al volver a la app.
 - `test/features/order_tracker_test.dart`: cuánto se llena cada tramo por estado, la animación al
   avanzar (a mitad de camino y al final), cancelado y el estado como texto.
 - `test/theme/theme_test.dart`: colores, contraste y fuentes del tema.
-- `test/admin/`: el panel, con repositorios en memoria y una sesión de staff (`pumpPanel` en
-  `panel_support.dart`):
+- `test/admin/`: el panel, con repositorios en memoria y una sesión de staff, o del rol que se
+  pida (`pumpPanel` en `panel_support.dart`):
   - `admin_repositories_test.dart`: cada repositorio del panel con `MockClient`;
   - `admin_table_test.dart` y `admin_shell_test.dart`: tabla o tarjetas según el ancho,
     paginación, estados, y la navegación (riel o barra);
   - `admin_home_test.dart`: los KPI, el gráfico (30 puntos, la tabla de datos), las alertas, el
     top 5 y una tarjeta que falla sola;
-  - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart` y
-    `admin_promotions_test.dart`: filtros, formularios (validación y lo que se manda), los
-    errores del servidor (400 y 409), las confirmaciones y que no se desborde en 320 y 375 px.
+  - `admin_orders_test.dart`, `admin_products_test.dart`, `admin_inventory_test.dart`,
+    `admin_promotions_test.dart` y `admin_vip_test.dart`: filtros, formularios (validación y lo
+    que se manda), los errores del servidor (400, 403 y 409), las confirmaciones, lo que ve
+    staff y lo que ve admin, y que no se desborde en 320 y 375 px;
+  - `vip_emails_test.dart`: separar los correos pegados y validarlos como el servidor.
 
 Los tests de movimiento usan `MediaQueryData(disableAnimations: true)` para "reducir
 animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándose. Flutter da por

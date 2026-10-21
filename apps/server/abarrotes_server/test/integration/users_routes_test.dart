@@ -9,6 +9,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -30,7 +31,7 @@ void main() {
       // Las mismas rutas (y guards) que addUsersRoutes, con la sesión del test.
       server = await serveRoutes(
         () => session,
-        usersRoutes(const UsersService(), verifier),
+        usersRoutes(const UsersService(), verifier, shoppers: testShoppers),
         middleware: {'/users': firebaseAuthMiddleware(verifier)},
       );
     });
@@ -43,11 +44,17 @@ void main() {
       String uid, {
       String? email = 'ana@example.com',
       String? name = 'Ana Quispe',
+      bool emailVerified = true,
     }) => {
       'authorization':
           'Bearer ${signToken(
             google.private,
-            claims: validClaims(uid: uid, email: email, name: name),
+            claims: validClaims(
+              uid: uid,
+              email: email,
+              emailVerified: emailVerified,
+              name: name,
+            ),
           )}',
       'content-type': 'application/json',
     };
@@ -103,6 +110,7 @@ void main() {
           'role': 'customer',
           'address': null,
           'createdAt': isA<String>(),
+          'isVip': false,
         });
         final stored = await User.db.find(
           session,
@@ -163,6 +171,48 @@ void main() {
         final response = await http.get(url('/users/me'));
 
         expect(response.statusCode, 401);
+      });
+
+      group('isVip', () {
+        setUp(() async {
+          final admin = await insertUser('uid-admin', UserRole.admin);
+          await insertVips(session, admin, ['ana@example.com']);
+        });
+
+        test(
+          'true si el correo es de un VIP activo y está verificado',
+          () async {
+            final (status, body) = await getMe(
+              authAs('uid-ana', email: 'Ana@Example.com'),
+            );
+
+            expect(status, 200);
+            expect(body['isVip'], isTrue);
+          },
+        );
+
+        test('false si el correo no está verificado', () async {
+          final (_, body) = await getMe(
+            authAs('uid-ana', emailVerified: false),
+          );
+
+          expect(body['isVip'], isFalse);
+        });
+
+        test('false si el VIP se dio de baja o es otro correo', () async {
+          final (_, other) = await getMe(
+            authAs('uid-luis', email: 'luis@example.com'),
+          );
+          await VipCustomer.db.updateWhere(
+            session,
+            columnValues: (vip) => [vip.active(false)],
+            where: (vip) => vip.email.equals('ana@example.com'),
+          );
+          final (_, inactive) = await getMe(authAs('uid-ana'));
+
+          expect(other['isVip'], isFalse);
+          expect(inactive['isVip'], isFalse);
+        });
       });
     });
 
@@ -260,6 +310,122 @@ void main() {
 
         expect(status, 409);
         expect(body['message'], contains('email'));
+      });
+    });
+
+    group('dispositivos', () {
+      Future<int> send(
+        String method,
+        Map<String, String> headers, {
+        Object? body,
+        String query = '',
+      }) async {
+        final request = http.Request(method, url('/users/me/devices$query'))
+          ..headers.addAll(headers);
+        if (body != null) {
+          request.body = body is String ? body : jsonEncode(body);
+        }
+        final response = await http.Response.fromStream(await request.send());
+        return response.statusCode;
+      }
+
+      Future<List<(String, String, String?)>> devices() async => [
+        for (final device in await DeviceToken.db.find(
+          session,
+          orderBy: (d) => d.token,
+          include: DeviceToken.include(user: User.include()),
+        ))
+          (device.token, device.user!.firebaseUid, device.platform),
+      ];
+
+      test('PUT registra el dispositivo; repetirlo no lo duplica', () async {
+        final ana = authAs('uid-ana');
+
+        expect(
+          await send('PUT', ana, body: {'token': 'fcm-1', 'platform': 'web'}),
+          204,
+        );
+        expect(await send('PUT', ana, body: {'token': 'fcm-1'}), 204);
+        expect(
+          await send(
+            'PUT',
+            ana,
+            body: {'token': 'fcm-2', 'platform': 'android'},
+          ),
+          204,
+        );
+
+        expect(await devices(), [
+          ('fcm-1', 'uid-ana', 'web'),
+          ('fcm-2', 'uid-ana', 'android'),
+        ]);
+      });
+
+      test(
+        'si el token era de otra cuenta, pasa a la que lo registra',
+        () async {
+          await send('PUT', authAs('uid-ana'), body: {'token': 'fcm-1'});
+          await send(
+            'PUT',
+            authAs('uid-luis', email: 'luis@example.com'),
+            body: {'token': 'fcm-1'},
+          );
+
+          expect(await devices(), [('fcm-1', 'uid-luis', null)]);
+        },
+      );
+
+      test('DELETE quita solo los tokens propios', () async {
+        await send('PUT', authAs('uid-ana'), body: {'token': 'fcm-ana'});
+        await send(
+          'PUT',
+          authAs('uid-luis', email: 'luis@example.com'),
+          body: {'token': 'fcm-luis'},
+        );
+
+        expect(
+          await send('DELETE', authAs('uid-ana'), query: '?token=fcm-luis'),
+          204,
+        );
+        expect(
+          await send('DELETE', authAs('uid-ana'), query: '?token=fcm-ana'),
+          204,
+        );
+
+        expect(await devices(), [('fcm-luis', 'uid-luis', null)]);
+      });
+
+      test('valida el body y el query, y sin token es 401', () async {
+        final ana = authAs('uid-ana');
+
+        expect(await send('PUT', ana, body: {'platform': 'web'}), 400);
+        expect(
+          await send('PUT', ana, body: {'token': 'x', 'platform': 'ios'}),
+          400,
+        );
+        expect(await send('PUT', ana, body: {'token': 'x', 'otro': 1}), 400);
+        expect(await send('DELETE', ana), 400);
+        expect(
+          await send(
+            'PUT',
+            {'content-type': 'application/json'},
+            body: {'token': 'x'},
+          ),
+          401,
+        );
+        expect(await devices(), isEmpty);
+      });
+
+      test('GET /users/me guarda si el correo está verificado', () async {
+        Future<bool> stored() async => (await User.db.findFirstRow(
+          session,
+          where: (u) => u.firebaseUid.equals('uid-ana'),
+        ))!.emailVerified;
+
+        await getMe(authAs('uid-ana', emailVerified: false));
+        expect(await stored(), isFalse);
+        await getMe(authAs('uid-ana'));
+        expect(await stored(), isTrue);
       });
     });
   });

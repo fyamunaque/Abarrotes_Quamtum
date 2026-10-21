@@ -7,6 +7,10 @@ enum UserRole {
 
   /// Admin y staff manejan la tienda: entran a /admin.
   bool get isStaff => this == admin || this == staff;
+
+  /// Solo admin cambia quién accede a qué (p. ej. los clientes VIP); staff
+  /// lo ve en modo lectura.
+  bool get isAdmin => this == admin;
 }
 
 /// La cuenta con la que se inició sesión.
@@ -17,6 +21,8 @@ class SessionUser {
     required this.email,
     required this.role,
     this.address,
+    this.isVip = false,
+    this.emailVerified = true,
   });
 
   final String id;
@@ -26,6 +32,38 @@ class SessionUser {
 
   /// La dirección guardada en el perfil, para proponerla al hacer un pedido.
   final String? address;
+
+  /// Si puede usar las promociones VIP. Lo decide el servidor (VIP activo y
+  /// correo verificado): la app solo lo lee.
+  final bool isVip;
+
+  /// Si la persona confirmó su correo en Firebase.
+  final bool emailVerified;
+
+  SessionUser copyWith({bool? isVip, bool? emailVerified}) => SessionUser(
+    id: id,
+    name: name,
+    email: email,
+    role: role,
+    address: address,
+    isVip: isVip ?? this.isVip,
+    emailVerified: emailVerified ?? this.emailVerified,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      other is SessionUser &&
+      other.id == id &&
+      other.name == name &&
+      other.email == email &&
+      other.role == role &&
+      other.address == address &&
+      other.isVip == isVip &&
+      other.emailVerified == emailVerified;
+
+  @override
+  int get hashCode =>
+      Object.hash(id, name, email, role, address, isVip, emailVerified);
 }
 
 /// Quién usa la app: nadie ([SignedOut]) o una cuenta ([SignedIn]). Al

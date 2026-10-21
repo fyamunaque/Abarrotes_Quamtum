@@ -14,11 +14,13 @@ void main() {
   const rows = [('Arroz', 40), ('Aceite', 3), ('Leche', 48)];
 
   late List<String> tapped;
+  late List<String> removed;
   late List<int> pages;
   late int retries;
 
   setUp(() {
     tapped = [];
+    removed = [];
     pages = [];
     retries = 0;
   });
@@ -27,6 +29,7 @@ void main() {
     WidgetTester tester,
     AsyncValue<PageList<(String, int)>> value, {
     double width = 1280,
+    bool withAction = false,
   }) async {
     tester.view.physicalSize = Size(width, 900);
     tester.view.devicePixelRatio = 1;
@@ -46,6 +49,15 @@ void main() {
               rowKey: (row) => row.$1,
               rowLabel: (row) => '${row.$1}, stock ${row.$2}',
               onRowTap: (row) => tapped.add(row.$1),
+              rowAction: withAction
+                  ? AdminRowAction(
+                      label: 'Quitar',
+                      icon: Icons.person_remove_outlined,
+                      semanticLabel: (row) => 'Quitar ${row.$1}',
+                      onPressed: (row) => removed.add(row.$1),
+                      destructive: true,
+                    )
+                  : null,
               onPage: pages.add,
               onRetry: () => retries++,
               emptyText: 'No hay productos.',
@@ -95,6 +107,43 @@ void main() {
     expect(tapped, ['Aceite']);
     expect(find.bySemanticsLabel('Aceite, stock 3'), findsOneWidget);
     semantics.dispose();
+  });
+
+  testWidgets('una acción por fila, aparte de tocar la fila', (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpTable(tester, data(), withAction: true);
+
+    final quitar = find.widgetWithText(TextButton, 'Quitar');
+    expect(quitar, findsNWidgets(3));
+    // Al final de su fila, a la derecha de todas las columnas.
+    final aceite = tester.getRect(find.text('Aceite'));
+    final button = tester.getRect(quitar.at(1));
+    expect(button.center.dy, closeTo(aceite.center.dy, 2));
+    expect(button.left, greaterThan(tester.getRect(find.text('3')).right));
+
+    await tester.tap(quitar.at(1));
+    expect(removed, ['Aceite']);
+    expect(tapped, isEmpty);
+    // El lector anuncia la fila y el botón por separado.
+    expect(find.bySemanticsLabel('Aceite, stock 3'), findsOneWidget);
+    expect(find.bySemanticsLabel('Quitar Aceite'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('en un teléfono, la acción va abajo de cada tarjeta', (
+    tester,
+  ) async {
+    await pumpTable(tester, data(), width: 320, withAction: true);
+
+    expect(tester.takeException(), isNull);
+    final quitar = find.widgetWithText(TextButton, 'Quitar');
+    expect(quitar, findsNWidgets(3));
+    expect(
+      tester.getRect(quitar.first).top,
+      greaterThan(tester.getRect(find.text('40')).bottom),
+    );
+    await tester.tap(quitar.last);
+    expect(removed, ['Leche']);
   });
 
   testWidgets('pasa de página con las flechas', (tester) async {

@@ -14,6 +14,7 @@
 import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../products/product.dart' as _iubf72bi;
+import '../promotions/promotion_audience.dart' as _ifhe3ya9;
 
 /// Precio especial de un producto por un periodo. Las fechas son días de la
 /// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
@@ -27,7 +28,10 @@ abstract class Promotion
     bool? active,
     required this.productId,
     this.product,
-  }) : active = active ?? true;
+    _ifhe3ya9.PromotionAudience? audience,
+    this.title,
+  }) : active = active ?? true,
+       audience = audience ?? _ifhe3ya9.PromotionAudience.everyone;
 
   factory Promotion({
     _is.UuidValue? id,
@@ -37,6 +41,8 @@ abstract class Promotion
     bool? active,
     required _is.UuidValue productId,
     _iubf72bi.Product? product,
+    _ifhe3ya9.PromotionAudience? audience,
+    String? title,
   }) = _PromotionImpl;
 
   factory Promotion.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -60,6 +66,12 @@ abstract class Promotion
           : _i1p9jj0z.Protocol().deserialize<_iubf72bi.Product>(
               jsonSerialization['product'],
             ),
+      audience: jsonSerialization['audience'] == null
+          ? null
+          : _ifhe3ya9.PromotionAudience.fromJson(
+              (jsonSerialization['audience'] as String),
+            ),
+      title: jsonSerialization['title'] as String?,
     );
   }
 
@@ -82,6 +94,12 @@ abstract class Promotion
 
   _iubf72bi.Product? product;
 
+  /// A quién va dirigida: a todos o solo a los clientes VIP.
+  _ifhe3ya9.PromotionAudience audience;
+
+  /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
+  String? title;
+
   @override
   _is.Table<_is.UuidValue?> get table => t;
 
@@ -96,6 +114,8 @@ abstract class Promotion
     bool? active,
     _is.UuidValue? productId,
     _iubf72bi.Product? product,
+    _ifhe3ya9.PromotionAudience? audience,
+    String? title,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -108,6 +128,8 @@ abstract class Promotion
       'active': active,
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJson(),
+      'audience': audience.toJson(),
+      if (title != null) 'title': title,
     };
   }
 
@@ -122,6 +144,8 @@ abstract class Promotion
       'active': active,
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJsonForProtocol(),
+      'audience': audience.toJson(),
+      if (title != null) 'title': title,
     };
   }
 
@@ -164,6 +188,8 @@ class _PromotionImpl extends Promotion {
     bool? active,
     required _is.UuidValue productId,
     _iubf72bi.Product? product,
+    _ifhe3ya9.PromotionAudience? audience,
+    String? title,
   }) : super._(
          id: id,
          promoPriceCents: promoPriceCents,
@@ -172,6 +198,8 @@ class _PromotionImpl extends Promotion {
          active: active,
          productId: productId,
          product: product,
+         audience: audience,
+         title: title,
        );
 
   /// Returns a shallow copy of this [Promotion]
@@ -186,6 +214,8 @@ class _PromotionImpl extends Promotion {
     bool? active,
     _is.UuidValue? productId,
     Object? product = _Undefined,
+    _ifhe3ya9.PromotionAudience? audience,
+    Object? title = _Undefined,
   }) {
     return Promotion(
       id: id is _is.UuidValue? ? id : this.id,
@@ -197,6 +227,8 @@ class _PromotionImpl extends Promotion {
       product: product is _iubf72bi.Product?
           ? product
           : this.product?.copyWith(),
+      audience: audience ?? this.audience,
+      title: title is String? ? title : this.title,
     );
   }
 }
@@ -232,6 +264,17 @@ class PromotionUpdateTable extends _is.UpdateTable<PromotionTable> {
     table.productId,
     value,
   );
+
+  _is.ColumnValue<_ifhe3ya9.PromotionAudience, _ifhe3ya9.PromotionAudience>
+  audience(_ifhe3ya9.PromotionAudience value) => _is.ColumnValue(
+    table.audience,
+    value,
+  );
+
+  _is.ColumnValue<String, String> title(String? value) => _is.ColumnValue(
+    table.title,
+    value,
+  );
 }
 
 class PromotionTable extends _is.Table<_is.UuidValue?> {
@@ -258,6 +301,16 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
       'productId',
       this,
     );
+    audience = _is.ColumnEnum(
+      'audience',
+      this,
+      _is.EnumSerialization.byName,
+      hasDefault: true,
+    );
+    title = _is.ColumnString(
+      'title',
+      this,
+    );
   }
 
   late final PromotionUpdateTable updateTable;
@@ -273,6 +326,12 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
   late final _is.ColumnUuid productId;
 
   _iubf72bi.ProductTable? _product;
+
+  /// A quién va dirigida: a todos o solo a los clientes VIP.
+  late final _is.ColumnEnum<_ifhe3ya9.PromotionAudience> audience;
+
+  /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
+  late final _is.ColumnString title;
 
   _iubf72bi.ProductTable get product {
     if (_product != null) return _product!;
@@ -295,6 +354,8 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
     endDate,
     active,
     productId,
+    audience,
+    title,
   ];
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/products/products_routes.dart';
@@ -7,6 +9,7 @@ import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/promotions_setup.dart';
 import '../support/test_tokens.dart';
 import 'test_tools/serverpod_test_tools.dart';
 
@@ -48,8 +51,9 @@ void main() {
       final server = await serveRoutes(
         () => session,
         productsRoutes(
-          ProductsService(now: () => testNow),
+          ProductsService(pricing: testPromotions(), now: () => testNow),
           testVerifier(google),
+          shoppers: testShoppers,
         ),
       );
       client = TestClient(server, google);
@@ -76,16 +80,20 @@ void main() {
       required String from,
       required String to,
       bool active = true,
+      int promoPriceCents = 390,
+      PromotionAudience audience = PromotionAudience.everyone,
     }) {
       final period = toStoredPeriod(from, to);
       return Promotion.db.insertRow(
         session,
         Promotion(
           productId: product.id!,
-          promoPriceCents: 390,
+          promoPriceCents: promoPriceCents,
           startDate: period.startDate,
           endDate: period.endDate,
           active: active,
+          audience: audience,
+          title: audience == PromotionAudience.vip ? 'Solo VIP' : null,
         ),
       );
     }
@@ -190,6 +198,8 @@ void main() {
             'promoPrice': '3.9',
             'startDate': today,
             'endDate': addDays(today, 6),
+            'title': null,
+            'audience': 'everyone',
           });
           expect(byName['Leche Gloria']['promotion'], isNull);
 
@@ -211,6 +221,131 @@ void main() {
           'categoryId debe ser un UUID',
         ]);
       });
+    });
+
+    group('promociones según el cliente', () {
+      late Product leche;
+      late Promotion arrozVip;
+      late Promotion lecheVip;
+
+      setUp(() async {
+        leche = (await Product.db.findFirstRow(
+          session,
+          where: (p) => p.sku.equals('DEMO-LECHE'),
+        ))!;
+        final week = addDays(today, 6);
+        // Arroz: para todos a 3.9 y VIP a 3.5. Leche: para todos a 3.0 y una
+        // VIP más cara (4.0), que no le conviene ni al VIP.
+        await insertPromotion(arroz, from: today, to: week);
+        arrozVip = await insertPromotion(
+          arroz,
+          from: today,
+          to: week,
+          promoPriceCents: 350,
+          audience: PromotionAudience.vip,
+        );
+        await insertPromotion(
+          leche,
+          from: today,
+          to: week,
+          promoPriceCents: 300,
+        );
+        lecheVip = await insertPromotion(
+          leche,
+          from: today,
+          to: week,
+          promoPriceCents: 400,
+          audience: PromotionAudience.vip,
+        );
+        final admin = await insertUser(session, 'uid-admin', UserRole.admin);
+        await insertUser(session, 'uid-vip', UserRole.customer);
+        await insertVips(session, admin, ['vip@tienda.pe']);
+      });
+
+      Map<String, dynamic> promotionsByName(dynamic page) => {
+        for (final product in page['data'] as List)
+          product['name'] as String: product['promotion'],
+      };
+
+      test('quien no es VIP ve la de todos y nada de la VIP', () async {
+        for (final (status, body) in [
+          await client.get('/products'),
+          await client.get('/products', as: 'uid-cliente'),
+          // VIP sin el correo verificado.
+          await client.get(
+            '/products',
+            as: 'uid-vip',
+            email: 'vip@tienda.pe',
+            emailVerified: false,
+          ),
+        ]) {
+          expect(status, 200);
+          final promotions = promotionsByName(body);
+          expect(promotions['Arroz Costeño']['promoPrice'], '3.9');
+          expect(promotions['Leche Gloria']['promoPrice'], '3');
+          final json = jsonEncode(body);
+          expect(json, isNot(contains(arrozVip.id.toString())));
+          expect(json, isNot(contains('vip')));
+        }
+      });
+
+      test('un VIP ve la más barata de las que puede usar', () async {
+        final (status, body) = await client.get(
+          '/products',
+          as: 'uid-vip',
+          email: 'vip@tienda.pe',
+        );
+
+        expect(status, 200);
+        final promotions = promotionsByName(body);
+        expect(promotions['Arroz Costeño'], {
+          'id': arrozVip.id.toString(),
+          'promoPrice': '3.5',
+          'startDate': today,
+          'endDate': addDays(today, 6),
+          'title': 'Solo VIP',
+          'audience': 'vip',
+        });
+        expect(promotions['Leche Gloria']['promoPrice'], '3');
+        expect(promotions['Leche Gloria']['audience'], 'everyone');
+
+        final (_, one) = await client.get(
+          '/products/${arroz.id}',
+          as: 'uid-vip',
+          email: 'vip@tienda.pe',
+        );
+        expect(one['promotion']['promoPrice'], '3.5');
+        final (_, anonymous) = await client.get('/products/${arroz.id}');
+        expect(anonymous['promotion']['promoPrice'], '3.9');
+      });
+
+      test(
+        'onSale cuenta solo las promociones que el cliente puede usar',
+        () async {
+          // Sin la de todos, la leche solo tiene la VIP.
+          await Promotion.db.deleteWhere(
+            session,
+            where: (p) =>
+                p.productId.equals(leche.id) &
+                p.audience.equals(PromotionAudience.everyone),
+          );
+
+          final (_, anonymous) = await client.get('/products?onSale=true');
+          final (_, vip) = await client.get(
+            '/products?onSale=true',
+            as: 'uid-vip',
+            email: 'vip@tienda.pe',
+          );
+
+          expect(names(anonymous), ['Arroz Costeño']);
+          expect(anonymous['meta']['total'], 1);
+          expect(names(vip), ['Arroz Costeño', 'Leche Gloria']);
+          expect(
+            promotionsByName(vip)['Leche Gloria']['id'],
+            lecheVip.id.toString(),
+          );
+        },
+      );
     });
 
     group('GET /products/:id (público)', () {

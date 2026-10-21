@@ -1,0 +1,7 @@
+### A quién va dirigida una promoción. Cada valor tiene su regla
+### (PromotionAudienceRule, en lib/src/promotions/audience/).
+enum: PromotionAudience
+serialized: byName
+values:
+  - everyone
+  - vip

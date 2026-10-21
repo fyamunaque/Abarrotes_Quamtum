@@ -13,10 +13,13 @@ void main() {
     headers: {'content-type': 'application/json'},
   );
 
-  HttpCatalogRepository repository(MockClientHandler handler) =>
-      HttpCatalogRepository(
-        ApiClient(MockClient(handler), baseUrl: Uri.parse('http://api.pe')),
-      );
+  HttpCatalogRepository repository(
+    MockClientHandler handler, {
+    String? token,
+  }) => HttpCatalogRepository(
+    ApiClient(MockClient(handler), baseUrl: Uri.parse('http://api.pe')),
+    idToken: () async => token,
+  );
 
   /// Un producto como lo manda el servidor (productJson en apps/server).
   Map<String, Object?> product({Object? promotion}) => {
@@ -84,6 +87,65 @@ void main() {
     expect(oil.stock, 25);
     expect(oil.description, 'Para cocinar y freír.');
     expect(oil.category?.name, 'Abarrotes');
+  });
+
+  test('con sesión, los productos van con el token: cada cliente ve su '
+      'precio', () async {
+    final sent = <http.BaseRequest>[];
+    Future<http.Response> respond(http.Request request) async {
+      sent.add(request);
+      return request.url.path == '/products'
+          ? json(200, {
+              'data': [
+                product(
+                  promotion: {
+                    'id': 'promo-vip',
+                    'promoPrice': '7.9',
+                    'startDate': '2026-10-04',
+                    'endDate': '2026-11-02',
+                    'title': 'Precio VIP',
+                    'audience': 'vip',
+                  },
+                ),
+              ],
+              'meta': {'total': 1},
+            })
+          : json(200, product());
+    }
+
+    final vip = await repository(respond, token: 'token-ana').products();
+    await repository(respond, token: 'token-ana').product('p-1');
+    await repository(respond).products();
+
+    expect(sent[0].headers['authorization'], 'Bearer token-ana');
+    expect(sent[1].headers['authorization'], 'Bearer token-ana');
+    expect(sent[2].headers, isNot(contains('authorization')));
+    final oil = vip.items.single;
+    expect(oil.vipPrice, isTrue);
+    expect(oil.finalPriceCents, 790);
+  });
+
+  test('una promoción para todos no es VIP', () async {
+    final page = await repository(
+      (_) async => json(200, {
+        'data': [
+          product(
+            promotion: {
+              'id': 'promo-1',
+              'promoPrice': '8.9',
+              'startDate': '2026-10-04',
+              'endDate': '2026-11-02',
+              'title': null,
+              'audience': 'everyone',
+            },
+          ),
+        ],
+        'meta': {'total': 1},
+      }),
+    ).products();
+
+    expect(page.items.single.onSale, isTrue);
+    expect(page.items.single.vipPrice, isFalse);
   });
 
   test('lo buscado va recortado, y en blanco no se manda', () async {

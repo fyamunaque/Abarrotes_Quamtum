@@ -21,18 +21,21 @@ void main() {
 
   late FakeCatalogRepository catalog;
   late ProviderContainer container;
+  late TestSession session;
 
   setUp(() => catalog = FakeCatalogRepository());
 
   Future<GoRouter> pumpApp(
     WidgetTester tester, {
     String at = '/catalogo',
+    Session signedIn = const SignedOut(),
   }) async {
     useWideScreen(tester);
+    session = TestSession(signedIn);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+          sessionProvider.overrideWith(() => session),
           catalogRepositoryProvider.overrideWithValue(catalog),
         ],
         child: const NeilsApp(),
@@ -53,6 +56,51 @@ void main() {
     for (final card in tester.widgetList<ProductCard>(find.byType(ProductCard)))
       card.product.id,
   ];
+
+  group('el precio de cada cliente', () {
+    final ana = signedInAs(UserRole.customer);
+
+    testWidgets('abrir el catálogo vuelve a pedir el perfil', (tester) async {
+      await pumpApp(tester, signedIn: ana);
+
+      expect(session.refreshes, 1);
+    });
+
+    testWidgets('deslizar hacia abajo refresca el perfil y los productos', (
+      tester,
+    ) async {
+      await pumpApp(tester, signedIn: ana);
+      final requests = catalog.requests.length;
+
+      await tester.fling(
+        find.byType(SingleChildScrollView).first,
+        const Offset(0, 400),
+        1000,
+      );
+      await tester.pumpAndSettle();
+
+      expect(session.refreshes, 2);
+      expect(catalog.requests.length, requests + 1);
+    });
+
+    testWidgets('si la cuenta pasa a ser VIP, vuelve a pedir los productos', (
+      tester,
+    ) async {
+      await pumpApp(tester, signedIn: ana);
+      final requests = catalog.requests.length;
+
+      session.set(SignedIn(ana.user.copyWith(isVip: true)));
+      await tester.pumpAndSettle();
+      expect(catalog.requests.length, requests + 1);
+
+      // Otro cambio del perfil que no es VIP no vuelve a pedir nada.
+      session.set(
+        SignedIn(ana.user.copyWith(isVip: true, emailVerified: true)),
+      );
+      await tester.pumpAndSettle();
+      expect(catalog.requests.length, requests + 1);
+    });
+  });
 
   group('catálogo', () {
     testWidgets('muestra todos los productos y las categorías', (tester) async {

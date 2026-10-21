@@ -8,6 +8,7 @@ import 'package:neils/common/money.dart';
 import 'package:neils/features/admin/promotions/promotion_form.dart';
 import 'package:neils/features/admin/shared/admin_table.dart';
 import 'package:neils/features/admin/shared/status_badge.dart';
+import 'package:neils/features/admin/shared/vip_badge.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -39,6 +40,8 @@ Promotion _promotion(
   String end,
   PromotionStatus status, {
   bool active = true,
+  PromotionAudience audience = PromotionAudience.everyone,
+  String? title,
 }) => Promotion(
   id: id,
   productId: product.split(' ').first.toLowerCase(),
@@ -50,6 +53,8 @@ Promotion _promotion(
   endDate: end,
   active: active,
   status: status,
+  audience: audience,
+  title: title,
 );
 
 void main() {
@@ -223,6 +228,8 @@ void main() {
       'startDate': '2026-10-07',
       'endDate': '2026-10-14',
       'active': true,
+      'audience': 'everyone',
+      'title': null,
     });
     expect(find.byType(Dialog), findsNothing);
     expect(
@@ -259,6 +266,107 @@ void main() {
     expect(repository.sent, isEmpty);
   });
 
+  testWidgets(
+    'una promoción solo para VIP, con título: puede cruzarse con la de todos '
+    'y lleva la insignia',
+    (tester) async {
+      await pumpPromotions(tester);
+      expect(find.byType(VipBadge), findsNothing);
+      await tapAndSettle(tester, find.text('Nueva promoción'));
+
+      // Por defecto, para todos.
+      expect(
+        find.text('La ven todos, también quien no tiene cuenta.'),
+        findsOneWidget,
+      );
+      await tester.enterText(field('Producto'), 'arroz');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tapAndSettle(
+        tester,
+        find.widgetWithText(ListTile, 'Arroz extra 5 kg'),
+      );
+      await tester.enterText(
+        field('Título de la oferta (opcional)'),
+        '  Semana VIP  ',
+      );
+      await tester.enterText(field('Precio de la promoción'), '18');
+      // Las mismas fechas que la promoción para todos del arroz.
+      await pickRange(tester, DateTime(2026, 10, 10), DateTime(2026, 10, 12));
+      await tapAndSettle(tester, find.text('Solo clientes VIP'));
+      expect(
+        find.textContaining('Solo la ven los clientes VIP'),
+        findsOneWidget,
+      );
+      await tapAndSettle(tester, find.text('Crear promoción'));
+
+      final (_, input) = repository.sent.single;
+      expect(input.toJson(), {
+        'productId': 'arroz',
+        'promoPrice': 18.0,
+        'startDate': '2026-10-10',
+        'endDate': '2026-10-12',
+        'active': true,
+        'audience': 'vip',
+        'title': 'Semana VIP',
+      });
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.byType(VipBadge), findsOneWidget);
+      expect(inTable('Semana VIP · ARR-5K'), findsOneWidget);
+    },
+  );
+
+  testWidgets('dos promociones VIP del mismo producto no se cruzan', (
+    tester,
+  ) async {
+    repository.promotions.add(
+      _promotion(
+        'p4',
+        'Arroz extra 5 kg',
+        2490,
+        1790,
+        '2026-10-01',
+        '2026-10-15',
+        PromotionStatus.active,
+        audience: PromotionAudience.vip,
+        title: 'Clientes VIP',
+      ),
+    );
+    await pumpPromotions(tester);
+    expect(find.byType(VipBadge), findsOneWidget);
+
+    // Editar la VIP: el formulario la trae con su audiencia y su título.
+    await tapAndSettle(tester, inTable('Clientes VIP · SKU-p4'));
+    expect(find.text('Clientes VIP'), findsWidgets);
+    final selector = tester.widget<SegmentedButton<PromotionAudience>>(
+      find.byType(SegmentedButton<PromotionAudience>),
+    );
+    expect(selector.selected, {PromotionAudience.vip});
+    await tapAndSettle(tester, find.byType(CloseButton));
+
+    await tapAndSettle(tester, find.text('Nueva promoción'));
+    await tester.enterText(field('Producto'), 'arroz');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    await tapAndSettle(
+      tester,
+      find.widgetWithText(ListTile, 'Arroz extra 5 kg'),
+    );
+    await tester.enterText(field('Precio de la promoción'), '18');
+    await pickRange(tester, DateTime(2026, 10, 10), DateTime(2026, 10, 12));
+    await tapAndSettle(tester, find.text('Solo clientes VIP'));
+    await tapAndSettle(tester, find.text('Crear promoción'));
+
+    expect(
+      find.text(
+        'Arroz extra 5 kg ya tiene una promoción VIP del 2026-10-01 al '
+        '2026-10-15 que se cruza con esas fechas',
+      ),
+      findsOneWidget,
+    );
+    expect(repository.sent, isEmpty);
+  });
+
   testWidgets('editar: apagarla la saca de las activas', (tester) async {
     await pumpPromotions(tester);
     await tapAndSettle(tester, find.widgetWithText(ChoiceChip, 'Activas'));
@@ -282,6 +390,8 @@ void main() {
       'startDate': '2026-10-01',
       'endDate': '2026-10-15',
       'active': false,
+      'audience': 'everyone',
+      'title': null,
     });
     expect(find.text('No hay promociones activas.'), findsOneWidget);
     expect(
@@ -325,6 +435,9 @@ void main() {
     expect(tester.takeException(), isNull);
     await tapAndSettle(tester, find.text('Arroz extra 5 kg'));
     expect(find.byType(Dialog), findsNothing);
+    expect(tester.takeException(), isNull);
+    // El selector de audiencia entra en 320 px.
+    await tapAndSettle(tester, find.text('Solo clientes VIP'));
     expect(tester.takeException(), isNull);
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../admin/promotions/promotion.dart';
 import '../../../catalog/product.dart';
@@ -12,9 +13,10 @@ import '../shared/product_picker.dart';
 
 /// Crear ([promotion] null) o editar una promoción. Valida como el servidor:
 /// el precio menor que el normal y las fechas en orden. Lo que el servidor
-/// rechaza igual (otra promoción del producto en esas fechas: 409) se
-/// muestra. El producto solo se elige al crear. Se cierra con el aviso para
-/// la persona ("Creaste…", "Eliminaste…").
+/// rechaza igual (otra promoción del producto para la misma audiencia en esas
+/// fechas: 409) se muestra. El producto solo se elige al crear; el título es
+/// opcional y la audiencia, "Todos" o "Solo clientes VIP". Se cierra con el
+/// aviso para la persona ("Creaste…", "Eliminaste…").
 class PromotionForm extends StatefulWidget {
   const PromotionForm({
     super.key,
@@ -36,9 +38,11 @@ class PromotionForm extends StatefulWidget {
 class _PromotionFormState extends State<PromotionForm> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _price;
+  late final TextEditingController _title;
   Product? _product;
   DateTimeRange? _range;
   late bool _active;
+  late PromotionAudience _audience;
   bool _busy = false;
   String? _error;
 
@@ -63,11 +67,14 @@ class _PromotionFormState extends State<PromotionForm> {
       );
     }
     _active = promotion?.active ?? true;
+    _audience = promotion?.audience ?? PromotionAudience.everyone;
+    _title = TextEditingController(text: promotion?.title);
   }
 
   @override
   void dispose() {
     _price.dispose();
+    _title.dispose();
     super.dispose();
   }
 
@@ -123,6 +130,8 @@ class _PromotionFormState extends State<PromotionForm> {
           startDate: formatDay(range.start),
           endDate: formatDay(range.end),
           active: _active,
+          audience: _audience,
+          title: _title.text.trim().isEmpty ? null : _title.text.trim(),
         ),
       );
       return _creating
@@ -195,6 +204,17 @@ class _PromotionFormState extends State<PromotionForm> {
             ),
           const SizedBox(height: 16),
           TextFormField(
+            controller: _title,
+            enabled: !_busy,
+            decoration: const InputDecoration(
+              labelText: 'Título de la oferta (opcional)',
+              hintText: 'Semana del arroz',
+            ),
+            textCapitalization: TextCapitalization.sentences,
+            inputFormatters: [LengthLimitingTextInputFormatter(100)],
+          ),
+          const SizedBox(height: 16),
+          TextFormField(
             controller: _price,
             enabled: !_busy,
             decoration: InputDecoration(
@@ -237,6 +257,12 @@ class _PromotionFormState extends State<PromotionForm> {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          _AudienceField(
+            value: _audience,
+            enabled: !_busy,
+            onChanged: (audience) => setState(() => _audience = audience),
+          ),
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -267,6 +293,60 @@ class _PromotionFormState extends State<PromotionForm> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// "¿Quién la ve?": Todos o Solo clientes VIP, con lo que significa debajo.
+class _AudienceField extends StatelessWidget {
+  const _AudienceField({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final PromotionAudience value;
+  final bool enabled;
+  final ValueChanged<PromotionAudience> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('¿Quién la ve?', style: theme.textTheme.labelLarge),
+        const SizedBox(height: 8),
+        SegmentedButton<PromotionAudience>(
+          segments: [
+            for (final audience in PromotionAudience.values)
+              ButtonSegment(
+                value: audience,
+                label: Text(audience.label),
+                icon: audience == PromotionAudience.vip
+                    ? const Icon(Icons.workspace_premium_outlined)
+                    : const Icon(Icons.groups_outlined),
+              ),
+          ],
+          selected: {value},
+          showSelectedIcon: false,
+          onSelectionChanged: enabled
+              ? (selected) => onChanged(selected.single)
+              : null,
+        ),
+        const SizedBox(height: 6),
+        Text(switch (value) {
+          PromotionAudience.everyone =>
+            'La ven todos, también quien no tiene cuenta.',
+          PromotionAudience.vip =>
+            'Solo la ven los clientes VIP que ingresan con su correo '
+                'verificado. Puede cruzarse con una promoción para todos del '
+                'mismo producto: cada cliente paga la más barata.',
+        }, style: muted),
+      ],
     );
   }
 }

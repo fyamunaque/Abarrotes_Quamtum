@@ -182,6 +182,48 @@ void main() {
       ]);
     });
   });
+
+  group('strings', () {
+    test('devuelve los textos tal como llegaron', () {
+      final body = InputReader.body(
+        {
+          'emails': [' Ana@Tienda.pe ', 'luis@tienda.pe'],
+        },
+        allowed: {'emails'},
+      );
+
+      expect(body.strings('emails', maxLength: 20), [
+        ' Ana@Tienda.pe ',
+        'luis@tienda.pe',
+      ]);
+      expect(errorsOf(body.check), isEmpty);
+    });
+
+    test('lo que no es texto o es muy largo es error con su posición', () {
+      final body = InputReader.body(
+        {
+          'emails': ['a@b.pe', 3, 'x' * 6, null],
+          'otra': 'no',
+          'vacia': <Object?>[],
+        },
+        allowed: {'emails', 'otra', 'vacia'},
+      );
+
+      expect(body.strings('emails', maxLength: 5, max: 3), <String>[]);
+      body.strings('otra', maxLength: 5);
+      body.strings('vacia', maxLength: 5, min: 1);
+
+      expect(errorsOf(body.check), [
+        'emails debe tener entre 0 y 3 elementos',
+        'emails[0] admite como máximo 5 caracteres',
+        'emails[1] debe ser un texto',
+        'emails[2] admite como máximo 5 caracteres',
+        'emails[3] debe ser un texto',
+        'otra debe ser una lista de textos',
+        'vacia debe tener al menos 1 elemento',
+      ]);
+    });
+  });
 }
 
 enum _Status { uno, dos, tres }

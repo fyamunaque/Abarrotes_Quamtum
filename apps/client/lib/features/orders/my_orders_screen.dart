@@ -48,7 +48,14 @@ class MyOrdersScreen extends ConsumerWidget {
           ),
           if (newOrderId != null) ...[
             const SizedBox(height: 12),
-            const _ReceivedNotice(),
+            _ReceivedNotice(
+              // El pedido recién hecho, con lo que cobró la tienda (si es
+              // este: un enlace viejo con ?nuevo= no lo trae).
+              switch (ref.watch(placedOrderProvider)) {
+                final order? when order.id == newOrderId => order,
+                _ => null,
+              },
+            ),
           ],
           const SizedBox(height: 16),
           // Mientras recarga se sigue viendo la lista anterior.
@@ -119,12 +126,20 @@ class MyOrdersScreen extends ConsumerWidget {
   }
 }
 
+/// "Recibimos tu pedido", con el total que cobró la tienda y, si alguno
+/// cambió desde el carrito, cuál y cuánto.
 class _ReceivedNotice extends StatelessWidget {
-  const _ReceivedNotice();
+  const _ReceivedNotice(this.order);
+
+  final Order? order;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final order = this.order;
+    final muted = theme.textTheme.bodyMedium?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
     return Semantics(
       liveRegion: true,
       child: DecoratedBox(
@@ -143,9 +158,33 @@ class _ReceivedNotice extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Text(
-                  'Recibimos tu pedido. La tienda lo va a confirmar.',
-                  style: theme.textTheme.bodyLarge,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Recibimos tu pedido. La tienda lo va a confirmar.',
+                      style: theme.textTheme.bodyLarge,
+                    ),
+                    if (order != null)
+                      Text(
+                        'Total: ${formatSoles(order.totalCents)}',
+                        style: theme.textTheme.titleMedium,
+                      ),
+                    if (order != null && order.priceChanges.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Algunos precios cambiaron desde que los agregaste:',
+                        style: muted,
+                      ),
+                      for (final change in order.priceChanges)
+                        Text(
+                          '${change.name}: '
+                          '${formatSoles(change.shownUnitPriceCents)} → '
+                          '${formatSoles(change.unitPriceCents)}',
+                          style: muted,
+                        ),
+                    ],
+                  ],
                 ),
               ),
             ],

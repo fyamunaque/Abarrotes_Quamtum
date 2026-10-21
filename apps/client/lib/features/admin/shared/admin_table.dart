@@ -23,6 +23,28 @@ class AdminColumn<T> {
   final bool numeric;
 }
 
+/// Una acción propia de cada fila (p. ej. "Quitar"), aparte de tocar la fila.
+/// Va fuera de la descripción de la fila: el lector de pantalla la anuncia
+/// como un botón propio, con [semanticLabel] ("Quitar ana@gmail.com").
+class AdminRowAction<T> {
+  const AdminRowAction({
+    required this.label,
+    required this.icon,
+    required this.semanticLabel,
+    required this.onPressed,
+    this.destructive = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final String Function(T row) semanticLabel;
+  final ValueChanged<T> onPressed;
+
+  /// Quita o borra algo: va en el color de error (y debería pedir
+  /// confirmación).
+  final bool destructive;
+}
+
 /// Cómo alinear una celda de varias líneas (un precio con el anterior tachado,
 /// el stock con su mínimo): a la derecha en las columnas numéricas de la
 /// tabla, a la izquierda en las tarjetas del teléfono.
@@ -54,6 +76,8 @@ class AdminCellAlignment extends InheritedWidget {
 ///   es una tarjeta con "título: valor", con las mismas columnas: en un
 ///   teléfono no hay scroll horizontal.
 /// - Tocar una fila llama a [onRowTap] (abrir el detalle o editar).
+/// - Con [rowAction], cada fila tiene además ese botón: al final de la fila
+///   en la tabla y abajo a la derecha en las tarjetas.
 /// - Abajo, "1–20 de 54" y las flechas de página ([onPage]).
 class AdminTable<T> extends StatelessWidget {
   const AdminTable({
@@ -65,6 +89,7 @@ class AdminTable<T> extends StatelessWidget {
     required this.onRetry,
     required this.onPage,
     this.onRowTap,
+    this.rowAction,
     this.emptyText = 'No hay nada para mostrar.',
   });
 
@@ -80,9 +105,13 @@ class AdminTable<T> extends StatelessWidget {
   final VoidCallback onRetry;
   final ValueChanged<int> onPage;
   final ValueChanged<T>? onRowTap;
+  final AdminRowAction<T>? rowAction;
   final String emptyText;
 
   static const wideFrom = 720.0;
+
+  /// El ancho de la columna de [rowAction] en la tabla.
+  static const _actionWidth = 120.0;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +146,6 @@ class AdminTable<T> extends StatelessWidget {
   }
 
   Widget _row(BuildContext context, T row, Widget child) => MergeSemantics(
-    key: ValueKey(rowKey(row)),
     child: Semantics(
       label: rowLabel(row),
       button: onRowTap != null,
@@ -128,6 +156,21 @@ class AdminTable<T> extends StatelessWidget {
       ),
     ),
   );
+
+  Widget _actionButton(BuildContext context, T row) {
+    final action = rowAction!;
+    final theme = Theme.of(context);
+    return TextButton.icon(
+      style: TextButton.styleFrom(
+        foregroundColor: action.destructive
+            ? theme.colorScheme.error
+            : theme.colorScheme.onSurfaceVariant,
+      ),
+      onPressed: () => action.onPressed(row),
+      icon: Icon(action.icon, size: 18),
+      label: Text(action.label, semanticsLabel: action.semanticLabel(row)),
+    );
+  }
 }
 
 class _Table<T> extends StatelessWidget {
@@ -139,6 +182,18 @@ class _Table<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    // Con rowAction, una columna más al final, de ancho fijo y sin título.
+    Widget withAction(Widget content, Widget? action) => table.rowAction == null
+        ? content
+        : Row(
+            children: [
+              Expanded(child: content),
+              SizedBox(
+                width: AdminTable._actionWidth,
+                child: Center(child: action),
+              ),
+            ],
+          );
     Widget cells(Widget Function(AdminColumn<T>) build) => Row(
       children: [
         for (final column in table.columns)
@@ -165,37 +220,48 @@ class _Table<T> extends StatelessWidget {
           ExcludeSemantics(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              child: cells(
-                (column) => Text(
-                  column.label,
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+              child: withAction(
+                cells(
+                  (column) => Text(
+                    column.label,
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ),
+                null,
               ),
             ),
           ),
           for (final row in page.items) ...[
             const Divider(),
-            table._row(
-              context,
-              row,
-              Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 14,
-                ),
-                child: DefaultTextStyle.merge(
-                  style: theme.textTheme.bodyMedium,
-                  child: cells(
-                    (column) => column.numeric
-                        ? AdminCellAlignment(
-                            alignment: CrossAxisAlignment.end,
-                            child: column.cell(row),
-                          )
-                        : column.cell(row),
+            KeyedSubtree(
+              key: ValueKey(table.rowKey(row)),
+              child: withAction(
+                table._row(
+                  context,
+                  row,
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 14,
+                    ),
+                    child: DefaultTextStyle.merge(
+                      style: theme.textTheme.bodyMedium,
+                      child: cells(
+                        (column) => column.numeric
+                            ? AdminCellAlignment(
+                                alignment: CrossAxisAlignment.end,
+                                child: column.cell(row),
+                              )
+                            : column.cell(row),
+                      ),
+                    ),
                   ),
                 ),
+                table.rowAction == null
+                    ? null
+                    : table._actionButton(context, row),
               ),
             ),
           ],
@@ -214,53 +280,67 @@ class _Cards<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    Widget content(T row) => Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final column in table.columns)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 104,
+                    child: Text(
+                      column.label,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ),
+                  Expanded(
+                    child: DefaultTextStyle.merge(
+                      style: theme.textTheme.bodyMedium,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: column.cell(row),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final row in page.items)
           Padding(
+            key: ValueKey(table.rowKey(row)),
             padding: const EdgeInsets.only(bottom: 8),
             child: Card(
               clipBehavior: Clip.antiAlias,
-              child: table._row(
-                context,
-                row,
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      for (final column in table.columns)
+              child: table.rowAction == null
+                  ? table._row(context, row, content(row))
+                  // La acción abajo a la derecha, fuera de la fila.
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        table._row(context, row, content(row)),
                         Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 3),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              SizedBox(
-                                width: 104,
-                                child: Text(
-                                  column.label,
-                                  style: theme.textTheme.bodySmall?.copyWith(
-                                    color: theme.colorScheme.onSurfaceVariant,
-                                  ),
-                                ),
-                              ),
-                              Expanded(
-                                child: DefaultTextStyle.merge(
-                                  style: theme.textTheme.bodyMedium,
-                                  child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: column.cell(row),
-                                  ),
-                                ),
-                              ),
-                            ],
+                          padding: const EdgeInsets.fromLTRB(12, 0, 4, 4),
+                          child: Align(
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: table._actionButton(context, row),
                           ),
                         ),
-                    ],
-                  ),
-                ),
-              ),
+                      ],
+                    ),
             ),
           ),
       ],

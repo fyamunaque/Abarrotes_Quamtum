@@ -1,18 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
+import '../../session/session_provider.dart';
+import '../offers/exclusive_offers.dart';
 import '../shared/brand.dart';
 import '../shared/swoosh.dart';
 
 /// Inicio: presentación de la tienda y accesos al catálogo y al registro.
-class HomeScreen extends StatelessWidget {
+/// Para una cuenta VIP, además sus ofertas exclusivas. Deslizar hacia abajo
+/// vuelve a pedir el perfil (y las ofertas).
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     return PublicScaffold(
+      onRefresh: () async {
+        await ref.read(sessionProvider.notifier).refreshProfile();
+        ref.invalidate(exclusiveOffersProvider);
+      },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -41,6 +51,8 @@ class HomeScreen extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 32),
+          const ExclusiveOffers(),
         ],
       ),
     );

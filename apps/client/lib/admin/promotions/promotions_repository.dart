@@ -4,7 +4,7 @@ import 'promotion.dart';
 
 /// Las promociones (solo admin y staff). Los errores salen como
 /// `ApiFailure` (p. ej. 400 si el precio no es menor que el normal, 409 si se
-/// cruza con otra promoción del producto).
+/// cruza con otra promoción del producto para la misma audiencia).
 abstract interface class PromotionsRepository {
   /// Una página, el inicio más reciente primero. Con [status], solo las que
   /// hoy están en ese estado.

@@ -40,6 +40,7 @@ class HttpUserRepository implements UserRepository {
           email: email,
           role: userRole,
           address: json['address'] as String?,
+          isVip: json['isVip'] == true,
         );
       }
     }

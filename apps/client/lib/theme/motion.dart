@@ -16,6 +16,9 @@ abstract final class NeilsMotion {
   /// El rebote del carrito de la barra cuando se agrega algo.
   static const bump = Duration(milliseconds: 300);
 
+  /// La entrada de un precio VIP en su tarjeta: una vez, al aparecer.
+  static const reveal = Duration(milliseconds: 300);
+
   /// Si la persona pidió reducir las animaciones.
   static bool reduced(BuildContext context) =>
       MediaQuery.disableAnimationsOf(context);

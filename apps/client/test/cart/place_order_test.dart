@@ -44,6 +44,13 @@ void main() {
     expect(order.totalCents, 2 * 2490 + 890);
     expect(orders.tokens, ['token-${auth.current}']);
     expect(container.read(cartProvider).isEmpty, isTrue);
+    // Manda el precio que mostraba el carrito (solo para comparar).
+    expect(orders.placed.single, [
+      (productId: 'arroz', quantity: 2, shownUnitPriceCents: 2490),
+      (productId: 'aceite', quantity: 1, shownUnitPriceCents: 890),
+    ]);
+    expect(order.priceChanges, isEmpty);
+    expect(container.read(placedOrderProvider), same(order));
   });
 
   test('si el servidor lo rechaza, el carrito queda igual', () async {

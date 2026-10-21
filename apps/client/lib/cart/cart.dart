@@ -12,9 +12,9 @@ class CartLine {
 
 /// El carrito: una línea por producto, en el orden en que se agregaron.
 ///
-/// Los precios son los del catálogo al agregar. El servidor cobra los de ese
-/// momento al hacer el pedido: si una promoción terminó en el medio, el
-/// total del pedido puede ser otro.
+/// Los precios son los del catálogo al agregar (para un VIP, los VIP): el
+/// total es una estimación. El servidor cobra los de ese momento al hacer el
+/// pedido y avisa si alguno cambió.
 class Cart {
   const Cart([this.lines = const []]);
 

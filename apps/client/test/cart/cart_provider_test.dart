@@ -1,7 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neils/cart/cart.dart';
 import 'package:neils/cart/cart_provider.dart';
+import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
+
+import '../support.dart';
 
 void main() {
   const rice = Product(id: 'arroz', name: 'Arroz', priceCents: 2490, stock: 40);
@@ -15,9 +21,13 @@ void main() {
 
   late ProviderContainer container;
   late CartNotifier cart;
+  late TestSession session;
 
   setUp(() {
-    container = ProviderContainer.test();
+    session = TestSession(const SignedOut());
+    container = ProviderContainer.test(
+      overrides: [sessionProvider.overrideWith(() => session)],
+    );
     cart = container.read(cartProvider.notifier);
   });
 
@@ -25,6 +35,77 @@ void main() {
     for (final line in container.read(cartProvider).lines)
       (line.product.id, line.quantity),
   ];
+
+  group('precios VIP', () {
+    const vipOil = Product(
+      id: 'aceite',
+      name: 'Aceite',
+      priceCents: 1090,
+      promoPriceCents: 790,
+      vipPrice: true,
+      stock: 3,
+    );
+    final vip = SignedIn(
+      signedInAs(UserRole.customer).user.copyWith(isVip: true),
+    );
+
+    ProviderContainer start(Session initial, {Cart saved = const Cart()}) {
+      session = TestSession(initial);
+      return ProviderContainer.test(
+        overrides: [
+          sessionProvider.overrideWith(() => session),
+          cartStorageProvider.overrideWithValue(MemoryCartStorage(saved)),
+        ],
+      );
+    }
+
+    int priceOf(ProviderContainer container) =>
+        container.read(cartProvider).lines.single.product.finalPriceCents;
+
+    test('un VIP los ve; si deja de serlo, vuelven al precio normal', () {
+      final container = start(vip);
+      container.read(cartProvider.notifier).add(vipOil);
+      expect(priceOf(container), 790);
+
+      session.set(SignedIn(vip.user.copyWith(isVip: false)));
+
+      expect(priceOf(container), 1090);
+      expect(
+        container.read(cartProvider).lines.single.product.vipPrice,
+        isFalse,
+      );
+    });
+
+    test('al cerrar sesión también', () {
+      final container = start(vip);
+      container.read(cartProvider.notifier).add(vipOil, 2);
+
+      session.set(const SignedOut());
+
+      expect(priceOf(container), 1090);
+      expect(container.read(cartProvider).count, 2);
+    });
+
+    test('un carrito guardado con precios VIP, abierto sin cuenta VIP', () {
+      final container = start(
+        const SignedOut(),
+        saved: const Cart([CartLine(vipOil, 1)]),
+      );
+
+      expect(priceOf(container), 1090);
+    });
+
+    test('mientras la sesión carga no toca nada', () {
+      final container = start(
+        const SessionLoading(),
+        saved: const Cart([CartLine(vipOil, 1)]),
+      );
+      expect(priceOf(container), 790);
+
+      session.set(vip);
+      expect(priceOf(container), 790);
+    });
+  });
 
   test('empieza vacío', () {
     final empty = container.read(cartProvider);

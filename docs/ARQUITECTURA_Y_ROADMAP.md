@@ -7,7 +7,7 @@ Guía técnica para el equipo. Complementa `CLAUDE.md` (que vive en la raíz del
 Plataforma de ecommerce para una tienda de abarrotes (Neil's Food Services), con dos caras sobre un mismo servidor:
 
 - **Tienda** — catálogo, carrito, pedidos y seguimiento para el cliente, en Android y en el navegador.
-- **Panel** — gestión de pedidos, productos, inventario, estadísticas y promociones para la tienda.
+- **Panel** — gestión de pedidos, productos, inventario, estadísticas, promociones y clientes VIP para la tienda.
 
 Las dos están en **una sola app Flutter** (`apps/client`), contra un servidor **Serverpod** en Dart (`apps/server`) con una **base de datos central**, así la tienda y el panel muestran siempre la misma información (stock, precios, estado de pedidos).
 
@@ -36,11 +36,13 @@ CLAUDE.md
 
 **El servidor:** cada dominio tiene su carpeta en `apps/server/abarrotes_server/lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082):
 
-- `users`: `GET /users/me` devuelve el usuario del Firebase ID token y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
-- `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra su promoción vigente.
-- `promotions`: CRUD para admin/staff, con el estado según la fecha.
+- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`) y la primera vez lo crea como cliente; `POST /users` (solo admin) crea cuentas admin o staff vinculadas a un `firebaseUid`.
+- `categories` y `products`: lectura pública y escritura para admin/staff. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
+- `promotions`: CRUD para admin/staff, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
+- `vip`: la lista de clientes VIP por correo (`/vip-customers`): admin la modifica, staff solo la lee. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
+- `push` (infraestructura): el envío con FCM. Los dispositivos se registran en `PUT /users/me/devices`.
 - `inventory` (admin/staff): movimientos de stock (entrada, salida y ajuste con signo) que actualizan `currentStock` en una transacción con la fila bloqueada, su historial, y alertas de stock bajo y de productos por vencer.
-- `orders`: del lado del cliente, `POST /orders` y `GET /orders/mine`; para el panel, `GET /orders` con filtros y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`).
+- `orders`: del lado del cliente, `POST /orders` (cobra la mejor promoción que el cliente puede usar, nunca el precio que manda la app, y avisa en `priceChanges` si difiere del carrito) y `GET /orders/mine`; para el panel, `GET /orders` con filtros y `PATCH /orders/:id/status` con el patrón State (una clase por estado en `lib/src/orders/states/`).
 - `stats` (admin/staff): resumen, ventas por día, más vendidos, stock bajo y por vencer. Cada reporte es una estrategia (`ReportProvider`).
 
 El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas de Google (cacheadas), `iss`, `aud` y vigencia. Arranque, `passwords.yaml` y primer admin: `apps/server/README.md`.
@@ -51,7 +53,7 @@ El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas
 
 ## 4. Modelo de datos
 
-Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid` y rol), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem` y `Promotion`.
+Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid` y rol), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional) y `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó).
 
 - **Estados de pedido:** `pendingConfirmation → confirmed → outForDelivery → delivered`, con `cancelled` como ruta alterna.
 - **Montos en céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal. En el JSON viajan como texto (`"4.5"`).
@@ -73,7 +75,9 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 - **Panel:**
   - inicio con ventas de hoy, la semana y el mes, ticket promedio, pedidos por estado, gráfico de 30 días, stock bajo, por vencer y top 5;
   - pedidos con el stepper de estado y actualización automática;
-  - productos, inventario (entradas, salidas y ajustes) y promociones.
+  - productos, inventario (entradas, salidas y ajustes) y promociones;
+  - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve.
+- **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia y el título en el formulario de promociones; en la tienda, el precio VIP en el catálogo, las "Ofertas exclusivas", el carrito como estimación con el precio final al pedir, el refresco del perfil sin cerrar sesión y el aviso para verificar el correo.
 - **Para la demo:**
   - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
   - la app web en release;
@@ -82,15 +86,19 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 **Pendiente:**
 
 1. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
-2. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-3. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
-4. **Negocio real:**
+2. **Avisos push en la app** (el servidor ya los manda): `firebase_messaging`, pedir el permiso
+   de notificaciones, registrar el token con `PUT /users/me/devices` (y quitarlo al salir), en la
+   web la clave VAPID y el service worker, y abrir el producto al tocar el aviso. Para que salgan,
+   configurar la cuenta de servicio en el servidor (`apps/server/README.md`, "Avisos push").
+3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
+4. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
+5. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado;
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-5. **Más gestión en el panel:**
+6. **Más gestión en el panel:**
    - categorías;
    - cuentas del personal;
    - insumos;

@@ -67,6 +67,12 @@ class TestSession extends SessionNotifier {
   /// Si se llamó a [signOut] (que aquí no toca Firebase).
   bool signedOut = false;
 
+  /// Cuántas veces se pidió refrescar el perfil (aquí no hace nada).
+  int refreshes = 0;
+
+  @override
+  Future<void> refreshProfile() async => refreshes++;
+
   @override
   Future<void> signOut() async {
     signedOut = true;

@@ -1,6 +1,7 @@
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
 import 'package:serverpod/serverpod.dart' hide Order;
 
+import '../auth/firebase_auth_middleware.dart';
 import '../auth/firebase_token_verifier.dart';
 import '../auth/role_guard.dart';
 import '../common/api_route.dart';
@@ -8,6 +9,7 @@ import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/money.dart';
 import '../common/pagination.dart';
+import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'orders_service.dart';
 
@@ -15,8 +17,9 @@ import 'orders_service.dart';
 /// listado y los cambios de estado, solo para admin y staff.
 List<RouteEntry> ordersRoutes(
   OrdersService orders,
-  FirebaseTokenVerifier verifier,
-) {
+  FirebaseTokenVerifier verifier, {
+  required ShopperResolver shoppers,
+}) {
   Route signedIn(Method method, ApiHandler handler) =>
       RoleGuard(anyRole, ApiRoute(method, handler), verifier: verifier);
   Route staffOnly(Method method, ApiHandler handler) =>
@@ -25,8 +28,10 @@ List<RouteEntry> ordersRoutes(
   return [
     (
       '/orders',
-      // El pedido queda a nombre de quien lo crea. Sin precios ni total: los
-      // pone el servidor con los precios de hoy.
+      // El pedido queda a nombre de quien lo crea. Los precios y el total los
+      // pone el servidor con los precios de hoy para ese cliente. Cada ítem
+      // puede traer el unitPrice que mostraba el carrito: nunca se cobra, solo
+      // se compara, y si cambió va en priceChanges.
       signedIn(Method.post, (session, request) async {
         final body = InputReader.body(
           await readJsonBody(request),
@@ -35,7 +40,7 @@ List<RouteEntry> ordersRoutes(
         final deliveryAddress = body.text('deliveryAddress', maxLength: 255);
         final items = body.objects(
           'items',
-          allowed: const {'productId', 'quantity'},
+          allowed: const {'productId', 'quantity', 'unitPrice'},
           min: 1,
           max: 100,
         );
@@ -44,20 +49,33 @@ List<RouteEntry> ordersRoutes(
             (
               productId: item.uuid('productId'),
               quantity: item.integer('quantity', min: 1, max: 999),
+              shownUnitPrice: item.cents(
+                'unitPrice',
+                minCents: 0,
+                required: false,
+              ),
             ),
         ];
         body.check();
 
-        final order = await orders.create(
+        final placed = await orders.create(
           session,
           customer: request.currentUser,
+          shopper: await shoppers.resolve(session, request.firebaseIdentity),
           deliveryAddress: deliveryAddress!,
           lines: [
             for (final line in lines)
-              (productId: line.productId!, quantity: line.quantity!),
+              (
+                productId: line.productId!,
+                quantity: line.quantity!,
+                shownUnitPriceCents: line.shownUnitPrice,
+              ),
           ],
         );
-        return jsonResponse(201, orderJson(order));
+        return jsonResponse(201, {
+          ...orderJson(placed.order),
+          'priceChanges': placed.priceChanges.map(priceChangeJson).toList(),
+        });
       }),
     ),
     (
@@ -160,6 +178,14 @@ Map<String, Object?> orderJson(Order order) {
     ],
   };
 }
+
+/// Un precio que cambió entre el carrito y el cobro, para avisarle al cliente.
+Map<String, Object?> priceChangeJson(PriceChange change) => {
+  'productId': change.productId.toString(),
+  'name': change.name,
+  'shownUnitPrice': formatMoney(change.shownUnitPriceCents),
+  'unitPrice': formatMoney(change.unitPriceCents),
+};
 
 /// Como [orderJson] y, además, quién lo hizo (para el panel).
 Map<String, Object?> adminOrderJson(Order order) {

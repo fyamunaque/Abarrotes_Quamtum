@@ -12,12 +12,16 @@ import '../support.dart';
 void main() {
   useBundledFonts();
 
-  Future<void> pumpHome(WidgetTester tester) async {
+  late TestSession session;
+
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    Session signedIn = const SignedOut(),
+  }) async {
+    session = TestSession(signedIn);
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
-        ],
+        overrides: [sessionProvider.overrideWith(() => session)],
         child: MaterialApp(theme: neilsTheme(), home: const HomeScreen()),
       ),
     );
@@ -32,6 +36,19 @@ void main() {
     final swoosh = tester.getRect(find.byType(AnimatedSwoosh));
     expect(swoosh.width, closeTo(line.width, 1));
     expect(swoosh.center.dy, greaterThan(line.center.dy));
+  });
+
+  testWidgets('deslizar hacia abajo vuelve a pedir el perfil', (tester) async {
+    await pumpHome(tester, signedIn: signedInAs(UserRole.customer));
+
+    await tester.fling(
+      find.byType(SingleChildScrollView),
+      const Offset(0, 400),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(session.refreshes, 1);
   });
 
   testWidgets('el titular se lee como un solo encabezado', (tester) async {

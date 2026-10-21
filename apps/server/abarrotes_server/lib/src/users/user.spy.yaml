@@ -7,6 +7,9 @@ fields:
   ### uid de Firebase Auth (claim `sub` del ID token).
   firebaseUid: String
   email: String
+  ### Lo último que dijo el ID token (email_verified). Lo usa el aviso push,
+  ### que no tiene un token del cliente a mano.
+  emailVerified: bool, default=false
   name: String
   phone: String?
   role: UserRole, default=customer
@@ -14,6 +17,8 @@ fields:
   createdAt: DateTime, default=now
   orders: List<Order>?, relation(name=user_orders)
   inventoryMovements: List<InventoryMovement>?, relation(name=user_inventory_movements)
+  vipCustomersAdded: List<VipCustomer>?, relation(name=user_vip_customers)
+  deviceTokens: List<DeviceToken>?, relation(name=user_device_tokens)
 indexes:
   users_firebase_uid_idx:
     fields: firebaseUid

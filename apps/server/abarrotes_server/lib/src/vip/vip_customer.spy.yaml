@@ -1,0 +1,17 @@
+### Un cliente VIP: un correo (en minúsculas y sin espacios) que accede a las
+### promociones con audiencia `vip`, si además verificó ese correo en Firebase.
+### Se da de baja con `active`, sin borrar la fila: queda el historial.
+class: VipCustomer
+table: vip_customers
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  email: String
+  active: bool, default=true
+  createdAt: DateTime, default=now
+  ### Quién lo agregó (un admin).
+  addedByUserId: UuidValue
+  addedBy: User?, relation(name=user_vip_customers, field=addedByUserId, onDelete=Restrict, onUpdate=Cascade)
+indexes:
+  vip_customers_email_idx:
+    fields: email
+    unique: true

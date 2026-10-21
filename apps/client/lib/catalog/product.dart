@@ -17,6 +17,7 @@ class Product {
     this.active = true,
     this.minStock = 0,
     this.expirationDate,
+    this.vipPrice = false,
   });
 
   /// Como lo manda el servidor (`productJson` en apps/server, con la
@@ -36,6 +37,10 @@ class Product {
         promoPriceCents: switch (json['promotion']) {
           {'promoPrice': final String promoPrice} => parseCents(promoPrice),
           _ => null,
+        },
+        vipPrice: switch (json['promotion']) {
+          {'audience': 'vip'} => true,
+          _ => false,
         },
         imageUrl: json['imageUrl'] as String?,
         description: json['description'] as String?,
@@ -72,12 +77,34 @@ class Product {
   /// El precio de la promoción vigente, si tiene una.
   final int? promoPriceCents;
 
+  /// Si esa promoción es solo para clientes VIP. El servidor solo la manda a
+  /// quien lo es.
+  final bool vipPrice;
+
   final String? imageUrl;
   final int stock;
   final String? description;
   final Category? category;
 
   bool get onSale => promoPriceCents != null;
+
+  /// El mismo producto sin su precio VIP (para quien ya no es VIP): el precio
+  /// normal, hasta que el servidor diga el de hoy.
+  Product withoutVipPrice() => !vipPrice
+      ? this
+      : Product(
+          id: id,
+          name: name,
+          priceCents: priceCents,
+          stock: stock,
+          imageUrl: imageUrl,
+          description: description,
+          category: category,
+          sku: sku,
+          active: active,
+          minStock: minStock,
+          expirationDate: expirationDate,
+        );
 
   /// Lo que se paga hoy.
   int get finalPriceCents => promoPriceCents ?? priceCents;

@@ -21,7 +21,9 @@ apps/server/
 ```
 
 Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplies`, `orders`,
-`promotions`): ningún dominio importa la lógica de otro.
+`promotions`, `vip`): ningún dominio importa la lógica de otro. `auth`, `common` y `push` son
+infraestructura compartida; lo que un dominio necesita de otro llega por constructor como interfaz
+(p. ej. `PromotionPricing`, ver [Clientes VIP](#clientes-vip-y-audiencias-de-las-promociones)).
 
 ## Requisitos
 
@@ -152,9 +154,11 @@ toma en cuenta.
 
 `RoleGuard` protege una ruta por rol: la envuelve y responde 401 (sin
 token o inválido), 503 (sin llaves de Google) o 403 (el rol no alcanza) antes de que la ruta lea
-el body. Si deja pasar, la ruta tiene al usuario en `request.currentUser`. Las lecturas públicas
-que muestran más al staff (p. ej. productos inactivos) usan `optionalUser`: un token ausente o
-inválido cuenta como visitante.
+el body. Si deja pasar, la ruta tiene al usuario en `request.currentUser` (y la identidad del
+token en `request.firebaseIdentity`). Los conjuntos de roles están en `role_guard.dart`:
+`staffRoles` (admin y staff), `adminRoles` (solo admin: cuentas del personal y clientes VIP) y
+`anyRole`. Las lecturas públicas que muestran más al staff (p. ej. productos inactivos) usan
+`optionalUser`: un token ausente o inválido cuenta como visitante.
 
 ## CORS (la app web)
 
@@ -208,25 +212,31 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 
 | Método y ruta | Quién | Qué hace |
 |---|---|---|
-| `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. |
+| `GET /users/me` | cualquiera con token | Devuelve el usuario del token. La primera vez lo crea como `customer` con el email y el nombre de Firebase. Incluye `isVip`: si puede usar las promociones VIP. Guarda si el correo está verificado (`email_verified` del token). |
+| `PUT /users/me/devices` | cualquiera con token | `{token, platform?}` (`platform`: `android` o `web`): registra el token de FCM de un dispositivo para los avisos push. Repetirlo no lo duplica; si el token era de otra cuenta, pasa a esta. 204. |
+| `DELETE /users/me/devices?token=…` | cualquiera con token | Lo quita (al cerrar sesión). Solo los tokens propios. 204. |
 | `POST /users` | solo `admin` | Crea una cuenta `admin` o `staff` vinculada a un `firebaseUid` existente. Es la única forma de tener esos roles. |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
 | `POST /categories`, `PATCH /categories/:id` | admin, staff | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
 | `DELETE /categories/:id` | admin, staff | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
-| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con promoción vigente) e `includeInactive=true` (solo surte efecto para admin y staff). |
+| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto para admin y staff). |
 | `GET /products/:id` | público | Un inactivo es 404, salvo para admin y staff. |
 | `POST /products` | admin, staff | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. |
 | `PATCH /products/:id` | admin, staff | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. |
 | `DELETE /products/:id` | admin, staff | Baja lógica (`active: false`); devuelve el producto. |
 | `GET /promotions`, `GET /promotions/:id` | admin, staff | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
-| `POST /promotions` | admin, staff | `{productId, promoPrice, startDate, endDate, active?}`, días `AAAA-MM-DD` ambos incluidos. |
-| `PATCH /promotions/:id` | admin, staff | Cambia precio, fechas o `active`; el producto no cambia. |
+| `POST /promotions` | admin, staff | `{productId, promoPrice, startDate, endDate, active?, audience?, title?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto) o `vip`; `title`: hasta 100 caracteres. |
+| `PATCH /promotions/:id` | admin, staff | Cambia precio, fechas, `active`, `audience` o `title` (`null` lo borra); el producto no cambia. |
+| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl}`. Sin token, o sin ser VIP, solo salen las de `everyone`. |
 | `DELETE /promotions/:id` | admin, staff | 204. |
+| `GET /vip-customers` | admin, staff | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
+| `POST /vip-customers` | solo `admin` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
+| `DELETE /vip-customers/:id` | solo `admin` | Baja lógica (`active: false`): queda quién lo agregó y cuándo. Devuelve el VIP. |
 | `POST /inventory/movements` | admin, staff | `{productId, type, quantity, reason?}` con `type` igual a `incoming`, `outgoing` o `adjustment`. Actualiza `currentStock` y registra el movimiento a nombre de quien lo hace, en una sola transacción. Responde el movimiento con el stock nuevo. |
 | `GET /inventory/movements` | admin, staff | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
 | `GET /inventory/alerts/low-stock` | admin, staff | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | admin, staff | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
-| `POST /orders` | cualquiera con cuenta | `{deliveryAddress, items: [{productId, quantity}]}` (de 1 a 100 líneas; cantidad de 1 a 999). Sin precios ni total: el servidor cobra el precio de hoy, el de la promoción vigente si la hay. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido. |
+| `POST /orders` | cualquiera con cuenta | `{deliveryAddress, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
 | `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero. |
 | `GET /orders` | admin, staff | Pedidos con sus líneas y cliente, paginados, los más recientes primero. Filtros: `status`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | admin, staff | `{status}`. Valida la transición contra el estado actual (patrón State): si no está permitida, 400 con el motivo. |
@@ -275,14 +285,86 @@ Reglas de los movimientos de inventario:
 - La fila del producto se bloquea (`FOR UPDATE`) durante la transacción: dos movimientos
   simultáneos no pueden pisarse.
 
-Cada producto trae su categoría y `promotion`, la promoción vigente o `null`. Reglas de las
-promociones (`lib/src/promotions/promotion_rules.dart`):
+Cada producto trae su categoría y `promotion`: la mejor promoción vigente que puede usar quien
+pregunta (con `title` y `audience`), o `null`. Reglas de las promociones
+(`lib/src/promotions/promotion_rules.dart`):
 
 - El estado sale de la fecha y del interruptor `active`; no se guarda.
 - `promoPrice` tiene que ser menor al precio normal (400).
-- Dos promociones encendidas del mismo producto no pueden cruzarse en el tiempo (409).
+- Dos promociones encendidas del mismo producto y la misma audiencia no pueden cruzarse en el
+  tiempo (409). De audiencias distintas sí (una para todos y otra VIP): cada cliente paga la más
+  barata de las que puede usar.
 
-Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}`. Errores comunes a
+### Clientes VIP y audiencias de las promociones
+
+Cada promoción tiene una `audience`: `everyone` (todos, también sin cuenta) o `vip`. Quién
+puede usar cada una lo deciden reglas que se inyectan, no condiciones repartidas por el código:
+
+- `common/shopper.dart`: `Shopper` (quién mira o compra) y la interfaz `ShopperResolver`, que lo
+  arma desde el token. La implementa `VipShopperResolver` (`vip/`).
+- `promotions/audience/`: la interfaz `PromotionAudienceRule` (`audience` +
+  `isEligible(shopper)`) y sus reglas, `EveryoneAudienceRule` y `VipAudienceRule`.
+- `PromotionsService` recibe la lista de reglas por constructor y no conoce ninguna. Implementa
+  `PromotionPricing` (las promociones que un cliente puede usar y la mejor), lo único que reciben
+  `ProductsService` y `OrdersService`.
+- `VipService` (`vip/`) da de alta, baja y consulta los VIP. No sabe nada de promociones.
+
+**Es VIP** quien tiene el correo del token en `vip_customers` (activo) **y** `email_verified =
+true` en Firebase. Sin esa verificación, cualquiera podría crear una cuenta con el correo de un
+VIP. Las cuentas de correo y contraseña de Firebase empiezan sin verificar: hasta que la persona
+confirma su correo, el servidor la trata como cliente común (`isVip: false`).
+
+**Para sumar un segmento** (p. ej. mayoristas):
+
+1. Un valor nuevo en `promotions/promotion_audience.spy.yaml`, y `serverpod generate`.
+2. Una regla nueva en `promotions/audience/` que implemente `PromotionAudienceRule`. Si necesita
+   saber algo más del cliente, se agrega a `Shopper` y lo completa el `ShopperResolver`.
+3. Pasarla a `PromotionsService` en `server.dart`.
+
+No hace falta tocar `PromotionsService`, ni products, ni orders. El test
+`test/unit/promotions/promotion_audience_test.dart` lo muestra con una regla de prueba.
+
+### Avisos push (FCM)
+
+Al crear una promoción **VIP que ya rige** (encendida y con hoy dentro de su vigencia), el
+servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado:
+"Nueva oferta exclusiva", con el producto, el precio y hasta qué día rige, y en `data`
+`{type: vip_promotion, promotionId, productId}` para que la app abra el producto.
+
+- Usa la REST API de FCM (HTTP v1), **un mensaje por token**, nunca por topic: un topic lo puede
+  suscribir cualquiera desde el cliente.
+- Corre en segundo plano, con su propia sesión (`Serverpod.withSession`): la respuesta del
+  `POST /promotions` no espera, y si el envío falla la promoción se crea igual. Todo queda en el
+  log: el resumen (enviados, tokens inválidos borrados, fallidos) y cada fallo, con solo el
+  final del token.
+- Los tokens que FCM da por dados de baja (`UNREGISTERED`, o un 400 por `message.token`) se
+  borran. Cualquier otro error no borra nada.
+- Las piezas:
+  - `push/`: `PushSender`, `FcmPushSender` y `GoogleAccessTokens`, que firma el JWT de
+    la cuenta de servicio (RS256) y lo canjea por un access token de OAuth;
+  - `promotions/promotion_announcer.dart`: `PromotionsService` llama a
+    `PromotionAnnouncer.announce` con cada promoción que se crea y ya rige;
+  - `vip/vip_promotion_announcer.dart`: decide a quién y manda.
+- Los tokens los registra la app con `PUT /users/me/devices` (tabla `device_tokens`, varios
+  por cuenta). Si se aprueba un VIP con el correo verificado, lo sabe por `users.emailVerified`,
+  que guarda `GET /users/me`.
+
+**Configurarlo** (sin esto el servidor arranca igual y lo dice en el log: "Aviso push
+desactivado"):
+
+1. En Firebase: Configuración del proyecto → Cuentas de servicio → **Generar nueva clave
+   privada**. Descarga un JSON: es un secreto.
+2. Guardarlo fuera del repo, o en `config/` con un nombre que git ignora (p. ej.
+   `config/firebase_service_account_key.json`, o el nombre que pone Firebase,
+   `*-firebase-adminsdk-*.json`).
+3. En `config/passwords.yaml`, en la sección del modo (p. ej. `development:`):
+   `fcmServiceAccountFile: 'config/firebase_service_account_key.json'` (o la variable de
+   entorno `FCM_SERVICE_ACCOUNT_FILE`).
+4. Reiniciar el servidor. Si el proyecto de la cuenta no es el de `firebaseProjectId`, lo
+   avisa al arrancar.
+
+Usuarios: la respuesta es `{id, email, name, phone, role, address, createdAt}` (y `isVip` en
+`/users/me`). Errores comunes a
 todas las rutas, siempre con la forma `{statusCode, message, error}`:
 
 - 400: body o query inválidos (con la lista de errores), o token sin email en `/users/me`.

@@ -6,7 +6,11 @@ import 'package:neils/cart/cart.dart';
 import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support.dart';
 
 void main() {
   const rice = Product(
@@ -41,7 +45,24 @@ void main() {
       expect(saved.imageUrl, 'https://tienda.pe/arroz.png');
       expect(promo.finalPriceCents, 890);
       expect(promo.stock, 3);
+      expect(promo.vipPrice, isFalse);
       expect(cart.totalCents, 2 * 2490 + 3 * 890);
+    });
+
+    test('guarda si el precio era VIP', () {
+      const vipOil = Product(
+        id: 'aceite',
+        name: 'Aceite vegetal 1 L',
+        priceCents: 1090,
+        promoPriceCents: 790,
+        vipPrice: true,
+        stock: 3,
+      );
+
+      final cart = decodeCart(encodeCart(const Cart([CartLine(vipOil, 1)])));
+
+      expect(cart.lines.single.product.vipPrice, isTrue);
+      expect(cart.lines.single.product.finalPriceCents, 790);
     });
 
     test('nada guardado, JSON roto u otra versión: carrito vacío', () {
@@ -99,7 +120,10 @@ void main() {
     test('empieza con lo guardado y guarda cada cambio', () {
       final storage = MemoryCartStorage(const Cart([CartLine(rice, 1)]));
       final container = ProviderContainer.test(
-        overrides: [cartStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          cartStorageProvider.overrideWithValue(storage),
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
       );
 
       expect(lines(container.read(cartProvider)), [('arroz', 1)]);
@@ -116,11 +140,17 @@ void main() {
     test('sigue ahí al volver a abrir la app (un contenedor nuevo)', () {
       final storage = MemoryCartStorage();
       ProviderContainer.test(
-        overrides: [cartStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          cartStorageProvider.overrideWithValue(storage),
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
       ).read(cartProvider.notifier).add(rice, 3);
 
       final reopened = ProviderContainer.test(
-        overrides: [cartStorageProvider.overrideWithValue(storage)],
+        overrides: [
+          cartStorageProvider.overrideWithValue(storage),
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        ],
       );
 
       expect(lines(reopened.read(cartProvider)), [('arroz', 3)]);

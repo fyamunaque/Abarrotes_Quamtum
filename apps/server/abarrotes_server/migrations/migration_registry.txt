@@ -5,3 +5,5 @@
 ### the conflict by removing and recreating the conflicting migration.
 
 20261004020613316-initial
+20261009165855105-clientes-vip
+20261009214926152-push-vip

@@ -16,6 +16,19 @@ final orderRepositoryProvider = Provider<OrderRepository>(
   (ref) => HttpOrderRepository(ref.watch(apiClientProvider)),
 );
 
+/// El último pedido hecho desde el carrito, para el aviso de "Mis pedidos":
+/// el total que cobró la tienda y los precios que cambiaron.
+final placedOrderProvider = NotifierProvider<PlacedOrderNotifier, Order?>(
+  PlacedOrderNotifier.new,
+);
+
+class PlacedOrderNotifier extends Notifier<Order?> {
+  @override
+  Order? build() => null;
+
+  void set(Order order) => state = order;
+}
+
 /// Los pedidos de la cuenta abierta, página a página. Se vuelve a cargar si
 /// cambia la cuenta.
 final myOrdersProvider =

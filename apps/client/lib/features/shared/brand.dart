@@ -8,6 +8,7 @@ import '../../session/session_provider.dart';
 import 'account.dart';
 import 'cart_button.dart';
 import 'page_title.dart';
+import 'verify_email_notice.dart';
 
 /// El logo de Neil's (naranja con letras crema).
 class NeilsLogo extends StatelessWidget {
@@ -34,15 +35,22 @@ class NeilsLogo extends StatelessWidget {
 ///
 /// Por debajo de [AccountActions.wideFrom] la barra se compacta: el catálogo
 /// pasa a ser un ícono y la cuenta va en un menú.
+///
+/// Con una cuenta que no confirmó su correo, arriba del contenido va el
+/// aviso para verificarlo ([VerifyEmailNotice]).
 class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({
     super.key,
     required this.child,
     this.title,
     this.maxWidth = 960,
+    this.onRefresh,
   });
 
   final Widget child;
+
+  /// Con esto, deslizar hacia abajo desde arriba lo llama (pull-to-refresh).
+  final Future<void> Function()? onRefresh;
 
   /// Para la pestaña del navegador (ver [PageTitle]). Sin título, la marca.
   final String? title;
@@ -91,12 +99,28 @@ class PublicScaffold extends ConsumerWidget {
           ],
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxWidth),
-                child: child,
+          child: _refreshable(
+            SingleChildScrollView(
+              // Para poder deslizar aunque el contenido entre en la pantalla.
+              physics: onRefresh == null
+                  ? null
+                  : const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(16),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: maxWidth),
+                  child: switch (session) {
+                    SignedIn(:final user) when !user.emailVerified => Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        VerifyEmailNotice(user, key: ValueKey(user.id)),
+                        const SizedBox(height: 16),
+                        child,
+                      ],
+                    ),
+                    _ => child,
+                  },
+                ),
               ),
             ),
           ),
@@ -104,4 +128,9 @@ class PublicScaffold extends ConsumerWidget {
       ),
     );
   }
+
+  Widget _refreshable(Widget scroll) => switch (onRefresh) {
+    final onRefresh? => RefreshIndicator(onRefresh: onRefresh, child: scroll),
+    null => scroll,
+  };
 }

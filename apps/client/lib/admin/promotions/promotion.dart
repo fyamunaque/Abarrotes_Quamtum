@@ -16,7 +16,18 @@ enum PromotionStatus {
   final String pluralLabel;
 }
 
-/// Una promoción: un precio especial de un producto por unos días.
+/// A quién va dirigida una promoción, con los nombres del servidor.
+enum PromotionAudience {
+  everyone('Todos'),
+  vip('Solo clientes VIP');
+
+  const PromotionAudience(this.label);
+
+  final String label;
+}
+
+/// Una promoción: un precio especial de un producto por unos días, para
+/// todos o solo para los clientes VIP.
 class Promotion {
   const Promotion({
     required this.id,
@@ -29,24 +40,27 @@ class Promotion {
     required this.endDate,
     required this.active,
     required this.status,
+    this.audience = PromotionAudience.everyone,
+    this.title,
   });
 
-  /// Como la manda `/promotions`.
+  /// Como la manda `/promotions`. Sin `audience`, es para todos.
   factory Promotion.fromJson(Object? json) => switch (json) {
     {
-      'id': final String id,
-      'productId': final String productId,
-      'product': {
-        'name': final String productName,
-        'sku': final String sku,
-        'price': final String price,
-      },
-      'promoPrice': final String promoPrice,
-      'startDate': final String startDate,
-      'endDate': final String endDate,
-      'active': final bool active,
-      'status': final String status,
-    } =>
+          'id': final String id,
+          'productId': final String productId,
+          'product': {
+            'name': final String productName,
+            'sku': final String sku,
+            'price': final String price,
+          },
+          'promoPrice': final String promoPrice,
+          'startDate': final String startDate,
+          'endDate': final String endDate,
+          'active': final bool active,
+          'status': final String status,
+        } &&
+        final Map<Object?, Object?> map =>
       Promotion(
         id: id,
         productId: productId,
@@ -60,6 +74,14 @@ class Promotion {
         status:
             PromotionStatus.values.asNameMap()[status] ??
             (throw FormatException('Estado desconocido', status)),
+        audience: switch (map['audience']) {
+          null => PromotionAudience.everyone,
+          final String name =>
+            PromotionAudience.values.asNameMap()[name] ??
+                (throw FormatException('Audiencia desconocida', name)),
+          final other => throw FormatException('Audiencia inválida', other),
+        },
+        title: map['title'] as String?,
       ),
     _ => throw FormatException('No es una promoción', json),
   };
@@ -80,6 +102,12 @@ class Promotion {
   /// El interruptor: apagada no rige aunque esté en fecha.
   final bool active;
   final PromotionStatus status;
+  final PromotionAudience audience;
+
+  /// El nombre de la oferta (p. ej. "Semana del arroz"), si tiene.
+  final String? title;
+
+  bool get vipOnly => audience == PromotionAudience.vip;
 
   /// El descuento sobre el precio normal, redondeado.
   int get discountPercent => priceCents == 0
@@ -95,6 +123,8 @@ class PromotionInput {
     required this.startDate,
     required this.endDate,
     required this.active,
+    this.audience = PromotionAudience.everyone,
+    this.title,
     this.productId,
   });
 
@@ -105,6 +135,10 @@ class PromotionInput {
   final String startDate;
   final String endDate;
   final bool active;
+  final PromotionAudience audience;
+
+  /// Sin título se manda null, que al editar lo borra.
+  final String? title;
 
   Map<String, Object?> toJson() => {
     'productId': ?productId,
@@ -112,5 +146,7 @@ class PromotionInput {
     'startDate': startDate,
     'endDate': endDate,
     'active': active,
+    'audience': audience.name,
+    'title': title,
   };
 }

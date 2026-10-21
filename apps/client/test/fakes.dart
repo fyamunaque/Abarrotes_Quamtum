@@ -10,12 +10,16 @@ import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_repository.dart';
+import 'package:neils/admin/vip/vip_customer.dart';
+import 'package:neils/admin/vip/vip_repository.dart';
 import 'package:neils/auth/auth_repository.dart';
 import 'package:neils/catalog/catalog_repository.dart';
 import 'package:neils/catalog/category.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/page_list.dart';
+import 'package:neils/offers/offer.dart';
+import 'package:neils/offers/offers_repository.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
@@ -329,8 +333,8 @@ class FakeInventoryRepository implements InventoryRepository {
 }
 
 /// Las promociones en memoria, como el servidor: el precio menor que el
-/// normal (400), sin cruzarse con otra encendida del mismo producto (409) y
-/// el estado calculado con [today].
+/// normal (400), sin cruzarse con otra encendida del mismo producto y la
+/// misma audiencia (409) y el estado calculado con [today].
 class FakePromotionsRepository implements PromotionsRepository {
   FakePromotionsRepository(
     List<Promotion> promotions, {
@@ -424,6 +428,8 @@ class FakePromotionsRepository implements PromotionsRepository {
     startDate: input.startDate,
     endDate: input.endDate,
     active: input.active,
+    audience: input.audience,
+    title: input.title,
     status: !input.active
         ? PromotionStatus.disabled
         : today.compareTo(input.startDate) < 0
@@ -446,15 +452,116 @@ class FakePromotionsRepository implements PromotionsRepository {
       if (other.id != id &&
           other.active &&
           other.productId == promotion.productId &&
+          other.audience == promotion.audience &&
           other.startDate.compareTo(promotion.endDate) <= 0 &&
           other.endDate.compareTo(promotion.startDate) >= 0) {
         throw ApiFailure(
-          '${promotion.productName} ya tiene una promoción del '
+          '${promotion.productName} ya tiene una promoción'
+          '${promotion.vipOnly ? ' VIP' : ''} del '
           '${other.startDate} al ${other.endDate} que se cruza con esas fechas',
           status: 409,
         );
       }
     }
+  }
+}
+
+/// Los clientes VIP en memoria, como el servidor: solo los activos, por
+/// correo y con búsqueda; el alta normaliza, valida, separa los duplicados
+/// (repetidos o ya activos) y reactiva a los dados de baja; la baja es lógica.
+class FakeVipRepository implements VipRepository {
+  FakeVipRepository(
+    List<VipCustomer> customers, {
+    this.registered = const {},
+    this.pageSize = 20,
+  }) : customers = [...customers];
+
+  final List<VipCustomer> customers;
+
+  /// Los correos que ya tienen cuenta (para los que se agregan).
+  final Set<String> registered;
+  final int pageSize;
+
+  /// Lo que se mandó al agregar y los ids que se quitaron, en orden.
+  final sent = <List<String>>[];
+  final removed = <String>[];
+
+  /// Con un valor, el alta falla con ese error.
+  ApiFailure? addFailure;
+
+  @override
+  Future<PageList<VipCustomer>> list({int page = 1, String search = ''}) async {
+    final query = normalizeEmail(search);
+    final matching = [
+      for (final vip in customers)
+        if (vip.active && vip.email.contains(query)) vip,
+    ]..sort((a, b) => a.email.compareTo(b.email));
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
+
+  @override
+  Future<VipAddSummary> add(List<String> emails) async {
+    if (addFailure case final failure?) throw failure;
+    sent.add(emails);
+    final added = <String>[];
+    final duplicates = <String>[];
+    final invalid = <String>[];
+    final seen = <String>{};
+    for (final raw in emails) {
+      final email = normalizeEmail(raw);
+      if (!isValidEmail(email)) {
+        invalid.add(raw.trim());
+        continue;
+      }
+      if (!seen.add(email)) {
+        duplicates.add(email);
+        continue;
+      }
+      final i = customers.indexWhere((vip) => vip.email == email);
+      if (i >= 0 && customers[i].active) {
+        duplicates.add(email);
+        continue;
+      }
+      final vip = VipCustomer(
+        id: i >= 0 ? customers[i].id : 'vip-${customers.length + 1}',
+        email: email,
+        active: true,
+        createdAt: DateTime.utc(2026, 10, 9, 15),
+        hasAccount: registered.contains(email),
+        addedByName: 'Ana admin',
+      );
+      if (i >= 0) {
+        customers[i] = vip;
+      } else {
+        customers.add(vip);
+      }
+      added.add(email);
+    }
+    return VipAddSummary(
+      added: added,
+      duplicates: duplicates,
+      invalid: invalid,
+    );
+  }
+
+  @override
+  Future<VipCustomer> remove(String id) async {
+    final i = customers.indexWhere((vip) => vip.id == id);
+    final current = customers[i];
+    removed.add(id);
+    return customers[i] = VipCustomer(
+      id: current.id,
+      email: current.email,
+      active: false,
+      createdAt: current.createdAt,
+      hasAccount: current.hasAccount,
+      addedByName: current.addedByName,
+    );
   }
 }
 
@@ -522,6 +629,9 @@ class FakeOrderRepository implements OrderRepository {
   /// Los ID tokens con que se llamó a `place` y `mine`.
   final tokens = <String>[];
 
+  /// Las líneas de cada pedido, como llegaron.
+  final placed = <List<OrderLineRequest>>[];
+
   @override
   Future<Order> place(
     String idToken, {
@@ -530,6 +640,8 @@ class FakeOrderRepository implements OrderRepository {
   }) async {
     tokens.add(idToken);
     if (failure case final failure?) throw failure;
+    placed.add(lines);
+    final changes = <PriceChange>[];
     final orderLines = [
       for (final line in lines)
         if (await catalog.product(line.productId) case final product)
@@ -540,6 +652,22 @@ class FakeOrderRepository implements OrderRepository {
             unitPriceCents: product.finalPriceCents,
           ),
     ];
+    // Como el servidor: cobra el precio de hoy y avisa si el carrito
+    // mostraba otro.
+    for (final line in lines) {
+      final product = await catalog.product(line.productId);
+      if (line.shownUnitPriceCents case final shown?
+          when shown != product.finalPriceCents) {
+        changes.add(
+          PriceChange(
+            productId: product.id,
+            name: product.name,
+            shownUnitPriceCents: shown,
+            unitPriceCents: product.finalPriceCents,
+          ),
+        );
+      }
+    }
     final order = Order(
       id: 'pedido-${orders.length + 1}',
       status: OrderStatus.pendingConfirmation,
@@ -547,6 +675,7 @@ class FakeOrderRepository implements OrderRepository {
       deliveryAddress: deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,
+      priceChanges: changes,
     );
     orders.insert(0, order);
     return order;
@@ -628,6 +757,26 @@ class FakeCatalogRepository implements CatalogRepository {
       (throw const ApiFailure('Producto no encontrado', status: 404));
 }
 
+/// Las ofertas exclusivas en memoria. [calls] cuenta cuántas veces se
+/// pidieron: a quien no es VIP, la app no debe pedirlas nunca.
+class FakeOffersRepository implements OffersRepository {
+  FakeOffersRepository([this.offers = const []]);
+
+  List<Offer> offers;
+
+  /// Si no es null, `exclusive` falla con esto.
+  Object? failure;
+
+  int calls = 0;
+
+  @override
+  Future<List<Offer>> exclusive() async {
+    calls++;
+    if (failure case final failure?) throw failure;
+    return offers;
+  }
+}
+
 /// Firebase Auth en memoria: cuentas por email y una abierta a la vez.
 class FakeAuthRepository implements AuthRepository {
   final _accounts = <String, FakeAccount>{};
@@ -637,18 +786,24 @@ class FakeAuthRepository implements AuthRepository {
   /// El uid de la cuenta abierta.
   String? get current => _current;
 
+  /// Cuántas veces se mandó el correo de verificación, y cuántas se volvió a
+  /// preguntar a Firebase si está verificado.
+  int verificationEmails = 0;
+  int reloads = 0;
+
   FakeAccount addAccount(
     String email,
     String password, {
     String? name,
     bool signedIn = false,
+    bool emailVerified = true,
   }) {
     final account = FakeAccount(
       'uid-${_accounts.length + 1}',
       email,
       password,
       name,
-    );
+    )..emailVerified = emailVerified;
     _accounts[email] = account;
     if (signedIn) _current = account.uid;
     return account;
@@ -696,10 +851,13 @@ class FakeAuthRepository implements AuthRepository {
     if (_accounts.containsKey(email)) {
       throw const AuthFailure('Ya hay una cuenta con ese correo.');
     }
-    final account = addAccount(email, password);
+    // Como Firebase: la cuenta nueva no tiene el correo confirmado, y el
+    // registro manda el correo para confirmarlo.
+    final account = addAccount(email, password, emailVerified: false);
     _open(account.uid);
     await Future<void>.delayed(Duration.zero);
     account.name = name;
+    verificationEmails++;
     return account.uid;
   }
 
@@ -711,6 +869,19 @@ class FakeAuthRepository implements AuthRepository {
     final uid = _current;
     if (uid == null) throw const AuthFailure('Tu sesión terminó.');
     return 'token-$uid';
+  }
+
+  @override
+  Future<bool> emailVerified({bool reload = false}) async {
+    if (reload) reloads++;
+    final uid = _current;
+    return uid != null && accountOf(uid).emailVerified;
+  }
+
+  @override
+  Future<void> sendEmailVerification() async {
+    if (_current == null) throw const AuthFailure('Tu sesión terminó.');
+    verificationEmails++;
   }
 
   void _open(String? uid) {
@@ -728,6 +899,9 @@ class FakeAccount {
   final String email;
   final String password;
   String? name;
+
+  /// Si confirmó su correo (lo cambia el test, como si abriera el enlace).
+  bool emailVerified = true;
 }
 
 /// El servidor en memoria: la primera vez que ve un uid crea su perfil con el
@@ -742,6 +916,10 @@ class FakeUserRepository implements UserRepository {
 
   /// Direcciones guardadas en el perfil, por uid.
   final addresses = <String, String>{};
+
+  /// Los uid que el servidor responde como VIP (un admin los puede agregar
+  /// o quitar en cualquier momento).
+  final vips = <String>{};
   final _profiles = <String, SessionUser>{};
 
   /// Si no es null, `me` falla con esto (p. ej. el servidor caído).
@@ -759,16 +937,18 @@ class FakeUserRepository implements UserRepository {
     if (hold case final hold?) await hold.future;
     if (failure case final failure?) throw failure;
     final uid = idToken.replaceFirst('token-', '');
-    return _profiles.putIfAbsent(uid, () {
-      final account = auth.accountOf(uid);
-      return SessionUser(
-        id: 'user-$uid',
-        name: account.name ?? account.email.split('@').first,
-        email: account.email,
-        role: roles[uid] ?? UserRole.customer,
-        address: addresses[uid],
-      );
-    });
+    return _profiles
+        .putIfAbsent(uid, () {
+          final account = auth.accountOf(uid);
+          return SessionUser(
+            id: 'user-$uid',
+            name: account.name ?? account.email.split('@').first,
+            email: account.email,
+            role: roles[uid] ?? UserRole.customer,
+            address: addresses[uid],
+          );
+        })
+        .copyWith(isVip: vips.contains(uid));
   }
 }
 

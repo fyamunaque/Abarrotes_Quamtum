@@ -3,24 +3,43 @@ import 'package:serverpod/serverpod.dart' hide Order;
 
 import '../common/http_json.dart';
 import '../common/pagination.dart';
+import '../common/shopper.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../inventory/inventory_service.dart';
-import '../promotions/promotion_rules.dart';
+import '../promotions/promotion_pricing.dart';
 import 'states/order_states.dart';
 
-/// Una línea del pedido tal como la manda el cliente: sin precios, que los
-/// pone el servidor.
-typedef OrderLineInput = ({UuidValue productId, int quantity});
+/// Una línea del pedido tal como la manda el cliente. Los precios los pone el
+/// servidor: [shownUnitPriceCents] es el que mostraba el carrito, y solo se
+/// compara (nunca se cobra).
+typedef OrderLineInput = ({
+  UuidValue productId,
+  int quantity,
+  int? shownUnitPriceCents,
+});
+
+/// Un producto que se cobra distinto de lo que mostraba el carrito.
+typedef PriceChange = ({
+  UuidValue productId,
+  String name,
+  int shownUnitPriceCents,
+  int unitPriceCents,
+});
+
+/// El pedido creado y los precios que cambiaron respecto del carrito.
+typedef PlacedOrder = ({Order order, List<PriceChange> priceChanges});
 
 /// Pedidos: los del cliente (crear y ver los suyos) y los del dashboard
 /// (listado y cambios de estado).
 class OrdersService {
   OrdersService({
+    required this._pricing,
     this._inventory = const InventoryService(),
     DateTime Function()? now,
   }) : _now = now ?? DateTime.now;
 
+  final PromotionPricing _pricing;
   final InventoryService _inventory;
   final DateTime Function() _now;
 
@@ -28,27 +47,34 @@ class OrdersService {
   /// stock, todo en una transacción: si un producto no está disponible o no
   /// alcanza, no se guarda nada.
   ///
-  /// Cobra el precio de la promoción vigente, si la hay. Las líneas del mismo
-  /// producto se juntan. Cada salida queda en el historial de inventario a
-  /// nombre del cliente.
+  /// Cobra por producto la mejor promoción vigente que [shopper] puede usar
+  /// (la más barata) o, si no hay, el precio normal. Si el carrito mostraba
+  /// otro precio, va en `priceChanges`. Las líneas del mismo producto se
+  /// juntan. Cada salida queda en el historial de inventario a nombre del
+  /// cliente.
   ///
   /// Los productos se bloquean (FOR UPDATE) al leerlos, en orden por id y
   /// antes de escribir nada: dos pedidos a la vez se ordenan ahí. Si se
   /// bloquearan recién al descontar el stock, cada uno ya tendría la fila
   /// tomada por la clave foránea de sus líneas y se trabarían (deadlock).
-  Future<Order> create(
+  Future<PlacedOrder> create(
     Session session, {
     required User customer,
+    required Shopper shopper,
     required String deliveryAddress,
     required List<OrderLineInput> lines,
   }) {
     final quantities = <UuidValue, int>{};
+    final shownPrices = <UuidValue, int>{};
     for (final line in lines) {
       quantities.update(
         line.productId,
         (quantity) => quantity + line.quantity,
         ifAbsent: () => line.quantity,
       );
+      if (line.shownUnitPriceCents case final shown?) {
+        shownPrices.putIfAbsent(line.productId, () => shown);
+      }
     }
     final productIds = quantities.keys.toList()
       ..sort((a, b) => a.toString().compareTo(b.toString()));
@@ -61,10 +87,7 @@ class OrdersService {
           where: (product) => product.id.inSet(productIds.toSet()),
           orderBy: (product) => product.id,
           include: Product.include(
-            promotions: Promotion.includeList(
-              where: (promotion) => activePromotionWhere(promotion, now),
-              limit: 1,
-            ),
+            promotions: _pricing.bestFor(now, shopper),
           ),
           lockMode: LockMode.forUpdate,
           transaction: transaction,
@@ -90,6 +113,17 @@ class OrdersService {
         0,
         (sum, id) => sum + unitPrice(products[id]!) * quantities[id]!,
       );
+      final priceChanges = [
+        for (final id in productIds)
+          if (shownPrices[id] case final shown?
+              when shown != unitPrice(products[id]!))
+            (
+              productId: id,
+              name: products[id]!.name,
+              shownUnitPriceCents: shown,
+              unitPriceCents: unitPrice(products[id]!),
+            ),
+      ];
 
       final order = await Order.db.insertRow(
         session,
@@ -129,12 +163,13 @@ class OrdersService {
         );
       }
 
-      return (await Order.db.findById(
+      final placed = await Order.db.findById(
         session,
         order.id!,
         include: _customerInclude,
         transaction: transaction,
-      ))!;
+      );
+      return (order: placed!, priceChanges: priceChanges);
     });
   }
 

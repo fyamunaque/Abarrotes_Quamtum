@@ -17,6 +17,10 @@ config/passwords.yaml
 # Firebase service account key for Firebase auth
 config/firebase_service_account_key.json
 
+# Claves de cuentas de servicio (p. ej. la del aviso push, fcmServiceAccountFile)
+*-firebase-adminsdk-*.json
+config/*service-account*.json
+
 # Embedded PostgreSQL runtime artifacts (data dir, sockets, pidfiles)
 .serverpod/
 

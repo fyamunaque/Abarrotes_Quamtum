@@ -3,9 +3,9 @@ import 'package:serverpod/serverpod.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 
-/// Reglas de las promociones, compartidas por promotions y products (para
-/// mostrar el precio vigente). Más adelante orders las usará para cobrarlo: la
-/// definición de "vigente" vive solo aquí.
+/// Reglas de las promociones: la definición de "vigente" vive solo aquí.
+/// products y orders la usan a través de `PromotionPricing`, que además
+/// filtra por la audiencia del cliente.
 ///
 /// Fechas: la API recibe y devuelve días de la tienda (hora de Lima), ambos
 /// incluidos. Se guardan como instantes: startDate = 00:00 del primer día y

@@ -5,15 +5,19 @@ import '../common/http_json.dart';
 import '../generated/protocol.dart';
 import 'create_user_request.dart';
 
-/// Cuentas de usuario: el vínculo entre un uid de Firebase y su rol.
+/// Cuentas de usuario: el vínculo entre un uid de Firebase y su rol, y los
+/// dispositivos donde reciben avisos push.
 class UsersService {
   const UsersService();
 
   /// El usuario de [identity]. La primera vez lo crea como cliente con el
-  /// email y el nombre del token.
+  /// email y el nombre del token. Guarda si el correo está verificado
+  /// (`email_verified` del token), si cambió: el aviso push lo necesita.
   Future<User> findOrCreate(Session session, FirebaseIdentity identity) async {
     final existing = await _findByFirebaseUid(session, identity.uid);
-    if (existing != null) return existing;
+    if (existing != null) {
+      return _syncEmailVerified(session, existing, identity.emailVerified);
+    }
 
     final email = identity.email?.trim().toLowerCase();
     if (email == null || email.isEmpty) {
@@ -33,6 +37,7 @@ class UsersService {
         User(
           firebaseUid: identity.uid,
           email: email,
+          emailVerified: identity.emailVerified,
           name: _displayName(identity.name, email),
           role: UserRole.customer,
         ),
@@ -89,6 +94,75 @@ class UsersService {
         'Ya existe un usuario con ese firebaseUid o email',
       );
     }
+  }
+
+  /// Registra el token de FCM de un dispositivo de [user]. Si ya estaba, lo
+  /// renueva; si era de otra cuenta (otra persona ingresó en ese
+  /// dispositivo), pasa a esta.
+  Future<void> registerDevice(
+    Session session,
+    User user, {
+    required String token,
+    String? platform,
+  }) async {
+    final now = DateTime.now().toUtc();
+    final existing = await _findDevice(session, token);
+    if (existing == null) {
+      try {
+        await DeviceToken.db.insertRow(
+          session,
+          DeviceToken(
+            token: token,
+            platform: platform,
+            userId: user.id!,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        return;
+      } on DatabaseUniqueViolationException {
+        // El mismo dispositivo se registró dos veces a la vez: se actualiza
+        // el que quedó.
+      }
+    }
+    final device = existing ?? (await _findDevice(session, token))!;
+    await DeviceToken.db.updateRow(
+      session,
+      device.copyWith(
+        userId: user.id,
+        platform: platform ?? device.platform,
+        updatedAt: now,
+      ),
+    );
+  }
+
+  /// Quita el token de [user] (p. ej. al cerrar sesión). Si es de otra
+  /// cuenta o no existe, no hace nada.
+  Future<void> removeDevice(Session session, User user, String token) async {
+    await DeviceToken.db.deleteWhere(
+      session,
+      where: (device) =>
+          device.token.equals(token) & device.userId.equals(user.id),
+    );
+  }
+
+  Future<DeviceToken?> _findDevice(Session session, String token) =>
+      DeviceToken.db.findFirstRow(
+        session,
+        where: (device) => device.token.equals(token),
+      );
+
+  Future<User> _syncEmailVerified(
+    Session session,
+    User user,
+    bool emailVerified,
+  ) async {
+    if (user.emailVerified == emailVerified) return user;
+    return User.db.updateRow(
+      session,
+      user.copyWith(emailVerified: emailVerified),
+      columns: (user) => [user.emailVerified],
+    );
   }
 
   Future<User?> _findByFirebaseUid(Session session, String firebaseUid) =>
