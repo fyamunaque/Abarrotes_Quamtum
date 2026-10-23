@@ -26,6 +26,7 @@ void main() {
       'name': 'Arroz extra 5 kg',
       'price': '24.9',
       'imageUrl': null,
+      'categoryId': 'c-abarrotes',
     },
   };
 
@@ -57,6 +58,8 @@ void main() {
     expect(vip.title, 'Precio VIP');
     expect(vip.productId, 'p-o-1');
     expect(vip.productName, 'Arroz extra 5 kg');
+    // Para el color de su marcador si no tiene foto.
+    expect(vip.categoryId, 'c-abarrotes');
     expect((vip.priceCents, vip.promoPriceCents), (2490, 1790));
     expect(vip.endDate, '2026-10-15');
   });

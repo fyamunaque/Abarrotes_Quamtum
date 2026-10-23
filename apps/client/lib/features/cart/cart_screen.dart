@@ -73,7 +73,12 @@ class _CartLineTile extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
                 child: SizedBox.square(
                   dimension: 64,
-                  child: ProductPhoto(product.imageUrl, iconSize: 28),
+                  child: ProductPhoto(
+                    product.imageUrl,
+                    name: product.name,
+                    colorKey: product.category?.id,
+                    initialSize: 28,
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
