@@ -384,6 +384,7 @@ void main() {
               'name': 'Arroz Costeño 1 kg',
               'price': '4.5',
               'imageUrl': null,
+              'categoryId': arroz.categoryId.toString(),
             },
           },
           containsPair('promoPrice', '3.6'),

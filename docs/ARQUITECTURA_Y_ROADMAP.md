@@ -38,7 +38,7 @@ CLAUDE.md
 
 - `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea. `GET /customers` (`customers.view`): el listado de clientes para el panel.
 - `staff`: roles y permisos del personal. Un catálogo de permisos (`Permission`), roles editables más el Administrador de sistema, el personal por correo (con el correo verificado) y una bitácora. Cada ruta del panel pide su permiso (`guards.require`), nunca solo "ser del personal": un test compara cada ruta con su permiso. `/staff/*` (`staff.manage`) los administra.
-- `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
+- `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira. La foto de un producto se sube (`PUT /products/:id/image`), se guarda procesada (800 px, JPEG, sin metadatos) en el almacenamiento de Serverpod, que por defecto es la propia base, y se sirve en `/images/products/...`; también vale una URL externa.
 - `promotions`: CRUD con `promotions.manage`, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
 - `vip`: la lista de clientes VIP por correo (`/vip-customers`): se ve con `vip.view` y se modifica con `vip.manage`. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
 - `store`: los datos de la tienda (nombre, dirección, referencia, teléfono, horario e instrucciones de recojo), un solo registro. `GET /store` es público; editarlos pide `store.manage`.
@@ -98,7 +98,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
    web la clave VAPID y el service worker, y abrir el producto al tocar el aviso. Para que salgan,
    configurar la cuenta de servicio en el servidor (`apps/server/README.md`, "Avisos push").
 3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-4. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
+4. **Fotos de los productos en la app:** el servidor ya las recibe y las sirve; falta subirlas desde el panel y mostrarlas en el catálogo.
 5. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado;

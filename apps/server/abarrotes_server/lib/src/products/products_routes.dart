@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_auth_middleware.dart';
@@ -10,6 +12,7 @@ import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_rules.dart';
+import 'product_images.dart';
 import 'products_service.dart';
 
 /// Rutas de productos: lectura pública (marketplace y app) y escritura con
@@ -103,6 +106,12 @@ List<RouteEntry> productsRoutes(
         final minStock = body.integer('minStock', required: false);
         final expirationDate = body.dateTime('expirationDate', nullable: true);
         final categoryId = body.uuid('categoryId');
+        if (ProductImages.isStored(imageUrl)) {
+          body.reject(
+            'imageUrl tiene que ser una URL http(s): la foto se sube después '
+            'de crear el producto',
+          );
+        }
         body.check();
 
         final product = await products.create(
@@ -157,6 +166,14 @@ List<RouteEntry> productsRoutes(
             product = product.copyWith(description: description);
           }
           if (body.has('imageUrl')) {
+            // Una foto subida solo vale si es la que ya tiene: así se puede
+            // reenviar el producto sin tocarla. Para cambiarla, se sube.
+            if (ProductImages.isStored(imageUrl) &&
+                imageUrl != current.imageUrl) {
+              throw const ApiException.badRequest(
+                'Para cambiar la foto, súbela con PUT /products/:id/image',
+              );
+            }
             product = product.copyWith(imageUrl: imageUrl);
           }
           if (body.has('expirationDate')) {
@@ -175,7 +192,57 @@ List<RouteEntry> productsRoutes(
         return jsonResponse(200, productJson(product));
       }),
     ),
+    (
+      '/products/:id/image',
+      // La foto, tal cual (sin JSON): JPEG, PNG o WebP. Se guarda procesada
+      // y reemplaza a la que tenía.
+      staffOnly(Method.put, (session, request) async {
+        final id = idParam(request);
+        final photo = ProductImages.process(await _readPhoto(request));
+        final product = await products.setImage(session, id, photo);
+        return jsonResponse(200, productJson(product));
+      }),
+    ),
+    (
+      '${ProductImages.urlPrefix}:productId/:file',
+      // Pública, como el catálogo. Cada foto subida tiene un nombre nuevo:
+      // el navegador la guarda en caché para siempre.
+      ApiRoute(Method.get, (session, request) async {
+        final photo = await products.image(
+          session,
+          request.rawPathParameters[#productId] ?? '',
+          request.rawPathParameters[#file] ?? '',
+        );
+        if (photo == null) throw const ApiException(404, 'Foto no encontrada');
+        return Response.ok(
+          body: Body.fromData(photo, mimeType: MimeType.parse('image/jpeg')),
+          headers: Headers.build((headers) {
+            headers['Cache-Control'] = const [
+              'public, max-age=31536000, immutable',
+            ];
+          }),
+        );
+      }),
+    ),
   ];
+}
+
+/// El body de la subida de una foto, de hasta [ProductImages.maxUploadBytes].
+Future<Uint8List> _readPhoto(Request request) async {
+  final bytes = BytesBuilder(copy: false);
+  try {
+    await for (final chunk in request.read(
+      maxLength: ProductImages.maxUploadBytes,
+    )) {
+      bytes.add(chunk);
+    }
+  } on MaxBodySizeExceeded {
+    throw const ApiException(413, 'La foto pesa más de 8 MB');
+  }
+  if (bytes.isEmpty) {
+    throw const ApiException.badRequest('Falta la foto en el body');
+  }
+  return bytes.takeBytes();
 }
 
 const _editableFields = {
@@ -196,8 +263,14 @@ String? _description(InputReader body) =>
 int? _price(InputReader body, {required bool required}) =>
     body.cents('price', minCents: 0, required: required);
 
-String? _imageUrl(InputReader body) =>
-    body.url('imageUrl', maxLength: 2000, nullable: true);
+/// Una URL externa o la ruta de una foto subida ([ProductImages]); qué ruta
+/// vale lo decide cada ruta.
+String? _imageUrl(InputReader body) => body.url(
+  'imageUrl',
+  maxLength: 2000,
+  nullable: true,
+  orPathUnder: ProductImages.urlPrefix,
+);
 
 /// Como lo lee la app (`Product.fromJson`): precios como texto ("4.5") y
 /// la promoción vigente de quien mira (o null) con días de la tienda.

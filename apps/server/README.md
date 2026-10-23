@@ -173,7 +173,8 @@ REST del 8082, así que el navegador primero manda un preflight `OPTIONS`. `cors
 (`lib/src/common/cors.dart`) se registra en `/` y envuelve a los middlewares de cada dominio:
 el preflight no trae token, y el de Firebase en `/users` lo rechazaría.
 
-- Con un origen permitido, responde el preflight con 204 y agrega
+- Con un origen permitido, responde el preflight con 204 (métodos `GET, POST, PUT, PATCH, DELETE`)
+  y agrega
   `Access-Control-Allow-Origin` a todas las respuestas, también a los errores (la app tiene que
   poder leer un 401).
 - A un origen no permitido no le agrega nada: el navegador bloquea la respuesta. Sin `Origin`
@@ -229,13 +230,15 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
 | `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto con `products.view`). |
 | `GET /products/:id` | público | Un inactivo es 404, salvo con `products.view`. |
-| `POST /products` | `products.manage` | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. |
-| `PATCH /products/:id` | `products.manage` | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. |
+| `POST /products` | `products.manage` | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. `imageUrl` es una URL `http(s)` externa; la foto propia se sube después. |
+| `PATCH /products/:id` | `products.manage` | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. `imageUrl` acepta una URL externa o la foto subida que el producto ya tiene (así el formulario lo reenvía sin cambios); otra ruta `/images/...` es 400. Si deja de usar una foto subida, se borra. |
 | `DELETE /products/:id` | `products.manage` | Baja lógica (`active: false`); devuelve el producto. |
+| `PUT /products/:id/image` | `products.manage` | El body es la foto tal cual (JPEG, PNG o WebP, hasta 8 MB; si pesa más, 413). La guarda procesada (ver "Fotos de los productos"), pone su ruta en `imageUrl`, borra la foto subida que tenía y devuelve el producto. Algo que no es una imagen, o de más de 40 megapíxeles, es 400. |
+| `GET /images/products/:productId/:file` | público | La foto subida (`image/jpeg`), con `Cache-Control: public, max-age=31536000, immutable`: cada foto nueva tiene otro nombre. 404 si no existe. |
 | `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
 | `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto) o `vip`; `title`: hasta 100 caracteres. |
 | `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience` o `title` (`null` lo borra); el producto no cambia. |
-| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl}`. Sin token, o sin ser VIP, solo salen las de `everyone`. |
+| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`. |
 | `DELETE /promotions/:id` | `promotions.manage` | 204. |
 | `GET /vip-customers` | `vip.view` | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
 | `POST /vip-customers` | `vip.manage` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
@@ -266,6 +269,34 @@ Cada pedido JSON lleva `fulfillmentType`, `deliveryAddress` (null en recojo), `p
 para su dueño y el personal con `orders.view`; si no, null), `readyForPickupAt` y
 `allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
 botones con eso, sin las transiciones escritas a mano.
+
+### Fotos de los productos
+
+Las fotos se suben desde el panel (`PUT /products/:id/image`). `ProductImages`
+(`lib/src/products/product_images.dart`) las procesa con el paquete `image`:
+- **Formato:** acepta JPEG, PNG y WebP, que reconoce por su contenido y no por el
+  `Content-Type`.
+- **Tamaño:** antes de decodificar lee el tamaño de la cabecera y rechaza las de más de
+  40 megapíxeles, porque una imagen chica en bytes puede pedir cientos de MB al abrirse.
+- **El resultado:**
+  - derecha según su EXIF;
+  - de hasta 800 px por lado;
+  - lo transparente queda blanco;
+  - **sin metadatos** (ni la ubicación ni la cámara);
+  - en JPEG de calidad 82, unos 60–90 KB.
+
+Se guardan en el almacenamiento `public` de Serverpod (`session.storage`), que por defecto es
+la propia base: la tabla `serverpod_cloud_storage`. No hacen falta servicios aparte.
+- **En `imageUrl` va una ruta relativa,** `/images/products/<id>/<16 hex>.jpg`, sin el host.
+  La app la completa con la dirección por la que ve al servidor (`localhost` en la web,
+  `10.0.2.2` en el emulador).
+- **Cada foto subida tiene un nombre nuevo,** por eso se sirve con caché "inmutable".
+- **Una URL externa** (`https://…`) sigue valiendo y se muestra tal cual.
+
+**Pasar a S3 o Google Cloud** si el catálogo crece: registrar ese almacenamiento con el id
+`public` en `server.dart` (`pod.addCloudStorage(...)`, con los paquetes
+`serverpod_cloud_storage_s3` o `serverpod_cloud_storage_gcp`). Las rutas no cambian. Las
+fotos que ya están en la base se tendrían que copiar.
 
 ### Estados y tipos de entrega
 

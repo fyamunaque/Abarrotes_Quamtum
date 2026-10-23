@@ -88,6 +88,38 @@ class TestClient {
   Future<ApiResult> delete(String path, {String? as}) =>
       _send('DELETE', path, as: as);
 
+  /// Manda [bytes] tal cual (p. ej. una foto) con PUT.
+  Future<ApiResult> putBytes(
+    String path,
+    List<int> bytes, {
+    String? as,
+    String contentType = 'image/jpeg',
+  }) async {
+    final request =
+        http.Request('PUT', Uri.parse('http://localhost:${server.port}$path'))
+          ..headers.addAll({
+            'content-type': contentType,
+            if (as != null)
+              'authorization':
+                  'Bearer ${signToken(
+                    google.private,
+                    claims: validClaims(uid: as, email: '$as@tienda.pe'),
+                  )}',
+          })
+          ..bodyBytes = bytes;
+    final response = await http.Response.fromStream(await request.send());
+    return (
+      response.statusCode,
+      response.body.isEmpty ? null : jsonDecode(response.body),
+    );
+  }
+
+  /// Un GET sin decodificar: los bytes y los headers (p. ej. una foto).
+  Future<http.Response> getRaw(String path, {String? origin}) => http.get(
+    Uri.parse('http://localhost:${server.port}$path'),
+    headers: {'origin': ?origin},
+  );
+
   Future<ApiResult> _send(
     String method,
     String path, {

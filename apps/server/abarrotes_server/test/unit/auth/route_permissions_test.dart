@@ -117,6 +117,9 @@ void main() {
       'POST /products': 'products.manage',
       'PATCH /products/:id': 'products.manage',
       'DELETE /products/:id': 'products.manage',
+      // La foto: se sube con su permiso y se ve como el catálogo.
+      'PUT /products/:id/image': 'products.manage',
+      'GET /images/products/:productId/:file': 'pública',
       'GET /promotions/active': 'pública',
       'GET /promotions': 'promotions.manage',
       'GET /promotions/:id': 'promotions.manage',

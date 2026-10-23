@@ -151,20 +151,31 @@ class InputReader {
               );
       });
 
-  /// Una URL http o https.
-  String? url(String field, {required int maxLength, bool nullable = false}) =>
-      _read(field, true, nullable, 'una URL http(s)', (value) {
-        if (value is! String) return null;
-        final uri = Uri.tryParse(value.trim());
-        final valid =
-            uri != null &&
-            (uri.scheme == 'http' || uri.scheme == 'https') &&
-            uri.host.isNotEmpty;
-        if (valid && value.trim().length > maxLength) {
-          _errors.add('${_at(field)} admite como máximo $maxLength caracteres');
-        }
-        return valid ? value.trim() : null;
-      });
+  /// Una URL http o https. Con [orPathUnder], también una ruta de este
+  /// servidor que empieza así (p. ej. la de una foto subida,
+  /// `/images/products/…`): la ruta decide si esa vale.
+  String? url(
+    String field, {
+    required int maxLength,
+    bool nullable = false,
+    String? orPathUnder,
+  }) => _read(field, true, nullable, 'una URL http(s)', (value) {
+    if (value is! String) return null;
+    final trimmed = value.trim();
+    final uri = Uri.tryParse(trimmed);
+    final valid =
+        uri != null &&
+        (((uri.scheme == 'http' || uri.scheme == 'https') &&
+                uri.host.isNotEmpty) ||
+            (orPathUnder != null &&
+                !uri.hasScheme &&
+                !uri.hasAuthority &&
+                trimmed.startsWith(orPathUnder)));
+    if (valid && trimmed.length > maxLength) {
+      _errors.add('${_at(field)} admite como máximo $maxLength caracteres');
+    }
+    return valid ? trimmed : null;
+  });
 
   /// Una lista de objetos, p. ej. las líneas de un pedido. Cada uno se lee con
   /// su propio InputReader (con sus [allowed]); los errores van a esta misma
