@@ -130,6 +130,16 @@ distinguir categorías tampoco alcanzan: el verde de confirmado y el azul de en 
 parecen (ΔE 11,5) y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el
 color (ver `StatusBadge`).
 
+**Fotos de los productos** (`ProductPhoto`, en `features/catalog/product_photo.dart`):
+- **Las fotos subidas:** llegan del servidor como ruta relativa (`/images/products/…`) y se
+  completan con `apiBaseUrl`. Una URL externa se pide tal cual.
+- **Mientras carga, o si no hay foto o no carga:** se ve un marcador, la inicial del producto en
+  Baloo 2 sobre un fondo suave. La foto entra con un fundido de 200 ms, que no se anima si está
+  activado "reducir animaciones".
+- **El color del marcador** sale de la categoría (`PlaceholderColors.of(id)`, 8 pares
+  fondo/texto con contraste de al menos 4.5:1). Una misma categoría tiene siempre el mismo
+  color, en la web y en Android, así el catálogo no se ve repetido aunque falten fotos.
+
 **El panel** (`neilsAdminTheme`, en `theme/neils_theme.dart`) usa una variante calmada del tema,
 solo bajo `/admin`:
 - fondo crema y texto en tinta;
@@ -301,7 +311,7 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 | Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). |
 | Pedidos: Todos los pedidos | Todos los pedidos, con chips por estado ("Estado") y por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas) o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
-| Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. |
+| Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja; cada fila con la foto en miniatura. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. **La foto:**<br>• "Subir foto" elige un archivo o una foto de la galería, y "Tomar foto" usa la cámara (solo en el teléfono). La app la achica a 1600 px antes de subirla, y el servidor la deja en 800 px.<br>• También se puede pegar la URL de una imagen: escribirla descarta la foto elegida, y elegir una foto vacía la URL.<br>• La foto elegida se sube después de guardar el producto (`PUT /products/:id/image`). Si la subida falla, el producto ya quedó guardado: el formulario lo dice y "Reintentar la foto" sube solo la foto.<br>• `PhotoPicker` (`admin/products/photo_picker.dart`) es una interfaz con su implementación sobre `image_picker`, y los tests la reemplazan. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |
 | Clientes VIP | Los correos VIP, con búsqueda y paginación: si ya tienen cuenta ("Registrado" / "Aún sin cuenta") y la fecha de alta. Con `vip.manage` agrega (un correo, validado, o varios pegados separados por coma o salto de línea, con el resumen del servidor: agregados, ya estaban y no válidos) y quita, con confirmación; sin él, la lista en modo lectura. Un VIP ve sus promociones cuando ingresa con ese correo verificado. |
@@ -407,13 +417,17 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
   perfil al volver a la app.
 - `test/features/order_tracker_test.dart`: cuánto se llena cada tramo por estado, la animación al
   avanzar (a mitad de camino y al final), cancelado y el estado como texto.
-- `test/theme/theme_test.dart`: colores, contraste y fuentes del tema.
+- `test/theme/theme_test.dart`: colores, contraste y fuentes del tema, también los pares del
+  marcador sin foto.
+- `test/features/product_photo_test.dart`: la foto subida se pide al servidor de la app y una
+  URL externa tal cual; sin foto, la inicial sobre el color de su categoría, el mismo siempre.
 - `test/admin/`: el panel, con repositorios en memoria y una sesión de staff, del rol que se
   pida o con justo los permisos que se pidan (`pumpPanel` en `panel_support.dart`; las
   plantillas Almacenero y Cajera en `test/support.dart`):
   - `admin_access_test.dart`: el menú y las rutas de cada rol, "No tienes acceso", los botones
     según el permiso, a dónde llega cada uno al ingresar y un rol que cambia al volver a la app;
-  - `admin_repositories_test.dart`: cada repositorio del panel con `MockClient`;
+  - `admin_repositories_test.dart`: cada repositorio del panel con `MockClient`, también la
+    subida de la foto (PUT con los bytes, su tipo y el token);
   - `admin_table_test.dart` y `admin_shell_test.dart`: tabla o tarjetas según el ancho,
     paginación, estados, y la navegación (riel o barra);
   - `admin_home_test.dart`: los KPI, los pedidos por estado (con los de recojo) y por tipo de

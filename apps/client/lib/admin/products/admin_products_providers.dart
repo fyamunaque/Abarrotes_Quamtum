@@ -48,6 +48,19 @@ class AdminProductsNotifier extends PagedNotifier<Product> {
     return product;
   }
 
+  /// Le sube la foto y deja el producto con ella en la página.
+  Future<Product> uploadImage(
+    String id,
+    List<int> bytes, {
+    required String contentType,
+  }) async {
+    final product = await ref
+        .read(adminProductsRepositoryProvider)
+        .uploadImage(id, bytes, contentType: contentType);
+    replace(product, (current) => current.id == id);
+    return product;
+  }
+
   /// Lo da de baja (deja de verse en la tienda) y lo deja así en la página.
   Future<Product> deactivate(String id) async {
     final product = await ref

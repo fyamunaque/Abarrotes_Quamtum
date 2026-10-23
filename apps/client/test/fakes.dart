@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:neils/admin/emails.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
@@ -6,6 +7,7 @@ import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_repository.dart';
 import 'package:neils/admin/products/admin_products_repository.dart';
+import 'package:neils/admin/products/photo_picker.dart';
 import 'package:neils/admin/products/product_input.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
@@ -257,6 +259,33 @@ AdminOrder adminOrder(
   ),
 );
 
+/// Un PNG de 1 × 1, para que la vista previa de una foto elegida tenga una
+/// imagen de verdad.
+final samplePhoto = (
+  bytes: base64Decode(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  ),
+  contentType: 'image/png',
+);
+
+/// Elegir una foto sin el diálogo del sistema: devuelve [photo] (null es
+/// cancelar) y anota de dónde se pidió.
+class FakePhotoPicker implements PhotoPicker {
+  FakePhotoPicker({this.canUseCamera = false});
+
+  @override
+  final bool canUseCamera;
+
+  PickedPhoto? photo = samplePhoto;
+  final sources = <PhotoSource>[];
+
+  @override
+  Future<PickedPhoto?> pick(PhotoSource source) async {
+    sources.add(source);
+    return photo;
+  }
+}
+
 /// Los productos del panel en memoria, por nombre. Responde 409 a un SKU que
 /// ya existe, como el servidor.
 class FakeAdminProductsRepository implements AdminProductsRepository {
@@ -339,6 +368,42 @@ class FakeAdminProductsRepository implements AdminProductsRepository {
         imageUrl: product.imageUrl,
         expirationDate: product.expirationDate,
       ),
+    );
+  }
+
+  /// Las fotos subidas: el id del producto, los bytes y su tipo, en orden.
+  final uploads = <(String, List<int>, String)>[];
+
+  /// Si no es null, la próxima subida de una foto falla con esto.
+  ApiFailure? uploadFailure;
+
+  /// Como el servidor: la foto queda en una ruta relativa nueva.
+  @override
+  Future<Product> uploadImage(
+    String id,
+    List<int> bytes, {
+    required String contentType,
+  }) async {
+    if (uploadFailure case final failure?) {
+      uploadFailure = null;
+      throw failure;
+    }
+    uploads.add((id, bytes, contentType));
+    final i = products.indexWhere((product) => product.id == id);
+    final product = products[i];
+    return products[i] = Product(
+      id: product.id,
+      name: product.name,
+      sku: product.sku,
+      priceCents: product.priceCents,
+      promoPriceCents: product.promoPriceCents,
+      stock: product.stock,
+      minStock: product.minStock,
+      active: product.active,
+      description: product.description,
+      imageUrl: '/images/products/$id/foto${uploads.length}.jpg',
+      expirationDate: product.expirationDate,
+      category: product.category,
     );
   }
 

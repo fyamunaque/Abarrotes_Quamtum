@@ -89,6 +89,27 @@ class ApiClient {
     fallback,
   );
 
+  /// Manda [bytes] tal cual con PUT (p. ej. una foto, con su
+  /// [contentType]). Con más tiempo que el resto: un archivo tarda en subir
+  /// con una conexión lenta.
+  Future<Object?> putBytes(
+    String path,
+    List<int> bytes, {
+    required String contentType,
+    String? idToken,
+    required String fallback,
+  }) => _send(
+    () => _client.put(
+      _url(path, null),
+      headers: {..._headers(idToken), 'content-type': contentType},
+      body: bytes,
+    ),
+    fallback,
+    timeout: _uploadTimeout,
+  );
+
+  static const _uploadTimeout = Duration(seconds: 60);
+
   Map<String, String> _jsonHeaders(String? idToken) => {
     ..._headers(idToken),
     'content-type': 'application/json; charset=utf-8',
@@ -107,11 +128,12 @@ class ApiClient {
 
   Future<Object?> _send(
     Future<http.Response> Function() request,
-    String fallback,
-  ) async {
+    String fallback, {
+    Duration timeout = _timeout,
+  }) async {
     final http.Response response;
     try {
-      response = await request().timeout(_timeout);
+      response = await request().timeout(timeout);
     } on http.ClientException {
       throw const ApiFailure(
         'No se pudo conectar con el servidor. Revisa tu conexión.',
@@ -187,4 +209,17 @@ class AuthedApi {
 
   Future<Object?> delete(String path, {required String fallback}) async =>
       _api.delete(path, idToken: await _idToken(), fallback: fallback);
+
+  Future<Object?> putBytes(
+    String path,
+    List<int> bytes, {
+    required String contentType,
+    required String fallback,
+  }) async => _api.putBytes(
+    path,
+    bytes,
+    contentType: contentType,
+    idToken: await _idToken(),
+    fallback: fallback,
+  );
 }

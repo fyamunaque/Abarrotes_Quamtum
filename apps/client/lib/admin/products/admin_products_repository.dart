@@ -20,6 +20,14 @@ abstract interface class AdminProductsRepository {
 
   /// Baja lógica: el producto deja de verse en la tienda.
   Future<Product> deactivate(String id);
+
+  /// Le pone al producto la foto [bytes] (JPEG, PNG o WebP, según
+  /// [contentType]); el servidor la achica y reemplaza a la que tenía.
+  Future<Product> uploadImage(
+    String id,
+    List<int> bytes, {
+    required String contentType,
+  });
 }
 
 class HttpAdminProductsRepository implements AdminProductsRepository {
@@ -74,6 +82,21 @@ class HttpAdminProductsRepository implements AdminProductsRepository {
     final json = await _api.delete(
       '/products/${Uri.encodeComponent(id)}',
       fallback: 'No se pudo dar de baja el producto.',
+    );
+    return decodeResponse(() => Product.fromJson(json));
+  }
+
+  @override
+  Future<Product> uploadImage(
+    String id,
+    List<int> bytes, {
+    required String contentType,
+  }) async {
+    final json = await _api.putBytes(
+      '/products/${Uri.encodeComponent(id)}/image',
+      bytes,
+      contentType: contentType,
+      fallback: 'No se pudo subir la foto.',
     );
     return decodeResponse(() => Product.fromJson(json));
   }

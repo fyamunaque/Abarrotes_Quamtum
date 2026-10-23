@@ -79,7 +79,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido pide el código del cliente;
   - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
   - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
-  - productos, inventario (entradas, salidas y ajustes) y promociones;
+  - productos (con su foto: se sube desde el panel, o se toma con la cámara del teléfono, o se pega una URL), inventario (entradas, salidas y ajustes) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
   - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;
   - cada sección y cada botón según los `permissions` de `/users/me` (lo demás, "No tienes acceso a esta sección"), y al ingresar cada uno llega a su sección: la Cajera a Pedidos, el Almacenero a Inventario. Un rol que cambió rige al volver a la app, sin cerrar sesión.
@@ -98,14 +98,13 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
    web la clave VAPID y el service worker, y abrir el producto al tocar el aviso. Para que salgan,
    configurar la cuenta de servicio en el servidor (`apps/server/README.md`, "Avisos push").
 3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-4. **Fotos de los productos en la app:** el servidor ya las recibe y las sirve; falta subirlas desde el panel y mostrarlas en el catálogo.
-5. **Negocio real:**
+4. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado;
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-6. **Más gestión en el panel:**
+5. **Más gestión en el panel:**
    - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;

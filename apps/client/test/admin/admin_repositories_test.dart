@@ -324,6 +324,45 @@ void main() {
       expect(sent.single.url.path, '/products/p-1');
     });
 
+    test('subir la foto: PUT con los bytes, su tipo y el token', () async {
+      final saved = await HttpAdminProductsRepository(
+        api(
+          (_) => {
+            ...product,
+            'imageUrl': '/images/products/p-1/0123456789abcdef.jpg',
+          },
+        ),
+      ).uploadImage('p-1', [1, 2, 3], contentType: 'image/png');
+
+      final request = sent.single;
+      expect(request.method, 'PUT');
+      expect(request.url.toString(), 'http://api.pe/products/p-1/image');
+      expect(request.headers['content-type'], 'image/png');
+      expect(request.headers['authorization'], 'Bearer token-staff');
+      expect(request.bodyBytes, [1, 2, 3]);
+      expect(saved.imageUrl, '/images/products/p-1/0123456789abcdef.jpg');
+    });
+
+    test('una foto rechazada: el mensaje del servidor', () {
+      expect(
+        HttpAdminProductsRepository(
+          api(
+            (_) => {
+              'message': 'La foto tiene que ser una imagen JPEG, PNG o WebP',
+            },
+            status: 400,
+          ),
+        ).uploadImage('p-1', [1], contentType: 'image/jpeg'),
+        throwsA(
+          isA<ApiFailure>().having(
+            (f) => f.message,
+            'message',
+            'La foto tiene que ser una imagen JPEG, PNG o WebP',
+          ),
+        ),
+      );
+    });
+
     test('un SKU repetido: el 409 llega con el mensaje del servidor', () {
       expect(
         HttpAdminProductsRepository(

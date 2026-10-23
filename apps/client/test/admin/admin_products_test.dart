@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/admin/products/admin_products_providers.dart';
+import 'package:neils/admin/products/photo_picker.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/admin/shared/admin_table.dart';
 import 'package:neils/features/admin/shared/status_badge.dart';
+import 'package:neils/features/catalog/product_photo.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -55,9 +57,11 @@ void main() {
   useBundledFonts();
 
   late FakeAdminProductsRepository repository;
+  late FakePhotoPicker picker;
 
   setUp(() {
     repository = FakeAdminProductsRepository([_rice, _oil, _milk, _soda]);
+    picker = FakePhotoPicker();
   });
 
   Future<void> pumpProducts(WidgetTester tester, {double width = 1280}) =>
@@ -68,6 +72,7 @@ void main() {
         overrides: [
           adminProductsRepositoryProvider.overrideWithValue(repository),
           catalogRepositoryProvider.overrideWithValue(FakeCatalogRepository()),
+          photoPickerProvider.overrideWithValue(picker),
         ],
       );
 
@@ -177,14 +182,17 @@ void main() {
     await chooseCategory(tester, 'Abarrotes');
     await tester.enterText(field('Stock inicial'), '30');
     await tester.enterText(field('Stock mínimo'), '8');
-    await tester.enterText(field('URL de la imagen (opcional)'), 'imagen');
+    await tester.enterText(
+      field('O pega la URL de una imagen (opcional)'),
+      'imagen',
+    );
     await tapAndSettle(tester, find.text('Crear producto'));
     expect(
       find.text('Escribe una dirección que empiece con https://'),
       findsOneWidget,
     );
 
-    await tester.enterText(field('URL de la imagen (opcional)'), '');
+    await tester.enterText(field('O pega la URL de una imagen (opcional)'), '');
     await tapAndSettle(tester, find.text('Crear producto'));
 
     final (id, input) = repository.sent.single;
@@ -340,5 +348,185 @@ void main() {
     expect(tester.takeException(), isNull);
     await tapAndSettle(tester, find.text('Arroz extra 5 kg'));
     expect(tester.takeException(), isNull);
+  });
+
+  group('la foto', () {
+    const stored = '/images/products/aceite/0123456789abcdef.jpg';
+
+    setUp(() {
+      repository.products[1] = Product(
+        id: _oil.id,
+        name: _oil.name,
+        sku: _oil.sku,
+        priceCents: _oil.priceCents,
+        promoPriceCents: _oil.promoPriceCents,
+        stock: _oil.stock,
+        minStock: _oil.minStock,
+        category: _oil.category,
+        imageUrl: stored,
+      );
+    });
+
+    Future<void> fillNew(WidgetTester tester) async {
+      await tapAndSettle(tester, find.text('Nuevo producto'));
+      await tester.enterText(field('Nombre'), 'Fideos spaghetti 500 g');
+      await tester.enterText(field('SKU'), 'FID-500');
+      await tester.enterText(field('Precio'), '3.80');
+      await chooseCategory(tester, 'Abarrotes');
+    }
+
+    testWidgets('elegir una foto, crear el producto y subirla', (tester) async {
+      await pumpProducts(tester);
+      await fillNew(tester);
+
+      await tapAndSettle(tester, find.text('Subir foto'));
+      expect(picker.sources, [PhotoSource.gallery]);
+      expect(find.text('Se sube al guardar.'), findsOneWidget);
+      expect(find.text('Cambiar foto'), findsOneWidget);
+      await tapAndSettle(tester, find.text('Crear producto'));
+
+      final (id, input) = repository.sent.single;
+      expect(id, isNull);
+      expect(input.imageUrl, isNull);
+      final (uploadedTo, bytes, type) = repository.uploads.single;
+      expect(uploadedTo, 'nuevo-5');
+      expect(bytes, samplePhoto.bytes);
+      expect(type, 'image/png');
+      expect(find.byType(Dialog), findsNothing);
+      expect(repository.products.last.imageUrl, startsWith('/images/'));
+    });
+
+    testWidgets(
+      'al editar, la foto subida se mantiene sin mostrarse como URL',
+      (tester) async {
+        await pumpProducts(tester);
+        await tapAndSettle(tester, inTable('Aceite vegetal 1 L'));
+
+        expect(
+          tester
+              .widget<TextFormField>(
+                field('O pega la URL de una imagen (opcional)'),
+              )
+              .controller!
+              .text,
+          '',
+        );
+        expect(find.text('Cambiar foto'), findsOneWidget);
+        await tapAndSettle(tester, find.text('Guardar cambios'));
+
+        expect(repository.sent.single.$2.imageUrl, stored);
+        expect(repository.uploads, isEmpty);
+      },
+    );
+
+    testWidgets('quitar la foto manda imageUrl en null', (tester) async {
+      await pumpProducts(tester);
+      await tapAndSettle(tester, inTable('Aceite vegetal 1 L'));
+
+      await tapAndSettle(tester, find.text('Quitar foto'));
+      expect(find.text('Subir foto'), findsOneWidget);
+      await tapAndSettle(tester, find.text('Guardar cambios'));
+
+      expect(repository.sent.single.$2.imageUrl, isNull);
+    });
+
+    testWidgets('cambiarla: guarda con la que tenía y sube la nueva', (
+      tester,
+    ) async {
+      await pumpProducts(tester);
+      await tapAndSettle(tester, inTable('Aceite vegetal 1 L'));
+
+      await tapAndSettle(tester, find.text('Cambiar foto'));
+      await tapAndSettle(tester, find.text('Guardar cambios'));
+
+      // Si la subida fallara, el producto no pierde la foto anterior.
+      expect(repository.sent.single.$2.imageUrl, stored);
+      expect(repository.uploads.single.$1, 'aceite');
+    });
+
+    testWidgets('una URL escrita descarta la foto elegida', (tester) async {
+      await pumpProducts(tester);
+      await fillNew(tester);
+
+      await tapAndSettle(tester, find.text('Subir foto'));
+      await tester.enterText(
+        field('O pega la URL de una imagen (opcional)'),
+        'https://cdn.tienda.pe/fideos.jpg',
+      );
+      await tester.pump();
+      expect(find.text('Se sube al guardar.'), findsNothing);
+      await tapAndSettle(tester, find.text('Crear producto'));
+
+      expect(
+        repository.sent.single.$2.imageUrl,
+        'https://cdn.tienda.pe/fideos.jpg',
+      );
+      expect(repository.uploads, isEmpty);
+    });
+
+    testWidgets(
+      'si la foto no sube, el producto queda guardado y se reintenta solo ella',
+      (tester) async {
+        await pumpProducts(tester);
+        await fillNew(tester);
+        await tapAndSettle(tester, find.text('Subir foto'));
+        repository.uploadFailure = const ApiFailure(
+          'La foto pesa más de 8 MB',
+          status: 413,
+        );
+
+        await tapAndSettle(tester, find.text('Crear producto'));
+
+        expect(find.byType(Dialog), findsOneWidget);
+        expect(
+          find.text(
+            'Se guardó el producto, pero no se pudo subir la foto: '
+            'La foto pesa más de 8 MB',
+          ),
+          findsOneWidget,
+        );
+        expect(repository.sent, hasLength(1));
+        // Lo demás ya se guardó: no se edita mientras falta la foto.
+        expect(tester.widget<TextFormField>(field('Nombre')).enabled, isFalse);
+
+        await tapAndSettle(tester, find.text('Reintentar la foto'));
+
+        expect(repository.sent, hasLength(1));
+        expect(repository.uploads, hasLength(1));
+        expect(find.byType(Dialog), findsNothing);
+      },
+    );
+
+    testWidgets('sin cámara (la web), sin "Tomar foto"', (tester) async {
+      await pumpProducts(tester);
+      await tapAndSettle(tester, find.text('Nuevo producto'));
+      expect(find.text('Subir foto'), findsOneWidget);
+      expect(find.text('Tomar foto'), findsNothing);
+    });
+
+    testWidgets('en el teléfono, "Tomar foto" usa la cámara', (tester) async {
+      picker = FakePhotoPicker(canUseCamera: true);
+      await pumpProducts(tester, width: 375);
+      await tapAndSettle(tester, find.text('Nuevo producto'));
+
+      await tapAndSettle(tester, find.text('Tomar foto'));
+
+      expect(picker.sources, [PhotoSource.camera]);
+      expect(find.text('Se sube al guardar.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('la tabla muestra la foto en miniatura', (tester) async {
+      await pumpProducts(tester);
+
+      final photos = tester.widgetList<ProductPhoto>(
+        find.descendant(
+          of: find.byType(AdminTable<Product>),
+          matching: find.byType(ProductPhoto),
+        ),
+      );
+      expect(photos.map((photo) => photo.url), contains(stored));
+      expect(photos, hasLength(4));
+    });
   });
 }
