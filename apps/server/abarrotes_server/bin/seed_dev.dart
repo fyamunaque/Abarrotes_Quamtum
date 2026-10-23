@@ -10,7 +10,8 @@ import 'package:abarrotes_server/src/generated/serverpod.dart';
 /// ```
 ///
 /// Se niega en cualquier otro modo. El catálogo se completa (agrega lo que
-/// falta, sin tocar lo que ya hay) y los pedidos se saltan si el cliente de
+/// falta, sin tocar lo que ya hay), los productos de ejemplo sin foto reciben
+/// la suya (`assets/seed/products`) y los pedidos se saltan si el cliente de
 /// ejemplo ya tiene.
 ///
 /// Con `--reiniciar`, los pedidos de ejemplo se vuelven a generar con fechas
@@ -31,9 +32,10 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  final (products, orders) = await pod.withSession(
+  final (products, photos, orders) = await pod.withSession(
     (session) async => (
       await seedDevData(session),
+      await seedDevPhotos(session),
       reset ? await resetDevOrders(session) : await seedDevOrders(session),
     ),
     enableLogging: false,
@@ -43,6 +45,11 @@ Future<void> main(List<String> args) async {
       products == 0
           ? 'Catálogo: ya estaba completo, no se agregó nada.'
           : 'Catálogo: se agregaron $products productos de ejemplo.',
+    )
+    ..writeln(
+      photos == 0
+          ? 'Fotos: los productos de ejemplo ya tenían foto.'
+          : 'Fotos: se les puso foto a $photos productos de ejemplo.',
     )
     ..writeln(switch ((orders, reset)) {
       (0, _) =>

@@ -91,10 +91,12 @@ infraestructura compartida; lo que un dominio necesita de otro llega por constru
    ```
 
 4. Opcional, para probar la app: datos de ejemplo. Solo corre en `development`.
-   - **El catálogo:** 9 categorías y 25 productos, sin imágenes. Uno tiene una promoción vigente
-     por 30 días y otro está agotado. Completa lo que falta: agrega las categorías y los
-     productos (por SKU) que no están, y nunca toca uno que ya existe, aunque se haya editado o
-     dado de baja.
+   - **El catálogo:** 9 categorías y 25 productos. Uno tiene una promoción vigente por 30 días y
+     otro está agotado. Completa lo que falta: agrega las categorías y los productos (por SKU)
+     que no están, y nunca toca uno que ya existe, aunque se haya editado o dado de baja.
+   - **Las fotos:** cada producto de ejemplo sin foto recibe la suya, de
+     `assets/seed/products/<SKU>.jpg`. Son de Pexels, con su origen y licencia en `CREDITS.md`
+     de esa carpeta. Nunca reemplaza una foto que alguien ya puso.
    - **Pedidos:** 40 pedidos de 1 a 3 productos, repartidos en los últimos 30 días, para que el
      panel tenga ventas, top 5 y pedidos por estado. Los dos más recientes esperan confirmación,
      dos están confirmados y dos en camino; los demás, entregados o cancelados.

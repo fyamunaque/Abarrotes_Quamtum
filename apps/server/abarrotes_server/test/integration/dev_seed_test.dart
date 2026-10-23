@@ -1,8 +1,12 @@
+import 'dart:io';
+import 'dart:math';
+
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
 import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/dev/dev_seed.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/inventory/stock_alerts.dart';
+import 'package:abarrotes_server/src/products/product_images.dart';
 import 'package:abarrotes_server/src/promotions/promotion_rules.dart';
 import 'package:abarrotes_server/src/stats/providers/expiring_products_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/fulfillment_report_provider.dart';
@@ -12,6 +16,7 @@ import 'package:abarrotes_server/src/stats/providers/overview_report_provider.da
 import 'package:abarrotes_server/src/stats/providers/sales_report_provider.dart';
 import 'package:abarrotes_server/src/stats/providers/top_products_report_provider.dart';
 import 'package:abarrotes_server/src/stats/stats_routes.dart';
+import 'package:image/image.dart' as img;
 import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
@@ -82,6 +87,63 @@ void main() {
       expect(await Category.db.count(session), 9);
       expect(await Promotion.db.count(session), 1);
     });
+
+    test('cada producto de ejemplo tiene su foto en los assets', () {
+      for (final file in Directory(devPhotosFolder).listSync()) {
+        if (!file.path.endsWith('.jpg')) continue;
+        final photo = img.decodeJpg(File(file.path).readAsBytesSync())!;
+        expect(
+          max(photo.width, photo.height),
+          lessThanOrEqualTo(800),
+          reason: file.path,
+        );
+        expect(photo.exif.isEmpty, isTrue, reason: file.path);
+      }
+      expect(
+        Directory(devPhotosFolder).listSync().where(
+          (file) => file.path.endsWith('.jpg'),
+        ),
+        hasLength(25),
+      );
+    });
+
+    test(
+      'pone las fotos solo a los productos de ejemplo sin foto, una vez',
+      () async {
+        final session = sessionBuilder.build();
+        await seedDevData(session, now: () => testNow);
+        // Alguien ya le puso otra foto al arroz.
+        final arroz = await Product.db.findFirstRow(
+          session,
+          where: (product) => product.sku.equals('ARR-5KG'),
+        );
+        await Product.db.updateRow(
+          session,
+          arroz!.copyWith(imageUrl: 'https://cdn.tienda.pe/arroz.jpg'),
+        );
+
+        expect(await seedDevPhotos(session), 24);
+        expect(await seedDevPhotos(session), 0);
+
+        final products = await Product.db.find(session);
+        expect(
+          products.where((product) => product.imageUrl == null),
+          isEmpty,
+        );
+        final aceite = products.firstWhere((p) => p.sku == 'ACE-1L');
+        expect(aceite.imageUrl, startsWith('/images/products/${aceite.id}/'));
+        expect(
+          (await Product.db.findById(session, arroz.id!))!.imageUrl,
+          'https://cdn.tienda.pe/arroz.jpg',
+        );
+        // La foto guardada es la del asset.
+        final file = aceite.imageUrl!.split('/').last;
+        expect(
+          await ProductImages().read(session, aceite.id.toString(), file),
+          File('$devPhotosFolder/ACE-1L.jpg').readAsBytesSync(),
+        );
+      },
+    );
 
     test(
       'completa una base con el catálogo viejo, sin tocar lo que hay',
