@@ -21,6 +21,7 @@ abstract class Order
     implements _isc.SerializableModel, _isc.ProtocolSerialization {
   Order._({
     this.id,
+    this.number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required this.totalCents,
@@ -39,6 +40,7 @@ abstract class Order
 
   factory Order({
     _isc.UuidValue? id,
+    int? number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required int totalCents,
@@ -57,6 +59,7 @@ abstract class Order
       id: jsonSerialization['id'] == null
           ? null
           : _isc.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
+      number: jsonSerialization['number'] as int?,
       status: jsonSerialization['status'] == null
           ? null
           : _i2b33p21.OrderStatus.fromJson(
@@ -102,6 +105,10 @@ abstract class Order
   /// the id will be null.
   _isc.UuidValue? id;
 
+  /// El número que se le dice al cliente ("Pedido N.º 1024"): correlativo,
+  /// desde 1001. Lo pone el servidor al crear el pedido (nextOrderNumber).
+  int? number;
+
   _i2b33p21.OrderStatus status;
 
   /// A domicilio (por defecto, como todos los pedidos de antes) o recojo en
@@ -137,6 +144,7 @@ abstract class Order
   @_isc.useResult
   Order copyWith({
     _isc.UuidValue? id,
+    int? number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     int? totalCents,
@@ -154,6 +162,7 @@ abstract class Order
     return {
       '__className__': 'Order',
       if (id != null) 'id': id?.toJson(),
+      if (number != null) 'number': number,
       'status': status.toJson(),
       'fulfillmentType': fulfillmentType.toJson(),
       'totalCents': totalCents,
@@ -174,6 +183,7 @@ abstract class Order
     return {
       '__className__': 'Order',
       if (id != null) 'id': id?.toJson(),
+      if (number != null) 'number': number,
       'status': status.toJson(),
       'fulfillmentType': fulfillmentType.toJson(),
       'totalCents': totalCents,
@@ -201,6 +211,7 @@ class _Undefined {}
 class _OrderImpl extends Order {
   _OrderImpl({
     _isc.UuidValue? id,
+    int? number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required int totalCents,
@@ -214,6 +225,7 @@ class _OrderImpl extends Order {
     List<_iuzd2jqp.OrderItem>? items,
   }) : super._(
          id: id,
+         number: number,
          status: status,
          fulfillmentType: fulfillmentType,
          totalCents: totalCents,
@@ -233,6 +245,7 @@ class _OrderImpl extends Order {
   @override
   Order copyWith({
     Object? id = _Undefined,
+    Object? number = _Undefined,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     int? totalCents,
@@ -247,6 +260,7 @@ class _OrderImpl extends Order {
   }) {
     return Order(
       id: id is _isc.UuidValue? ? id : this.id,
+      number: number is int? ? number : this.number,
       status: status ?? this.status,
       fulfillmentType: fulfillmentType ?? this.fulfillmentType,
       totalCents: totalCents ?? this.totalCents,

@@ -51,10 +51,12 @@ class _Shop {
     OrderStatus status = OrderStatus.pendingConfirmation,
     DateTime? createdAt,
     String? pickupCode,
+    int? number,
   }) async {
     final order = await Order.db.insertRow(
       session,
       Order(
+        number: number,
         status: status,
         fulfillmentType: pickupCode == null
             ? FulfillmentType.delivery
@@ -287,6 +289,30 @@ void main() {
         },
       );
 
+      test('busca por número', () async {
+        await shop.order(number: 1023);
+        final target = await shop.order(number: 1024);
+
+        final (_, body) = await client.get(
+          '/orders?number=1024',
+          as: 'uid-staff',
+        );
+        expect([for (final o in body['data']) o['id']], [target.id.toString()]);
+        expect(body['data'].single['number'], 1024);
+        expect(
+          (await client.get('/orders?number=abc', as: 'uid-staff')).$1,
+          400,
+        );
+      });
+
+      test('el índice único no deja repetir un número', () async {
+        await shop.order(number: 1024);
+        expect(
+          () => shop.order(number: 1024),
+          throwsA(isA<DatabaseUniqueViolationException>()),
+        );
+      });
+
       test('filtra por estado', () async {
         await shop.order();
         await shop.order(status: OrderStatus.delivered);
@@ -506,6 +532,17 @@ void main() {
             ]);
           },
         );
+      });
+
+      test('cada pedido sale con el número siguiente', () async {
+        final (_, first) = await place(body([(shop.arroz, 1)]));
+        final (_, second) = await place(body([(shop.aceite, 1)]));
+        expect((first['number'], second['number']), (1001, 1002));
+
+        // Sigue desde el más alto que haya.
+        await shop.order(number: 1500);
+        final (_, next) = await place(body([(shop.arroz, 1)]));
+        expect(next['number'], 1501);
       });
 
       test('junta las líneas del mismo producto', () async {

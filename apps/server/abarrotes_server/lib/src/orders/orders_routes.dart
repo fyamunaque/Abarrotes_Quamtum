@@ -142,6 +142,7 @@ List<RouteEntry> ordersRoutes(
             'fulfillmentType',
             'from',
             'to',
+            'number',
           },
         );
         final page = PageQuery.read(query);
@@ -157,6 +158,7 @@ List<RouteEntry> ordersRoutes(
         );
         final from = query.day('from', required: false);
         final to = query.day('to', required: false);
+        final number = query.integer('number', required: false);
         query.check();
 
         final (list, total) = await orders.list(
@@ -166,6 +168,7 @@ List<RouteEntry> ordersRoutes(
           fulfillmentType: fulfillmentType,
           from: from,
           to: to,
+          number: number,
         );
         return jsonResponse(
           200,
@@ -218,6 +221,7 @@ List<RouteEntry> ordersRoutes(
 Map<String, Object?> orderJson(Order order, {required bool withPickupCode}) {
   return {
     'id': order.id.toString(),
+    'number': order.number,
     'status': order.status.name,
     'fulfillmentType': order.fulfillmentType.name,
     'allowedNextStatuses': [

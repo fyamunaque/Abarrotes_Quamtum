@@ -22,6 +22,7 @@ abstract class Order
     implements _is.TableRow<_is.UuidValue?>, _is.ProtocolSerialization {
   Order._({
     this.id,
+    this.number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required this.totalCents,
@@ -40,6 +41,7 @@ abstract class Order
 
   factory Order({
     _is.UuidValue? id,
+    int? number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required int totalCents,
@@ -58,6 +60,7 @@ abstract class Order
       id: jsonSerialization['id'] == null
           ? null
           : _is.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
+      number: jsonSerialization['number'] as int?,
       status: jsonSerialization['status'] == null
           ? null
           : _i2b33p21.OrderStatus.fromJson(
@@ -105,6 +108,10 @@ abstract class Order
   @override
   _is.UuidValue? id;
 
+  /// El número que se le dice al cliente ("Pedido N.º 1024"): correlativo,
+  /// desde 1001. Lo pone el servidor al crear el pedido (nextOrderNumber).
+  int? number;
+
   _i2b33p21.OrderStatus status;
 
   /// A domicilio (por defecto, como todos los pedidos de antes) o recojo en
@@ -143,6 +150,7 @@ abstract class Order
   @_is.useResult
   Order copyWith({
     _is.UuidValue? id,
+    int? number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     int? totalCents,
@@ -160,6 +168,7 @@ abstract class Order
     return {
       '__className__': 'Order',
       if (id != null) 'id': id?.toJson(),
+      if (number != null) 'number': number,
       'status': status.toJson(),
       'fulfillmentType': fulfillmentType.toJson(),
       'totalCents': totalCents,
@@ -180,6 +189,7 @@ abstract class Order
     return {
       '__className__': 'Order',
       if (id != null) 'id': id?.toJson(),
+      if (number != null) 'number': number,
       'status': status.toJson(),
       'fulfillmentType': fulfillmentType.toJson(),
       'totalCents': totalCents,
@@ -235,6 +245,7 @@ class _Undefined {}
 class _OrderImpl extends Order {
   _OrderImpl({
     _is.UuidValue? id,
+    int? number,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required int totalCents,
@@ -248,6 +259,7 @@ class _OrderImpl extends Order {
     List<_iuzd2jqp.OrderItem>? items,
   }) : super._(
          id: id,
+         number: number,
          status: status,
          fulfillmentType: fulfillmentType,
          totalCents: totalCents,
@@ -267,6 +279,7 @@ class _OrderImpl extends Order {
   @override
   Order copyWith({
     Object? id = _Undefined,
+    Object? number = _Undefined,
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     int? totalCents,
@@ -281,6 +294,7 @@ class _OrderImpl extends Order {
   }) {
     return Order(
       id: id is _is.UuidValue? ? id : this.id,
+      number: number is int? ? number : this.number,
       status: status ?? this.status,
       fulfillmentType: fulfillmentType ?? this.fulfillmentType,
       totalCents: totalCents ?? this.totalCents,
@@ -306,6 +320,11 @@ class _OrderImpl extends Order {
 
 class OrderUpdateTable extends _is.UpdateTable<OrderTable> {
   OrderUpdateTable(super.table);
+
+  _is.ColumnValue<int, int> number(int? value) => _is.ColumnValue(
+    table.number,
+    value,
+  );
 
   _is.ColumnValue<_i2b33p21.OrderStatus, _i2b33p21.OrderStatus> status(
     _i2b33p21.OrderStatus value,
@@ -365,6 +384,10 @@ class OrderUpdateTable extends _is.UpdateTable<OrderTable> {
 class OrderTable extends _is.Table<_is.UuidValue?> {
   OrderTable({super.tableRelation}) : super(tableName: 'orders') {
     updateTable = OrderUpdateTable(this);
+    number = _is.ColumnInt(
+      'number',
+      this,
+    );
     status = _is.ColumnEnum(
       'status',
       this,
@@ -410,6 +433,10 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
   }
 
   late final OrderUpdateTable updateTable;
+
+  /// El número que se le dice al cliente ("Pedido N.º 1024"): correlativo,
+  /// desde 1001. Lo pone el servidor al crear el pedido (nextOrderNumber).
+  late final _is.ColumnInt number;
 
   late final _is.ColumnEnum<_i2b33p21.OrderStatus> status;
 
@@ -491,6 +518,7 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
   @override
   List<_is.Column> get columns => [
     id,
+    number,
     status,
     fulfillmentType,
     totalCents,

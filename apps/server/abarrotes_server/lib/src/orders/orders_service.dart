@@ -8,6 +8,7 @@ import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../inventory/inventory_service.dart';
 import '../promotions/promotion_pricing.dart';
+import 'order_number.dart';
 import 'order_status_notifier.dart';
 import 'pickup_code.dart';
 import 'states/order_states.dart';
@@ -176,6 +177,7 @@ class OrdersService {
       final order = await Order.db.insertRow(
         session,
         Order(
+          number: await nextOrderNumber(session, transaction),
           status: OrderStatus.pendingConfirmation,
           fulfillmentType: fulfillmentType,
           totalCents: total,
@@ -273,6 +275,7 @@ class OrdersService {
     FulfillmentType? fulfillmentType,
     String? from,
     String? to,
+    int? number,
   }) async {
     if (from != null && to != null && from.compareTo(to) > 0) {
       throw const ApiException.badRequest('from no puede ser posterior a to');
@@ -287,6 +290,7 @@ class OrdersService {
       if (to != null) {
         filter &= order.createdAt < storeDayStart(addDays(to, 1));
       }
+      if (number != null) filter &= order.number.equals(number);
       return filter;
     }
 

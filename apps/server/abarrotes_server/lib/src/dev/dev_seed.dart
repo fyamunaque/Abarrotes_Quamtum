@@ -6,6 +6,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
+import '../orders/order_number.dart';
 import '../orders/pickup_code.dart';
 import '../products/product_images.dart';
 import '../promotions/promotion_rules.dart';
@@ -274,6 +275,7 @@ Future<int> _seedOrders(
       final order = await Order.db.insertRow(
         session,
         Order(
+          number: await nextOrderNumber(session, transaction),
           status: status,
           fulfillmentType: pickup
               ? FulfillmentType.pickup

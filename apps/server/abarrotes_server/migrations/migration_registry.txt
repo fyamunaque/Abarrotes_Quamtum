@@ -10,3 +10,4 @@
 20261011064431487-permisos-personal
 20261014220516930-recojo-en-tienda
 20261015032450431-datos-de-la-tienda
+20261023221241811-numero-de-pedido
