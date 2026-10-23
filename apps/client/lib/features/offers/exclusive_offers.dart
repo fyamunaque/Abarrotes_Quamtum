@@ -117,7 +117,11 @@ class _OfferCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 4 / 3,
-              child: ProductPhoto(offer.imageUrl),
+              child: ProductPhoto(
+                offer.imageUrl,
+                name: offer.productName,
+                colorKey: offer.categoryId,
+              ),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),

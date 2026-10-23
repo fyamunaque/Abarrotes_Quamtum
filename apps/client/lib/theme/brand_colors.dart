@@ -28,3 +28,30 @@ abstract final class OrderStatusColors {
   /// Este sí sirve para texto sobre crema (6,8:1).
   static const cancelled = Color(0xFF8C3B33);
 }
+
+/// El marcador de un producto sin foto: un fondo suave y la inicial en un
+/// tono oscuro del mismo color (contraste de al menos 4.5:1). Cada categoría
+/// tiene siempre el mismo par, así el catálogo no se ve repetido.
+abstract final class PlaceholderColors {
+  static const pairs = <(Color background, Color foreground)>[
+    (Color(0xFFF8DCC8), Color(0xFF8A3A12)), // durazno
+    (Color(0xFFDCE8D2), Color(0xFF3E5A2A)), // salvia
+    (Color(0xFFD6E6F2), Color(0xFF24506E)), // cielo
+    (Color(0xFFE4DCF0), Color(0xFF533A7A)), // lavanda
+    (Color(0xFFF6EAC2), Color(0xFF6E5410)), // mantequilla
+    (Color(0xFFF4D6DA), Color(0xFF82313F)), // rosa
+    (Color(0xFFD3ECE6), Color(0xFF1F5C50)), // menta
+    (Color(0xFFEADFD2), Color(0xFF5C4532)), // arena
+  ];
+
+  /// El par de [key] (p. ej. el id de la categoría). Con un hash propio y no
+  /// `hashCode`, que puede cambiar entre la web y Android; sus números nunca
+  /// pasan de 2^53, así da lo mismo con los enteros de JavaScript.
+  static (Color, Color) of(String key) {
+    var hash = 7;
+    for (final unit in key.codeUnits) {
+      hash = (hash * 31 + unit) % 2147483647;
+    }
+    return pairs[hash % pairs.length];
+  }
+}

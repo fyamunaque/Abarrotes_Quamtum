@@ -37,7 +37,7 @@ Middleware corsMiddleware(OriginPolicy isAllowed) {
           headers: Headers.build((headers) {
             _allowOrigin(headers, origin);
             headers['Access-Control-Allow-Methods'] = const [
-              'GET, POST, PATCH, DELETE, OPTIONS',
+              'GET, POST, PUT, PATCH, DELETE, OPTIONS',
             ];
             headers['Access-Control-Allow-Headers'] = const [
               'Authorization, Content-Type',

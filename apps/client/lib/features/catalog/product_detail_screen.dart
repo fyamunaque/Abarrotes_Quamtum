@@ -79,7 +79,12 @@ class _Detail extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: AspectRatio(
         aspectRatio: 4 / 3,
-        child: ProductPhoto(product.imageUrl, iconSize: 72),
+        child: ProductPhoto(
+          product.imageUrl,
+          name: product.name,
+          colorKey: product.category?.id,
+          initialSize: 72,
+        ),
       ),
     );
     return LayoutBuilder(

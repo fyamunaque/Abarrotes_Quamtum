@@ -10,6 +10,7 @@ import '../../../common/money.dart';
 import '../../../session/session_provider.dart';
 import '../../../session/staff_permission.dart';
 import '../../../theme/brand_colors.dart';
+import '../../catalog/product_photo.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/panel_note.dart';
@@ -69,7 +70,14 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
     final created = await showAdminForm<Product>(
       context,
       title: 'Nuevo producto',
-      builder: (_) => ProductForm(onSubmit: notifier.create),
+      builder: (_) => ProductForm(
+        onSubmit: notifier.create,
+        onUploadImage: (id, photo) => notifier.uploadImage(
+          id,
+          photo.bytes,
+          contentType: photo.contentType,
+        ),
+      ),
     );
     if (created != null) _notify('Creaste "${created.name}".');
   }
@@ -82,6 +90,11 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
       builder: (_) => ProductForm(
         product: product,
         onSubmit: (input) => notifier.save(product.id, input),
+        onUploadImage: (id, photo) => notifier.uploadImage(
+          id,
+          photo.bytes,
+          contentType: photo.contentType,
+        ),
         onDeactivate: product.active
             ? () => notifier.deactivate(product.id)
             : null,
@@ -227,14 +240,33 @@ class _NameCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(product.name),
-        Text(
-          product.sku,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox.square(
+            dimension: 40,
+            child: ProductPhoto(
+              product.imageUrl,
+              name: product.name,
+              colorKey: product.category?.id,
+              initialSize: 18,
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(product.name),
+              Text(
+                product.sku,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ),
         ),
       ],

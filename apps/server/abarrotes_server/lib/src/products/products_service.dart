@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:serverpod/serverpod.dart';
 
 import '../common/api_route.dart';
@@ -6,15 +8,24 @@ import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_pricing.dart';
+import 'product_images.dart';
 
 /// Productos del catálogo. Cada producto se devuelve con su categoría y la
 /// mejor promoción vigente que puede usar quien mira (en `promotions`, a lo
 /// sumo una): un cliente nunca ve una promoción que no es para él.
+///
+/// Cuando la foto de un producto cambia o se quita, la que tenía se borra si
+/// era una subida ([ProductImages]).
 class ProductsService {
-  ProductsService({required this._pricing, DateTime Function()? now})
-    : _now = now ?? DateTime.now;
+  ProductsService({
+    required this._pricing,
+    ProductImages? images,
+    DateTime Function()? now,
+  }) : _images = images ?? ProductImages(),
+       _now = now ?? DateTime.now;
 
   final PromotionPricing _pricing;
+  final ProductImages _images;
   final DateTime Function() _now;
 
   /// Por nombre. [includeInactive] es solo para admin y staff: decide la ruta.
@@ -103,8 +114,38 @@ class ProductsService {
       await _assertSkuIsFree(session, updated.sku);
     }
     await _write(updated.sku, () => Product.db.updateRow(session, updated));
+    if (updated.imageUrl != current.imageUrl) {
+      await _images.delete(session, current.imageUrl);
+    }
     return get(session, id, includeInactive: true);
   }
+
+  /// Le pone al producto [id] la foto [jpeg], ya procesada con
+  /// [ProductImages.process]; la que tenía se borra si era una subida.
+  Future<Product> setImage(
+    Session session,
+    UuidValue id,
+    Uint8List jpeg,
+  ) async {
+    // Que exista (o 404) antes de guardar nada.
+    await get(session, id, includeInactive: true);
+    final url = await _images.store(session, id, jpeg);
+    try {
+      return await update(
+        session,
+        id,
+        (product) => product.copyWith(imageUrl: url),
+      );
+    } catch (_) {
+      await _images.delete(session, url);
+      rethrow;
+    }
+  }
+
+  /// La foto subida [file] del producto [productId] (JPEG), o null si no
+  /// existe.
+  Future<Uint8List?> image(Session session, String productId, String file) =>
+      _images.read(session, productId, file);
 
   /// Baja lógica (active = false). No se borra porque los pedidos, los
   /// movimientos de inventario y las promociones lo referencian.

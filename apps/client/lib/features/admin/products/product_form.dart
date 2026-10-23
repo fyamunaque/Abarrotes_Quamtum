@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../admin/products/photo_picker.dart';
 import '../../../admin/products/product_input.dart';
 import '../../../catalog/catalog_providers.dart';
 import '../../../catalog/category.dart';
 import '../../../catalog/product.dart';
 import '../../../common/api_client.dart';
 import '../../../common/money.dart';
+import '../../catalog/product_photo.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_form.dart';
@@ -16,11 +18,17 @@ import '../shared/admin_page.dart';
 /// Crear ([product] null) o editar un producto. Valida lo mismo que el
 /// servidor; lo que el servidor rechaza igual (un SKU que ya existe) se
 /// muestra en su campo. Se cierra con el producto como quedó.
+///
+/// La foto se sube (de la galería, los archivos o la cámara) o se pega la URL
+/// de una imagen. Una foto elegida se sube después de guardar el producto: si
+/// eso falla, el producto ya quedó guardado y el formulario ofrece volver a
+/// intentar solo la foto.
 class ProductForm extends ConsumerStatefulWidget {
   const ProductForm({
     super.key,
     this.product,
     required this.onSubmit,
+    required this.onUploadImage,
     this.onDeactivate,
   });
 
@@ -28,6 +36,10 @@ class ProductForm extends ConsumerStatefulWidget {
 
   /// Crea o guarda con lo del formulario.
   final Future<Product> Function(ProductInput input) onSubmit;
+
+  /// Le sube la foto elegida al producto ya guardado.
+  final Future<Product> Function(String productId, PickedPhoto photo)
+  onUploadImage;
 
   /// Lo da de baja. Solo al editar un producto activo.
   final Future<Product> Function()? onDeactivate;
@@ -49,6 +61,17 @@ class _ProductFormState extends ConsumerState<ProductForm> {
   DateTime? _expiration;
   late bool _active;
 
+  /// La foto elegida, que se sube al guardar.
+  PickedPhoto? _photo;
+
+  /// Si se mantiene la foto subida que ya tiene el producto (no se muestra
+  /// en el campo de URL: es una ruta de este servidor).
+  late bool _keepStoredPhoto;
+
+  /// El producto ya guardado cuando falló la subida de la foto: guardar
+  /// otra vez solo reintenta la foto.
+  Product? _saved;
+
   bool _busy = false;
   String? _error;
 
@@ -56,6 +79,10 @@ class _ProductFormState extends ConsumerState<ProductForm> {
   String? _skuError;
 
   bool get _creating => widget.product == null;
+
+  /// Los campos se editan salvo mientras guarda o cuando el producto ya se
+  /// guardó y solo falta la foto.
+  bool get _editable => !_busy && _saved == null;
 
   @override
   void initState() {
@@ -68,7 +95,9 @@ class _ProductFormState extends ConsumerState<ProductForm> {
     );
     _initialStock = TextEditingController(text: '0');
     _minStock = TextEditingController(text: '${product?.minStock ?? 0}');
-    _imageUrl = TextEditingController(text: product?.imageUrl);
+    final stored = _isStoredPhoto(product?.imageUrl);
+    _keepStoredPhoto = stored;
+    _imageUrl = TextEditingController(text: stored ? null : product?.imageUrl);
     _description = TextEditingController(text: product?.description);
     _categoryId = product?.category?.id;
     _expiration = product?.expirationDate;
@@ -102,21 +131,62 @@ class _ProductFormState extends ConsumerState<ProductForm> {
       minStock: int.parse(_minStock.text),
       active: _active,
       description: optional(_description),
-      imageUrl: optional(_imageUrl),
+      imageUrl: _imageUrlToSave(optional(_imageUrl)),
       expirationDate: _expiration,
       initialStock: _creating ? int.parse(_initialStock.text) : 0,
     );
   }
 
+  /// Lo que va en `imageUrl`. Con una foto elegida, la que tenía (la nueva
+  /// la reemplaza al subirse; si la subida falla, no pierde la anterior).
+  String? _imageUrlToSave(String? typed) {
+    if (typed != null) return typed;
+    final current = widget.product?.imageUrl;
+    if (_photo != null) return current;
+    return _keepStoredPhoto ? current : null;
+  }
+
   Future<void> _submit() async {
     if (_busy) return;
     setState(() => _skuError = null);
-    if (!_formKey.currentState!.validate()) return;
-    await _run(
-      () => widget.onSubmit(_input()),
-      fallback: 'No se pudo guardar el producto.',
-    );
+    final saved = _saved;
+    if (saved == null && !_formKey.currentState!.validate()) return;
+    await _run(() async {
+      final product = saved ?? await widget.onSubmit(_input());
+      final photo = _photo;
+      if (photo == null) return product;
+      try {
+        return await widget.onUploadImage(product.id, photo);
+      } catch (error) {
+        _saved = product;
+        throw _PhotoFailure(errorMessage(error, 'No se pudo subir la foto.'));
+      }
+    }, fallback: 'No se pudo guardar el producto.');
   }
+
+  Future<void> _pickPhoto(PhotoSource source) async {
+    try {
+      final photo = await ref.read(photoPickerProvider).pick(source);
+      if (photo == null || !mounted) return;
+      setState(() {
+        _photo = photo;
+        _imageUrl.clear();
+        _keepStoredPhoto = false;
+      });
+    } catch (error) {
+      if (mounted) {
+        setState(
+          () => _error = errorMessage(error, 'No se pudo abrir la foto.'),
+        );
+      }
+    }
+  }
+
+  void _removePhoto() => setState(() {
+    _photo = null;
+    _imageUrl.clear();
+    _keepStoredPhoto = false;
+  });
 
   Future<void> _deactivate() async {
     final confirmed = await confirmAction(
@@ -147,6 +217,14 @@ class _ProductFormState extends ConsumerState<ProductForm> {
     try {
       final product = await action();
       if (mounted) Navigator.of(context).pop(product);
+    } on _PhotoFailure catch (failure) {
+      if (mounted) {
+        setState(
+          () => _error =
+              'Se guardó el producto, pero no se pudo subir la foto: '
+              '${failure.message}',
+        );
+      }
     } on ApiFailure catch (failure) {
       if (!mounted) return;
       setState(() {
@@ -201,7 +279,7 @@ class _ProductFormState extends ConsumerState<ProductForm> {
         children: [
           TextFormField(
             controller: _name,
-            enabled: !_busy,
+            enabled: _editable,
             decoration: const InputDecoration(labelText: 'Nombre'),
             textCapitalization: TextCapitalization.sentences,
             textInputAction: TextInputAction.next,
@@ -211,7 +289,7 @@ class _ProductFormState extends ConsumerState<ProductForm> {
           FieldPair(
             TextFormField(
               controller: _sku,
-              enabled: !_busy,
+              enabled: _editable,
               decoration: const InputDecoration(labelText: 'SKU'),
               textCapitalization: TextCapitalization.characters,
               autocorrect: false,
@@ -224,7 +302,7 @@ class _ProductFormState extends ConsumerState<ProductForm> {
             ),
             TextFormField(
               controller: _price,
-              enabled: !_busy,
+              enabled: _editable,
               decoration: const InputDecoration(
                 labelText: 'Precio',
                 prefixText: 'S/ ',
@@ -262,15 +340,15 @@ class _ProductFormState extends ConsumerState<ProductForm> {
                     child: Text(category.name),
                   ),
               ],
-              onChanged: _busy
-                  ? null
-                  : (id) => setState(() => _categoryId = id),
+              onChanged: _editable
+                  ? (id) => setState(() => _categoryId = id)
+                  : null,
               validator: (id) => id == null ? 'Elige una categoría.' : null,
             ),
             _DateField(
               label: 'Vencimiento (opcional)',
               value: _expiration,
-              enabled: !_busy,
+              enabled: _editable,
               onPick: _pickExpiration,
               onClear: () => setState(() => _expiration = null),
             ),
@@ -280,7 +358,7 @@ class _ProductFormState extends ConsumerState<ProductForm> {
             product == null
                 ? _CountField(
                     controller: _initialStock,
-                    enabled: !_busy,
+                    enabled: _editable,
                     label: 'Stock inicial',
                     helper: 'Después se cambia en Inventario.',
                   )
@@ -294,28 +372,55 @@ class _ProductFormState extends ConsumerState<ProductForm> {
                   ),
             _CountField(
               controller: _minStock,
-              enabled: !_busy,
+              enabled: _editable,
               label: 'Stock mínimo',
               helper: 'Con esto o menos, es stock bajo.',
             ),
           ),
           const SizedBox(height: 16),
+          // La inicial del marcador sigue al nombre mientras se escribe.
+          ListenableBuilder(
+            listenable: _name,
+            builder: (context, _) => _PhotoSection(
+              photo: _photo,
+              // Una URL escrita se ve recién cuando es válida: a medio
+              // escribir, pediría imágenes que no existen.
+              url: switch (_imageUrl.text.trim()) {
+                '' => _keepStoredPhoto ? widget.product?.imageUrl : null,
+                final typed => validateImageUrl(typed) == null ? typed : null,
+              },
+              name: _name.text,
+              colorKey: _categoryId,
+              enabled: _editable,
+              canUseCamera: ref.watch(photoPickerProvider).canUseCamera,
+              onPick: _pickPhoto,
+              onRemove: _removePhoto,
+            ),
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _imageUrl,
-            enabled: !_busy,
+            enabled: _editable,
             decoration: const InputDecoration(
-              labelText: 'URL de la imagen (opcional)',
+              labelText: 'O pega la URL de una imagen (opcional)',
               hintText: 'https://…',
             ),
             keyboardType: TextInputType.url,
             autocorrect: false,
             textInputAction: TextInputAction.next,
             validator: validateImageUrl,
+            // Una URL escrita reemplaza a la foto elegida.
+            onChanged: (text) => setState(() {
+              if (text.trim().isNotEmpty) {
+                _photo = null;
+                _keepStoredPhoto = false;
+              }
+            }),
           ),
           const SizedBox(height: 16),
           TextFormField(
             controller: _description,
-            enabled: !_busy,
+            enabled: _editable,
             decoration: const InputDecoration(
               labelText: 'Descripción (opcional)',
               alignLabelWithHint: true,
@@ -335,7 +440,7 @@ class _ProductFormState extends ConsumerState<ProductForm> {
               _active ? 'Se ve en la tienda.' : 'No se ve en la tienda.',
             ),
             value: _active,
-            onChanged: _busy ? null : (on) => setState(() => _active = on),
+            onChanged: _editable ? (on) => setState(() => _active = on) : null,
           ),
           const SizedBox(height: 16),
           if (_error case final error?) ...[
@@ -343,7 +448,11 @@ class _ProductFormState extends ConsumerState<ProductForm> {
             const SizedBox(height: 16),
           ],
           FormActions(
-            submitLabel: _creating ? 'Crear producto' : 'Guardar cambios',
+            submitLabel: _saved != null
+                ? 'Reintentar la foto'
+                : _creating
+                ? 'Crear producto'
+                : 'Guardar cambios',
             onSubmit: _submit,
             busy: _busy,
             destructive: widget.onDeactivate == null
@@ -355,6 +464,115 @@ class _ProductFormState extends ConsumerState<ProductForm> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Si [url] es de una foto subida al servidor (`/images/products/…`).
+bool _isStoredPhoto(String? url) =>
+    url != null && url.startsWith('/images/products/');
+
+/// Falló solo la subida de la foto: el producto ya quedó guardado.
+class _PhotoFailure implements Exception {
+  const _PhotoFailure(this.message);
+
+  final String message;
+}
+
+/// La foto del producto: la vista previa y los botones para subirla (o
+/// tomarla, en el teléfono) y quitarla.
+class _PhotoSection extends StatelessWidget {
+  const _PhotoSection({
+    required this.photo,
+    required this.url,
+    required this.name,
+    required this.colorKey,
+    required this.enabled,
+    required this.canUseCamera,
+    required this.onPick,
+    required this.onRemove,
+  });
+
+  final PickedPhoto? photo;
+  final String? url;
+  final String name;
+  final String? colorKey;
+  final bool enabled;
+  final bool canUseCamera;
+  final ValueChanged<PhotoSource> onPick;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final picked = photo;
+    final hasPhoto = picked != null || url != null;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: SizedBox.square(
+            dimension: 96,
+            child: picked != null
+                ? Image.memory(
+                    picked.bytes,
+                    fit: BoxFit.cover,
+                    semanticLabel: 'La foto elegida',
+                  )
+                : ProductPhoto(
+                    url,
+                    name: name.trim().isEmpty ? '?' : name,
+                    colorKey: colorKey,
+                  ),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Foto', style: theme.textTheme.titleSmall),
+              const SizedBox(height: 2),
+              Text(
+                picked != null
+                    ? 'Se sube al guardar.'
+                    : 'JPEG, PNG o WebP. Se achica sola.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: enabled
+                        ? () => onPick(PhotoSource.gallery)
+                        : null,
+                    icon: const Icon(Icons.upload_outlined),
+                    label: Text(hasPhoto ? 'Cambiar foto' : 'Subir foto'),
+                  ),
+                  if (canUseCamera)
+                    OutlinedButton.icon(
+                      onPressed: enabled
+                          ? () => onPick(PhotoSource.camera)
+                          : null,
+                      icon: const Icon(Icons.photo_camera_outlined),
+                      label: const Text('Tomar foto'),
+                    ),
+                  if (hasPhoto)
+                    TextButton(
+                      onPressed: enabled ? onRemove : null,
+                      child: const Text('Quitar foto'),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

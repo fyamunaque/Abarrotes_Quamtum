@@ -13,6 +13,7 @@ class Offer {
     this.title,
     this.vip = false,
     this.imageUrl,
+    this.categoryId,
   });
 
   /// Lanza [FormatException] si [json] no tiene esa forma.
@@ -40,6 +41,7 @@ class Offer {
         title: map['title'] as String?,
         vip: map['audience'] == 'vip',
         imageUrl: product['imageUrl'] as String?,
+        categoryId: product['categoryId'] as String?,
       ),
     _ => throw FormatException('No es una oferta', json),
   };
@@ -48,6 +50,9 @@ class Offer {
   final String productId;
   final String productName;
   final String? imageUrl;
+
+  /// La categoría del producto: el color de su marcador si no tiene foto.
+  final String? categoryId;
 
   /// El precio normal del producto y el de la oferta.
   final int priceCents;

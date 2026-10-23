@@ -1,10 +1,12 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/products/products_routes.dart';
 import 'package:abarrotes_server/src/products/products_service.dart';
 import 'package:abarrotes_server/src/promotions/promotion_rules.dart';
+import 'package:image/image.dart' as img;
 import 'package:serverpod/serverpod.dart';
 import 'package:test/test.dart';
 
@@ -502,6 +504,190 @@ void main() {
           expect(await Product.db.count(session), 3);
         },
       );
+    });
+
+    group('la foto', () {
+      // Una foto de celular, más grande que lo que se guarda.
+      final photo = img.encodeJpg(
+        img.Image(width: 1600, height: 1200)
+          ..clear(img.ColorRgb8(200, 120, 40)),
+      );
+
+      Future<String> upload(Product product) async {
+        final (status, body) = await client.putBytes(
+          '/products/${product.id}/image',
+          photo,
+          as: 'uid-staff',
+        );
+        expect(status, 200);
+        return body['imageUrl'] as String;
+      }
+
+      /// Las fotos guardadas (Serverpod no exporta el modelo de su tabla).
+      Future<int> storedPhotos() async {
+        final rows = await session.db.unsafeQuery(
+          'SELECT count(*) FROM serverpod_cloud_storage '
+          '''WHERE "storageId" = 'public' ''',
+        );
+        return rows.first.first! as int;
+      }
+
+      test('PUT la sube, cambia imageUrl y el GET público la sirve', () async {
+        final url = await upload(arroz);
+
+        expect(url, startsWith('/images/products/${arroz.id}/'));
+        expect(url, endsWith('.jpg'));
+        expect((await client.get('/products/${arroz.id}')).$2['imageUrl'], url);
+
+        final response = await client.getRaw(
+          url,
+          origin: 'http://localhost:5006',
+        );
+        expect(response.statusCode, 200);
+        expect(response.headers['content-type'], startsWith('image/jpeg'));
+        expect(
+          response.headers['cache-control'],
+          'public, max-age=31536000, immutable',
+        );
+        final served = img.decodeJpg(response.bodyBytes)!;
+        expect((served.width, served.height), (800, 600));
+      });
+
+      test('una foto nueva reemplaza a la anterior, que se borra', () async {
+        final first = await upload(arroz);
+        final second = await upload(arroz);
+
+        expect(second, isNot(first));
+        expect((await client.getRaw(first)).statusCode, 404);
+        expect((await client.getRaw(second)).statusCode, 200);
+        expect(await storedPhotos(), 1);
+      });
+
+      test(
+        'PATCH imageUrl a null o a una URL externa borra la subida',
+        () async {
+          final url = await upload(arroz);
+
+          final (status, body) = await client.patch('/products/${arroz.id}', {
+            'imageUrl': 'https://cdn.tienda.pe/arroz.jpg',
+          }, as: 'uid-staff');
+          expect(
+            (status, body['imageUrl']),
+            (200, 'https://cdn.tienda.pe/arroz.jpg'),
+          );
+          expect((await client.getRaw(url)).statusCode, 404);
+
+          final uploaded = await upload(arroz);
+          final (cleared, clearedBody) = await client.patch(
+            '/products/${arroz.id}',
+            {'imageUrl': null},
+            as: 'uid-staff',
+          );
+          expect((cleared, clearedBody['imageUrl']), (200, null));
+          expect((await client.getRaw(uploaded)).statusCode, 404);
+          expect(await storedPhotos(), 0);
+        },
+      );
+
+      test(
+        'el formulario puede reenviar la foto que tiene, pero no otra',
+        () async {
+          final url = await upload(arroz);
+
+          final (same, sameBody) = await client.patch('/products/${arroz.id}', {
+            'name': 'Arroz Costeño 5 kg',
+            'imageUrl': url,
+          }, as: 'uid-staff');
+          expect((same, sameBody['imageUrl']), (200, url));
+          expect((await client.getRaw(url)).statusCode, 200);
+
+          final (other, otherBody) = await client.patch(
+            '/products/${arroz.id}',
+            {'imageUrl': '/images/products/${arroz.id}/0123456789abcdef.jpg'},
+            as: 'uid-staff',
+          );
+          expect(other, 400);
+          expect('$otherBody', contains('súbela'));
+
+          final (created, createdBody) = await client.post('/products', {
+            'name': 'Fideos',
+            'sku': 'DEMO-FIDEOS',
+            'price': '3.8',
+            'categoryId': abarrotes.id.toString(),
+            'imageUrl': url,
+          }, as: 'uid-staff');
+          expect(created, 400);
+          expect('$createdBody', contains('se sube después'));
+        },
+      );
+
+      test('sin token 401, sin products.manage 403', () async {
+        await insertStaff(session, 'uid-cajera', roleName: 'Cajera');
+
+        expect(
+          (await client.putBytes('/products/${arroz.id}/image', photo)).$1,
+          401,
+        );
+        expect(
+          (await client.putBytes(
+            '/products/${arroz.id}/image',
+            photo,
+            as: 'uid-cajera',
+          )).$1,
+          403,
+        );
+        expect(
+          (await client.putBytes(
+            '/products/${arroz.id}/image',
+            photo,
+            as: 'uid-cliente',
+          )).$1,
+          403,
+        );
+        expect(await storedPhotos(), 0);
+      });
+
+      test('lo que no es una foto: 400; más de 8 MB: 413', () async {
+        final (notPhoto, body) = await client.putBytes(
+          '/products/${arroz.id}/image',
+          utf8.encode('esto no es una foto'),
+          as: 'uid-staff',
+        );
+        expect(notPhoto, 400);
+        expect('$body', contains('JPEG, PNG o WebP'));
+
+        final (tooBig, _) = await client.putBytes(
+          '/products/${arroz.id}/image',
+          Uint8List(8 * 1024 * 1024 + 1),
+          as: 'uid-staff',
+        );
+        expect(tooBig, 413);
+        expect(await storedPhotos(), 0);
+        expect(
+          (await client.get('/products/${arroz.id}')).$2['imageUrl'],
+          null,
+        );
+      });
+
+      test('a un producto que no existe: 404, sin guardar nada', () async {
+        final (status, _) = await client.putBytes(
+          '/products/0199a000-0000-7000-8000-000000000000/image',
+          photo,
+          as: 'uid-staff',
+        );
+        expect(status, 404);
+        expect(await storedPhotos(), 0);
+      });
+
+      test('una foto que no existe (o un nombre raro): 404', () async {
+        for (final path in [
+          '/images/products/${arroz.id}/0123456789abcdef.jpg',
+          '/images/products/${arroz.id}/..%2F..%2Fsecreto.jpg',
+          '/images/products/no-es-un-id/0123456789abcdef.jpg',
+        ]) {
+          expect((await client.getRaw(path)).statusCode, 404, reason: path);
+        }
+      });
     });
   });
 }

@@ -40,6 +40,16 @@ void main() {
     }
   });
 
+  test('la inicial del marcador sin foto se lee sobre su fondo', () {
+    for (final (background, foreground) in PlaceholderColors.pairs) {
+      expect(
+        _contrast(foreground, background),
+        greaterThanOrEqualTo(4.5),
+        reason: '$foreground sobre $background',
+      );
+    }
+  });
+
   test('Baloo 2 para títulos y precios; Inter para el resto', () {
     final text = neilsTheme().textTheme;
     void expectFont(TextStyle? style, String family, FontWeight weight) {

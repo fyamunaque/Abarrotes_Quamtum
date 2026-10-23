@@ -216,6 +216,8 @@ Map<String, Object?> activePromotionJson(Promotion promotion) {
       'name': product.name,
       'price': formatMoney(product.priceCents),
       'imageUrl': product.imageUrl,
+      // Para que la app le dé el color de su categoría si no tiene foto.
+      'categoryId': product.categoryId.toString(),
     },
   };
 }

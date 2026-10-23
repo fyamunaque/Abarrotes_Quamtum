@@ -50,7 +50,14 @@ class ProductCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        AspectRatio(aspectRatio: 4 / 3, child: ProductPhoto(product.imageUrl)),
+        AspectRatio(
+          aspectRatio: 4 / 3,
+          child: ProductPhoto(
+            product.imageUrl,
+            name: product.name,
+            colorKey: product.category?.id,
+          ),
+        ),
         Padding(
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
           child: Column(

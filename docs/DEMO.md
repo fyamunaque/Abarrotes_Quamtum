@@ -29,8 +29,9 @@ Los comandos son de **Windows PowerShell 5.1**, y los `cd` parten de la raíz de
    cd apps\client; flutter pub get
    ```
 
-4. **Datos de ejemplo**: el catálogo (9 categorías), 40 pedidos de los últimos 30 días y
-   productos en las alertas. Si la base ya tiene algo, completa lo que falta.
+4. **Datos de ejemplo**: el catálogo (9 categorías) con sus fotos, 40 pedidos de los últimos
+   30 días y productos en las alertas. Si la base ya tiene algo, completa lo que falta, también
+   las fotos de los productos de ejemplo que no tienen una.
 
    ```powershell
    cd apps\server\abarrotes_server; dart run bin/seed_dev.dart

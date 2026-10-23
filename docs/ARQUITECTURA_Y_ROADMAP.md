@@ -38,7 +38,7 @@ CLAUDE.md
 
 - `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea. `GET /customers` (`customers.view`): el listado de clientes para el panel.
 - `staff`: roles y permisos del personal. Un catálogo de permisos (`Permission`), roles editables más el Administrador de sistema, el personal por correo (con el correo verificado) y una bitácora. Cada ruta del panel pide su permiso (`guards.require`), nunca solo "ser del personal": un test compara cada ruta con su permiso. `/staff/*` (`staff.manage`) los administra.
-- `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira.
+- `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira. La foto de un producto se sube (`PUT /products/:id/image`), se guarda procesada (800 px, JPEG, sin metadatos) en el almacenamiento de Serverpod, que por defecto es la propia base, y se sirve en `/images/products/...`; también vale una URL externa.
 - `promotions`: CRUD con `promotions.manage`, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
 - `vip`: la lista de clientes VIP por correo (`/vip-customers`): se ve con `vip.view` y se modifica con `vip.manage`. Es VIP quien tiene su correo en la lista **y** verificado en Firebase. Las reglas de audiencia se inyectan, así un segmento nuevo (p. ej. mayoristas) no toca el resto del código: ver `apps/server/README.md`. Al crear una promoción VIP que ya rige, avisa por push (FCM HTTP v1, token por token) a los VIP con el correo verificado, sin bloquear la creación.
 - `store`: los datos de la tienda (nombre, dirección, referencia, teléfono, horario e instrucciones de recojo), un solo registro. `GET /store` es público; editarlos pide `store.manage`.
@@ -79,7 +79,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido pide el código del cliente;
   - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
   - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
-  - productos, inventario (entradas, salidas y ajustes) y promociones;
+  - productos (con su foto: se sube desde el panel, o se toma con la cámara del teléfono, o se pega una URL), inventario (entradas, salidas y ajustes) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
   - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;
   - cada sección y cada botón según los `permissions` de `/users/me` (lo demás, "No tienes acceso a esta sección"), y al ingresar cada uno llega a su sección: la Cajera a Pedidos, el Almacenero a Inventario. Un rol que cambió rige al volver a la app, sin cerrar sesión.
@@ -98,14 +98,13 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
    web la clave VAPID y el service worker, y abrir el producto al tocar el aviso. Para que salgan,
    configurar la cuenta de servicio en el servidor (`apps/server/README.md`, "Avisos push").
 3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-4. **Fotos de los productos:** subirlas desde el panel; hoy solo se puede pegar una URL.
-5. **Negocio real:**
+4. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado;
    - recuperar la contraseña.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-6. **Más gestión en el panel:**
+5. **Más gestión en el panel:**
    - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;

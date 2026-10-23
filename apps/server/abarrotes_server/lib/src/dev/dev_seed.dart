@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math';
 
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
@@ -6,11 +7,12 @@ import 'package:serverpod/serverpod.dart' hide Order;
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../orders/pickup_code.dart';
+import '../products/product_images.dart';
 import '../promotions/promotion_rules.dart';
 
 /// Datos de ejemplo para probar la app contra el servidor local: las
 /// categorías de una bodega con sus productos, uno con promoción vigente por
-/// 30 días y uno agotado. Sin imágenes: la app muestra su ícono.
+/// 30 días y uno agotado. Las fotos van aparte, con [seedDevPhotos].
 ///
 /// Completa lo que falta: agrega las categorías (por nombre) y los productos
 /// (por SKU) que no están, y nunca toca uno que ya existe, aunque se haya
@@ -95,6 +97,43 @@ Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
     }
     return created;
   });
+}
+
+/// Dónde están las fotos de los productos de ejemplo: una por SKU
+/// (`ARR-5KG.jpg`), ya procesadas con [ProductImages.process]. Su origen y
+/// licencia, en `CREDITS.md` de la misma carpeta.
+const devPhotosFolder = 'assets/seed/products';
+
+/// Les pone su foto de ejemplo a los productos del seed que no tienen una.
+/// Nunca reemplaza una foto (subida o URL) que alguien ya puso. Correrlo de
+/// nuevo no hace nada. Devuelve cuántas puso.
+Future<int> seedDevPhotos(
+  Session session, {
+  String folder = devPhotosFolder,
+  ProductImages? images,
+}) async {
+  final store = images ?? ProductImages();
+  final skus = {
+    for (final products in _catalog.values)
+      for (final product in products) product.sku,
+  };
+  final withoutPhoto = await Product.db.find(
+    session,
+    where: (product) => product.sku.inSet(skus) & product.imageUrl.equals(null),
+  );
+  var added = 0;
+  for (final product in withoutPhoto) {
+    final file = File('$folder/${product.sku}.jpg');
+    if (!file.existsSync()) continue;
+    final url = await store.store(session, product.id!, file.readAsBytesSync());
+    await Product.db.updateRow(
+      session,
+      product.copyWith(imageUrl: url),
+      columns: (columns) => [columns.imageUrl],
+    );
+    added++;
+  }
+  return added;
 }
 
 /// Pedidos de ejemplo para el panel: 40 de un cliente de ejemplo, repartidos
