@@ -40,7 +40,8 @@ class NeilsLogo extends StatelessWidget {
 /// aviso para verificarlo ([VerifyEmailNotice]).
 ///
 /// Sin [showLogo], la barra no lleva el logo: para la portada, que ya lo
-/// muestra en grande.
+/// muestra en grande. [bottomBar] queda fija abajo, fuera del scroll (p. ej.
+/// el total y "Confirmar pedido" del carrito en el teléfono).
 class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({
     super.key,
@@ -49,6 +50,7 @@ class PublicScaffold extends ConsumerWidget {
     this.maxWidth = 960,
     this.onRefresh,
     this.showLogo = true,
+    this.bottomBar,
   });
 
   final Widget child;
@@ -61,6 +63,7 @@ class PublicScaffold extends ConsumerWidget {
 
   final double maxWidth;
   final bool showLogo;
+  final Widget? bottomBar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -105,6 +108,7 @@ class PublicScaffold extends ConsumerWidget {
             const SizedBox(width: 8),
           ],
         ),
+        bottomNavigationBar: bottomBar,
         body: SafeArea(
           child: _refreshable(
             SingleChildScrollView(

@@ -458,4 +458,143 @@ void main() {
     expect(tester.hasRunningAnimations, isTrue);
     await tester.pumpAndSettle();
   });
+  group('la barra fija del teléfono', () {
+    /// El carrito con tres productos, en un teléfono. Con [signedIn], con la
+    /// cuenta abierta.
+    Future<GoRouter> pumpPhone(
+      WidgetTester tester, {
+      bool signedIn = true,
+    }) async {
+      if (signedIn) {
+        auth = FakeAuthRepository()
+          ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      }
+      final router = await pumpApp(tester, '/carrito');
+      tester.view.physicalSize = const Size(375, 760);
+      container.read(cartProvider.notifier)
+        ..add(rice, 2)
+        ..add(oil)
+        ..add(milk);
+      await tester.pumpAndSettle();
+      return router;
+    }
+
+    Finder bar(WidgetTester tester) => find.byWidget(
+      tester.widget<Scaffold>(find.byType(Scaffold)).bottomNavigationBar!,
+    );
+
+    Finder inBar(WidgetTester tester, Finder finder) =>
+        find.descendant(of: bar(tester), matching: finder);
+
+    testWidgets('muestra el total y confirma el pedido', (tester) async {
+      final router = await pumpPhone(tester);
+
+      expect(
+        inBar(tester, find.text(formatSoles(2 * 2490 + 890 + 420))),
+        findsOneWidget,
+      );
+      // El botón va solo en la barra.
+      expect(find.text('Confirmar pedido'), findsOneWidget);
+      expect(inBar(tester, find.text('Confirmar pedido')), findsOneWidget);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+        'Av. Arequipa 123, Lince',
+      );
+      await tester.tap(inBar(tester, find.text('Confirmar pedido')));
+      await tester.pumpAndSettle();
+
+      final order = orders.orders.single;
+      expect(location(router), '/mis-pedidos?nuevo=${order.id}');
+      expect(order.deliveryAddress, 'Av. Arequipa 123, Lince');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('sin dirección, lleva la pantalla al campo con su error', (
+      tester,
+    ) async {
+      await pumpPhone(tester);
+
+      await tester.tap(inBar(tester, find.text('Confirmar pedido')));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Escribe a dónde llevamos el pedido.'), findsOneWidget);
+      expect(orders.tokens, isEmpty);
+      // El campo queda a la vista, entre la barra de arriba y la de abajo.
+      final field = tester.getRect(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+      );
+      expect(
+        field.top,
+        greaterThanOrEqualTo(tester.getRect(find.byType(AppBar)).bottom),
+      );
+      expect(
+        field.bottom,
+        lessThanOrEqualTo(tester.getTopLeft(bar(tester)).dy),
+      );
+    });
+
+    testWidgets('si el pedido falla, el error va en la barra', (tester) async {
+      orders.failure = const ApiFailure(
+        'Stock insuficiente: Aceite vegetal 1 L tiene 2 unidades',
+        status: 409,
+      );
+      final router = await pumpPhone(tester);
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Dirección de entrega'),
+        'Av. Arequipa 123',
+      );
+      await tester.tap(inBar(tester, find.text('Confirmar pedido')));
+      await tester.pumpAndSettle();
+
+      expect(location(router), '/carrito');
+      expect(
+        inBar(
+          tester,
+          find.text('Stock insuficiente: Aceite vegetal 1 L tiene 2 unidades'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('sin cuenta: "Ingresar para confirmar"', (tester) async {
+      final router = await pumpPhone(tester, signedIn: false);
+
+      // Si el botón no entra al lado del total, va debajo: sin desbordes.
+      expect(tester.takeException(), isNull);
+      expect(find.text('Ingresar para confirmar'), findsOneWidget);
+      await tester.tap(inBar(tester, find.text('Ingresar para confirmar')));
+      await tester.pumpAndSettle();
+
+      expect(location(router), '/login?from=%2Fcarrito');
+    });
+
+    testWidgets('en escritorio, sin barra: el botón al final del formulario', (
+      tester,
+    ) async {
+      auth = FakeAuthRepository()
+        ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold)).bottomNavigationBar,
+        isNull,
+      );
+      expect(find.text('Confirmar pedido'), findsOneWidget);
+    });
+
+    testWidgets('con el carrito vacío, sin barra', (tester) async {
+      await pumpApp(tester, '/carrito');
+      tester.view.physicalSize = const Size(375, 760);
+      await tester.pumpAndSettle();
+
+      expect(
+        tester.widget<Scaffold>(find.byType(Scaffold)).bottomNavigationBar,
+        isNull,
+      );
+    });
+  });
 }
