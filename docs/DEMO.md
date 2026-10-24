@@ -7,6 +7,7 @@ Todo corre local: el cliente lo ve en tu pantalla o compartiéndola, o en su And
 tu misma Wi-Fi. Para que lo abra desde cualquier lugar hay que publicarlo, y eso es otro paso.
 
 Los comandos son de **Windows PowerShell 5.1**, y los `cd` parten de la raíz del repositorio.
+Desde VS Code se levanta todo sin escribirlos: ver `docs/VSCODE.md`.
 
 ## La primera vez
 

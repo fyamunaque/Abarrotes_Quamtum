@@ -1,0 +1,119 @@
+// Tareas para levantar el proyecto desde VS Code (ver docs/VSCODE.md).
+// Ctrl+Shift+B corre "Levantar todo"; las demás, en Terminal → Run Task.
+//
+// Cada tarea agrega al PATH el Flutter de `dart.flutterSdkPath` (en
+// .vscode/settings.json, que es de cada máquina). Si Flutter ya está en el
+// PATH, no hace falta.
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Levantar todo",
+      "detail": "El servidor y la tienda web (http://localhost:5006), cada uno en su terminal",
+      "dependsOn": ["Servidor", "Tienda web"],
+      "dependsOrder": "parallel",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Servidor",
+      "detail": "Serverpod: las rutas REST en http://localhost:8082",
+      "type": "shell",
+      "command": "dart run bin/main.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      // Queda "lista" cuando el servidor escucha.
+      "problemMatcher": {
+        "owner": "servidor",
+        "pattern": { "regexp": "^__sin_problemas__$" },
+        "background": {
+          "activeAtBeginning": true,
+          "beginsPattern": "Running build hooks|SERVERPOD version",
+          "endsPattern": "Webserver listening on"
+        }
+      }
+    },
+    {
+      "label": "Tienda web",
+      "detail": "La app en release, en http://localhost:5006 (tarda 1-2 minutos en compilar)",
+      "type": "shell",
+      "command": "flutter run -d web-server --release --web-hostname localhost --web-port 5006",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": {
+        "owner": "tienda-web",
+        "pattern": { "regexp": "^__sin_problemas__$" },
+        "background": {
+          "activeAtBeginning": true,
+          "beginsPattern": "Launching lib",
+          "endsPattern": "is being served at"
+        }
+      }
+    },
+    {
+      "label": "Preparar paquetes",
+      "detail": "dart pub get en el servidor y flutter pub get en la app (la primera vez y al cambiar dependencias)",
+      "dependsOn": ["Paquetes del servidor", "Paquetes de la app"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Paquetes del servidor",
+      "type": "shell",
+      "command": "dart pub get",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Paquetes de la app",
+      "type": "shell",
+      "command": "flutter pub get",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Servidor: aplicar migraciones",
+      "detail": "Después de traer cambios del modelo de datos (una migración nueva)",
+      "type": "shell",
+      "command": "dart run bin/main.dart --role maintenance --apply-migrations",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Servidor: datos de ejemplo",
+      "detail": "Completa el catálogo, las fotos y los pedidos de ejemplo en la base de desarrollo",
+      "type": "shell",
+      "command": "dart run bin/seed_dev.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Teléfono: pasar el puerto por USB",
+      "detail": "adb reverse: el teléfono conectado por cable llega al servidor en localhost:8082",
+      "type": "process",
+      "command": "${env:LOCALAPPDATA}\\Android\\Sdk\\platform-tools\\adb.exe",
+      "args": ["reverse", "tcp:8082", "tcp:8082"],
+      "problemMatcher": []
+    }
+  ]
+}

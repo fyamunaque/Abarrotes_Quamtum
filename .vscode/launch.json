@@ -1,0 +1,39 @@
+// Para programar y depurar desde "Run and Debug" (Ctrl+Shift+D). Para solo
+// levantar todo y mirar, mejor la tarea "Levantar todo" (Ctrl+Shift+B). Ver
+// docs/VSCODE.md.
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Necesita el servidor corriendo (la tarea "Servidor"). Al guardar un
+      // archivo, la app se recarga sola.
+      "name": "Tienda web en Chrome (para programar)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "apps/client",
+      "program": "lib/main.dart",
+      "deviceId": "chrome"
+    },
+    {
+      // Elegir el teléfono abajo a la derecha, en la barra de estado. Primero
+      // pasa el puerto del servidor por el cable (adb reverse).
+      "name": "App en el teléfono por USB",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "apps/client",
+      "program": "lib/main.dart",
+      "flutterMode": "release",
+      "args": ["--dart-define=API_URL=http://localhost:8082"],
+      "preLaunchTask": "Teléfono: pasar el puerto por USB"
+    },
+    {
+      // En lugar de la tarea "Servidor" (las dos usan el puerto 8082): con
+      // esto se pueden poner breakpoints en el servidor.
+      "name": "Servidor (depurar)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "apps/server/abarrotes_server",
+      "program": "bin/main.dart"
+    }
+  ]
+}
