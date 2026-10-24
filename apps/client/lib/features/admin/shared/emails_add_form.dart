@@ -254,7 +254,7 @@ class _SummaryView extends StatelessWidget {
         if (summary.added.isNotEmpty)
           _SummaryGroup(
             icon: Icons.check_circle_outline,
-            color: OrderStatusColors.confirmed,
+            color: StateColors.positive,
             title: 'Agregados (${summary.added.length})',
             emails: summary.added,
           ),

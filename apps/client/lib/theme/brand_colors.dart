@@ -17,7 +17,9 @@ abstract final class NeilsColors {
 /// de pendiente sobre crema no alcanza el contraste de un texto.
 abstract final class OrderStatusColors {
   static const pending = Color(0xFFD98C21);
-  static const confirmed = Color(0xFF3C7A5F);
+
+  /// Índigo: distinto del verde de entregado y del azul de en camino.
+  static const confirmed = Color(0xFF4F5BB5);
   static const onTheWay = Color(0xFF2E6F9E);
 
   /// Recojo en tienda: preparando, y en espera de recojo.
@@ -27,6 +29,13 @@ abstract final class OrderStatusColors {
 
   /// Este sí sirve para texto sobre crema (6,8:1).
   static const cancelled = Color(0xFF8C3B33);
+}
+
+/// Estados que no son de un pedido (insignias como "Activo", "Activa" o
+/// "Registrado", y el aviso de pedido recibido). Van siempre con su texto.
+abstract final class StateColors {
+  /// Algo que está bien o vigente.
+  static const positive = Color(0xFF3C7A5F);
 }
 
 /// El marcador de un producto sin foto: un fondo suave y la inicial en un

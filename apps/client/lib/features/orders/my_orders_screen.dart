@@ -149,32 +149,26 @@ class _ReceivedNotice extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLowest,
-          border: Border.all(color: OrderStatusColors.confirmed),
+          border: Border.all(color: StateColors.positive),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: OrderStatusColors.confirmed,
-              ),
+              const Icon(Icons.check_circle, color: StateColors.positive),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      switch (order?.number) {
-                        final number? =>
-                          'Recibimos tu pedido N.º $number. La tienda lo va a '
-                              'confirmar.',
-                        null =>
-                          'Recibimos tu pedido. La tienda lo va a confirmar.',
-                      },
-                      style: theme.textTheme.bodyLarge,
-                    ),
+                    Text(switch (order?.number) {
+                      final number? =>
+                        'Recibimos tu pedido N.º $number. La tienda lo va a '
+                            'confirmar.',
+                      null =>
+                        'Recibimos tu pedido. La tienda lo va a confirmar.',
+                    }, style: theme.textTheme.bodyLarge),
                     if (order != null)
                       Text(
                         'Total: ${formatSoles(order.totalCents)}',

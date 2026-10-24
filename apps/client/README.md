@@ -122,16 +122,21 @@ que la app no descarga nada:
 | Estado | Color |
 |---|---|
 | Pendiente de confirmación | `#D98C21` |
-| Confirmado | `#3C7A5F` |
+| Confirmado | `#4F5BB5` (índigo) |
 | En camino | `#2E6F9E` |
+| Preparando | `#7A5A9E` |
+| En espera de recojo | `#2A8C82` |
 | Entregado | `#3C7A5F` |
 | Cancelado | `#8C3B33` |
 
 Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre crema
 no alcanza el contraste de un texto. El rojo de cancelado sí (6,8:1). Como paleta para
-distinguir categorías tampoco alcanzan: el verde de confirmado y el azul de en camino se
-parecen (ΔE 11,5) y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el
-color (ver `StatusBadge`).
+distinguir categorías tampoco alcanzan: el índigo de confirmado y el azul de en camino se
+parecen, y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el color (ver
+`StatusBadge`).
+
+Lo que está bien y no es un pedido (las insignias "Activo", "Activa" y "Registrado", y el aviso
+de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado).
 
 **Fotos de los productos** (`ProductPhoto`, en `features/catalog/product_photo.dart`):
 - **Las fotos subidas:** llegan del servidor como ruta relativa (`/images/products/…`) y se
@@ -322,8 +327,8 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 
 | Sección | Qué hace |
 |---|---|
-| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). |
-| Pedidos: Todos los pedidos | Todos los pedidos, con la columna "N.º" y "Buscar por N.º" (el número exacto, `?number=`, junto con los otros filtros), chips por estado ("Estado") y por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle ("Pedido N.º 1024 de Ana Quispe") muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). Stock bajo y Por vencer van una sobre otra, con Más vendidos al lado y del mismo alto, así no quedan huecos; en el teléfono, las tres una debajo de otra. |
+| Pedidos: Todos los pedidos | Todos los pedidos, con la columna "N.º" y "Buscar por N.º" (el número exacto, `?number=`, junto con los otros filtros), un menú "Estado" ("Todos" o uno, cada uno con su punto de color) y chips por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle ("Pedido N.º 1024 de Ana Quispe") muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el número del pedido, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas), por el número o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja; cada fila con la foto en miniatura. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. **La foto:**<br>• "Subir foto" elige un archivo o una foto de la galería, y "Tomar foto" usa la cámara (solo en el teléfono). La app la achica a 1600 px antes de subirla, y el servidor la deja en 800 px.<br>• También se puede pegar la URL de una imagen: escribirla descarta la foto elegida, y elegir una foto vacía la URL.<br>• La foto elegida se sube después de guardar el producto (`PUT /products/:id/image`). Si la subida falla, el producto ya quedó guardado: el formulario lo dice y "Reintentar la foto" sube solo la foto.<br>• `PhotoPicker` (`admin/products/photo_picker.dart`) es una interfaz con su implementación sobre `image_picker`, y los tests la reemplazan. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |

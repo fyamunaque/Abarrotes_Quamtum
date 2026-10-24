@@ -71,6 +71,17 @@ void main() {
   String badgeText(WidgetTester tester, String customer) =>
       tester.widget<StatusBadge>(badgeOf(customer)).label;
 
+  Finder statusFilter() => find.byType(DropdownButtonFormField<OrderStatus?>);
+
+  /// Elige [label] en el menú "Estado".
+  Future<void> chooseStatus(WidgetTester tester, String label) async {
+    await tester.tap(statusFilter());
+    await tester.pumpAndSettle();
+    // El del menú: va arriba de la pantalla, después de la tabla.
+    await tester.tap(find.text(label).last);
+    await tester.pumpAndSettle();
+  }
+
   Future<void> open(WidgetTester tester, String customer) async {
     await tester.tap(find.text(customer));
     await tester.pumpAndSettle();
@@ -123,9 +134,7 @@ void main() {
     expect(find.text('Ana Quispe'), findsNothing);
 
     // Los dos filtros juntos.
-    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'Confirmado'));
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Confirmado'));
-    await tester.pumpAndSettle();
+    await chooseStatus(tester, 'Confirmado');
     expect(
       find.text('Ningún pedido coincide con los filtros.'),
       findsOneWidget,
@@ -136,42 +145,42 @@ void main() {
     expect(find.text('Luis Rojas'), findsOneWidget);
   });
 
-  testWidgets('en escritorio, los chips que no entran bajan de línea', (
+  testWidgets('el estado se elige en un menú, cada uno con su color', (
     tester,
   ) async {
-    // Con el mouse no se desliza de lado: ningún chip puede quedar cortado.
     await pumpOrders(tester, width: 1000);
-
-    for (final status in OrderStatus.values) {
-      final chip = find.widgetWithText(ChoiceChip, status.label);
-      expect(
-        tester.getRect(chip).right,
-        lessThanOrEqualTo(1000),
-        reason: status.label,
-      );
-    }
-    final first = tester.getRect(find.widgetWithText(ChoiceChip, 'Todos'));
-    final last = tester.getRect(find.widgetWithText(ChoiceChip, 'Cancelado'));
-    expect(last.top, greaterThan(first.top));
-    // "Estado" a la altura de la primera fila de chips.
+    // "Todos" al abrir, al lado de la búsqueda por número.
     expect(
-      tester.getCenter(find.text('Estado').first).dy,
-      closeTo(first.center.dy, 2),
+      find.descendant(of: statusFilter(), matching: find.text('Todos')),
+      findsOneWidget,
     );
+    expect(
+      tester.getTopLeft(statusFilter()).dy,
+      tester.getTopLeft(find.widgetWithText(TextField, 'Buscar por N.º')).dy,
+    );
+
+    await tester.tap(statusFilter());
+    await tester.pumpAndSettle();
+    for (final status in OrderStatus.values) {
+      final item = find.byWidgetPredicate(
+        (w) =>
+            w is StatusBadge &&
+            w.label == status.label &&
+            w.color == orderStatusColor(status),
+      );
+      expect(item, findsWidgets, reason: status.label);
+    }
   });
 
   testWidgets('filtrar por estado', (tester) async {
     await pumpOrders(tester);
 
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Confirmado'));
-    await tester.pumpAndSettle();
+    await chooseStatus(tester, 'Confirmado');
 
     expect(find.text('Luis Rojas'), findsOneWidget);
     expect(find.text('Ana Quispe'), findsNothing);
 
-    await tester.ensureVisible(find.widgetWithText(ChoiceChip, 'En camino'));
-    await tester.tap(find.widgetWithText(ChoiceChip, 'En camino'));
-    await tester.pumpAndSettle();
+    await chooseStatus(tester, 'En camino');
     expect(find.text('No hay pedidos en estado "En camino".'), findsOneWidget);
   });
 
@@ -188,13 +197,12 @@ void main() {
     expect(find.text('Ana Quispe'), findsNothing);
 
     // Con otro filtro que no coincide.
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Entregado'));
-    await tester.pumpAndSettle();
+    await chooseStatus(tester, 'Entregado');
     expect(
       find.text('El pedido N.º 1023 no coincide con los filtros.'),
       findsOneWidget,
     );
-    await tester.tap(find.widgetWithText(ChoiceChip, 'Todos'));
+    await chooseStatus(tester, 'Todos');
 
     await tester.enterText(field, '9999');
     await tester.pump(const Duration(milliseconds: 400));
@@ -482,10 +490,14 @@ void main() {
   testWidgets('en el teléfono, el detalle ocupa la pantalla', (tester) async {
     await pumpOrders(tester, width: 375);
     expect(tester.takeException(), isNull);
-    // Los chips de estado van en una fila que se desliza, no en cuatro.
+    // El menú de estado entra en la pantalla, y los chips de entrega van en
+    // una fila que se desliza.
+    expect(tester.getRect(statusFilter()).right, lessThanOrEqualTo(375));
     expect(
-      tester.getTopLeft(find.widgetWithText(ChoiceChip, 'Cancelado')).dy,
-      tester.getTopLeft(find.widgetWithText(ChoiceChip, 'Todos')).dy,
+      tester.getTopLeft(find.widgetWithText(ChoiceChip, 'Recojo')).dy,
+      tester
+          .getTopLeft(find.widgetWithText(ChoiceChip, 'Domicilio y recojo'))
+          .dy,
     );
 
     await open(tester, 'Ana Quispe');

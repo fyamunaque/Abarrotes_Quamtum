@@ -53,7 +53,7 @@ class StaffStatusBadge extends StatelessWidget {
     return StatusBadge(
       label: label(status),
       color: switch (status) {
-        StaffMemberStatus.active => OrderStatusColors.confirmed,
+        StaffMemberStatus.active => StateColors.positive,
         StaffMemberStatus.pendingSignUp => OrderStatusColors.pending,
         StaffMemberStatus.deactivated => Theme.of(context).colorScheme.outline,
       },

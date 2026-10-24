@@ -121,34 +121,42 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       children: [
         const PanelTabs(tabs: ordersTabs, current: Routes.adminOrders),
         const SizedBox(height: 16),
-        PanelSearchField(
-          controller: _number,
-          label: 'Buscar por N.º',
-          width: 240,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          onChanged: _onNumber,
-          onClear: _clearNumber,
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < PanelSearchField.narrowBelow;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: narrow ? constraints.maxWidth : 240,
+                  child: PanelSearchField(
+                    controller: _number,
+                    label: 'Buscar por N.º',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: _onNumber,
+                    onClear: _clearNumber,
+                  ),
+                ),
+                SizedBox(
+                  width: narrow ? constraints.maxWidth : 260,
+                  child: _StatusFilter(
+                    value: status,
+                    onChanged: (status) => setState(
+                      () => _filter = (
+                        status: status,
+                        fulfillmentType: type,
+                        number: _filter.number,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const SizedBox(height: 12),
-        _FilterRow(
-          label: 'Estado',
-          child: FilterChips<OrderStatus?>(
-            options: [
-              (null, 'Todos'),
-              for (final status in OrderStatus.values) (status, status.label),
-            ],
-            selected: status,
-            onSelected: (status) => setState(
-              () => _filter = (
-                status: status,
-                fulfillmentType: type,
-                number: _filter.number,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 8),
         _FilterRow(
           label: 'Entrega',
           child: FilterChips<FulfillmentType?>(
@@ -244,9 +252,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   }
 }
 
-/// Una fila de filtros con su nombre adelante. Los nombres miden lo mismo,
-/// así los chips de las dos filas empiezan en la misma columna; si los
-/// chips bajan a otra línea, el nombre queda a la altura de la primera.
+/// Una fila de chips con su nombre adelante. Si los chips bajan a otra
+/// línea, el nombre queda a la altura de la primera.
 class _FilterRow extends StatelessWidget {
   const _FilterRow({required this.label, required this.child});
 
@@ -269,6 +276,37 @@ class _FilterRow extends StatelessWidget {
         ),
         Expanded(child: child),
       ],
+    );
+  }
+}
+
+/// El estado de los pedidos que se muestran: "Todos" o uno, cada uno con su
+/// punto de color, como en la tabla.
+class _StatusFilter extends StatelessWidget {
+  const _StatusFilter({required this.value, required this.onChanged});
+
+  final OrderStatus? value;
+  final ValueChanged<OrderStatus?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<OrderStatus?>(
+      style: Theme.of(context).textTheme.bodyLarge,
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Estado'),
+      items: [
+        const DropdownMenuItem(child: Text('Todos')),
+        for (final status in OrderStatus.values)
+          DropdownMenuItem(
+            value: status,
+            child: StatusBadge(
+              label: status.label,
+              color: orderStatusColor(status),
+            ),
+          ),
+      ],
+      onChanged: onChanged,
     );
   }
 }

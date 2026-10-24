@@ -62,7 +62,7 @@ void main() {
       },
       {
         OrderStatus.pendingConfirmation: const Color(0xFFD98C21),
-        OrderStatus.confirmed: const Color(0xFF3C7A5F),
+        OrderStatus.confirmed: const Color(0xFF4F5BB5),
         OrderStatus.preparing: const Color(0xFF7A5A9E),
         OrderStatus.readyForPickup: const Color(0xFF2A8C82),
         OrderStatus.outForDelivery: const Color(0xFF2E6F9E),

@@ -146,7 +146,7 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
               (vip) => StatusBadge(
                 label: status(vip),
                 color: vip.hasAccount
-                    ? OrderStatusColors.confirmed
+                    ? StateColors.positive
                     : Theme.of(context).colorScheme.outline,
               ),
             ),

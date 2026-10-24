@@ -116,7 +116,7 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
 /// Siempre con el estado en texto al lado.
 Color promotionStatusColor(BuildContext context, PromotionStatus status) =>
     switch (status) {
-      PromotionStatus.active => OrderStatusColors.confirmed,
+      PromotionStatus.active => StateColors.positive,
       PromotionStatus.scheduled => OrderStatusColors.onTheWay,
       PromotionStatus.expired ||
       PromotionStatus.disabled => Theme.of(context).colorScheme.outline,

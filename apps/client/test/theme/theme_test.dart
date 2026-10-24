@@ -40,6 +40,20 @@ void main() {
     }
   });
 
+  test('Confirmado en índigo, aparte de Entregado y de En camino', () {
+    final scheme = neilsTheme().colorScheme;
+    expect(OrderStatusColors.confirmed, const Color(0xFF4F5BB5));
+    expect(OrderStatusColors.confirmed, isNot(OrderStatusColors.delivered));
+    expect(OrderStatusColors.confirmed, isNot(OrderStatusColors.onTheWay));
+    // Un punto de color: al menos 3:1 sobre el fondo de las tarjetas.
+    expect(
+      _contrast(OrderStatusColors.confirmed, scheme.surfaceContainerLowest),
+      greaterThanOrEqualTo(3),
+    );
+    // "Activo" y lo que está vigente siguen en el verde de siempre.
+    expect(StateColors.positive, OrderStatusColors.delivered);
+  });
+
   test('la inicial del marcador sin foto se lee sobre su fondo', () {
     for (final (background, foreground) in PlaceholderColors.pairs) {
       expect(
