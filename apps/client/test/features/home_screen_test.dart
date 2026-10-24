@@ -14,6 +14,7 @@ import 'package:neils/router/router.dart';
 import 'package:neils/features/shared/swoosh.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
+import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
 
 import '../fakes.dart';
@@ -136,6 +137,20 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(location(router), '/catalogo?categoria=cat-lacteos');
+  });
+
+  testWidgets('cada categoría con otro color, en orden', (tester) async {
+    await pumpApp(tester);
+
+    Color colorOf(String name) => tester
+        .widget<Material>(
+          find
+              .ancestor(of: find.text(name), matching: find.byType(Material))
+              .first,
+        )
+        .color!;
+    expect(colorOf('Abarrotes'), PlaceholderColors.pairs[0].$1);
+    expect(colorOf('Lácteos'), PlaceholderColors.pairs[1].$1);
   });
 
   testWidgets('en el teléfono, las categorías van de a dos', (tester) async {

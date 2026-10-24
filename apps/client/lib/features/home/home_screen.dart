@@ -112,9 +112,10 @@ class _Headline extends StatelessWidget {
   }
 }
 
-/// "Categorías": un acceso a cada una, con su color (el de los marcadores de
-/// los productos sin foto), que abre el catálogo filtrado. Mientras cargan o
-/// si fallan, no ocupan lugar.
+/// "Categorías": un acceso a cada una, que abre el catálogo filtrado. Los
+/// colores de los marcadores sin foto van en orden, así dos vecinas no se
+/// repiten (por el id, varias caían en el mismo). Mientras cargan o si
+/// fallan, no ocupan lugar.
 class _Categories extends ConsumerWidget {
   const _Categories();
 
@@ -152,11 +153,13 @@ class _Categories extends ConsumerWidget {
                 spacing: _gap,
                 runSpacing: _gap,
                 children: [
-                  for (final category in categories)
+                  for (final (i, category) in categories.indexed)
                     SizedBox(
                       width: width,
                       child: _CategoryTile(
                         category,
+                        colors: PlaceholderColors
+                            .pairs[i % PlaceholderColors.pairs.length],
                         key: ValueKey(category.id),
                       ),
                     ),
@@ -171,13 +174,14 @@ class _Categories extends ConsumerWidget {
 }
 
 class _CategoryTile extends StatelessWidget {
-  const _CategoryTile(this.category, {super.key});
+  const _CategoryTile(this.category, {required this.colors, super.key});
 
   final Category category;
+  final (Color background, Color foreground) colors;
 
   @override
   Widget build(BuildContext context) {
-    final (background, foreground) = PlaceholderColors.of(category.id);
+    final (background, foreground) = colors;
     return Material(
       color: background,
       borderRadius: BorderRadius.circular(16),
