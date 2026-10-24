@@ -87,6 +87,13 @@ class SessionNotifier extends Notifier<Session> {
     () => _auth.register(name: name, email: email, password: password),
   );
 
+  /// Manda a [email] el enlace para crear una contraseña nueva (sin sesión,
+  /// desde Ingresar). Si no hay una cuenta con ese correo, también sale bien:
+  /// no se revela qué correos tienen cuenta. Los errores salen como
+  /// [AuthFailure].
+  Future<void> sendPasswordReset(String email) =>
+      _auth.sendPasswordReset(email);
+
   /// Vuelve a pedir el perfil y si el correo ya está confirmado (p. ej. un
   /// admin lo hizo VIP, o la persona confirmó su correo), sin cerrar la
   /// sesión. Si falla, la sesión queda como estaba. Si ya hay uno en curso,

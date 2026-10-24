@@ -9,6 +9,9 @@ import '../shared/brand.dart';
 /// Estructura común de ingreso y registro: título, campos, botón principal y
 /// un enlace a la otra pantalla. Valida los campos, muestra el progreso y el
 /// error, y al terminar va a donde corresponda según el rol.
+///
+/// Desde [twoColumnsFrom] de ancho, a la izquierda va un panel de la marca
+/// y el formulario a la derecha.
 class AuthForm extends StatefulWidget {
   const AuthForm({
     super.key,
@@ -36,6 +39,8 @@ class AuthForm extends StatefulWidget {
 
   /// La ruta que pidió el ingreso (ver [routeAfterSignIn]).
   final String? from;
+
+  static const twoColumnsFrom = 900.0;
 
   @override
   State<AuthForm> createState() => _AuthFormState();
@@ -72,49 +77,119 @@ class _AuthFormState extends State<AuthForm> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return PublicScaffold(
-      title: widget.title,
-      maxWidth: 420,
-      child: Form(
-        key: _formKey,
-        child: AutofillGroup(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(widget.title, style: theme.textTheme.headlineMedium),
-              const SizedBox(height: 24),
-              for (final field in widget.fields(_submit)) ...[
-                field,
-                const SizedBox(height: 16),
-              ],
-              if (_error case final error?) ...[
-                Semantics(
-                  liveRegion: true,
-                  child: Text(
-                    error,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.error,
-                    ),
+    final wide = MediaQuery.sizeOf(context).width >= AuthForm.twoColumnsFrom;
+    final form = Form(
+      key: _formKey,
+      child: AutofillGroup(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(widget.title, style: theme.textTheme.headlineMedium),
+            const SizedBox(height: 24),
+            for (final field in widget.fields(_submit)) ...[
+              field,
+              const SizedBox(height: 16),
+            ],
+            if (_error case final error?) ...[
+              Semantics(
+                liveRegion: true,
+                child: Text(
+                  error,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.error,
                   ),
                 ),
-                const SizedBox(height: 16),
-              ],
-              FilledButton(
-                onPressed: _busy ? null : _submit,
-                child: _busy
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(widget.submitLabel),
               ),
               const SizedBox(height: 16),
-              TextButton(
-                onPressed: _busy ? null : () => context.go(widget.switchRoute),
-                child: Text(widget.switchLabel),
-              ),
             ],
-          ),
+            FilledButton(
+              onPressed: _busy ? null : _submit,
+              child: _busy
+                  ? const SizedBox.square(
+                      dimension: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(widget.submitLabel),
+            ),
+            const SizedBox(height: 16),
+            TextButton(
+              onPressed: _busy ? null : () => context.go(widget.switchRoute),
+              child: Text(widget.switchLabel),
+            ),
+          ],
+        ),
+      ),
+    );
+    return PublicScaffold(
+      title: widget.title,
+      maxWidth: wide ? 960 : 420,
+      child: wide
+          ? Row(
+              children: [
+                const Expanded(child: _BrandPanel()),
+                const SizedBox(width: 48),
+                SizedBox(width: 420, child: form),
+              ],
+            )
+          : form,
+    );
+  }
+}
+
+/// En escritorio, al lado del formulario: el logo, el titular y qué ofrece
+/// la tienda.
+class _BrandPanel extends StatelessWidget {
+  const _BrandPanel();
+
+  static const _points = [
+    (Icons.sell_outlined, 'Precios y promociones de la tienda'),
+    (Icons.local_shipping_outlined, 'A domicilio o recojo en tienda'),
+    (Icons.receipt_long_outlined, 'Sigue tu pedido'),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSecondaryContainer;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: theme.colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const NeilsLogo(height: 96),
+            const SizedBox(height: 24),
+            Semantics(
+              header: true,
+              child: Text(
+                'Tus abarrotes, a la puerta de tu casa',
+                style: theme.textTheme.headlineSmall?.copyWith(color: color),
+              ),
+            ),
+            const SizedBox(height: 20),
+            for (final (icon, text) in _points)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  children: [
+                    Icon(icon, color: color),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: theme.textTheme.bodyLarge?.copyWith(
+                          color: color,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
         ),
       ),
     );

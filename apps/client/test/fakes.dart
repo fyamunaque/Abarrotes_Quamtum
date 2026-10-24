@@ -981,6 +981,12 @@ class FakeAuthRepository implements AuthRepository {
   int verificationEmails = 0;
   int reloads = 0;
 
+  /// A qué correos se mandó el enlace para crear una contraseña nueva.
+  final passwordResets = <String>[];
+
+  /// Si no es null, mandar el enlace falla con esto.
+  AuthFailure? resetFailure;
+
   FakeAccount addAccount(
     String email,
     String password, {
@@ -1072,6 +1078,14 @@ class FakeAuthRepository implements AuthRepository {
   Future<void> sendEmailVerification() async {
     if (_current == null) throw const AuthFailure('Tu sesión terminó.');
     verificationEmails++;
+  }
+
+  /// Como Firebase con la protección contra enumeración: con un correo sin
+  /// cuenta, sale igual.
+  @override
+  Future<void> sendPasswordReset(String email) async {
+    if (resetFailure case final failure?) throw failure;
+    passwordResets.add(email.trim());
   }
 
   void _open(String? uid) {

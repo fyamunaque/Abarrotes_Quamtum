@@ -70,7 +70,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 - **Fundamentos:** el repo, el CI, PostgreSQL, el servidor Serverpod con el modelo completo y su migración inicial, y la verificación del Firebase ID token con los guards por permiso.
 - **Tienda (cliente):**
-  - registro e ingreso con Firebase;
+  - registro e ingreso con Firebase, y "¿Olvidaste tu contraseña?" (el enlace de Firebase para crear una nueva);
   - catálogo con búsqueda y categorías, y detalle de producto;
   - carrito guardado en el dispositivo;
   - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger".
@@ -100,8 +100,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
 4. **Negocio real:**
    - pasarela de pago;
-   - notificaciones (push o email) de cambio de estado;
-   - recuperar la contraseña.
+   - notificaciones (push o email) de cambio de estado.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
 5. **Más gestión en el panel:**

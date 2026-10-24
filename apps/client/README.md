@@ -223,6 +223,14 @@ carrito vacío.
 servidor devolvió su perfil.
 - Al arrancar es `SessionLoading`, hasta saber si quedó una cuenta abierta. Firebase la guarda de
   forma segura en cada plataforma y renueva el ID token solo.
+- "¿Olvidaste tu contraseña?", en Ingresar, abre un diálogo con el correo ya escrito y manda
+  el enlace de Firebase para crear una contraseña nueva (`sendPasswordResetEmail`, en español:
+  el correo sale con la plantilla de Firebase, sin configurar nada). Diga lo que diga Firebase de
+  un correo sin cuenta, el mensaje es el mismo ("Si hay una cuenta con ese correo, te enviamos
+  un enlace…"): no revela qué correos tienen cuenta.
+- En escritorio (desde 900 px), Ingresar y Crear una cuenta van a dos columnas: a la izquierda,
+  un panel de la marca (el logo, el titular y qué ofrece la tienda), y el formulario a la
+  derecha. En el teléfono, solo el formulario.
 - Registrarse crea la cuenta en Firebase con su nombre. Después, `GET /users/me` la crea en la
   tienda, siempre como `customer`. Al equipo lo agrega por correo quien tiene `staff.manage`
   (`/admin/equipo`).

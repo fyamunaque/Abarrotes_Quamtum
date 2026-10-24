@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
 import 'auth_form.dart';
+import 'password_reset_dialog.dart';
 
 /// Ingreso. [from] es la ruta protegida que lo trajo aquí (p. ej. /admin):
 /// después de ingresar se vuelve a ella si la cuenta puede verla.
+/// "¿Olvidaste tu contraseña?" manda el enlace para crear una nueva.
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key, this.from});
 
@@ -35,6 +37,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       fields: (submit) => [
         EmailField(controller: _email),
         PasswordField(controller: _password, onSubmitted: submit),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: TextButton(
+            onPressed: () => showPasswordResetDialog(
+              context,
+              email: _email.text.trim(),
+              onSend: ref.read(sessionProvider.notifier).sendPasswordReset,
+            ),
+            child: const Text('¿Olvidaste tu contraseña?'),
+          ),
+        ),
       ],
       submitLabel: 'Ingresar',
       submit: () => ref

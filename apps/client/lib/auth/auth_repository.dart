@@ -29,6 +29,11 @@ abstract interface class AuthRepository {
 
   /// Manda el correo para confirmar la cuenta actual.
   Future<void> sendEmailVerification();
+
+  /// Manda a [email] el enlace para crear una contraseña nueva. Si no hay
+  /// una cuenta con ese correo, sale igual que si la hubiera: no revela qué
+  /// correos tienen cuenta.
+  Future<void> sendPasswordReset(String email);
 }
 
 /// Un error que se le muestra a la persona, ya en español.
