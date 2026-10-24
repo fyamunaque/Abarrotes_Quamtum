@@ -30,6 +30,7 @@ App de la tienda para **Android y web**, hecha en Flutter: la tienda para los cl
 | Análisis estático | `flutter analyze` |
 | Tests | `flutter test` |
 | Compilar la web | `flutter build web` (queda en `build/web`) |
+| Servir la web compilada en release | `dart run tool/serve_web.dart` (http://localhost:5006; compila antes si el código cambió, o con `--compilar`). Es lo que usa la tarea "Tienda web" de VS Code (`docs/VSCODE.md`) |
 | Compilar el APK | `flutter build apk --debug` |
 
 ## Firebase y el servidor

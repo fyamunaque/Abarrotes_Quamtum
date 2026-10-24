@@ -28,16 +28,23 @@ configuraciones que están en `.vscode/`. Para los comandos a mano y el guion de
 
 ## Levantar todo: `Ctrl+Shift+B`
 
-Corre la tarea **Levantar todo**, que abre dos terminales abajo:
+Corre la tarea **Levantar todo**, que abre dos terminales abajo, una después de la otra:
 
-- **Servidor**: listo cuando dice `Webserver listening on http://localhost:8082`.
-- **Tienda web**: compila la app en release (uno o dos minutos la primera vez). Lista cuando dice
-  `lib\main.dart is being served at http://localhost:5006`.
+1. **Servidor**: listo cuando dice `Webserver listening on http://localhost:8082`.
+2. **Tienda web**, cuando el servidor ya está listo: sirve la tienda compilada en release
+   (`apps/client/tool/serve_web.dart`). Solo compila si no hay una compilación o si el código
+   cambió desde la última (p. ej. después de un `git pull`), y eso tarda uno o dos minutos. Lista
+   cuando dice `La tienda está en http://localhost:5006`.
+
+Van en orden, y la tienda no recompila cada vez, para no pasarse de memoria: con 8 GB de RAM no
+alcanza para el servidor y la tienda compilando a la vez, más VS Code y el navegador.
 
 Después, abrir **http://localhost:5006** en Chrome. El panel está en `/admin` (con una cuenta
 del personal).
 
-También se puede levantar uno solo: **Terminal → Run Task → Servidor** (o **Tienda web**).
+También se puede levantar uno solo: **Terminal → Run Task → Servidor** (o **Tienda web**). Si
+la tienda se ve desactualizada, **Tienda web: compilar de nuevo** la compila aunque no detecte
+cambios.
 
 **Para cerrar:** en el panel de terminales, el ícono de papelera de cada una (o **Terminal →
 Terminate Task → Terminate All Tasks**).
@@ -72,6 +79,7 @@ and Debug**, elegir **Servidor (depurar)** → `F5`. Los breakpoints van en
 |---|---|
 | Servidor: aplicar migraciones | Al traer cambios del modelo de datos (una migración nueva en `apps/server/abarrotes_server/migrations/`). |
 | Servidor: datos de ejemplo | Para completar el catálogo, las fotos y los pedidos de ejemplo. |
+| Tienda web: compilar de nuevo | Si la tienda se ve desactualizada: la compila aunque no detecte cambios, y la sirve. |
 | Preparar paquetes | La primera vez y cuando cambian las dependencias. |
 | Teléfono: pasar el puerto por USB | Cada vez que se conecta el teléfono (la configuración del teléfono ya lo hace sola). |
 
@@ -80,7 +88,8 @@ and Debug**, elegir **Servidor (depurar)** → `F5`. Los breakpoints van en
 | Qué pasa | Qué hacer |
 |---|---|
 | `dart` o `flutter` "no se reconoce" | Falta el paso 2 de "La primera vez", o la carpeta de Flutter está mal escrita. |
-| "address already in use", o el puerto 8082 o 5006 ocupado | Ya hay otro servidor o tienda corriendo: otra terminal, la configuración "Servidor (depurar)" o una sesión de Claude Code. Cerrarlo antes. |
+| "address already in use", "Failed to bind" o "El puerto 5006 ya está en uso" | Ya hay otro servidor o tienda corriendo: otra terminal, la configuración "Servidor (depurar)", una sesión de Claude Code o lo que quedó de un VS Code que se cerró de golpe (fila siguiente). Cerrarlo antes. |
+| VS Code se cierra solo ("The window terminated unexpectedly") | Se quedó sin memoria. Cerrar lo que no se use (pestañas del navegador, Android Studio, el emulador) y volver a abrirlo. Las tareas que corrían pueden seguir vivas sin su terminal: en el **Administrador de tareas → Detalles**, finalizar los `dart.exe` y `dartaotruntime.exe` antes de levantar de nuevo. |
 | La tienda abre pero sin productos, o dice que no hay conexión | El servidor no está corriendo o todavía no terminó de arrancar. |
 | El servidor no arranca y habla de la base | El servicio de PostgreSQL está detenido: `services.msc` → `postgresql-x64-18` → Iniciar. |
-| La terminal de la tienda se queda en "Compiling..." mucho rato | La primera compilación en release tarda uno o dos minutos; las siguientes, menos. |
+| La terminal de la tienda se queda en "Compiling..." mucho rato | Compilar en release tarda uno o dos minutos. Solo pasa la primera vez y cuando el código cambió. |
