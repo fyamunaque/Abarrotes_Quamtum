@@ -86,7 +86,7 @@ void main() {
 
   Future<void> search(WidgetTester tester, String text) async {
     await tester.enterText(
-      find.widgetWithText(TextField, 'Buscar por código, N.º o nombre'),
+      find.widgetWithText(TextField, 'Buscar código, N.º o nombre'),
       text,
     );
     await tester.pumpAndSettle();

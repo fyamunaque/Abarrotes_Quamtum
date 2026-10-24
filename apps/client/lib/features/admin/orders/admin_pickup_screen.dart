@@ -80,8 +80,8 @@ class _AdminPickupScreenState extends ConsumerState<AdminPickupScreen> {
         const SizedBox(height: 16),
         PanelSearchField(
           controller: _search,
-          label: 'Buscar por código, N.º o nombre',
-          width: 360,
+          label: 'Buscar código, N.º o nombre',
+          width: 400,
           textCapitalization: TextCapitalization.characters,
           onChanged: (text) => setState(() => _query = text),
           onClear: () => setState(() {
