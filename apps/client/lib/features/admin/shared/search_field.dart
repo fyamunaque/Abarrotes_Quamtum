@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 /// El buscador de una sección del panel: la lupa, [label] y, con texto, la
 /// "x" para borrarlo. Mide [width] y queda a la izquierda; en un teléfono
@@ -12,6 +13,7 @@ class PanelSearchField extends StatelessWidget {
     required this.onClear,
     this.width = 320,
     this.keyboardType,
+    this.inputFormatters,
     this.textCapitalization = TextCapitalization.none,
   });
 
@@ -21,6 +23,7 @@ class PanelSearchField extends StatelessWidget {
   final VoidCallback onClear;
   final double width;
   final TextInputType? keyboardType;
+  final List<TextInputFormatter>? inputFormatters;
   final TextCapitalization textCapitalization;
 
   static const narrowBelow = 560.0;
@@ -51,6 +54,7 @@ class PanelSearchField extends StatelessWidget {
               ),
             ),
             keyboardType: keyboardType,
+            inputFormatters: inputFormatters,
             textCapitalization: textCapitalization,
             textInputAction: TextInputAction.search,
             onChanged: onChanged,

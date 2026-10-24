@@ -167,6 +167,7 @@ void main() {
   group('pedidos', () {
     const order = {
       'id': 'o-1',
+      'number': 1024,
       'status': 'confirmed',
       'total': '24.9',
       'deliveryAddress': 'Av. Arequipa 123',
@@ -205,8 +206,20 @@ void main() {
       expect(orders.total, 21);
       final first = orders.items.single;
       expect(first.order.status, OrderStatus.confirmed);
+      expect(first.order.number, 1024);
       expect(first.customer!.name, 'Ana Quispe');
       expect(first.customer!.phone, '987654321');
+    });
+
+    test('buscar por número', () async {
+      await HttpAdminOrdersRepository(api((_) => page([order])))
+          .list(number: 1024);
+
+      expect(sent.single.url.queryParameters, {
+        'page': '1',
+        'limit': '20',
+        'number': '1024',
+      });
     });
 
     test('sin customers.view, el pedido llega sin el cliente', () async {

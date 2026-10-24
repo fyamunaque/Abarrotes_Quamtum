@@ -23,6 +23,18 @@ void main() {
     expect(order.allowedNextStatuses, isEmpty);
   });
 
+  test(
+    'el número: "Pedido N.º 1024"; sin él (un servidor anterior), "Pedido"',
+    () {
+      final order = Order.fromJson({...base, 'number': 1024});
+      expect(order.number, 1024);
+      expect(order.title, 'Pedido N.º 1024');
+
+      expect(Order.fromJson(base).number, isNull);
+      expect(Order.fromJson(base).title, 'Pedido');
+    },
+  );
+
   test('de recojo: sin dirección, con su código y cuándo quedó listo', () {
     final order = Order.fromJson({
       ...base,

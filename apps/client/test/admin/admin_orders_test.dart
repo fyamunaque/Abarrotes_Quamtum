@@ -26,9 +26,22 @@ void main() {
         'o-1',
         OrderStatus.pendingConfirmation,
         customer: 'Ana Quispe',
+        number: 1024,
       ),
-      adminOrder('o-2', OrderStatus.confirmed, customer: 'Luis Rojas', day: 3),
-      adminOrder('o-3', OrderStatus.delivered, customer: 'Rosa Díaz', day: 2),
+      adminOrder(
+        'o-2',
+        OrderStatus.confirmed,
+        customer: 'Luis Rojas',
+        day: 3,
+        number: 1023,
+      ),
+      adminOrder(
+        'o-3',
+        OrderStatus.delivered,
+        customer: 'Rosa Díaz',
+        day: 2,
+        number: 1022,
+      ),
     ]);
   });
 
@@ -162,13 +175,45 @@ void main() {
     expect(find.text('No hay pedidos en estado "En camino".'), findsOneWidget);
   });
 
+  testWidgets('buscar por número', (tester) async {
+    await pumpOrders(tester);
+    expect(find.text('N.º'), findsOneWidget);
+    expect(find.text('1024'), findsOneWidget);
+
+    final field = find.widgetWithText(TextField, 'Buscar por N.º');
+    await tester.enterText(field, '1023');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.text('Luis Rojas'), findsOneWidget);
+    expect(find.text('Ana Quispe'), findsNothing);
+
+    // Con otro filtro que no coincide.
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Entregado'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('El pedido N.º 1023 no coincide con los filtros.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Todos'));
+
+    await tester.enterText(field, '9999');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.text('No hay un pedido con el N.º 9999.'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Borrar la búsqueda'));
+    await tester.pumpAndSettle();
+    expect(find.text('Ana Quispe'), findsOneWidget);
+    expect(find.text('Luis Rojas'), findsOneWidget);
+  });
+
   testWidgets('el detalle: el cliente, las líneas y el seguimiento', (
     tester,
   ) async {
     await pumpOrders(tester);
     await open(tester, 'Ana Quispe');
 
-    expect(find.text('Pedido de Ana Quispe'), findsOneWidget);
+    expect(find.text('Pedido N.º 1024 de Ana Quispe'), findsOneWidget);
     expect(find.text('ana@tienda.pe'), findsOneWidget);
     expect(find.text('987654321'), findsOneWidget);
     expect(find.text('Av. Arequipa 123, Lince'), findsOneWidget);
@@ -445,7 +490,10 @@ void main() {
 
     await open(tester, 'Ana Quispe');
     expect(find.byType(Dialog), findsNothing);
-    expect(find.widgetWithText(AppBar, 'Pedido de Ana Quispe'), findsOneWidget);
+    expect(
+      find.widgetWithText(AppBar, 'Pedido N.º 1024 de Ana Quispe'),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

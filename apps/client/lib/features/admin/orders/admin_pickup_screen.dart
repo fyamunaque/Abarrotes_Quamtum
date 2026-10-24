@@ -24,8 +24,8 @@ import 'pickup_code_dialog.dart';
 
 /// Para caja (con `orders.view`): los pedidos de recojo que se preparan o
 /// esperan a su cliente, con el código en grande y cuánto hace que están
-/// listos. Se busca por el código que dicta el cliente o por su nombre (si
-/// el rol ve los datos de los clientes). Con `orders.updateStatus`, el botón
+/// listos. Se busca por el código que dicta el cliente, por el número del
+/// pedido o por su nombre (si el rol ve los datos de los clientes). Con `orders.updateStatus`, el botón
 /// del paso siguiente; entregar pide el código.
 class AdminPickupScreen extends ConsumerStatefulWidget {
   const AdminPickupScreen({super.key});
@@ -74,12 +74,13 @@ class _AdminPickupScreenState extends ConsumerState<AdminPickupScreen> {
         const SizedBox(height: 16),
         const PanelNote(
           'Los pedidos de recojo que se preparan o esperan en la tienda. '
-          'Busca por el código que te dice el cliente o por su nombre.',
+          'Busca por el código que te dice el cliente, por el N.º del pedido '
+          'o por su nombre.',
         ),
         const SizedBox(height: 16),
         PanelSearchField(
           controller: _search,
-          label: 'Buscar por código o nombre',
+          label: 'Buscar por código, N.º o nombre',
           width: 360,
           textCapitalization: TextCapitalization.characters,
           onChanged: (text) => setState(() => _query = text),
@@ -128,13 +129,18 @@ class _AdminPickupScreenState extends ConsumerState<AdminPickupScreen> {
 }
 
 /// Si [order] coincide con lo buscado: el código (sin espacios ni
-/// mayúsculas) o el nombre del cliente (sin tildes ni mayúsculas).
+/// mayúsculas), el número del pedido o el nombre del cliente (sin tildes ni
+/// mayúsculas).
 bool matchesPickupSearch(AdminOrder order, String query) {
   final text = _fold(query.trim());
   if (text.isEmpty) return true;
   final code = order.order.pickupCode?.toLowerCase() ?? '';
+  final number = order.order.number?.toString() ?? '';
   final name = _fold(order.customer?.name ?? '');
-  return code.contains(text.replaceAll(' ', '')) || name.contains(text);
+  final compact = text.replaceAll(' ', '');
+  return code.contains(compact) ||
+      (compact.isNotEmpty && number.contains(compact)) ||
+      name.contains(text);
 }
 
 /// En minúsculas, sin tildes y con la ñ como n, para comparar nombres
@@ -182,8 +188,8 @@ class _Tickets extends StatelessWidget {
   }
 }
 
-/// Un pedido para caja: el código en grande, el estado, quién lo hizo,
-/// cuánto hace que está listo y el botón del paso siguiente.
+/// Un pedido para caja: el código en grande, el estado, el número, quién lo
+/// hizo, cuánto hace que está listo y el botón del paso siguiente.
 class _Ticket extends ConsumerStatefulWidget {
   const _Ticket(this.order);
 
@@ -291,6 +297,7 @@ class _TicketState extends ConsumerState<_Ticket> {
           Text(waiting, style: muted),
           Text(
             [
+              if (order.number case final number?) 'N.º $number',
               ?widget.order.customer?.name,
               formatSoles(order.totalCents),
             ].join(' · '),

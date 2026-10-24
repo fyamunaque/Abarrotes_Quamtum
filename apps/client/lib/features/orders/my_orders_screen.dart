@@ -166,7 +166,13 @@ class _ReceivedNotice extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Recibimos tu pedido. La tienda lo va a confirmar.',
+                      switch (order?.number) {
+                        final number? =>
+                          'Recibimos tu pedido N.º $number. La tienda lo va a '
+                              'confirmar.',
+                        null =>
+                          'Recibimos tu pedido. La tienda lo va a confirmar.',
+                      },
                       style: theme.textTheme.bodyLarge,
                     ),
                     if (order != null)
@@ -225,10 +231,19 @@ class _OrderCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // El número, para nombrarlo si se llama a la tienda.
                 Expanded(
-                  child: Text(
-                    'Pedido del $date',
-                    style: theme.textTheme.titleMedium,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(order.title, style: theme.textTheme.titleMedium),
+                      Text(
+                        date,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Text(

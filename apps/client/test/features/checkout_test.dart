@@ -120,9 +120,10 @@ void main() {
     expect(order.deliveryAddress, 'Av. Arequipa 123, Lince');
     expect(order.totalCents, 2 * 2490 + 890);
     expect(
-      find.text('Recibimos tu pedido. La tienda lo va a confirmar.'),
+      find.text('Recibimos tu pedido N.º 1001. La tienda lo va a confirmar.'),
       findsOneWidget,
     );
+    expect(find.text('Pedido N.º 1001'), findsOneWidget);
     expect(find.text('S/ 58.70'), findsOneWidget);
     expect(find.text('2 × Arroz extra 5 kg'), findsOneWidget);
     expect(

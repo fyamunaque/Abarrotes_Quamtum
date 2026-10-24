@@ -140,6 +140,7 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
     int page = 1,
     OrderStatus? status,
     FulfillmentType? fulfillmentType,
+    int? number,
     int? limit,
   }) async {
     listCalls++;
@@ -149,7 +150,8 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
       for (final order in orders)
         if ((status == null || order.order.status == status) &&
             (fulfillmentType == null ||
-                order.order.fulfillmentType == fulfillmentType))
+                order.order.fulfillmentType == fulfillmentType) &&
+            (number == null || order.order.number == number))
           order,
     ];
     return PageList(
@@ -193,6 +195,7 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
       AdminOrder(
         order: Order(
           id: order.order.id,
+          number: order.order.number,
           status: status,
           fulfillmentType: order.order.fulfillmentType,
           totalCents: order.order.totalCents,
@@ -221,9 +224,11 @@ AdminOrder adminOrder(
   int day = 4,
   String? pickupCode,
   DateTime? readyForPickupAt,
+  int? number,
 }) => AdminOrder(
   order: Order(
     id: id,
+    number: number,
     status: status,
     readyForPickupAt: readyForPickupAt,
     fulfillmentType: pickupCode == null
@@ -841,6 +846,8 @@ class FakeOrderRepository implements OrderRepository {
     }
     final order = Order(
       id: 'pedido-${orders.length + 1}',
+      // Como el servidor: correlativo desde 1001.
+      number: 1001 + orders.length,
       status: OrderStatus.pendingConfirmation,
       fulfillmentType: fulfillmentType,
       // Como el servidor: el código lo genera él, solo con recojo.
@@ -870,6 +877,7 @@ class FakeOrderRepository implements OrderRepository {
     final order = orders[i];
     orders[i] = Order(
       id: order.id,
+      number: order.number,
       status: status,
       fulfillmentType: order.fulfillmentType,
       totalCents: order.totalCents,
