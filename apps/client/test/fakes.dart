@@ -910,6 +910,9 @@ class FakeCatalogRepository implements CatalogRepository {
   /// Lo buscado en cada pedido de productos (null: nada).
   final searches = <String?>[];
 
+  /// Si cada pedido de productos pidió solo los que están en promoción.
+  final onSaleRequests = <bool>[];
+
   @override
   Future<List<Category>> categories() async => categoryList;
 
@@ -917,16 +920,19 @@ class FakeCatalogRepository implements CatalogRepository {
   Future<PageList<Product>> products({
     String? categoryId,
     String? search,
+    bool onSale = false,
     int page = 1,
   }) async {
     requests.add((categoryId, page));
     searches.add(search);
+    onSaleRequests.add(onSale);
     if (failure case final failure?) throw failure;
     final text = search?.toLowerCase();
     final matching = [
       for (final product in productList)
         if ((categoryId == null || product.category?.id == categoryId) &&
-            (text == null || product.name.toLowerCase().contains(text)))
+            (text == null || product.name.toLowerCase().contains(text)) &&
+            (!onSale || product.onSale))
           product,
     ];
     return PageList(

@@ -2,16 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../catalog/catalog_providers.dart';
+import '../../catalog/category.dart';
+import '../../catalog/product.dart';
+import '../../offers/offer.dart';
 import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
+import '../../theme/brand_colors.dart';
+import '../catalog/product_strip.dart';
 import '../offers/exclusive_offers.dart';
 import '../shared/brand.dart';
 import '../shared/swoosh.dart';
 
-/// Inicio: presentación de la tienda y accesos al catálogo y al registro.
-/// Para una cuenta VIP, además sus ofertas exclusivas. Deslizar hacia abajo
-/// vuelve a pedir el perfil (y las ofertas).
+/// Inicio: presentación de la tienda, accesos al catálogo y al registro, las
+/// categorías y las promociones de hoy. Para una cuenta VIP, además sus
+/// ofertas exclusivas. Deslizar hacia abajo vuelve a pedir el perfil, las
+/// categorías y las promociones.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
@@ -19,9 +26,14 @@ class HomeScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final text = Theme.of(context).textTheme;
     return PublicScaffold(
+      // El logo grande ya está en la portada.
+      showLogo: false,
       onRefresh: () async {
         await ref.read(sessionProvider.notifier).refreshProfile();
-        ref.invalidate(exclusiveOffersProvider);
+        ref
+          ..invalidate(exclusiveOffersProvider)
+          ..invalidate(categoriesProvider)
+          ..invalidate(onSaleProductsProvider);
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -53,6 +65,8 @@ class HomeScreen extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 32),
+          const _Categories(),
+          const _TodaysDeals(),
           const ExclusiveOffers(),
         ],
       ),
@@ -94,6 +108,132 @@ class _Headline extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// "Categorías": un acceso a cada una, con su color (el de los marcadores de
+/// los productos sin foto), que abre el catálogo filtrado. Mientras cargan o
+/// si fallan, no ocupan lugar.
+class _Categories extends ConsumerWidget {
+  const _Categories();
+
+  /// El ancho mínimo de cada acceso: 2 columnas en un teléfono, hasta 5.
+  static const _minTileWidth = 170.0;
+  static const _gap = 12.0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider).value;
+    if (categories == null || categories.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            header: true,
+            child: Text(
+              'Categorías',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columns = (constraints.maxWidth / _minTileWidth)
+                  .floor()
+                  .clamp(2, 5);
+              final width =
+                  (constraints.maxWidth - _gap * (columns - 1)) / columns;
+              return Wrap(
+                spacing: _gap,
+                runSpacing: _gap,
+                children: [
+                  for (final category in categories)
+                    SizedBox(
+                      width: width,
+                      child: _CategoryTile(
+                        category,
+                        key: ValueKey(category.id),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CategoryTile extends StatelessWidget {
+  const _CategoryTile(this.category, {super.key});
+
+  final Category category;
+
+  @override
+  Widget build(BuildContext context) {
+    final (background, foreground) = PlaceholderColors.of(category.id);
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: () => context.go(Routes.catalogOf(category.id)),
+        child: ConstrainedBox(
+          // Dos líneas de nombre caben sin que unas tarjetas crezcan más que
+          // otras (salvo con el texto agrandado).
+          constraints: const BoxConstraints(minHeight: 76),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    category.name,
+                    style: Theme.of(context).textTheme.titleMedium
+                        ?.copyWith(color: foreground),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(Icons.arrow_forward, size: 20, color: foreground),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// "Promociones de hoy": los productos en oferta, con su precio y
+/// "Agregar". A una cuenta VIP no le repite los que ya van en "Ofertas
+/// exclusivas". Sin promociones, no ocupa lugar.
+class _TodaysDeals extends ConsumerWidget {
+  const _TodaysDeals();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final exclusive = {
+      for (final offer
+          in ref.watch(exclusiveOffersProvider).value ?? const <Offer>[])
+        offer.productId,
+    };
+    final products = [
+      for (final product
+          in ref.watch(onSaleProductsProvider).value ?? const <Product>[])
+        if (!exclusive.contains(product.id)) product,
+    ];
+    if (products.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: ProductStrip(title: 'Promociones de hoy', products: products),
     );
   }
 }

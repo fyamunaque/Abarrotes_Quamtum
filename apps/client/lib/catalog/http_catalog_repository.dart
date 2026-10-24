@@ -34,6 +34,7 @@ class HttpCatalogRepository implements CatalogRepository {
   Future<PageList<Product>> products({
     String? categoryId,
     String? search,
+    bool onSale = false,
     int page = 1,
   }) async {
     final text = search?.trim() ?? '';
@@ -46,6 +47,7 @@ class HttpCatalogRepository implements CatalogRepository {
         // Como el servidor: hasta 100 caracteres.
         if (text.isNotEmpty)
           'search': text.length > 100 ? text.substring(0, 100) : text,
+        if (onSale) 'onSale': 'true',
       },
       idToken: await _idToken(),
       fallback: 'No se pudieron cargar los productos.',

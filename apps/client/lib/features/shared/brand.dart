@@ -38,6 +38,9 @@ class NeilsLogo extends StatelessWidget {
 ///
 /// Con una cuenta que no confirmó su correo, arriba del contenido va el
 /// aviso para verificarlo ([VerifyEmailNotice]).
+///
+/// Sin [showLogo], la barra no lleva el logo: para la portada, que ya lo
+/// muestra en grande.
 class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({
     super.key,
@@ -45,6 +48,7 @@ class PublicScaffold extends ConsumerWidget {
     this.title,
     this.maxWidth = 960,
     this.onRefresh,
+    this.showLogo = true,
   });
 
   final Widget child;
@@ -56,6 +60,7 @@ class PublicScaffold extends ConsumerWidget {
   final String? title;
 
   final double maxWidth;
+  final bool showLogo;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -66,10 +71,12 @@ class PublicScaffold extends ConsumerWidget {
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 64,
-          title: InkWell(
-            onTap: () => context.go(Routes.home),
-            child: const NeilsLogo(),
-          ),
+          title: showLogo
+              ? InkWell(
+                  onTap: () => context.go(Routes.home),
+                  child: const NeilsLogo(),
+                )
+              : null,
           actions: [
             if (compact)
               IconButton(

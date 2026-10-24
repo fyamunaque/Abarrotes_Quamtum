@@ -193,7 +193,8 @@ flutter run -d chrome   # y abrir /vitrina
 
 | Ruta | Quién | Qué |
 |---|---|---|
-| `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
+| `/` | Cualquiera | Portada: el logo en grande (la barra no lo repite: `PublicScaffold(showLogo: false)`), el titular, los accesos al catálogo y al registro, "Categorías" (un acceso por categoría con su color de `PlaceholderColors`, que abre `/catalogo?categoria=<id>`; 2 columnas en el teléfono, hasta 5) y "Promociones de hoy" (`GET /products?onSale=true`, en un `ProductStrip` con "Agregar"). Para una cuenta VIP, debajo sus ofertas exclusivas, que no se repiten en las promociones. Deslizar hacia abajo vuelve a pedir el perfil, las categorías y las promociones |
+| `/login`, `/registro` | Cualquiera | Ingreso y registro |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
 | `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda). Debajo, "Más de <categoría>": hasta 10 productos de la misma categoría, sin el que se ve (`relatedProductsProvider`), en una fila que se desliza (`ProductStrip`). Si no hay otros, no aparece |
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
