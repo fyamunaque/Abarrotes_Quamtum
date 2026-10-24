@@ -251,7 +251,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/alerts/expiring?days=7` | `inventory.view` | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
 | `POST /orders` | cualquiera con cuenta | `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
 | `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode`. |
-| `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode`, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
+| `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode`, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `number` (el número exacto; 400 si no es un entero), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente (400 si falta o no coincide). El código va en la respuesta solo con `orders.view`. |
 | `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio; los pedidos en cada estado (`ordersByStatus`, también `preparing` y `readyForPickup`) y por tipo de entrega (`ordersByFulfillment: {delivery, pickup}`), de cualquier fecha. |
 | `GET /stats/sales?from=&to=` | `stats.view` | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
@@ -267,8 +267,9 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /staff/members/:id` | `staff.manage` | Baja lógica: pierde sus permisos en la petición siguiente. |
 | `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. |
 
-Cada pedido JSON lleva `fulfillmentType`, `deliveryAddress` (null en recojo), `pickupCode` (solo
-para su dueño y el personal con `orders.view`; si no, null), `readyForPickupAt` y
+Cada pedido JSON lleva `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
+desde 1001, lo pone el servidor al crearlo), `fulfillmentType`, `deliveryAddress` (null en recojo),
+`pickupCode` (solo para su dueño y el personal con `orders.view`; si no, null), `readyForPickupAt` y
 `allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
 botones con eso, sin las transiciones escritas a mano.
 
