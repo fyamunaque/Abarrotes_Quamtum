@@ -108,6 +108,9 @@ Los tokens de la marca:
 
 El naranja sobre crema da 3,0:1 de contraste. Por eso el `primary` de Material (botones, textos
 de acción) es **primaryDark**, y el naranja va en `secondaryContainer` (botones tonales).
+El botón para agregar al carrito es siempre tonal, en el catálogo, el detalle y las filas de
+productos. El `primaryDark` con texto blanco queda para la acción final: Confirmar pedido,
+Ingresar, Crear cuenta.
 
 La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/google_fonts`, así
 que la app no descarga nada:
@@ -192,7 +195,7 @@ flutter run -d chrome   # y abrir /vitrina
 |---|---|---|
 | `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
-| `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
+| `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda). Debajo, "Más de <categoría>": hasta 10 productos de la misma categoría, sin el que se ve (`relatedProductsProvider`), en una fila que se desliza (`ProductStrip`). Si no hay otros, no aparece |
 | `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su número ("Pedido N.º 1024", con la fecha debajo), su seguimiento y su entrega, en el mismo lugar y con el mismo formato (`InfoLine`): "Entrega a domicilio" con la dirección o, con recojo en tienda, los datos de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice su número ("Recibimos tu pedido N.º 1024"), el total que cobró la tienda y los precios que cambiaron desde el carrito. |
 | `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos` (y `/admin/pedidos/recoger`), `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/tienda`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
@@ -246,7 +249,9 @@ servidor devolvió su perfil.
   crema). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
   animaciones".
 - "Ofertas exclusivas" (`features/offers/`), en el inicio y arriba del catálogo completo: las
-  promociones VIP de `/promotions/active`. Tocar una abre el producto.
+  promociones VIP de `/promotions/active`. Tocar una abre el producto. Va en la misma fila que
+  se desliza de costado (`CardStrip`, en `features/shared/`, también con el mouse en la web)
+  que "Más de" en el detalle.
 - Para quien no es VIP no hay nada: ni la sección, ni la insignia, ni el pedido de ofertas.
 
 **Después de ingresar** (`routeAfterSignIn` en `router/route_guard.dart`):

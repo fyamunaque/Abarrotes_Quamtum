@@ -28,6 +28,26 @@ final productProvider = FutureProvider.family<Product, String>((ref, id) {
   return ref.watch(catalogRepositoryProvider).product(id);
 });
 
+/// Los productos de "Más de" (la categoría) en el detalle de un producto.
+typedef RelatedQuery = ({String categoryId, String productId});
+
+/// Cuántos productos muestra "Más de" (la categoría).
+const relatedLimit = 10;
+
+/// Hasta [relatedLimit] productos de la categoría de [RelatedQuery], sin el
+/// que se está viendo. Con el precio de la cuenta, como el catálogo.
+final relatedProductsProvider = FutureProvider.autoDispose
+    .family<List<Product>, RelatedQuery>((ref, query) async {
+      ref.watch(isVipProvider);
+      final page = await ref
+          .watch(catalogRepositoryProvider)
+          .products(categoryId: query.categoryId);
+      return [
+        for (final product in page.items)
+          if (product.id != query.productId) product,
+      ].take(relatedLimit).toList();
+    });
+
 /// Qué muestra el catálogo: una categoría (null: todas) y lo buscado (null:
 /// nada).
 typedef CatalogQuery = ({String? categoryId, String? search});

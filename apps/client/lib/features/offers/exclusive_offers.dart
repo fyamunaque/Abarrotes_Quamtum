@@ -1,5 +1,3 @@
-import 'dart:ui' show PointerDeviceKind;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +8,7 @@ import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../catalog/price_tag.dart';
 import '../catalog/product_photo.dart';
+import '../shared/card_strip.dart';
 import '../shared/date_format.dart';
 
 /// "Ofertas exclusivas": las promociones VIP de la cuenta, en una fila que se
@@ -17,26 +16,11 @@ import '../shared/date_format.dart';
 ///
 /// Solo aparece si hay algo que mostrar: sin cuenta VIP, sin ofertas o si no
 /// cargan, no ocupa lugar ni deja ninguna pista.
-class ExclusiveOffers extends ConsumerStatefulWidget {
+class ExclusiveOffers extends ConsumerWidget {
   const ExclusiveOffers({super.key});
 
   @override
-  ConsumerState<ExclusiveOffers> createState() => _ExclusiveOffersState();
-}
-
-class _ExclusiveOffersState extends ConsumerState<ExclusiveOffers> {
-  static const _cardWidth = 200.0;
-
-  final _controller = ScrollController();
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final offers = switch (ref.watch(exclusiveOffersProvider)) {
       AsyncValue(value: final offers?) when offers.isNotEmpty => offers,
       _ => null,
@@ -45,44 +29,11 @@ class _ExclusiveOffersState extends ConsumerState<ExclusiveOffers> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: CardStrip(
+        title: 'Ofertas exclusivas',
         children: [
-          Semantics(
-            header: true,
-            child: Text(
-              'Ofertas exclusivas',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
-          ),
-          const SizedBox(height: 12),
-          // En la web también con el mouse (arrastrar o la barra).
-          ScrollConfiguration(
-            behavior: ScrollConfiguration.of(context)
-                .copyWith(dragDevices: PointerDeviceKind.values.toSet()),
-            child: Scrollbar(
-              controller: _controller,
-              child: SingleChildScrollView(
-                controller: _controller,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.only(bottom: 12),
-                child: IntrinsicHeight(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (final (i, offer) in offers.indexed) ...[
-                        if (i > 0) const SizedBox(width: 12),
-                        SizedBox(
-                          width: _cardWidth,
-                          child: _OfferCard(offer, key: ValueKey(offer.id)),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
+          for (final offer in offers)
+            _OfferCard(offer, key: ValueKey(offer.id)),
         ],
       ),
     );
