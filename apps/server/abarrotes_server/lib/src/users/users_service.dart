@@ -2,6 +2,7 @@ import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_identity.dart';
 import '../common/api_route.dart';
+import '../common/customer_requirements.dart';
 import '../common/http_json.dart';
 import '../common/pagination.dart';
 import '../generated/protocol.dart';
@@ -49,6 +50,37 @@ class UsersService {
       if (created != null) return created;
       throw const ApiException.conflict(
         'Ese email ya está registrado con otra cuenta',
+      );
+    }
+  }
+
+  /// Los datos de [user] que pide un pedido: el celular ([phone], ya
+  /// normalizado), el DNI ([dni]; con [clearDni], lo borra) y, con
+  /// [acceptTerms], la aceptación de los términos vigentes, ahora. Lo que no
+  /// viene queda como estaba. Un DNI que ya tiene otra cuenta: 409.
+  Future<User> updateProfile(
+    Session session,
+    User user, {
+    String? phone,
+    String? dni,
+    bool clearDni = false,
+    bool acceptTerms = false,
+  }) async {
+    try {
+      return await User.db.updateRow(
+        session,
+        user.copyWith(
+          phone: phone ?? user.phone,
+          dni: clearDni ? null : dni ?? user.dni,
+          termsVersion: acceptTerms ? currentTermsVersion : user.termsVersion,
+          termsAcceptedAt: acceptTerms
+              ? DateTime.now().toUtc()
+              : user.termsAcceptedAt,
+        ),
+      );
+    } on DatabaseUniqueViolationException {
+      throw const ApiException.conflict(
+        'Ese DNI ya está registrado en otra cuenta.',
       );
     }
   }

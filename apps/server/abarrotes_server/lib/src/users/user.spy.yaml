@@ -12,8 +12,18 @@ fields:
   ### que no tiene un token del cliente a mano.
   emailVerified: bool, default=false
   name: String
+  ### Celular peruano de 9 dígitos, normalizado ("987654321"). Hace falta
+  ### para pedir (ver common/customer_requirements.dart).
   phone: String?
   address: String?
+  ### DNI de 8 dígitos, opcional: la tienda puede confirmar quién recibe o
+  ### recoge un pedido. Único: dos cuentas no comparten DNI.
+  dni: String?
+  ### Qué versión de los términos de uso y la política de privacidad aceptó
+  ### la cuenta, y cuándo. Para pedir hace falta la vigente
+  ### (currentTermsVersion).
+  termsVersion: String?
+  termsAcceptedAt: DateTime?
   createdAt: DateTime, default=now
   orders: List<Order>?, relation(name=user_orders)
   inventoryMovements: List<InventoryMovement>?, relation(name=user_inventory_movements)
@@ -28,4 +38,7 @@ indexes:
     unique: true
   users_email_idx:
     fields: email
+    unique: true
+  users_dni_idx:
+    fields: dni
     unique: true

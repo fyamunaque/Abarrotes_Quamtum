@@ -4,6 +4,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 import '../auth/firebase_auth_middleware.dart';
 import '../auth/guards.dart';
 import '../common/api_route.dart';
+import '../common/customer_requirements.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/money.dart';
@@ -42,8 +43,13 @@ List<RouteEntry> ordersRoutes(
       // puede traer el unitPrice que mostraba el carrito: nunca se cobra, solo
       // se compara, y si cambió va en priceChanges. A domicilio (por defecto)
       // lleva la dirección; con recojo en tienda no, y el servidor le genera
-      // su código.
+      // su código. La cuenta tiene que tener el correo confirmado, el celular
+      // y los términos vigentes aceptados (si no, 403 con lo que falta).
       signedIn(Method.post, (session, request) async {
+        if (missingToOrder(request.currentUser, request.firebaseIdentity)
+            case final missing?) {
+          return jsonError(403, missing);
+        }
         final body = InputReader.body(
           await readJsonBody(request),
           allowed: const {'fulfillmentType', 'deliveryAddress', 'items'},
@@ -276,6 +282,8 @@ Map<String, Object?> adminOrderJson(
             'name': customer.name,
             'email': customer.email,
             'phone': customer.phone,
+            // Para confirmar quién recibe o recoge el pedido.
+            'dni': customer.dni,
           }
         : null,
   };

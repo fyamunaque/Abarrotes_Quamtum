@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:abarrotes_server/src/common/api_route.dart';
+import 'package:abarrotes_server/src/common/customer_requirements.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:http/http.dart' as http;
 import 'package:serverpod/serverpod.dart';
@@ -161,3 +162,14 @@ Future<User> insertUser(Session session, String uid, {String? email}) =>
         name: 'Usuario $uid',
       ),
     );
+
+/// [user] con lo que pide un pedido además del correo confirmado: el celular
+/// y los términos vigentes aceptados.
+Future<User> completeProfile(Session session, User user) => User.db.updateRow(
+  session,
+  user.copyWith(
+    phone: '987654321',
+    termsVersion: currentTermsVersion,
+    termsAcceptedAt: DateTime.now().toUtc(),
+  ),
+);

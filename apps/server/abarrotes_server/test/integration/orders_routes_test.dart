@@ -267,6 +267,7 @@ void main() {
             'name': 'Usuario uid-cliente',
             'email': 'uid-cliente@tienda.pe',
             'phone': null,
+            'dni': null,
           });
           expect(order['items'], hasLength(2));
           // Las líneas van por id (UUID v7), que no sigue el orden de
@@ -362,6 +363,13 @@ void main() {
     });
 
     group('POST /orders', () {
+      // Quien pide tiene el celular y los términos (ver los casos sin ellos
+      // más abajo).
+      setUp(
+        () async =>
+            shop.customer = await completeProfile(session, shop.customer),
+      );
+
       Map<String, Object?> body(List<(Product, int)> lines) => {
         'deliveryAddress': '  Av. Arequipa 123, Lince  ',
         'items': [
@@ -375,6 +383,44 @@ void main() {
 
       Future<List<InventoryMovement>> movements() =>
           InventoryMovement.db.find(session, orderBy: (m) => m.productId);
+
+      test('sin el correo confirmado: 403 y no crea nada', () async {
+        final (status, error) = await client.post(
+          '/orders',
+          body([(shop.arroz, 1)]),
+          as: 'uid-cliente',
+          emailVerified: false,
+        );
+
+        expect(status, 403);
+        expect(error['message'], contains('Confirma tu correo'));
+        expect(await Order.db.count(session), 0);
+        expect(await movements(), isEmpty);
+      });
+
+      test('sin el celular o sin los términos vigentes: 403', () async {
+        Future<int> placeWith(User user) async {
+          await User.db.updateRow(session, user);
+          final (status, error) = await place(body([(shop.arroz, 1)]));
+          if (status == 403) {
+            expect(error['message'], contains('Completa tu cuenta'));
+          }
+          return status;
+        }
+
+        expect(await placeWith(shop.customer.copyWith(phone: null)), 403);
+        expect(
+          await placeWith(shop.customer.copyWith(termsVersion: '2020-01-01')),
+          403,
+        );
+        expect(
+          await placeWith(shop.customer.copyWith(termsVersion: null)),
+          403,
+        );
+        expect(await Order.db.count(session), 0);
+
+        expect(await placeWith(shop.customer), 201);
+      });
 
       test('crea el pedido a nombre de quien lo pide, cobra la promoción y '
           'descuenta el stock', () async {
@@ -444,7 +490,7 @@ void main() {
               ),
             );
           }
-          await insertUser(session, 'uid-vip');
+          await completeProfile(session, await insertUser(session, 'uid-vip'));
           await insertVips(session, shop.staff, ['vip@tienda.pe']);
         });
 
@@ -467,14 +513,6 @@ void main() {
         test('un VIP paga el precio VIP y los demás el de todos', () async {
           expect(await arrozPriceFor('uid-vip', email: 'vip@tienda.pe'), '3.5');
           expect(await arrozPriceFor('uid-cliente'), '3.9');
-          expect(
-            await arrozPriceFor(
-              'uid-vip',
-              email: 'vip@tienda.pe',
-              emailVerified: false,
-            ),
-            '3.9',
-          );
         });
 
         test(
@@ -756,6 +794,11 @@ void main() {
     });
 
     group('recojo en tienda', () {
+      setUp(
+        () async =>
+            shop.customer = await completeProfile(session, shop.customer),
+      );
+
       final codePattern = RegExp(r'^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$');
       List<Object?> items() => [
         {'productId': shop.arroz.id.toString(), 'quantity': 1},

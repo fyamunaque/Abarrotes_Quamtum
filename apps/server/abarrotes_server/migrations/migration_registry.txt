@@ -11,3 +11,4 @@
 20261014220516930-recojo-en-tienda
 20261015032450431-datos-de-la-tienda
 20261023221241811-numero-de-pedido
+20261029011401737-perfil-del-cliente
