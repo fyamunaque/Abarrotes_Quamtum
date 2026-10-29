@@ -23,6 +23,7 @@ import 'package:neils/catalog/category.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/page_list.dart';
+import 'package:neils/legal/legal_texts.dart' as legal;
 import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_repository.dart';
 import 'package:neils/orders/fulfillment.dart';
@@ -261,6 +262,7 @@ AdminOrder adminOrder(
     name: customer,
     email: 'ana@tienda.pe',
     phone: '987654321',
+    dni: '45678912',
   ),
 );
 
@@ -1049,7 +1051,8 @@ class FakeAuthRepository implements AuthRepository {
     }
     // Como Firebase: la cuenta nueva no tiene el correo confirmado, y el
     // registro manda el correo para confirmarlo.
-    final account = addAccount(email, password, emailVerified: false);
+    final account = addAccount(email, password, emailVerified: false)
+      ..registered = true;
     _open(account.uid);
     await Future<void>.delayed(Duration.zero);
     account.name = name;
@@ -1106,6 +1109,35 @@ class FakeAccount {
 
   /// Si confirmó su correo (lo cambia el test, como si abriera el enlace).
   bool emailVerified = true;
+
+  /// Si se creó con `register`: como en el servidor, empieza sin celular ni
+  /// términos (ver [FakeUserRepository.profileOf]).
+  bool registered = false;
+}
+
+/// El perfil de una cuenta en el servidor en memoria: lo que pide un pedido
+/// (el celular y los términos) y el DNI.
+class FakeProfile {
+  const FakeProfile({
+    this.phone,
+    this.dni,
+    this.termsVersion,
+    this.termsAcceptedAt,
+  });
+
+  /// Lo que tiene una cuenta de los tests si no se dice otra cosa.
+  static final complete = FakeProfile(
+    phone: '987654321',
+    termsVersion: legal.termsVersion,
+    termsAcceptedAt: DateTime.utc(2026, 10, 28, 15),
+  );
+
+  final String? phone;
+  final String? dni;
+  final String? termsVersion;
+  final DateTime? termsAcceptedAt;
+
+  bool get isComplete => phone != null && termsVersion == legal.termsVersion;
 }
 
 /// El servidor en memoria: la primera vez que ve un uid crea su perfil con el
@@ -1127,6 +1159,24 @@ class FakeUserRepository implements UserRepository {
 
   /// Direcciones guardadas en el perfil, por uid.
   final addresses = <String, String>{};
+
+  /// El celular, el DNI y los términos, por uid (ver [profileOf]).
+  final profiles = <String, FakeProfile>{};
+
+  /// Los DNI que ya tiene otra cuenta: guardarlos da 409, como el servidor.
+  final takenDnis = <String>{};
+
+  /// Cada `updateProfile`, con lo que se mandó.
+  final profileUpdates =
+      <({String? phone, String? dni, bool clearDni, bool acceptTerms})>[];
+
+  /// El perfil de [uid]: el de [profiles] o, si no está, completo; una
+  /// cuenta recién registrada empieza vacía, como en el servidor.
+  FakeProfile profileOf(String uid) =>
+      profiles[uid] ??
+      (auth.accountOf(uid).registered
+          ? const FakeProfile()
+          : FakeProfile.complete);
 
   /// Los uid que el servidor responde como VIP (un admin los puede agregar
   /// o quitar en cualquier momento).
@@ -1158,10 +1208,50 @@ class FakeUserRepository implements UserRepository {
           ? roleOf(granted)
           : roles[uid] ?? UserRole.customer,
       address: addresses[uid],
+      phone: profileOf(uid).phone,
+      dni: profileOf(uid).dni,
+      termsVersion: profileOf(uid).termsVersion,
+      termsAcceptedAt: profileOf(uid).termsAcceptedAt,
+      profileComplete: profileOf(uid).isComplete,
       isVip: vips.contains(uid),
       staffRoleName: roleNames[uid],
       permissions: granted,
     );
+  }
+
+  /// Como `PATCH /users/me`: guarda lo que viene y responde la cuenta. Un
+  /// DNI de [takenDnis]: 409.
+  @override
+  Future<SessionUser> updateProfile(
+    String idToken, {
+    String? phone,
+    String? dni,
+    bool clearDni = false,
+    bool acceptTerms = false,
+  }) async {
+    profileUpdates.add((
+      phone: phone,
+      dni: dni,
+      clearDni: clearDni,
+      acceptTerms: acceptTerms,
+    ));
+    if (dni != null && takenDnis.contains(dni)) {
+      throw const ApiFailure(
+        'Ese DNI ya está registrado en otra cuenta.',
+        status: 409,
+      );
+    }
+    final uid = idToken.replaceFirst('token-', '');
+    final current = profileOf(uid);
+    profiles[uid] = FakeProfile(
+      phone: phone?.replaceAll(RegExp(r'\D'), '') ?? current.phone,
+      dni: clearDni ? null : dni ?? current.dni,
+      termsVersion: acceptTerms ? legal.termsVersion : current.termsVersion,
+      termsAcceptedAt: acceptTerms
+          ? DateTime.utc(2026, 10, 28, 15)
+          : current.termsAcceptedAt,
+    );
+    return me(idToken);
   }
 }
 

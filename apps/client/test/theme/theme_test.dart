@@ -52,6 +52,11 @@ void main() {
     );
     // "Activo" y lo que está vigente siguen en el verde de siempre.
     expect(StateColors.positive, OrderStatusColors.delivered);
+    // La seguridad media de una contraseña: una barra, al menos 3:1.
+    expect(
+      _contrast(StateColors.caution, scheme.surfaceContainerLowest),
+      greaterThanOrEqualTo(3),
+    );
   });
 
   test('la inicial del marcador sin foto se lee sobre su fondo', () {

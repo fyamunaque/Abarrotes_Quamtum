@@ -458,6 +458,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
           Text(customer.name),
           Text(customer.email, style: muted),
           if (customer.phone case final phone?) Text(phone, style: muted),
+          if (customer.dni case final dni?) Text('DNI $dni', style: muted),
         ] else
           Text(
             'Tu rol no incluye ver los datos de los clientes.',

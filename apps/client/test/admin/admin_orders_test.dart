@@ -224,6 +224,7 @@ void main() {
     expect(find.text('Pedido N.º 1024 de Ana Quispe'), findsOneWidget);
     expect(find.text('ana@tienda.pe'), findsOneWidget);
     expect(find.text('987654321'), findsOneWidget);
+    expect(find.text('DNI 45678912'), findsOneWidget);
     expect(find.text('Av. Arequipa 123, Lince'), findsOneWidget);
     expect(find.text('1 × Arroz extra 5 kg'), findsOneWidget);
     expect(

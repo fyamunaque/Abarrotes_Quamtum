@@ -76,13 +76,23 @@ String panelHomeFor(SessionUser user) {
 }
 
 /// A dónde ir después de ingresar o registrarse: el personal a su sección
-/// principal del panel ([panelHomeFor]), y un cliente al catálogo.
+/// principal del panel ([panelHomeFor]), y un cliente al catálogo. Un cliente
+/// con la cuenta incompleta (sin celular o sin los términos vigentes) pasa
+/// antes por "Mi cuenta", que después lo lleva ahí.
 ///
 /// [from] es la ruta que pidió el ingreso (`/login?from=...`). Se vuelve a
 /// ella si es el carrito o "Mis pedidos" (cualquier cuenta), o una ruta del
 /// panel y la cuenta puede verlo. Viene en la URL, así que no se sigue a
 /// cualquier lado.
 String routeAfterSignIn(SessionUser user, String? from) {
+  final target = _targetAfterSignIn(user, from);
+  final incomplete = user.role == UserRole.customer && !user.profileComplete;
+  return incomplete && Uri.parse(target).path != Routes.myAccount
+      ? Routes.myAccountFrom(target)
+      : target;
+}
+
+String _targetAfterSignIn(SessionUser user, String? from) {
   final fromUri = from == null ? null : Uri.tryParse(from);
   if (fromUri != null && !fromUri.hasScheme && !fromUri.hasAuthority) {
     final path = fromUri.path;

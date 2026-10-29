@@ -51,6 +51,7 @@ class PublicScaffold extends ConsumerWidget {
     this.onRefresh,
     this.showLogo = true,
     this.bottomBar,
+    this.showVerifyEmail = true,
   });
 
   final Widget child;
@@ -64,6 +65,10 @@ class PublicScaffold extends ConsumerWidget {
   final double maxWidth;
   final bool showLogo;
   final Widget? bottomBar;
+
+  /// Sin esto, no va el aviso para confirmar el correo: para el carrito, que
+  /// lo muestra donde se confirma el pedido.
+  final bool showVerifyEmail;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -121,14 +126,16 @@ class PublicScaffold extends ConsumerWidget {
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),
                   child: switch (session) {
-                    SignedIn(:final user) when !user.emailVerified => Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        VerifyEmailNotice(user, key: ValueKey(user.id)),
-                        const SizedBox(height: 16),
-                        child,
-                      ],
-                    ),
+                    SignedIn(:final user)
+                        when showVerifyEmail && !user.emailVerified =>
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          VerifyEmailNotice(user, key: ValueKey(user.id)),
+                          const SizedBox(height: 16),
+                          child,
+                        ],
+                      ),
                     _ => child,
                   },
                 ),

@@ -87,6 +87,35 @@ class SessionNotifier extends Notifier<Session> {
     () => _auth.register(name: name, email: email, password: password),
   );
 
+  /// Guarda en la cuenta abierta el celular, el DNI ([clearDni] lo borra) y,
+  /// con [acceptTerms], la aceptación de los términos vigentes
+  /// (`PATCH /users/me`), y la sesión pasa a la cuenta actualizada. Los
+  /// errores salen como `ApiFailure`, con el mensaje del servidor.
+  Future<SessionUser> updateProfile({
+    String? phone,
+    String? dni,
+    bool clearDni = false,
+    bool acceptTerms = false,
+  }) async {
+    final current = switch (state) {
+      SignedIn(:final user) => user,
+      _ => throw const AuthFailure('Tu sesión terminó. Vuelve a ingresar.'),
+    };
+    final user = await ref
+        .read(userRepositoryProvider)
+        .updateProfile(
+          await _auth.idToken(),
+          phone: phone,
+          dni: dni,
+          clearDni: clearDni,
+          acceptTerms: acceptTerms,
+        );
+    // El correo confirmado lo dice Firebase, no el servidor.
+    final updated = user.copyWith(emailVerified: current.emailVerified);
+    if (ref.mounted) state = SignedIn(updated);
+    return updated;
+  }
+
   /// Manda a [email] el enlace para crear una contraseña nueva (sin sesión,
   /// desde Ingresar). Si no hay una cuenta con ese correo, también sale bien:
   /// no se revela qué correos tienen cuenta. Los errores salen como

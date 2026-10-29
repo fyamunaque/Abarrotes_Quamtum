@@ -38,10 +38,16 @@ Desde VS Code se levanta todo sin escribirlos: ver `docs/VSCODE.md`.
    cd apps\server\abarrotes_server; dart run bin/seed_dev.dart
    ```
 
-5. **Las cuentas.** La que se crea en la app es de cliente.
+5. **Las cuentas.** La que se crea en la app es de cliente. Crear una cuenta pide el celular, una
+   contraseña de al menos 8 caracteres con letras y números, y aceptar los términos; el DNI es
+   opcional. Para hacer pedidos, además, hay que **confirmar el correo** con el enlace que manda
+   Firebase.
    - Para el panel, pásala a admin en la base (ver "Primer admin" en `apps/server/README.md`).
-   - Para mostrar el lado del cliente, crea una segunda cuenta. Firebase no verifica el correo,
-     así que sirve tu mismo correo con `+demo` (`tucorreo+demo@gmail.com`).
+   - Para mostrar el lado del cliente, crea una segunda cuenta con tu mismo correo y `+demo`
+     (`tucorreo+demo@gmail.com`): Gmail lo deja en tu bandeja, así puedes abrir el enlace para
+     confirmarlo.
+   - Las cuentas de antes no tienen celular ni los términos: al ingresar, la app las lleva a
+     "Mi cuenta" para completarlos.
 
 ## Cada vez
 

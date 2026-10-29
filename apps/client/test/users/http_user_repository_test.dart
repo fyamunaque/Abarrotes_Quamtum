@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neils/auth/auth_repository.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/legal/legal_texts.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
 import 'package:neils/users/http_user_repository.dart';
@@ -100,6 +101,90 @@ void main() {
     }, baseUrl: 'https://api.tienda.pe/v1/').me('t');
 
     expect(url.toString(), 'https://api.tienda.pe/v1/users/me');
+  });
+
+  test('el perfil: celular, DNI, términos y si está completo', () async {
+    final user = await repository(
+      (_) async => json(200, {
+        ...profile,
+        'phone': '987654321',
+        'dni': '45678912',
+        'termsVersion': termsVersion,
+        'termsAcceptedAt': '2026-10-28T15:00:00.000Z',
+        'profileComplete': true,
+      }),
+    ).me('t');
+
+    expect(user.phone, '987654321');
+    expect(user.dni, '45678912');
+    expect(user.termsVersion, termsVersion);
+    expect(user.termsAcceptedAt, DateTime.utc(2026, 10, 28, 15));
+    expect(user.profileComplete, isTrue);
+
+    final incomplete = await repository(
+      (_) async => json(200, {...profile, 'profileComplete': false}),
+    ).me('t');
+    expect(incomplete.profileComplete, isFalse);
+    // Un servidor anterior no lo manda (ni lo pide): completo.
+    expect(
+      (await repository((_) async => json(200, profile)).me('t'))
+          .profileComplete,
+      isTrue,
+    );
+  });
+
+  group('updateProfile', () {
+    test(
+      'PATCH /users/me con lo que cambia y la versión de los términos',
+      () async {
+        final sent = <http.Request>[];
+        final repo = repository((request) async {
+          sent.add(request);
+          return json(200, {...profile, 'phone': '987654321'});
+        });
+
+        final user = await repo.updateProfile(
+          'el-token',
+          phone: '987 654 321',
+          dni: '45678912',
+          acceptTerms: true,
+        );
+        await repo.updateProfile('el-token', clearDni: true);
+        await repo.updateProfile('el-token', phone: '912345678');
+
+        expect(sent.first.method, 'PATCH');
+        expect(sent.first.url.path, '/users/me');
+        expect(sent.first.headers['authorization'], 'Bearer el-token');
+        expect(jsonDecode(sent[0].body), {
+          'phone': '987 654 321',
+          'dni': '45678912',
+          'acceptTerms': termsVersion,
+        });
+        expect(jsonDecode(sent[1].body), {'dni': null});
+        expect(jsonDecode(sent[2].body), {'phone': '912345678'});
+        expect(user.phone, '987654321');
+      },
+    );
+
+    test('un DNI de otra cuenta: ApiFailure 409 con el mensaje', () {
+      expect(
+        repository(
+          (_) async => json(409, {
+            'statusCode': 409,
+            'message': 'Ese DNI ya está registrado en otra cuenta.',
+          }),
+        ).updateProfile('t', dni: '45678912'),
+        throwsA(
+          isA<ApiFailure>()
+              .having((f) => f.status, 'status', 409)
+              .having(
+                (f) => f.message,
+                'message',
+                'Ese DNI ya está registrado en otra cuenta.',
+              ),
+        ),
+      );
+    });
   });
 
   group('errores', () {

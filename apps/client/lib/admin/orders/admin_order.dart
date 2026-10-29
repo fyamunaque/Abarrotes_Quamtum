@@ -1,12 +1,19 @@
 import '../../orders/order.dart';
 
-/// Quién hizo un pedido: sus datos de contacto.
+/// Quién hizo un pedido: sus datos de contacto y, si lo agregó, su DNI (para
+/// confirmar quién recibe o recoge el pedido).
 class OrderCustomer {
-  const OrderCustomer({required this.name, required this.email, this.phone});
+  const OrderCustomer({
+    required this.name,
+    required this.email,
+    this.phone,
+    this.dni,
+  });
 
   final String name;
   final String email;
   final String? phone;
+  final String? dni;
 }
 
 /// Un pedido como lo ve el personal: el pedido y quién lo hizo.
@@ -28,6 +35,7 @@ class AdminOrder {
           name: name,
           email: email,
           phone: customer['phone'] as String?,
+          dni: customer['dni'] as String?,
         ),
       ),
     _ => throw FormatException('No es un pedido del panel', json),

@@ -45,6 +45,7 @@ void main() {
     WidgetTester tester,
     String at, {
     Map<String, String> addresses = const {},
+    Map<String, FakeProfile> profiles = const {},
   }) async {
     useWideScreen(tester);
     await tester.pumpWidget(
@@ -52,7 +53,9 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
           userRepositoryProvider.overrideWithValue(
-            FakeUserRepository(auth)..addresses.addAll(addresses),
+            FakeUserRepository(auth)
+              ..addresses.addAll(addresses)
+              ..profiles.addAll(profiles),
           ),
           catalogRepositoryProvider.overrideWithValue(catalog),
           orderRepositoryProvider.overrideWithValue(orders),
@@ -458,6 +461,86 @@ void main() {
     expect(tester.hasRunningAnimations, isTrue);
     await tester.pumpAndSettle();
   });
+  group('lo que falta para pedir', () {
+    Finder confirmButton() =>
+        find.widgetWithText(FilledButton, 'Confirmar pedido');
+
+    testWidgets('sin el correo confirmado: el aviso en el carrito y sin '
+        'confirmar', (tester) async {
+      auth = FakeAuthRepository()
+        ..addAccount(
+          'ana@tienda.pe',
+          'secreta',
+          signedIn: true,
+          emailVerified: false,
+        );
+      await pumpApp(tester, '/carrito');
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text('Para hacer pedidos, confirma tu correo.'),
+        findsOneWidget,
+      );
+      // El aviso de arriba no se repite.
+      expect(
+        find.text('Verifica tu correo para completar tu cuenta.'),
+        findsNothing,
+      );
+      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNull);
+      expect(find.text('Reenviar el correo'), findsNothing);
+      expect(find.text('Enviar el correo'), findsOneWidget);
+    });
+
+    testWidgets('sin la cuenta completa: "Completar mi cuenta" y de vuelta al '
+        'carrito', (tester) async {
+      auth = FakeAuthRepository();
+      final ana = auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      final router = await pumpApp(
+        tester,
+        '/carrito',
+        profiles: {ana.uid: const FakeProfile()},
+      );
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+
+      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNull);
+      await tester.tap(find.text('Completar mi cuenta'));
+      await tester.pumpAndSettle();
+      expect(location(router), '/mi-cuenta?from=%2Fcarrito');
+
+      await tester.enterText(
+        find.widgetWithText(TextFormField, 'Celular'),
+        '987654321',
+      );
+      await tester.tap(find.byType(Checkbox));
+      await tester.tap(find.widgetWithText(FilledButton, 'Guardar'));
+      await tester.pumpAndSettle();
+
+      expect(location(router), '/carrito');
+      expect(find.text('Completar mi cuenta'), findsNothing);
+      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNotNull);
+    });
+
+    testWidgets('en el teléfono, la barra dice qué falta', (tester) async {
+      auth = FakeAuthRepository()
+        ..addAccount(
+          'ana@tienda.pe',
+          'secreta',
+          signedIn: true,
+          emailVerified: false,
+        );
+      await pumpApp(tester, '/carrito');
+      tester.view.physicalSize = const Size(375, 760);
+      container.read(cartProvider.notifier).add(rice);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Para pedir, confirma tu correo.'), findsOneWidget);
+      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNull);
+      expect(tester.takeException(), isNull);
+    });
+  });
+
   group('la barra fija del teléfono', () {
     /// El carrito con tres productos, en un teléfono. Con [signedIn], con la
     /// cuenta abierta.

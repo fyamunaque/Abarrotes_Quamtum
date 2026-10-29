@@ -36,6 +36,10 @@ abstract final class OrderStatusColors {
 abstract final class StateColors {
   /// Algo que está bien o vigente.
   static const positive = Color(0xFF3C7A5F);
+
+  /// Algo aceptable que podría estar mejor (p. ej. una contraseña de
+  /// seguridad media). Para barras y puntos: 3,3:1 sobre crema.
+  static const caution = Color(0xFFB7791F);
 }
 
 /// El marcador de un producto sin foto: un fondo suave y la inicial en un

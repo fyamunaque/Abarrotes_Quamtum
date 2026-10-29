@@ -70,7 +70,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 - **Fundamentos:** el repo, el CI, PostgreSQL, el servidor Serverpod con el modelo completo y su migración inicial, y la verificación del Firebase ID token con los guards por permiso.
 - **Tienda (cliente):**
-  - registro e ingreso con Firebase, y "¿Olvidaste tu contraseña?" (el enlace de Firebase para crear una nueva);
+  - registro e ingreso con Firebase, y "¿Olvidaste tu contraseña?" (el enlace de Firebase para crear una nueva); crear una cuenta pide una contraseña fuerte, el celular, el DNI (opcional) y aceptar los términos y la política de privacidad, y para pedir hace falta el correo confirmado ("Mi cuenta" completa lo que falte);
   - catálogo con búsqueda y categorías, y detalle de producto;
   - carrito guardado en el dispositivo;
   - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger".

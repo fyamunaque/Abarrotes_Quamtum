@@ -16,9 +16,11 @@ import '../../theme/neils_theme.dart';
 import '../catalog/product_photo.dart';
 import '../shared/brand.dart';
 import '../shared/error_message.dart';
+import '../shared/info_line.dart';
 import '../shared/press_scale.dart';
 import '../shared/quantity_stepper.dart';
 import '../shared/store_details.dart';
+import '../shared/verify_email_notice.dart';
 import '../shared/vip_tag.dart';
 
 /// El carrito: cambiar cantidades, quitar productos, ver el total estimado
@@ -97,6 +99,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     return PublicScaffold(
       title: 'Carrito',
       maxWidth: 720,
+      // El aviso del correo va en el checkout, donde hace falta.
+      showVerifyEmail: false,
       bottomBar: withBar
           ? _CheckoutBar(totalCents: cart.totalCents, onConfirm: _confirm)
           : null,
@@ -283,11 +287,15 @@ class _Checkout extends ConsumerWidget {
         onPressed: () => _signInForCart(context),
         child: const Text('Ingresar para confirmar'),
       ),
-      SignedIn() => Form(
+      SignedIn(:final user) => Form(
         key: formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_missingToOrder(user) case final missing?) ...[
+              _MissingToOrder(user, missing),
+              const SizedBox(height: 16),
+            ],
             Semantics(
               header: true,
               child: Text(
@@ -346,7 +354,10 @@ class _Checkout extends ConsumerWidget {
                 _CheckoutError(error),
               ],
               const SizedBox(height: 16),
-              _ConfirmButton(busy: checkout.busy, onPressed: onConfirm),
+              _ConfirmButton(
+                busy: checkout.busy,
+                onPressed: _missingToOrder(user) == null ? onConfirm : null,
+              ),
             ],
           ],
         ),
@@ -380,7 +391,17 @@ class _CheckoutBar extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (checkout.error case final error? when session is SignedIn)
+              if (session case SignedIn(:final user)
+                  when _missingToOrder(user) != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    _missingToOrder(user)!.short,
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                )
+              else if (checkout.error case final error?
+                  when session is SignedIn)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _CheckoutError(error),
@@ -418,9 +439,11 @@ class _CheckoutBar extends ConsumerWidget {
                       onPressed: () => _signInForCart(context),
                       child: const Text('Ingresar para confirmar'),
                     ),
-                    SignedIn() => _ConfirmButton(
+                    SignedIn(:final user) => _ConfirmButton(
                       busy: checkout.busy,
-                      onPressed: onConfirm,
+                      onPressed: _missingToOrder(user) == null
+                          ? onConfirm
+                          : null,
                     ),
                   },
                 ],
@@ -437,7 +460,9 @@ class _ConfirmButton extends StatelessWidget {
   const _ConfirmButton({required this.busy, required this.onPressed});
 
   final bool busy;
-  final VoidCallback onPressed;
+
+  /// Null: desactivado (p. ej. falta confirmar el correo).
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -453,6 +478,72 @@ class _ConfirmButton extends StatelessWidget {
             : const Text('Confirmar pedido'),
       ),
     );
+  }
+}
+
+/// Lo que le falta a una cuenta para pedir: lo mismo que revisa el servidor
+/// (`POST /orders` responde 403 sin esto).
+enum _Missing {
+  email('Para pedir, confirma tu correo.'),
+  profile('Para pedir, completa tu cuenta.');
+
+  const _Missing(this.short);
+
+  /// Para la barra del teléfono, al lado del botón desactivado.
+  final String short;
+}
+
+_Missing? _missingToOrder(SessionUser user) => !user.emailVerified
+    ? _Missing.email
+    : !user.profileComplete
+    ? _Missing.profile
+    : null;
+
+/// Antes del formulario, qué falta para pedir: el aviso para confirmar el
+/// correo (reenviarlo y "Ya lo verifiqué"), o completar la cuenta en "Mi
+/// cuenta", que vuelve al carrito.
+class _MissingToOrder extends StatelessWidget {
+  const _MissingToOrder(this.user, this.missing);
+
+  final SessionUser user;
+  final _Missing missing;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return switch (missing) {
+      _Missing.email => VerifyEmailNotice(
+        user,
+        key: ValueKey(user.id),
+        title: 'Para hacer pedidos, confirma tu correo.',
+      ),
+      _Missing.profile => DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surfaceContainerLowest,
+          border: Border.all(color: theme.colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const InfoLine(
+                icon: Icons.person_outline,
+                text:
+                    'Para hacer pedidos, completa tu cuenta: tu celular y '
+                    'aceptar los términos.',
+              ),
+              const SizedBox(height: 8),
+              FilledButton.tonal(
+                onPressed: () => context.go(Routes.myAccountFrom(Routes.cart)),
+                child: const Text('Completar mi cuenta'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    };
   }
 }
 

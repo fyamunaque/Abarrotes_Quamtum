@@ -48,8 +48,8 @@ class AccountActions extends StatelessWidget {
   }
 }
 
-/// El primer nombre de la cuenta. El nombre completo y el correo van en el
-/// tooltip.
+/// El primer nombre de la cuenta, que lleva a "Mi cuenta". El nombre completo
+/// y el correo van en el tooltip.
 class _UserName extends StatelessWidget {
   const _UserName(this.user, {required this.showRole});
 
@@ -61,17 +61,25 @@ class _UserName extends StatelessWidget {
     final firstName = user.name.trim().split(RegExp(r'\s+')).first;
     return Tooltip(
       message: '${user.name}\n${user.email}',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 160),
-          child: Center(
-            widthFactor: 1,
-            child: Text(
-              showRole
-                  ? '$firstName · ${user.staffRoleName ?? user.role.name}'
-                  : firstName,
-              overflow: TextOverflow.ellipsis,
+      child: Semantics(
+        button: true,
+        label: 'Mi cuenta',
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: () => context.go(Routes.myAccount),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 160),
+              child: Center(
+                widthFactor: 1,
+                child: Text(
+                  showRole
+                      ? '$firstName · ${user.staffRoleName ?? user.role.name}'
+                      : firstName,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
             ),
           ),
         ),
@@ -94,7 +102,7 @@ class _SignOutButton extends ConsumerWidget {
   }
 }
 
-enum _AccountAction { myOrders, panel, signOut }
+enum _AccountAction { myOrders, myAccount, panel, signOut }
 
 /// La cuenta en un teléfono: un ícono que abre el nombre, el correo y las
 /// acciones.
@@ -111,6 +119,7 @@ class _AccountMenu extends ConsumerWidget {
       icon: const Icon(Icons.account_circle_outlined),
       onSelected: (action) => switch (action) {
         _AccountAction.myOrders => context.go(Routes.myOrders),
+        _AccountAction.myAccount => context.go(Routes.myAccount),
         _AccountAction.panel => context.go(Routes.admin),
         _AccountAction.signOut => ref.read(sessionProvider.notifier).signOut(),
       },
@@ -127,6 +136,10 @@ class _AccountMenu extends ConsumerWidget {
         const PopupMenuItem(
           value: _AccountAction.myOrders,
           child: Text('Mis pedidos'),
+        ),
+        const PopupMenuItem(
+          value: _AccountAction.myAccount,
+          child: Text('Mi cuenta'),
         ),
         if (panelLink)
           const PopupMenuItem(

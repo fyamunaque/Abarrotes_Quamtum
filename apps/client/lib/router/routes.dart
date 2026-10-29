@@ -30,8 +30,17 @@ abstract final class Routes {
   static String myOrdersWithNew(String orderId) =>
       Uri(path: myOrders, queryParameters: {'nuevo': orderId}).toString();
 
+  /// Los datos de la cuenta: el celular, el DNI y los términos. Pide haber
+  /// ingresado.
+  static const myAccount = '/mi-cuenta';
+
+  /// "Mi cuenta" que, al guardar, vuelve a [from] (p. ej. el carrito).
+  static String myAccountFrom(String from) =>
+      Uri(path: myAccount, queryParameters: {'from': from}).toString();
+
   /// Si [path] pide una cuenta (cualquier rol).
-  static bool needsAccount(String path) => path == myOrders;
+  static bool needsAccount(String path) =>
+      path == myOrders || path == myAccount;
 
   /// Grupo protegido: solo el personal, y cada sección con su permiso (ver
   /// route_guard.dart).

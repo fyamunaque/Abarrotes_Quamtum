@@ -1,5 +1,6 @@
 import '../auth/auth_repository.dart';
 import '../common/api_client.dart';
+import '../legal/legal_texts.dart';
 import '../session/session.dart';
 import '../session/staff_permission.dart';
 import 'user_repository.dart';
@@ -26,6 +27,31 @@ class HttpUserRepository implements UserRepository {
     return _user(json);
   }
 
+  @override
+  Future<SessionUser> updateProfile(
+    String idToken, {
+    String? phone,
+    String? dni,
+    bool clearDni = false,
+    bool acceptTerms = false,
+  }) async {
+    final json = await _api.patch(
+      '/users/me',
+      {
+        'phone': ?phone,
+        if (clearDni) 'dni': null else 'dni': ?dni,
+        if (acceptTerms) 'acceptTerms': termsVersion,
+      },
+      idToken: idToken,
+      fallback: 'No se pudieron guardar tus datos.',
+    );
+    try {
+      return _user(json);
+    } on AuthFailure catch (failure) {
+      throw ApiFailure(failure.message);
+    }
+  }
+
   SessionUser _user(Object? json) {
     if (json case {
       'id': final String id,
@@ -41,6 +67,15 @@ class HttpUserRepository implements UserRepository {
           email: email,
           role: userRole,
           address: json['address'] as String?,
+          phone: json['phone'] as String?,
+          dni: json['dni'] as String?,
+          termsVersion: json['termsVersion'] as String?,
+          termsAcceptedAt: switch (json['termsAcceptedAt']) {
+            final String at => DateTime.parse(at),
+            _ => null,
+          },
+          // Sin el campo (un servidor anterior, que no lo pide), completo.
+          profileComplete: json['profileComplete'] != false,
           isVip: json['isVip'] == true,
           staffRoleName: switch (json['staffRole']) {
             {'name': final String name} => name,

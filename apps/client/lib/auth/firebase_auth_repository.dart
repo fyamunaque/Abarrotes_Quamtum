@@ -123,6 +123,10 @@ String authErrorMessage(String code) => switch (code) {
   'user-not-found' => 'El correo o la contraseña no son correctos.',
   'invalid-email' => 'Ese correo no es válido.',
   'missing-email' => 'Escribe tu correo.',
+  // La política de contraseñas de la consola de Firebase, si está activa.
+  'password-does-not-meet-requirements' =>
+    'La contraseña no cumple lo que pide la tienda: al menos 8 caracteres, '
+        'con letras y números.',
   'user-disabled' => 'Esta cuenta está deshabilitada.',
   'email-already-in-use' =>
     'Ya hay una cuenta con ese correo. Ingresa con ella.',

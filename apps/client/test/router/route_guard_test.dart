@@ -156,6 +156,39 @@ void main() {
       );
     });
 
+    test('un cliente con la cuenta incompleta pasa antes por "Mi cuenta"', () {
+      SessionUser incomplete(UserRole role) {
+        final user = signedInAs(role).user;
+        return SessionUser(
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          permissions: user.permissions,
+          profileComplete: false,
+        );
+      }
+
+      expect(
+        routeAfterSignIn(incomplete(UserRole.customer), null),
+        '/mi-cuenta?from=%2Fcatalogo',
+      );
+      expect(
+        routeAfterSignIn(incomplete(UserRole.customer), '/carrito'),
+        '/mi-cuenta?from=%2Fcarrito',
+      );
+      // Ya va a "Mi cuenta": no la envuelve otra vez.
+      expect(
+        routeAfterSignIn(
+          incomplete(UserRole.customer),
+          '/mi-cuenta?from=%2Fcarrito',
+        ),
+        '/mi-cuenta?from=%2Fcarrito',
+      );
+      // El personal, al panel, como siempre.
+      expect(routeAfterSignIn(incomplete(UserRole.admin), null), '/admin');
+    });
+
     test('la sección principal: la de su tarea, o la primera que ve', () {
       SessionUser only(Set<StaffPermission> permissions) =>
           signedInWith(permissions).user;
