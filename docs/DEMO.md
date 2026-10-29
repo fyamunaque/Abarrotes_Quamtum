@@ -174,26 +174,40 @@ Wi-Fi, la IP ni el firewall. `adb` está en `%LOCALAPPDATA%\Android\Sdk\platform
    La versión release solo permite HTTP sin cifrar hacia el propio teléfono (`localhost`), que es
    justo lo que usa el cable; todo lo demás va por HTTPS.
 
-### Un APK para un Android en la misma Wi-Fi
-
-1. **Tu IP:** en PowerShell, `ipconfig` → "Dirección IPv4" del adaptador Wi-Fi (p. ej.
-   `192.168.1.20`).
-2. **El APK**, desde `apps\client`, con esa IP:
+   **O un APK con su número de versión**, que queda instalado y dice qué versión es (al pie de
+   Ingresar y en el menú de la cuenta). Sube la versión de `pubspec.yaml`, compila, deja
+   `build\apk\neils-<versión>.apk` y lo instala (el `adb reverse` lo hace solo). Desde VS Code es
+   la tarea **App: generar APK e instalar en el teléfono** (ver `docs/VSCODE.md`):
 
    ```powershell
-   flutter build apk --debug --dart-define=API_URL=http://192.168.1.20:8082
+   dart run tool/build_apk.dart --instalar
    ```
 
-   - Tiene que ser `--debug`: solo ese build permite HTTP sin cifrar, y tu servidor no tiene
-     HTTPS.
-   - Queda en `apps\client\build\app\outputs\flutter-apk\app-debug.apk`. Mándalo por Drive,
-     WhatsApp o cable.
-3. **En el teléfono:** abrir el archivo y permitir "instalar apps de fuentes desconocidas".
-4. **Tu servidor tiene que estar corriendo.**
-   - La primera vez, Windows pregunta si Dart puede usar la red: permitir en **redes privadas**.
-   - Si el teléfono no conecta, revisa que tu red Wi-Fi esté marcada como **Privada** en
-     Windows.
-5. **Si cambias de red,** cambia tu IP: hay que generar el APK de nuevo.
+### Un APK para un Android en la misma Wi-Fi
+
+Para instalarlo como cualquier app, sin la depuración USB: el teléfono llega al servidor por la
+Wi-Fi, a la IP de tu computadora.
+
+1. **El APK**, desde `apps\client` (o la tarea **App: generar APK para Wi-Fi** de VS Code):
+
+   ```powershell
+   dart run tool/build_apk.dart --wifi
+   ```
+
+   - Sube la versión, busca tu IP en la red (p. ej. `192.168.1.20`; otra con
+     `--wifi=192.168.1.20`) y compila en modo **profile**: es como release (rápido en cualquier
+     teléfono), pero permite HTTP sin cifrar hacia la red, porque tu servidor no tiene HTTPS.
+     Release solo lo permite hacia `localhost`.
+   - Queda en `apps\client\build\apk\neils-<versión>-wifi.apk`. Pásalo al teléfono por cable
+     (el teléfono aparece en "Este equipo": cópialo a su carpeta Download), Drive o WhatsApp.
+2. **En el teléfono:** abrirlo desde el gestor de archivos y permitir "instalar apps de fuentes
+   desconocidas" para esa app.
+3. **Tu servidor tiene que estar corriendo**, y el teléfono en la misma Wi-Fi.
+   - La primera vez, Windows pregunta si Dart puede usar la red: permitir.
+   - Si el teléfono no conecta: en el navegador del teléfono, `http://<tu IP>:8082/categories`
+     tiene que mostrar las categorías. Si no, revisa que estén en la misma Wi-Fi y que el
+     firewall de Windows deje entrar a Dart (o a `main.exe`).
+4. **Si cambias de red,** cambia tu IP: hay que generar el APK de nuevo.
 
 La persona crea su cuenta en la app. Para que vea el panel, pásala a admin en tu base, como
 cualquier otra cuenta.

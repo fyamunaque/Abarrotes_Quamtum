@@ -32,6 +32,7 @@ App de la tienda para **Android y web**, hecha en Flutter: la tienda para los cl
 | Compilar la web | `flutter build web` (queda en `build/web`) |
 | Servir la web compilada en release | `dart run tool/serve_web.dart` (http://localhost:5006; compila antes si el código cambió, o con `--compilar`). Es lo que usa la tarea "Tienda web" de VS Code (`docs/VSCODE.md`) |
 | Compilar el APK | `flutter build apk --debug` |
+| APK con versión para el teléfono | `dart run tool/build_apk.dart [--instalar]`: sube la versión de `pubspec.yaml` (`--minor`, `--major` o `--misma`), compila en release contra `localhost:8082` (por el cable) y deja `build/apk/neils-<versión>.apk`. Con `--wifi`, para instalarlo a mano en un teléfono en la misma Wi-Fi: en modo profile (como release, con HTTP hacia la red: `src/profile/res/xml/network_security_config.xml`) contra la IP de la computadora, en `neils-<versión>-wifi.apk`. La app muestra la versión (`APP_VERSION`, `config/app_version.dart`) al pie de Ingresar y en el menú de la cuenta. Ver `docs/VSCODE.md` |
 
 ## Firebase y el servidor
 

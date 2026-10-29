@@ -9,6 +9,8 @@
 // [--compilar] (compila aunque no haya cambios).
 import 'dart:io';
 
+import 'pubspec_version.dart';
+
 Future<void> main(List<String> args) async {
   final port = switch (args.indexOf('--port')) {
     -1 => 5006,
@@ -26,7 +28,13 @@ Future<void> main(List<String> args) async {
     );
     final flutter = await Process.start(
       'flutter',
-      ['build', 'web', '--release'],
+      [
+        'build',
+        'web',
+        '--release',
+        // La versión de pubspec.yaml, para mostrarla en la app.
+        '--dart-define=APP_VERSION=${fullVersion(readVersion())}',
+      ],
       runInShell: true,
       mode: ProcessStartMode.inheritStdio,
     );

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Profile: el APK para un teléfono en la misma Wi-Fi que el servidor local
+     (tool/build_apk.dart con la opción wifi). Compila como release, pero va por
+     HTTP a la IP de la computadora (192.168.x.x), que no tiene HTTPS. Reemplaza
+     al de main, que solo permite localhost; release sigue igual. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -84,6 +84,58 @@
       }
     },
     {
+      // Sube la versión de pubspec.yaml (1.0.1 → 1.0.2), compila en release y
+      // deja apps/client/build/apk/neils-1.0.2.apk. Ver docs/VSCODE.md.
+      "label": "App: generar APK",
+      "detail": "Sube la versión y compila el APK en release (unos minutos)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "App: generar APK e instalar en el teléfono",
+      "detail": "Lo mismo y lo instala en el teléfono conectado por USB (con el puerto del servidor por el cable)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart --instalar",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      // Para instalarlo como cualquier app, sin depuración USB: va por la Wi-Fi
+      // a la IP de esta computadora. Queda en build/apk/neils-1.0.2-wifi.apk.
+      "label": "App: generar APK para Wi-Fi",
+      "detail": "Sube la versión y compila un APK que llega al servidor por la Wi-Fi (para copiarlo e instalarlo a mano)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart --wifi",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "App: instalar el último APK en el teléfono",
+      "detail": "Sin compilar: instala el APK de la versión de pubspec.yaml (p. ej. si la instalación falló)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart --solo-instalar",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
       "label": "Preparar paquetes",
       "detail": "dart pub get en el servidor y flutter pub get en la app (la primera vez y al cambiar dependencias)",
       "dependsOn": ["Paquetes del servidor", "Paquetes de la app"],

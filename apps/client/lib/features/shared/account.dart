@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../config/app_version.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
@@ -136,6 +137,14 @@ class _AccountMenu extends ConsumerWidget {
           value: _AccountAction.signOut,
           child: Text('Salir'),
         ),
+        if (appVersionLabel case final version?) ...[
+          const PopupMenuDivider(),
+          PopupMenuItem(
+            enabled: false,
+            height: 32,
+            child: Text(version, style: Theme.of(context).textTheme.bodySmall),
+          ),
+        ],
       ],
     );
   }

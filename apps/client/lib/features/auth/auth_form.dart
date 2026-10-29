@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../auth/auth_repository.dart';
+import '../../config/app_version.dart';
 import '../../router/route_guard.dart';
 import '../../session/session.dart';
 import '../shared/brand.dart';
@@ -116,6 +117,17 @@ class _AuthFormState extends State<AuthForm> {
               onPressed: _busy ? null : () => context.go(widget.switchRoute),
               child: Text(widget.switchLabel),
             ),
+            // Qué versión es (el APK o la web compilada): sin ingresar.
+            if (appVersionLabel case final version?) ...[
+              const SizedBox(height: 24),
+              Text(
+                version,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ),
