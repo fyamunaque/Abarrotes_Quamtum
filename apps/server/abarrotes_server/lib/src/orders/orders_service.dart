@@ -1,6 +1,7 @@
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
 import 'package:serverpod/serverpod.dart' hide Order;
 
+import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/pagination.dart';
 import '../common/shopper.dart';
@@ -33,6 +34,12 @@ typedef PriceChange = ({
 
 /// El pedido creado y los precios que cambiaron respecto del carrito.
 typedef PlacedOrder = ({Order order, List<PriceChange> priceChanges});
+
+/// En qué va un pedido, para que el cliente filtre los suyos: en curso (ni
+/// entregado ni cancelado), entregado (o recogido) o cancelado.
+enum OrderProgress { active, delivered, cancelled }
+
+const _finished = {OrderStatus.delivered, OrderStatus.cancelled};
 
 /// Pedidos: los del cliente (crear y ver los suyos) y los del dashboard
 /// (listado y cambios de estado). A domicilio o con recojo en tienda: el
@@ -257,13 +264,50 @@ class OrdersService {
     );
   }
 
-  /// Los pedidos de [customer], paginados, los más recientes primero.
+  /// Los pedidos de [customer], paginados, los más recientes primero. Con
+  /// [search], los de ese N.º (si es un número) o con un producto que lo
+  /// contiene en el nombre, sin importar mayúsculas; con [progress], los en
+  /// curso, los entregados o los cancelados; con [fulfillmentType], los de
+  /// ese tipo. [from] y [to] son días de la tienda, ambos incluidos.
   Future<(List<Order>, int)> mine(
     Session session,
     User customer,
-    PageQuery page,
-  ) async {
-    Expression where(OrderTable order) => order.customerId.equals(customer.id!);
+    PageQuery page, {
+    String? search,
+    OrderProgress? progress,
+    FulfillmentType? fulfillmentType,
+    String? from,
+    String? to,
+  }) async {
+    if (from != null && to != null && from.compareTo(to) > 0) {
+      throw const ApiException.badRequest('from no puede ser posterior a to');
+    }
+    final number = search == null ? null : int.tryParse(search);
+    Expression where(OrderTable order) {
+      Expression filter = order.customerId.equals(customer.id!);
+      filter &= switch (progress) {
+        OrderProgress.active => order.status.notInSet(_finished),
+        OrderProgress.delivered => order.status.equals(OrderStatus.delivered),
+        OrderProgress.cancelled => order.status.equals(OrderStatus.cancelled),
+        null => Constant.bool(true),
+      };
+      if (fulfillmentType != null) {
+        filter &= order.fulfillmentType.equals(fulfillmentType);
+      }
+      if (search != null) {
+        final pattern = '%${escapeLike(search)}%';
+        Expression matches = order.items.any(
+          (item) => item.product.name.ilike(pattern),
+        );
+        if (number != null) matches |= order.number.equals(number);
+        filter &= matches;
+      }
+      if (from != null) filter &= order.createdAt >= storeDayStart(from);
+      if (to != null) {
+        filter &= order.createdAt < storeDayStart(addDays(to, 1));
+      }
+      return filter;
+    }
 
     final orders = await Order.db.find(
       session,

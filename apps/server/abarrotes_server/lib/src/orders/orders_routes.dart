@@ -118,15 +118,46 @@ List<RouteEntry> ordersRoutes(
     ),
     (
       '/orders/mine',
+      // Filtros: search (el N.º o un producto del pedido), state (active,
+      // delivered o cancelled), fulfillmentType, y from y to (días de la
+      // tienda).
       signedIn(Method.get, (session, request) async {
-        final query = InputReader.query(request, allowed: PageQuery.fields);
+        final query = InputReader.query(
+          request,
+          allowed: {
+            ...PageQuery.fields,
+            'search',
+            'state',
+            'fulfillmentType',
+            'from',
+            'to',
+          },
+        );
         final page = PageQuery.read(query);
+        final search = query.text('search', maxLength: 100, required: false);
+        final progress = query.oneOf(
+          'state',
+          OrderProgress.values,
+          required: false,
+        );
+        final fulfillmentType = query.oneOf(
+          'fulfillmentType',
+          FulfillmentType.values,
+          required: false,
+        );
+        final from = query.day('from', required: false);
+        final to = query.day('to', required: false);
         query.check();
 
         final (list, total) = await orders.mine(
           session,
           request.currentUser,
           page,
+          search: search,
+          progress: progress,
+          fulfillmentType: fulfillmentType,
+          from: from,
+          to: to,
         );
         return jsonResponse(
           200,
