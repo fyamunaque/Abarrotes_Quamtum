@@ -15,6 +15,7 @@ import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../products/product.dart' as _iubf72bi;
 import '../promotions/promotion_audience.dart' as _ifhe3ya9;
+import '../promotions/promotion_recipient.dart' as _i7eleph1;
 
 /// Precio especial de un producto por un periodo. Las fechas son días de la
 /// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
@@ -29,6 +30,7 @@ abstract class Promotion
     required this.productId,
     this.product,
     _ifhe3ya9.PromotionAudience? audience,
+    this.recipients,
     this.title,
   }) : active = active ?? true,
        audience = audience ?? _ifhe3ya9.PromotionAudience.everyone;
@@ -42,6 +44,7 @@ abstract class Promotion
     required _is.UuidValue productId,
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
+    List<_i7eleph1.PromotionRecipient>? recipients,
     String? title,
   }) = _PromotionImpl;
 
@@ -71,6 +74,12 @@ abstract class Promotion
           : _ifhe3ya9.PromotionAudience.fromJson(
               (jsonSerialization['audience'] as String),
             ),
+      recipients: jsonSerialization['recipients'] == null
+          ? null
+          : _i1p9jj0z.Protocol()
+                .deserialize<List<_i7eleph1.PromotionRecipient>>(
+                  jsonSerialization['recipients'],
+                ),
       title: jsonSerialization['title'] as String?,
     );
   }
@@ -94,8 +103,12 @@ abstract class Promotion
 
   _iubf72bi.Product? product;
 
-  /// A quién va dirigida: a todos o solo a los clientes VIP.
+  /// A quién va dirigida: a todos, a los clientes VIP o solo a los VIP
+  /// elegidos ([recipients]).
   _ifhe3ya9.PromotionAudience audience;
+
+  /// Con la audiencia `selected`: los clientes VIP elegidos.
+  List<_i7eleph1.PromotionRecipient>? recipients;
 
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   String? title;
@@ -115,6 +128,7 @@ abstract class Promotion
     _is.UuidValue? productId,
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
+    List<_i7eleph1.PromotionRecipient>? recipients,
     String? title,
   });
   @override
@@ -129,6 +143,8 @@ abstract class Promotion
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJson(),
       'audience': audience.toJson(),
+      if (recipients != null)
+        'recipients': recipients?.toJson(valueToJson: (v) => v.toJson()),
       if (title != null) 'title': title,
     };
   }
@@ -145,12 +161,22 @@ abstract class Promotion
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJsonForProtocol(),
       'audience': audience.toJson(),
+      if (recipients != null)
+        'recipients': recipients?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
       if (title != null) 'title': title,
     };
   }
 
-  static PromotionInclude include({_iubf72bi.ProductInclude? product}) {
-    return PromotionInclude._(product: product);
+  static PromotionInclude include({
+    _iubf72bi.ProductInclude? product,
+    _i7eleph1.PromotionRecipientIncludeList? recipients,
+  }) {
+    return PromotionInclude._(
+      product: product,
+      recipients: recipients,
+    );
   }
 
   static PromotionIncludeList includeList({
@@ -189,6 +215,7 @@ class _PromotionImpl extends Promotion {
     required _is.UuidValue productId,
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
+    List<_i7eleph1.PromotionRecipient>? recipients,
     String? title,
   }) : super._(
          id: id,
@@ -199,6 +226,7 @@ class _PromotionImpl extends Promotion {
          productId: productId,
          product: product,
          audience: audience,
+         recipients: recipients,
          title: title,
        );
 
@@ -215,6 +243,7 @@ class _PromotionImpl extends Promotion {
     _is.UuidValue? productId,
     Object? product = _Undefined,
     _ifhe3ya9.PromotionAudience? audience,
+    Object? recipients = _Undefined,
     Object? title = _Undefined,
   }) {
     return Promotion(
@@ -228,6 +257,9 @@ class _PromotionImpl extends Promotion {
           ? product
           : this.product?.copyWith(),
       audience: audience ?? this.audience,
+      recipients: recipients is List<_i7eleph1.PromotionRecipient>?
+          ? recipients
+          : this.recipients?.map((e0) => e0.copyWith()).toList(),
       title: title is String? ? title : this.title,
     );
   }
@@ -327,8 +359,15 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
 
   _iubf72bi.ProductTable? _product;
 
-  /// A quién va dirigida: a todos o solo a los clientes VIP.
+  /// A quién va dirigida: a todos, a los clientes VIP o solo a los VIP
+  /// elegidos ([recipients]).
   late final _is.ColumnEnum<_ifhe3ya9.PromotionAudience> audience;
+
+  /// Con la audiencia `selected`: los clientes VIP elegidos.
+  _i7eleph1.PromotionRecipientTable? ___recipients;
+
+  /// Con la audiencia `selected`: los clientes VIP elegidos.
+  _is.ManyRelation<_i7eleph1.PromotionRecipientTable>? _recipients;
 
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   late final _is.ColumnString title;
@@ -344,6 +383,40 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
           _iubf72bi.ProductTable(tableRelation: foreignTableRelation),
     );
     return _product!;
+  }
+
+  _i7eleph1.PromotionRecipientTable get __recipients {
+    if (___recipients != null) return ___recipients!;
+    ___recipients = _is.createRelationTable(
+      relationFieldName: '__recipients',
+      field: Promotion.t.id,
+      foreignField: _i7eleph1.PromotionRecipient.t.promotionId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) => _i7eleph1.PromotionRecipientTable(
+        tableRelation: foreignTableRelation,
+      ),
+    );
+    return ___recipients!;
+  }
+
+  _is.ManyRelation<_i7eleph1.PromotionRecipientTable> get recipients {
+    if (_recipients != null) return _recipients!;
+    var relationTable = _is.createRelationTable(
+      relationFieldName: 'recipients',
+      field: Promotion.t.id,
+      foreignField: _i7eleph1.PromotionRecipient.t.promotionId,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) => _i7eleph1.PromotionRecipientTable(
+        tableRelation: foreignTableRelation,
+      ),
+    );
+    _recipients = _is.ManyRelation<_i7eleph1.PromotionRecipientTable>(
+      tableWithRelations: relationTable,
+      table: _i7eleph1.PromotionRecipientTable(
+        tableRelation: relationTable.tableRelation!.lastRelation,
+      ),
+    );
+    return _recipients!;
   }
 
   @override
@@ -363,19 +436,31 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'product') {
       return product;
     }
+    if (relationField == 'recipients') {
+      return __recipients;
+    }
     return null;
   }
 }
 
 class PromotionInclude extends _is.IncludeObject {
-  PromotionInclude._({_iubf72bi.ProductInclude? product}) {
+  PromotionInclude._({
+    _iubf72bi.ProductInclude? product,
+    _i7eleph1.PromotionRecipientIncludeList? recipients,
+  }) {
     _product = product;
+    _recipients = recipients;
   }
 
   _iubf72bi.ProductInclude? _product;
 
+  _i7eleph1.PromotionRecipientIncludeList? _recipients;
+
   @override
-  Map<String, _is.Include?> get includes => {'product': _product};
+  Map<String, _is.Include?> get includes => {
+    'product': _product,
+    'recipients': _recipients,
+  };
 
   @override
   _is.Table<_is.UuidValue?> get table => Promotion.t;
@@ -402,6 +487,8 @@ class PromotionIncludeList extends _is.IncludeList {
 
 class PromotionRepository {
   const PromotionRepository._();
+
+  final attach = const PromotionAttachRepository._();
 
   final attachRow = const PromotionAttachRowRepository._();
 
@@ -803,6 +890,35 @@ class PromotionRepository {
   }
 }
 
+class PromotionAttachRepository {
+  const PromotionAttachRepository._();
+
+  /// Creates a relation between this [Promotion] and the given [PromotionRecipient]s
+  /// by setting each [PromotionRecipient]'s foreign key `promotionId` to refer to this [Promotion].
+  Future<void> recipients(
+    _is.DatabaseSession session,
+    Promotion promotion,
+    List<_i7eleph1.PromotionRecipient> promotionRecipient, {
+    _is.Transaction? transaction,
+  }) async {
+    if (promotionRecipient.any((e) => e.id == null)) {
+      throw ArgumentError.notNull('promotionRecipient.id');
+    }
+    if (promotion.id == null) {
+      throw ArgumentError.notNull('promotion.id');
+    }
+
+    var $promotionRecipient = promotionRecipient
+        .map((e) => e.copyWith(promotionId: promotion.id))
+        .toList();
+    await session.db.update<_i7eleph1.PromotionRecipient>(
+      $promotionRecipient,
+      columns: [_i7eleph1.PromotionRecipient.t.promotionId],
+      transaction: transaction,
+    );
+  }
+}
+
 class PromotionAttachRowRepository {
   const PromotionAttachRowRepository._();
 
@@ -825,6 +941,31 @@ class PromotionAttachRowRepository {
     await session.db.updateRow<Promotion>(
       $promotion,
       columns: [Promotion.t.productId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between this [Promotion] and the given [PromotionRecipient]
+  /// by setting the [PromotionRecipient]'s foreign key `promotionId` to refer to this [Promotion].
+  Future<void> recipients(
+    _is.DatabaseSession session,
+    Promotion promotion,
+    _i7eleph1.PromotionRecipient promotionRecipient, {
+    _is.Transaction? transaction,
+  }) async {
+    if (promotionRecipient.id == null) {
+      throw ArgumentError.notNull('promotionRecipient.id');
+    }
+    if (promotion.id == null) {
+      throw ArgumentError.notNull('promotion.id');
+    }
+
+    var $promotionRecipient = promotionRecipient.copyWith(
+      promotionId: promotion.id,
+    );
+    await session.db.updateRow<_i7eleph1.PromotionRecipient>(
+      $promotionRecipient,
+      columns: [_i7eleph1.PromotionRecipient.t.promotionId],
       transaction: transaction,
     );
   }

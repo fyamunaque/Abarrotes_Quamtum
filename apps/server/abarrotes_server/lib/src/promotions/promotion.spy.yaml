@@ -9,7 +9,10 @@ fields:
   endDate: DateTime
   active: bool, default=true
   product: Product?, relation(name=product_promotions, onDelete=Restrict, onUpdate=Cascade)
-  ### A quién va dirigida: a todos o solo a los clientes VIP.
+  ### A quién va dirigida: a todos, a los clientes VIP o solo a los VIP
+  ### elegidos ([recipients]).
   audience: PromotionAudience, default=everyone
+  ### Con la audiencia `selected`: los clientes VIP elegidos.
+  recipients: List<PromotionRecipient>?, relation(name=promotion_recipients)
   ### Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   title: String?

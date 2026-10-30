@@ -98,6 +98,7 @@ List<RouteEntry> promotionsRoutes(
         final active = body.boolean('active', required: false) ?? true;
         final audience = _readAudience(body);
         final title = _readTitle(body);
+        final recipientIds = _readRecipientIds(body);
         body.check();
 
         final promotion = await promotions.create(session, productId!, (
@@ -107,6 +108,7 @@ List<RouteEntry> promotionsRoutes(
           active: active,
           audience: audience ?? PromotionAudience.everyone,
           title: title,
+          recipientIds: recipientIds ?? const [],
         ));
         return jsonResponse(201, json(promotion));
       }),
@@ -126,6 +128,7 @@ List<RouteEntry> promotionsRoutes(
         final active = body.boolean('active', required: false);
         final audience = _readAudience(body);
         final title = _readTitle(body);
+        final recipientIds = _readRecipientIds(body);
         body.check();
 
         final promotion = await promotions.update(
@@ -139,6 +142,13 @@ List<RouteEntry> promotionsRoutes(
             audience: audience ?? current.audience,
             // Un title en null lo borra.
             title: body.has('title') ? title : current.title,
+            // Sin recipientIds, los mismos elegidos mientras siga siendo de
+            // clientes elegidos; si pasa a otra audiencia, ninguno.
+            recipientIds:
+                recipientIds ??
+                ((audience ?? current.audience) == PromotionAudience.selected
+                    ? current.recipientIds
+                    : const []),
           ),
         );
         return jsonResponse(200, json(promotion));
@@ -161,15 +171,38 @@ const _fields = {
   'active',
   'audience',
   'title',
+  'recipientIds',
 };
 
 /// El precio promocional, de 0.01 en adelante.
 int? _readPromoPrice(InputReader body, {required bool required}) =>
     body.cents('promoPrice', minCents: 1, required: required);
 
-/// A quién va dirigida: `everyone` (por defecto) o `vip`.
+/// A quién va dirigida: `everyone` (por defecto), `vip` o `selected` (los
+/// VIP de `recipientIds`).
 PromotionAudience? _readAudience(InputReader body) =>
     body.oneOf('audience', PromotionAudience.values, required: false);
+
+/// Los clientes VIP elegidos (sus ids), de 1 a 100.
+List<UuidValue>? _readRecipientIds(InputReader body) {
+  final ids = body.strings(
+    'recipientIds',
+    maxLength: 36,
+    min: 1,
+    max: 100,
+    required: false,
+  );
+  if (ids == null) return null;
+  final parsed = <UuidValue>[];
+  for (final (i, id) in ids.indexed) {
+    if (parseUuid(id) case final uuid?) {
+      parsed.add(uuid);
+    } else {
+      body.reject('recipientIds[$i] debe ser un UUID');
+    }
+  }
+  return parsed;
+}
 
 /// Un nombre para mostrar (p. ej. "Semana del arroz"), opcional.
 String? _readTitle(InputReader body) =>
@@ -196,6 +229,15 @@ Map<String, Object?> promotionJson(Promotion promotion, DateTime now) {
     'status': promotionStatus(promotion, now).name,
     'audience': promotion.audience.name,
     'title': promotion.title,
+    // Con la audiencia selected: los clientes VIP elegidos, por correo.
+    'recipients': [
+      for (final vip in [
+        for (final recipient
+            in promotion.recipients ?? const <PromotionRecipient>[])
+          recipient.vipCustomer!,
+      ]..sort((a, b) => a.email.compareTo(b.email)))
+        {'id': vip.id.toString(), 'email': vip.email},
+    ],
   };
 }
 

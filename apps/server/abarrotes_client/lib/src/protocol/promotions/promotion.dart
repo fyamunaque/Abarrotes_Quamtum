@@ -14,6 +14,7 @@ import 'package:abarrotes_client/src/protocol/protocol.dart' as _iv4mbvnl;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../products/product.dart' as _iubf72bi;
 import '../promotions/promotion_audience.dart' as _ifhe3ya9;
+import '../promotions/promotion_recipient.dart' as _i7eleph1;
 
 /// Precio especial de un producto por un periodo. Las fechas son días de la
 /// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
@@ -28,6 +29,7 @@ abstract class Promotion
     required this.productId,
     this.product,
     _ifhe3ya9.PromotionAudience? audience,
+    this.recipients,
     this.title,
   }) : active = active ?? true,
        audience = audience ?? _ifhe3ya9.PromotionAudience.everyone;
@@ -41,6 +43,7 @@ abstract class Promotion
     required _isc.UuidValue productId,
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
+    List<_i7eleph1.PromotionRecipient>? recipients,
     String? title,
   }) = _PromotionImpl;
 
@@ -72,6 +75,12 @@ abstract class Promotion
           : _ifhe3ya9.PromotionAudience.fromJson(
               (jsonSerialization['audience'] as String),
             ),
+      recipients: jsonSerialization['recipients'] == null
+          ? null
+          : _iv4mbvnl.Protocol()
+                .deserialize<List<_i7eleph1.PromotionRecipient>>(
+                  jsonSerialization['recipients'],
+                ),
       title: jsonSerialization['title'] as String?,
     );
   }
@@ -93,8 +102,12 @@ abstract class Promotion
 
   _iubf72bi.Product? product;
 
-  /// A quién va dirigida: a todos o solo a los clientes VIP.
+  /// A quién va dirigida: a todos, a los clientes VIP o solo a los VIP
+  /// elegidos ([recipients]).
   _ifhe3ya9.PromotionAudience audience;
+
+  /// Con la audiencia `selected`: los clientes VIP elegidos.
+  List<_i7eleph1.PromotionRecipient>? recipients;
 
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   String? title;
@@ -111,6 +124,7 @@ abstract class Promotion
     _isc.UuidValue? productId,
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
+    List<_i7eleph1.PromotionRecipient>? recipients,
     String? title,
   });
   @override
@@ -125,6 +139,8 @@ abstract class Promotion
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJson(),
       'audience': audience.toJson(),
+      if (recipients != null)
+        'recipients': recipients?.toJson(valueToJson: (v) => v.toJson()),
       if (title != null) 'title': title,
     };
   }
@@ -141,6 +157,10 @@ abstract class Promotion
       'productId': productId.toJson(),
       if (product != null) 'product': product?.toJsonForProtocol(),
       'audience': audience.toJson(),
+      if (recipients != null)
+        'recipients': recipients?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
       if (title != null) 'title': title,
     };
   }
@@ -163,6 +183,7 @@ class _PromotionImpl extends Promotion {
     required _isc.UuidValue productId,
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
+    List<_i7eleph1.PromotionRecipient>? recipients,
     String? title,
   }) : super._(
          id: id,
@@ -173,6 +194,7 @@ class _PromotionImpl extends Promotion {
          productId: productId,
          product: product,
          audience: audience,
+         recipients: recipients,
          title: title,
        );
 
@@ -189,6 +211,7 @@ class _PromotionImpl extends Promotion {
     _isc.UuidValue? productId,
     Object? product = _Undefined,
     _ifhe3ya9.PromotionAudience? audience,
+    Object? recipients = _Undefined,
     Object? title = _Undefined,
   }) {
     return Promotion(
@@ -202,6 +225,9 @@ class _PromotionImpl extends Promotion {
           ? product
           : this.product?.copyWith(),
       audience: audience ?? this.audience,
+      recipients: recipients is List<_i7eleph1.PromotionRecipient>?
+          ? recipients
+          : this.recipients?.map((e0) => e0.copyWith()).toList(),
       title: title is String? ? title : this.title,
     );
   }

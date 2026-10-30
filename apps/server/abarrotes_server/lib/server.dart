@@ -25,6 +25,7 @@ import 'src/staff/staff_bootstrap.dart';
 import 'src/staff/staff_routes.dart';
 import 'src/staff/staff_service.dart';
 import 'src/promotions/audience/everyone_audience_rule.dart';
+import 'src/promotions/audience/selected_audience_rule.dart';
 import 'src/promotions/audience/vip_audience_rule.dart';
 import 'src/promotions/promotions_routes.dart';
 import 'src/promotions/promotions_service.dart';
@@ -85,8 +86,13 @@ void run(List<String> args) async {
   const vips = VipService();
   const shoppers = VipShopperResolver(vips);
   final promotions = PromotionsService(
-    audienceRules: const [EveryoneAudienceRule(), VipAudienceRule()],
-    // Una promoción VIP que ya rige se avisa por push a los VIP.
+    audienceRules: const [
+      EveryoneAudienceRule(),
+      VipAudienceRule(),
+      SelectedAudienceRule(),
+    ],
+    // Una promoción VIP que ya rige se avisa por push a los VIP (la de
+    // clientes elegidos, solo a ellos).
     announcer: VipPromotionAnnouncer(
       sender: push,
       run: pod.withSession,

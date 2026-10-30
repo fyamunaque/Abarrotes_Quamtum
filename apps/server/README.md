@@ -238,10 +238,10 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /products/:id` | `products.manage` | Baja lógica (`active: false`); devuelve el producto. |
 | `PUT /products/:id/image` | `products.manage` | El body es la foto tal cual (JPEG, PNG o WebP, hasta 8 MB; si pesa más, 413). La guarda procesada (ver "Fotos de los productos"), pone su ruta en `imageUrl`, borra la foto subida que tenía y devuelve el producto. Algo que no es una imagen, o de más de 40 megapíxeles, es 400. |
 | `GET /images/products/:productId/:file` | público | La foto subida (`image/jpeg`), con `Cache-Control: public, max-age=31536000, immutable`: cada foto nueva tiene otro nombre. 404 si no existe. |
-| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
-| `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto) o `vip`; `title`: hasta 100 caracteres. |
-| `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience` o `title` (`null` lo borra); el producto no cambia. |
-| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`. |
+| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero, cada una con `recipients: [{id, email}]` (los VIP elegidos, por correo; vacío si no es de clientes elegidos). Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
+| `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?, recipientIds?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto), `vip` o `selected` (solo los VIP de `recipientIds`, los ids de `/vip-customers`: de 1 a 100, cada uno un VIP activo; en otra audiencia, 400); `title`: hasta 100 caracteres. |
+| `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience`, `title` (`null` lo borra) o `recipientIds` (los reemplaza; sin el campo quedan los mismos, y si pasa a otra audiencia, ninguno); el producto no cambia. |
+| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`; las de `selected`, solo a sus elegidos. |
 | `DELETE /promotions/:id` | `promotions.manage` | 204. |
 | `GET /vip-customers` | `vip.view` | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
 | `POST /vip-customers` | `vip.manage` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
@@ -381,17 +381,23 @@ pregunta (con `title` y `audience`), o `null`. Reglas de las promociones
 - `promoPrice` tiene que ser menor al precio normal (400).
 - Dos promociones encendidas del mismo producto y la misma audiencia no pueden cruzarse en el
   tiempo (409). De audiencias distintas sí (una para todos y otra VIP): cada cliente paga la más
-  barata de las que puede usar.
+  barata de las que puede usar. Las de clientes elegidos no se revisan: cada una es para otros
+  clientes, y se cobra igual la más barata.
 
 ### Clientes VIP y audiencias de las promociones
 
-Cada promoción tiene una `audience`: `everyone` (todos, también sin cuenta) o `vip`. Quién
+Cada promoción tiene una `audience`: `everyone` (todos, también sin cuenta), `vip` o `selected`
+(solo los VIP elegidos: `PromotionRecipient`, tabla `promotion_recipients`). Quién
 puede usar cada una lo deciden reglas que se inyectan, no condiciones repartidas por el código:
 
 - `common/shopper.dart`: `Shopper` (quién mira o compra) y la interfaz `ShopperResolver`, que lo
   arma desde el token. La implementa `VipShopperResolver` (`vip/`).
 - `promotions/audience/`: la interfaz `PromotionAudienceRule` (`audience` +
-  `isEligible(shopper)`) y sus reglas, `EveryoneAudienceRule` y `VipAudienceRule`.
+  `isEligible(shopper)`) y sus reglas, `EveryoneAudienceRule`, `VipAudienceRule` y
+  `SelectedAudienceRule`. Esta última implementa además `PromotionRecipientsRule`, que elige
+  entre las promociones de su audiencia las de cada cliente (`recipientsWhere`: las que tienen
+  su correo entre los elegidos). Un elegido que deja de ser VIP deja de usarla solo, porque ya
+  no cumple `isEligible`.
 - `PromotionsService` recibe la lista de reglas por constructor y no conoce ninguna. Implementa
   `PromotionPricing` (las promociones que un cliente puede usar y la mejor), lo único que reciben
   `ProductsService` y `OrdersService`.
@@ -433,7 +439,8 @@ La dirección nunca va en el aviso (se ve en la pantalla bloqueada), y `data` ll
 cambio de estado queda igual y el fallo va al log.
 
 Al crear una promoción **VIP que ya rige** (encendida y con hoy dentro de su vigencia), el
-servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado:
+servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado
+(si es de clientes elegidos, solo a los elegidos que siguen siendo VIP):
 "Nueva oferta exclusiva", con el producto, el precio y hasta qué día rige, y en `data`
 `{type: vip_promotion, promotionId, productId}` para que la app abra el producto.
 

@@ -14,3 +14,4 @@
 20261029011401737-perfil-del-cliente
 20261030032219408-codigo-de-entrega
 20261030153440774-filtros-de-inventario
+20261030164443356-clientes-elegidos

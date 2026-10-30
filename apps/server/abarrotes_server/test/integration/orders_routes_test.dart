@@ -523,6 +523,56 @@ void main() {
         });
 
         test(
+          'la de clientes elegidos, solo el elegido mientras sea VIP',
+          () async {
+            await completeProfile(
+              session,
+              await insertUser(session, 'uid-ana'),
+            );
+            await insertVips(session, shop.staff, ['ana@tienda.pe']);
+            final ana = (await VipCustomer.db.findFirstRow(
+              session,
+              where: (vip) => vip.email.equals('ana@tienda.pe'),
+            ))!;
+            final promotion = await Promotion.db.insertRow(
+              session,
+              Promotion(
+                productId: shop.arroz.id!,
+                promoPriceCents: 320,
+                startDate: testNow.subtract(const Duration(days: 1)),
+                endDate: testNow.add(const Duration(days: 1)),
+                audience: PromotionAudience.selected,
+              ),
+            );
+            await PromotionRecipient.db.insertRow(
+              session,
+              PromotionRecipient(
+                promotionId: promotion.id!,
+                vipCustomerId: ana.id!,
+              ),
+            );
+
+            expect(
+              await arrozPriceFor('uid-ana', email: 'ana@tienda.pe'),
+              '3.2',
+            );
+            // Otro VIP, no elegido: el precio VIP.
+            expect(
+              await arrozPriceFor('uid-vip', email: 'vip@tienda.pe'),
+              '3.5',
+            );
+            await VipCustomer.db.updateRow(
+              session,
+              ana.copyWith(active: false),
+            );
+            expect(
+              await arrozPriceFor('uid-ana', email: 'ana@tienda.pe'),
+              '3.9',
+            );
+          },
+        );
+
+        test(
           'el unitPrice del carrito nunca se cobra: si difiere, va en '
           'priceChanges',
           () async {
