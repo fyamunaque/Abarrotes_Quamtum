@@ -224,7 +224,9 @@ Future<int> _seedOrders(
     }
 
     const count = 40;
-    final pickupCodes = <String>{};
+    // Los códigos de recojo y de entrega no se repiten (cada uno en su
+    // columna; con uno solo alcanza).
+    final codes = <String>{};
     for (var i = 0; i < count; i++) {
       // Del día 29 hacia atrás hasta hoy, unos por día.
       final daysAgo = 29 - (i * 29) ~/ (count - 1);
@@ -253,12 +255,10 @@ Future<int> _seedOrders(
           status == OrderStatus.preparing ||
           status == OrderStatus.readyForPickup ||
           (recent > 7 && i % 4 == 1);
-      String? pickupCode;
-      if (pickup) {
-        do {
-          pickupCode = randomPickupCode();
-        } while (!pickupCodes.add(pickupCode));
-      }
+      String code;
+      do {
+        code = randomPickupCode();
+      } while (!codes.add(code));
 
       final lines = [
         for (final product in (List.of(products)..shuffle(random)).take(
@@ -287,7 +287,8 @@ Future<int> _seedOrders(
           deliveryAddress: pickup
               ? null
               : customer.address ?? 'Av. Arequipa 1234, Lince',
-          pickupCode: pickupCode,
+          pickupCode: pickup ? code : null,
+          deliveryCode: pickup ? null : code,
           readyForPickupAt:
               pickup &&
                   (status == OrderStatus.readyForPickup ||

@@ -10,3 +10,5 @@ values:
   - staffRoleChanged
   - staffDeactivated
   - staffSeeded
+  ### Un pedido a domicilio entregado sin su código (con el motivo).
+  - orderDeliveredWithoutCode

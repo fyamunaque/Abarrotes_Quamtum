@@ -17,8 +17,8 @@ import 'states/order_states.dart';
 /// Rutas de pedidos: crear y ver los propios, para cualquier cuenta; el
 /// listado, con `orders.view`, y los cambios de estado, con
 /// `orders.updateStatus`. El contacto del cliente solo va con
-/// `customers.view`, y el código de recojo, para el dueño del pedido y para
-/// el personal con `orders.view`.
+/// `customers.view`; el código de recojo, para el dueño del pedido y para el
+/// personal con `orders.view`, y el de entrega, solo para el dueño.
 List<RouteEntry> ordersRoutes(
   OrdersService orders,
   Guards guards, {
@@ -111,7 +111,7 @@ List<RouteEntry> ordersRoutes(
           ],
         );
         return jsonResponse(201, {
-          ...orderJson(placed.order, withPickupCode: true),
+          ...orderJson(placed.order, withCodes: true),
           'priceChanges': placed.priceChanges.map(priceChangeJson).toList(),
         });
       }),
@@ -131,7 +131,7 @@ List<RouteEntry> ordersRoutes(
         return jsonResponse(
           200,
           page.wrap(
-            [for (final order in list) orderJson(order, withPickupCode: true)],
+            [for (final order in list) orderJson(order, withCodes: true)],
             total,
           ),
         );
@@ -193,9 +193,17 @@ List<RouteEntry> ordersRoutes(
       ) async {
         final id = idParam(request);
         // pickupCode: el que muestra el cliente al recoger su pedido.
+        // deliveryCode: el que el cliente le da al repartidor.
+        // withoutCodeReason: entregar a domicilio sin el código (solo con
+        // staff.manage), por qué; queda en el pedido y en la bitácora.
         final body = InputReader.body(
           await readJsonBody(request),
-          allowed: const {'status', 'pickupCode'},
+          allowed: const {
+            'status',
+            'pickupCode',
+            'deliveryCode',
+            'withoutCodeReason',
+          },
         );
         final status = body.oneOf('status', OrderStatus.values);
         final pickupCode = body.text(
@@ -203,14 +211,35 @@ List<RouteEntry> ordersRoutes(
           maxLength: 20,
           required: false,
         );
+        final deliveryCode = body.text(
+          'deliveryCode',
+          maxLength: 20,
+          required: false,
+        );
+        final withoutCodeReason = body.text(
+          'withoutCodeReason',
+          maxLength: 255,
+          required: false,
+        );
+        if (withoutCodeReason != null && withoutCodeReason.length < 5) {
+          body.reject('Escribe por qué se entrega sin código');
+        }
         body.check();
+        if (withoutCodeReason != null &&
+            !request.staffAccess.can(Permission.staffManage)) {
+          return jsonError(
+            403,
+            'Solo quien administra la tienda entrega un pedido sin código',
+          );
+        }
 
         final order = await orders.changeStatus(
           session,
           id,
           status!,
           by: request.currentUser,
-          pickupCode: pickupCode,
+          code: pickupCode ?? deliveryCode,
+          withoutCodeReason: withoutCodeReason,
         );
         return jsonResponse(200, panelJson(request, order));
       }),
@@ -222,9 +251,15 @@ List<RouteEntry> ordersRoutes(
 /// como texto ("4.5") y estado como en el modelo (`pendingConfirmation`,
 /// `confirmed`…). `allowedNextStatuses` sale del flujo de su tipo de
 /// entrega: las apps arman sus botones con eso, sin las transiciones escritas
-/// a mano. El código de recojo, solo [withPickupCode] (el dueño del pedido o
-/// el personal con `orders.view`).
-Map<String, Object?> orderJson(Order order, {required bool withPickupCode}) {
+/// a mano. Los códigos de recojo y de entrega, solo con [withCodes] (el dueño
+/// del pedido); el de recojo, además con [withPickupCode] (el personal con
+/// `orders.view`). El de entrega nunca va al personal: se lo pide al
+/// cliente.
+Map<String, Object?> orderJson(
+  Order order, {
+  bool withCodes = false,
+  bool withPickupCode = false,
+}) {
   return {
     'id': order.id.toString(),
     'number': order.number,
@@ -235,7 +270,9 @@ Map<String, Object?> orderJson(Order order, {required bool withPickupCode}) {
     ],
     'total': formatMoney(order.totalCents),
     'deliveryAddress': order.deliveryAddress,
-    'pickupCode': withPickupCode ? order.pickupCode : null,
+    'pickupCode': withCodes || withPickupCode ? order.pickupCode : null,
+    'deliveryCode': withCodes ? order.deliveryCode : null,
+    'deliveredWithoutCodeReason': order.deliveredWithoutCodeReason,
     'readyForPickupAt': order.readyForPickupAt?.toUtc().toIso8601String(),
     'createdAt': order.createdAt.toUtc().toIso8601String(),
     'updatedAt': order.updatedAt.toUtc().toIso8601String(),

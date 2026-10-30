@@ -13,9 +13,14 @@ class ReadyForPickupState extends OrderStateHandler {
   /// Para entregarlo, quien atiende en caja ingresa el código que muestra el
   /// cliente.
   @override
-  String? exitProblem(Order order, OrderStatus next, {String? pickupCode}) {
+  String? exitProblem(
+    Order order,
+    OrderStatus next, {
+    String? code,
+    bool withoutCode = false,
+  }) {
     if (next != OrderStatus.delivered) return null;
-    final given = normalizePickupCode(pickupCode ?? '');
+    final given = normalizePickupCode(code ?? '');
     if (given.isEmpty) {
       return 'Falta el código de recojo: pídeselo al cliente';
     }

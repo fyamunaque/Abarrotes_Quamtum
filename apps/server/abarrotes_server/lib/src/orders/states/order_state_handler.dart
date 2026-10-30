@@ -35,10 +35,15 @@ abstract class OrderStateHandler {
   }
 
   /// Lo que impide salir de este estado hacia [next] aunque el flujo lo
-  /// permita (p. ej. entregar un pedido de recojo sin su código), o null si
-  /// puede.
-  String? exitProblem(Order order, OrderStatus next, {String? pickupCode}) =>
-      null;
+  /// permita (p. ej. entregar un pedido sin su código), o null si puede.
+  /// [code] es el que dio el cliente; [withoutCode], que quien administra la
+  /// tienda lo entrega sin él.
+  String? exitProblem(
+    Order order,
+    OrderStatus next, {
+    String? code,
+    bool withoutCode = false,
+  }) => null;
 
   /// [order] al entrar a este estado, con lo que el estado guarda (p. ej.
   /// cuándo quedó listo para recoger).

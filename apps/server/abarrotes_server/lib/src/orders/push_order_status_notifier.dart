@@ -80,7 +80,10 @@ PushMessage? orderStatusMessage(Order order) {
     ),
     OrderStatus.outForDelivery => (
       'Tu pedido está en camino',
-      'Pronto llega a la dirección que nos diste.',
+      switch (order.deliveryCode) {
+        final code? => 'Dale este código al repartidor: $code.',
+        null => 'Pronto llega a la dirección que nos diste.',
+      },
     ),
     OrderStatus.delivered =>
       pickup

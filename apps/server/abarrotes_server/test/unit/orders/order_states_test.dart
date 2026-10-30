@@ -143,16 +143,16 @@ void main() {
         'Falta el código de recojo: pídeselo al cliente',
       );
       expect(
-        state.exitProblem(order, delivered, pickupCode: '  '),
+        state.exitProblem(order, delivered, code: '  '),
         'Falta el código de recojo: pídeselo al cliente',
       );
       expect(
-        state.exitProblem(order, delivered, pickupCode: 'K7M2XA'),
+        state.exitProblem(order, delivered, code: 'K7M2XA'),
         'El código de recojo no coincide',
       );
       // Como lo escriba quien atiende: minúsculas y espacios valen.
       expect(
-        state.exitProblem(order, delivered, pickupCode: ' k7m 2xq '),
+        state.exitProblem(order, delivered, code: ' k7m 2xq '),
         isNull,
       );
     });
@@ -181,6 +181,44 @@ void main() {
           isNull,
         );
       }
+    });
+  });
+
+  group('entregar a domicilio', () {
+    final order = Order(
+      status: onTheWay,
+      fulfillmentType: FulfillmentType.delivery,
+      deliveryAddress: 'Av. Arequipa 123',
+      deliveryCode: 'P4R9TW',
+      totalCents: 450,
+      customerId: UuidValue.fromString('0190a1b2-0000-7000-8000-000000000001'),
+    );
+    final state = orderStateOf(onTheWay, delivery);
+
+    test('pide el código que el cliente le da al repartidor', () {
+      expect(
+        state.exitProblem(order, delivered),
+        'Falta el código de entrega: pídeselo al cliente',
+      );
+      expect(
+        state.exitProblem(order, delivered, code: 'P4R9TA'),
+        'El código de entrega no coincide',
+      );
+      expect(state.exitProblem(order, delivered, code: ' p4r9 tw '), isNull);
+    });
+
+    test('sin código, solo si se entrega sin él', () {
+      expect(state.exitProblem(order, delivered, withoutCode: true), isNull);
+    });
+
+    test('cancelarlo no pide el código', () {
+      expect(state.exitProblem(order, cancelled), isNull);
+    });
+
+    test('un pedido de antes, sin código, se entrega como siempre', () {
+      final old = order.copyWith(deliveryCode: null);
+
+      expect(state.exitProblem(old, delivered), isNull);
     });
   });
 }

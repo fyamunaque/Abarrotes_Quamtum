@@ -1,4 +1,6 @@
 // El modelo Order choca con la clase Order (orderBy) de Serverpod.
+import 'dart:convert';
+
 import 'package:abarrotes_server/src/common/http_json.dart';
 import 'package:abarrotes_server/src/common/shopper.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
@@ -46,11 +48,13 @@ class _Shop {
   }
 
   /// Un pedido de 2 arroces y 1 aceite (el stock ya se descontó al crearlo).
-  /// A domicilio, o de recojo con [pickupCode].
+  /// A domicilio (con [deliveryCode] o, como los de antes, sin código), o de
+  /// recojo con [pickupCode].
   Future<Order> order({
     OrderStatus status = OrderStatus.pendingConfirmation,
     DateTime? createdAt,
     String? pickupCode,
+    String? deliveryCode,
     int? number,
   }) async {
     final order = await Order.db.insertRow(
@@ -64,6 +68,7 @@ class _Shop {
         totalCents: 2 * 390 + 1250,
         deliveryAddress: pickupCode == null ? 'Av. Arequipa 123' : null,
         pickupCode: pickupCode,
+        deliveryCode: deliveryCode,
         customerId: customer.id!,
         createdAt: createdAt,
         updatedAt: createdAt,
@@ -1013,6 +1018,188 @@ void main() {
           400,
         );
       });
+    });
+
+    group('código de entrega', () {
+      setUp(
+        () async =>
+            shop.customer = await completeProfile(session, shop.customer),
+      );
+
+      final codePattern = RegExp(r'^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}$');
+      const reason = 'El cliente no tenía el celular a la mano';
+
+      Future<ApiResult> deliver(
+        Order order, {
+        String? code,
+        String? withoutCodeReason,
+        String as = 'uid-staff',
+      }) => client.patch('/orders/${order.id}/status', {
+        'status': 'delivered',
+        'deliveryCode': ?code,
+        'withoutCodeReason': ?withoutCodeReason,
+      }, as: as);
+
+      Future<OrderStatus> statusOf(Order order) async =>
+          (await Order.db.findById(session, order.id!))!.status;
+
+      test('se genera solo a domicilio, y lo ve solo el cliente', () async {
+        final (status, placed) = await client.post('/orders', {
+          'deliveryAddress': 'Av. Arequipa 123',
+          'items': [
+            {'productId': shop.arroz.id.toString(), 'quantity': 1},
+          ],
+        }, as: 'uid-cliente');
+        final (_, pickup) = await client.post('/orders', {
+          'fulfillmentType': 'pickup',
+          'items': [
+            {'productId': shop.arroz.id.toString(), 'quantity': 1},
+          ],
+        }, as: 'uid-cliente');
+
+        expect(status, 201);
+        expect(placed['deliveryCode'], matches(codePattern));
+        expect(placed['pickupCode'], isNull);
+        expect(pickup['deliveryCode'], isNull);
+        final saved = await Order.db.findById(
+          session,
+          UuidValue.fromString(placed['id'] as String),
+        );
+        expect(saved!.deliveryCode, placed['deliveryCode']);
+
+        final (_, mine) = await client.get('/orders/mine', as: 'uid-cliente');
+        expect(
+          [for (final o in mine['data']) o['deliveryCode']],
+          unorderedEquals([placed['deliveryCode'], null]),
+        );
+        // Ni el administrador: el repartidor se lo pide al cliente.
+        final (_, panel) = await client.get('/orders', as: 'uid-staff');
+        expect(
+          [for (final o in panel['data']) o['deliveryCode']],
+          [
+            null,
+            null,
+          ],
+        );
+        final (_, confirmed) = await client.patch(
+          '/orders/${placed['id']}/status',
+          {'status': 'confirmed'},
+          as: 'uid-staff',
+        );
+        expect(confirmed['deliveryCode'], isNull);
+      });
+
+      test('entregarlo pide el código que da el cliente', () async {
+        final order = await shop.order(
+          status: OrderStatus.outForDelivery,
+          deliveryCode: 'P4R9TW',
+        );
+
+        final missing = await deliver(order);
+        final wrong = await deliver(order, code: 'P4R9TA');
+
+        expect(
+          (missing.$1, missing.$2['message']),
+          (400, 'Falta el código de entrega: pídeselo al cliente'),
+        );
+        expect(
+          (wrong.$1, wrong.$2['message']),
+          (400, 'El código de entrega no coincide'),
+        );
+        expect(await statusOf(order), OrderStatus.outForDelivery);
+
+        final (status, done) = await deliver(order, code: ' p4r9tw ');
+        expect((status, done['status']), (200, 'delivered'));
+        expect(done['deliveredWithoutCodeReason'], isNull);
+        expect(await AuditLog.db.count(session), 0);
+      });
+
+      test('un pedido de antes, sin código, se entrega como siempre', () async {
+        final order = await shop.order(status: OrderStatus.outForDelivery);
+
+        final (status, done) = await deliver(order);
+
+        expect((status, done['status']), (200, 'delivered'));
+      });
+
+      test(
+        'sin código, solo quien administra la tienda, y queda en la bitácora',
+        () async {
+          final order = await shop.order(
+            status: OrderStatus.outForDelivery,
+            deliveryCode: 'P4R9TW',
+            number: 1024,
+          );
+          await insertStaff(
+            session,
+            'uid-repartidor',
+            permissions: {Permission.ordersView, Permission.ordersUpdateStatus},
+          );
+
+          final denied = await deliver(
+            order,
+            withoutCodeReason: reason,
+            as: 'uid-repartidor',
+          );
+          expect(
+            (denied.$1, denied.$2['message']),
+            (
+              403,
+              'Solo quien administra la tienda entrega un pedido sin código',
+            ),
+          );
+          expect(await statusOf(order), OrderStatus.outForDelivery);
+
+          final (status, done) = await deliver(
+            order,
+            withoutCodeReason: '  $reason ',
+          );
+          expect((status, done['status']), (200, 'delivered'));
+          expect(done['deliveredWithoutCodeReason'], reason);
+          final saved = await Order.db.findById(session, order.id!);
+          expect(saved!.deliveredWithoutCodeReason, reason);
+          final entry = (await AuditLog.db.find(session)).single;
+          expect(entry.action, AuditAction.orderDeliveredWithoutCode);
+          expect(entry.actorUserId, shop.staff.id);
+          expect(entry.targetEmail, shop.customer.email);
+          expect(jsonDecode(entry.details!), {'order': 1024, 'reason': reason});
+        },
+      );
+
+      test(
+        'sin código: con su motivo y solo al entregar a domicilio',
+        () async {
+          final onTheWay = await shop.order(
+            status: OrderStatus.outForDelivery,
+            deliveryCode: 'P4R9TW',
+          );
+          final ready = await shop.order(
+            status: OrderStatus.readyForPickup,
+            pickupCode: 'K7M2XQ',
+          );
+
+          final short = await deliver(onTheWay, withoutCodeReason: ' no ');
+          expect(short.$1, 400);
+          expect(short.$2['message'], [
+            'Escribe por qué se entrega sin código',
+          ]);
+          final atTheCounter = await deliver(ready, withoutCodeReason: reason);
+          final cancelling = await client.patch(
+            '/orders/${onTheWay.id}/status',
+            {'status': 'cancelled', 'withoutCodeReason': reason},
+            as: 'uid-staff',
+          );
+          for (final (status, body) in [atTheCounter, cancelling]) {
+            expect(
+              (status, body['message']),
+              (400, 'Sin código solo se entrega un pedido a domicilio'),
+            );
+          }
+          expect(await statusOf(onTheWay), OrderStatus.outForDelivery);
+          expect(await statusOf(ready), OrderStatus.readyForPickup);
+          expect(await AuditLog.db.count(session), 0);
+        },
+      );
     });
 
     test(

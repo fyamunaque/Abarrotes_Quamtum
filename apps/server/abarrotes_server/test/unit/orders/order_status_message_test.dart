@@ -6,11 +6,16 @@ import 'package:test/test.dart';
 void main() {
   final id = UuidValue.fromString('0190a1b2-0000-7000-8000-000000000001');
 
-  Order order(OrderStatus status, {bool pickup = false}) => Order(
+  Order order(
+    OrderStatus status, {
+    bool pickup = false,
+    String? deliveryCode,
+  }) => Order(
     id: id,
     status: status,
     fulfillmentType: pickup ? FulfillmentType.pickup : FulfillmentType.delivery,
     pickupCode: pickup ? 'K7M2XQ' : null,
+    deliveryCode: deliveryCode,
     deliveryAddress: pickup ? null : 'Av. Arequipa 123',
     totalCents: 450,
     customerId: id,
@@ -40,6 +45,20 @@ void main() {
       'Cancelamos tu pedido',
       'Si tienes dudas, escríbenos.',
     ));
+  });
+
+  test('en camino, con el código de entrega si el pedido lo tiene', () {
+    final message = orderStatusMessage(
+      order(OrderStatus.outForDelivery, deliveryCode: 'P4R9TW'),
+    )!;
+
+    expect(
+      (message.title, message.body),
+      (
+        'Tu pedido está en camino',
+        'Dale este código al repartidor: P4R9TW.',
+      ),
+    );
   });
 
   test('con recojo: preparando, listo con el código y recogido', () {

@@ -29,6 +29,8 @@ abstract class Order
     this.deliveryAddress,
     this.pickupCode,
     this.readyForPickupAt,
+    this.deliveryCode,
+    this.deliveredWithoutCodeReason,
     DateTime? createdAt,
     DateTime? updatedAt,
     required this.customerId,
@@ -48,6 +50,8 @@ abstract class Order
     String? deliveryAddress,
     String? pickupCode,
     DateTime? readyForPickupAt,
+    String? deliveryCode,
+    String? deliveredWithoutCodeReason,
     DateTime? createdAt,
     DateTime? updatedAt,
     required _is.UuidValue customerId,
@@ -79,6 +83,9 @@ abstract class Order
           : _is.DateTimeJsonExtension.fromJson(
               jsonSerialization['readyForPickupAt'],
             ),
+      deliveryCode: jsonSerialization['deliveryCode'] as String?,
+      deliveredWithoutCodeReason:
+          jsonSerialization['deliveredWithoutCodeReason'] as String?,
       createdAt: jsonSerialization['createdAt'] == null
           ? null
           : _is.DateTimeJsonExtension.fromJson(jsonSerialization['createdAt']),
@@ -131,6 +138,15 @@ abstract class Order
   /// Cuándo quedó listo para recoger.
   DateTime? readyForPickupAt;
 
+  /// Solo a domicilio: como el de recojo, pero lo ve solo el cliente, que se
+  /// lo da al repartidor al recibir el pedido. Null en los pedidos de antes
+  /// (se entregan sin código).
+  String? deliveryCode;
+
+  /// Si se entregó sin el código de entrega: por qué (lo escribe quien
+  /// administra la tienda, el único que puede hacerlo).
+  String? deliveredWithoutCodeReason;
+
   DateTime createdAt;
 
   /// Serverpod no tiene @updatedAt: lo actualiza quien modifica el pedido.
@@ -157,6 +173,8 @@ abstract class Order
     String? deliveryAddress,
     String? pickupCode,
     DateTime? readyForPickupAt,
+    String? deliveryCode,
+    String? deliveredWithoutCodeReason,
     DateTime? createdAt,
     DateTime? updatedAt,
     _is.UuidValue? customerId,
@@ -176,6 +194,9 @@ abstract class Order
       if (pickupCode != null) 'pickupCode': pickupCode,
       if (readyForPickupAt != null)
         'readyForPickupAt': readyForPickupAt?.toJson(),
+      if (deliveryCode != null) 'deliveryCode': deliveryCode,
+      if (deliveredWithoutCodeReason != null)
+        'deliveredWithoutCodeReason': deliveredWithoutCodeReason,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
       'customerId': customerId.toJson(),
@@ -197,6 +218,9 @@ abstract class Order
       if (pickupCode != null) 'pickupCode': pickupCode,
       if (readyForPickupAt != null)
         'readyForPickupAt': readyForPickupAt?.toJson(),
+      if (deliveryCode != null) 'deliveryCode': deliveryCode,
+      if (deliveredWithoutCodeReason != null)
+        'deliveredWithoutCodeReason': deliveredWithoutCodeReason,
       'createdAt': createdAt.toJson(),
       'updatedAt': updatedAt.toJson(),
       'customerId': customerId.toJson(),
@@ -252,6 +276,8 @@ class _OrderImpl extends Order {
     String? deliveryAddress,
     String? pickupCode,
     DateTime? readyForPickupAt,
+    String? deliveryCode,
+    String? deliveredWithoutCodeReason,
     DateTime? createdAt,
     DateTime? updatedAt,
     required _is.UuidValue customerId,
@@ -266,6 +292,8 @@ class _OrderImpl extends Order {
          deliveryAddress: deliveryAddress,
          pickupCode: pickupCode,
          readyForPickupAt: readyForPickupAt,
+         deliveryCode: deliveryCode,
+         deliveredWithoutCodeReason: deliveredWithoutCodeReason,
          createdAt: createdAt,
          updatedAt: updatedAt,
          customerId: customerId,
@@ -286,6 +314,8 @@ class _OrderImpl extends Order {
     Object? deliveryAddress = _Undefined,
     Object? pickupCode = _Undefined,
     Object? readyForPickupAt = _Undefined,
+    Object? deliveryCode = _Undefined,
+    Object? deliveredWithoutCodeReason = _Undefined,
     DateTime? createdAt,
     DateTime? updatedAt,
     _is.UuidValue? customerId,
@@ -305,6 +335,10 @@ class _OrderImpl extends Order {
       readyForPickupAt: readyForPickupAt is DateTime?
           ? readyForPickupAt
           : this.readyForPickupAt,
+      deliveryCode: deliveryCode is String? ? deliveryCode : this.deliveryCode,
+      deliveredWithoutCodeReason: deliveredWithoutCodeReason is String?
+          ? deliveredWithoutCodeReason
+          : this.deliveredWithoutCodeReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
       customerId: customerId ?? this.customerId,
@@ -358,6 +392,18 @@ class OrderUpdateTable extends _is.UpdateTable<OrderTable> {
   _is.ColumnValue<DateTime, DateTime> readyForPickupAt(DateTime? value) =>
       _is.ColumnValue(
         table.readyForPickupAt,
+        value,
+      );
+
+  _is.ColumnValue<String, String> deliveryCode(String? value) =>
+      _is.ColumnValue(
+        table.deliveryCode,
+        value,
+      );
+
+  _is.ColumnValue<String, String> deliveredWithoutCodeReason(String? value) =>
+      _is.ColumnValue(
+        table.deliveredWithoutCodeReason,
         value,
       );
 
@@ -416,6 +462,14 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
       'readyForPickupAt',
       this,
     );
+    deliveryCode = _is.ColumnString(
+      'deliveryCode',
+      this,
+    );
+    deliveredWithoutCodeReason = _is.ColumnString(
+      'deliveredWithoutCodeReason',
+      this,
+    );
     createdAt = _is.ColumnDateTime(
       'createdAt',
       this,
@@ -456,6 +510,15 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
 
   /// Cuándo quedó listo para recoger.
   late final _is.ColumnDateTime readyForPickupAt;
+
+  /// Solo a domicilio: como el de recojo, pero lo ve solo el cliente, que se
+  /// lo da al repartidor al recibir el pedido. Null en los pedidos de antes
+  /// (se entregan sin código).
+  late final _is.ColumnString deliveryCode;
+
+  /// Si se entregó sin el código de entrega: por qué (lo escribe quien
+  /// administra la tienda, el único que puede hacerlo).
+  late final _is.ColumnString deliveredWithoutCodeReason;
 
   late final _is.ColumnDateTime createdAt;
 
@@ -525,6 +588,8 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
     deliveryAddress,
     pickupCode,
     readyForPickupAt,
+    deliveryCode,
+    deliveredWithoutCodeReason,
     createdAt,
     updatedAt,
     customerId,
