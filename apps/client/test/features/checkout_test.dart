@@ -436,6 +436,43 @@ void main() {
     expect(find.text('Entrega en Av. Brasil 450, Jesús María'), findsOneWidget);
   });
 
+  testWidgets('a domicilio, en curso: el código para el repartidor', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    Order delivery(String id, OrderStatus status) => Order(
+      id: id,
+      status: status,
+      deliveryAddress: 'Av. Brasil 450',
+      deliveryCode: 'P4R9TW',
+      hasDeliveryCode: true,
+      totalCents: 2490,
+      createdAt: DateTime.utc(2026, 10, 14, 15),
+      lines: const [],
+    );
+    orders.orders.addAll([
+      delivery('en-camino', OrderStatus.outForDelivery),
+      delivery('entregado', OrderStatus.delivered),
+    ]);
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    // Solo el que está en curso: el entregado ya no lo necesita.
+    expect(find.text('Tu código de entrega'), findsOneWidget);
+    expect(find.text('P4R9TW'), findsOneWidget);
+    expect(
+      find.text('Dáselo al repartidor cuando recibas tu pedido.'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('Tu código de entrega: P 4 R 9 T W'),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
   testWidgets('"Actualizar" trae el estado nuevo y el seguimiento lo anima', (
     tester,
   ) async {

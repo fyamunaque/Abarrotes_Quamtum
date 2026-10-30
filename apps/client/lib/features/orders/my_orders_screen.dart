@@ -280,7 +280,8 @@ class _OrderCard extends StatelessWidget {
 }
 
 /// Un pedido a domicilio: adónde va, en el mismo lugar que los datos de la
-/// tienda en uno de recojo. Ya entregado o cancelado, en una línea tenue.
+/// tienda en uno de recojo, y mientras está en curso, el código en grande
+/// para dárselo al repartidor. Ya entregado o cancelado, en una línea tenue.
 class _DeliveryDetails extends StatelessWidget {
   const _DeliveryDetails(this.order);
 
@@ -302,6 +303,14 @@ class _DeliveryDetails extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (order.deliveryCode case final code?) ...[
+          _OrderCode(
+            code,
+            title: 'Tu código de entrega',
+            hint: 'Dáselo al repartidor cuando recibas tu pedido.',
+          ),
+          const SizedBox(height: 12),
+        ],
         Text('Entrega a domicilio', style: theme.textTheme.titleSmall),
         InfoLine(icon: Icons.place_outlined, text: address),
       ],
@@ -340,7 +349,11 @@ class _PickupDetails extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         if (_codeStatuses.contains(order.status) && code != null) ...[
-          _PickupCode(code),
+          _OrderCode(
+            code,
+            title: 'Tu código de recojo',
+            hint: 'Muéstralo en caja al recoger tu pedido.',
+          ),
           const SizedBox(height: 12),
         ],
         Text('Recojo en tienda', style: theme.textTheme.titleSmall),
@@ -355,19 +368,22 @@ class _PickupDetails extends StatelessWidget {
   }
 }
 
-/// El código de recojo, en grande y bien visible, para enseñarlo en caja.
-/// El lector de pantalla lo deletrea.
-class _PickupCode extends StatelessWidget {
-  const _PickupCode(this.code);
+/// El código de recojo o de entrega, en grande y bien visible, para
+/// enseñarlo en caja o dárselo al repartidor. El lector de pantalla lo
+/// deletrea.
+class _OrderCode extends StatelessWidget {
+  const _OrderCode(this.code, {required this.title, required this.hint});
 
   final String code;
+  final String title;
+  final String hint;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Semantics(
       container: true,
-      label: 'Tu código de recojo: ${code.split('').join(' ')}',
+      label: '$title: ${code.split('').join(' ')}',
       child: ExcludeSemantics(
         child: DecoratedBox(
           decoration: BoxDecoration(
@@ -379,7 +395,7 @@ class _PickupCode extends StatelessWidget {
             child: Column(
               children: [
                 Text(
-                  'Tu código de recojo',
+                  title,
                   style: theme.textTheme.labelLarge?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
                   ),
@@ -397,7 +413,7 @@ class _PickupCode extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  'Muéstralo en caja al recoger tu pedido.',
+                  hint,
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onPrimaryContainer,
                   ),

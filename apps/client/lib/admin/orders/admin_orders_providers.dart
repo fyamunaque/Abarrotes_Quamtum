@@ -49,15 +49,25 @@ class AdminOrdersNotifier extends PagedNotifier<AdminOrder> {
       );
 
   /// Cambia el estado y deja el pedido actualizado en la página. Devuelve el
-  /// pedido como quedó.
+  /// pedido como quedó. [code], el que da el cliente para entregarlo (el
+  /// de recojo o el de entrega, según el pedido); [withoutCodeReason], por
+  /// qué se entrega a domicilio sin él.
   Future<AdminOrder> changeStatus(
     AdminOrder order,
     OrderStatus next, {
-    String? pickupCode,
+    String? code,
+    String? withoutCodeReason,
   }) async {
+    final pickup = order.order.fulfillmentType == FulfillmentType.pickup;
     final updated = await ref
         .read(adminOrdersRepositoryProvider)
-        .changeStatus(order.id, next, pickupCode: pickupCode);
+        .changeStatus(
+          order.id,
+          next,
+          pickupCode: pickup ? code : null,
+          deliveryCode: pickup ? null : code,
+          withoutCodeReason: withoutCodeReason,
+        );
     replace(updated, (current) => current.id == updated.id);
     return updated;
   }

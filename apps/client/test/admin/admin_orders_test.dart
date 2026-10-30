@@ -10,6 +10,7 @@ import 'package:neils/features/admin/shared/status_badge.dart';
 import 'package:neils/features/orders/order_tracker.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
+import 'package:neils/session/session.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -421,6 +422,132 @@ void main() {
       expect(repository.changes, [('o-1', OrderStatus.delivered)]);
       expect(badgeText(tester, 'Ana Quispe'), 'Recogido');
       expect(find.text('Este pedido ya no cambia de estado.'), findsOneWidget);
+    });
+  });
+
+  group('código de entrega', () {
+    setUp(() {
+      repository = FakeAdminOrdersRepository([
+        adminOrder(
+          'o-1',
+          OrderStatus.outForDelivery,
+          customer: 'Ana Quispe',
+          hasDeliveryCode: true,
+        ),
+      ]);
+    });
+
+    Finder inDialog(Finder finder) =>
+        find.descendant(of: find.byType(AlertDialog), matching: finder);
+
+    testWidgets('entregarlo pide el código que da el cliente', (tester) async {
+      await pumpOrders(tester);
+      await open(tester, 'Ana Quispe');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Marcar entregado'));
+      await tester.pumpAndSettle();
+      expect(find.text('Código de entrega'), findsOneWidget);
+      expect(find.text('El que te da el cliente.'), findsOneWidget);
+      // El staff (sin staff.manage) no entrega sin código.
+      expect(find.text('El cliente no tiene su código'), findsNothing);
+
+      await tester.enterText(find.byType(TextField).last, 'P4R9TA');
+      await tester.pump();
+      await tester.tap(
+        inDialog(find.widgetWithText(FilledButton, 'Marcar entregado')),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        inDialog(find.text('El código de entrega no coincide')),
+        findsOneWidget,
+      );
+      expect(repository.changes, isEmpty);
+
+      await tester.enterText(find.byType(TextField).last, 'p4r9tw');
+      await tester.pump();
+      await tester.tap(
+        inDialog(find.widgetWithText(FilledButton, 'Marcar entregado')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(repository.deliveryCodes.last, 'p4r9tw');
+      expect(repository.pickupCodes.last, isNull);
+      expect(repository.changes, [('o-1', OrderStatus.delivered)]);
+      expect(badgeText(tester, 'Ana Quispe'), 'Entregado');
+    });
+
+    testWidgets('un pedido de antes, sin código, se entrega directo', (
+      tester,
+    ) async {
+      repository.orders[0] = adminOrder(
+        'o-1',
+        OrderStatus.outForDelivery,
+        customer: 'Ana Quispe',
+      );
+      await pumpOrders(tester);
+      await open(tester, 'Ana Quispe');
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Marcar entregado'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(repository.changes, [('o-1', OrderStatus.delivered)]);
+      expect(repository.deliveryCodes.single, isNull);
+    });
+
+    testWidgets('sin código, quien administra la tienda, con el motivo', (
+      tester,
+    ) async {
+      await pumpPanel(
+        tester,
+        at: '/admin/pedidos',
+        role: UserRole.admin,
+        overrides: [
+          adminOrdersRepositoryProvider.overrideWithValue(repository),
+        ],
+      );
+      await open(tester, 'Ana Quispe');
+      Finder submit() =>
+          inDialog(find.widgetWithText(FilledButton, 'Entregar sin código'));
+
+      await tester.tap(find.widgetWithText(FilledButton, 'Marcar entregado'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('El cliente no tiene su código'));
+      await tester.pumpAndSettle();
+      expect(find.text('Motivo'), findsOneWidget);
+      expect(find.text('Código de entrega'), findsNothing);
+
+      // "Volver" regresa al código, sin cerrar.
+      await tester.tap(inDialog(find.text('Volver')));
+      await tester.pumpAndSettle();
+      expect(find.text('Código de entrega'), findsOneWidget);
+      await tester.tap(find.text('El cliente no tiene su código'));
+      await tester.pumpAndSettle();
+
+      // Hace falta un motivo de verdad.
+      await tester.enterText(find.byType(TextField).last, 'no');
+      await tester.pump();
+      expect(tester.widget<FilledButton>(submit()).onPressed, isNull);
+      await tester.enterText(
+        find.byType(TextField).last,
+        'No tenía el celular a la mano',
+      );
+      await tester.pump();
+      await tester.tap(submit());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(
+        repository.withoutCodeReasons.last,
+        'No tenía el celular a la mano',
+      );
+      expect(repository.deliveryCodes.last, isNull);
+      expect(repository.changes, [('o-1', OrderStatus.delivered)]);
+      expect(
+        find.text('Entregado sin código: No tenía el celular a la mano'),
+        findsOneWidget,
+      );
     });
   });
 

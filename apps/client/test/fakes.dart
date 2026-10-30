@@ -127,8 +127,15 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
 
   final changes = <(String, OrderStatus)>[];
 
-  /// El código que se mandó en cada cambio de estado.
+  /// Lo que se mandó en cada cambio de estado: el código de recojo, el de
+  /// entrega y el motivo para entregar sin él.
   final pickupCodes = <String?>[];
+  final deliveryCodes = <String?>[];
+  final withoutCodeReasons = <String?>[];
+
+  /// El código de entrega de los pedidos que lo tienen: el que el cliente
+  /// le da al repartidor (el panel no lo recibe).
+  static const deliveryCode = 'P4R9TW';
 
   /// Cuántas veces se pidió una página.
   int listCalls = 0;
@@ -168,8 +175,12 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
     String id,
     OrderStatus status, {
     String? pickupCode,
+    String? deliveryCode,
+    String? withoutCodeReason,
   }) async {
     pickupCodes.add(pickupCode);
+    deliveryCodes.add(deliveryCode);
+    withoutCodeReasons.add(withoutCodeReason);
     if (failNext case final failure?) {
       failNext = null;
       throw failure;
@@ -188,35 +199,51 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
         pickupCode?.replaceAll(' ', '').toUpperCase() != current.pickupCode) {
       throw const ApiFailure('El código de recojo no coincide', status: 400);
     }
+    if (current.status == OrderStatus.outForDelivery &&
+        status == OrderStatus.delivered &&
+        current.hasDeliveryCode &&
+        withoutCodeReason == null &&
+        deliveryCode?.replaceAll(' ', '').toUpperCase() !=
+            FakeAdminOrdersRepository.deliveryCode) {
+      throw const ApiFailure('El código de entrega no coincide', status: 400);
+    }
     changes.add((id, status));
-    return orders[i] = withStatus(orders[i], status);
+    return orders[i] = withStatus(
+      orders[i],
+      status,
+      withoutCodeReason: withoutCodeReason,
+    );
   }
 
-  static AdminOrder withStatus(AdminOrder order, OrderStatus status) =>
-      AdminOrder(
-        order: Order(
-          id: order.order.id,
-          number: order.order.number,
-          status: status,
-          fulfillmentType: order.order.fulfillmentType,
-          totalCents: order.order.totalCents,
-          deliveryAddress: order.order.deliveryAddress,
-          pickupCode: order.order.pickupCode,
-          readyForPickupAt: status == OrderStatus.readyForPickup
-              ? DateTime.now()
-              : order.order.readyForPickupAt,
-          createdAt: order.order.createdAt,
-          lines: order.order.lines,
-          allowedNextStatuses: allowedNextFor(
-            order.order.fulfillmentType,
-            status,
-          ),
-        ),
-        customer: order.customer,
-      );
+  static AdminOrder withStatus(
+    AdminOrder order,
+    OrderStatus status, {
+    String? withoutCodeReason,
+  }) => AdminOrder(
+    order: Order(
+      id: order.order.id,
+      number: order.order.number,
+      status: status,
+      fulfillmentType: order.order.fulfillmentType,
+      totalCents: order.order.totalCents,
+      deliveryAddress: order.order.deliveryAddress,
+      pickupCode: order.order.pickupCode,
+      hasDeliveryCode: order.order.hasDeliveryCode,
+      deliveredWithoutCodeReason:
+          withoutCodeReason ?? order.order.deliveredWithoutCodeReason,
+      readyForPickupAt: status == OrderStatus.readyForPickup
+          ? DateTime.now()
+          : order.order.readyForPickupAt,
+      createdAt: order.order.createdAt,
+      lines: order.order.lines,
+      allowedNextStatuses: allowedNextFor(order.order.fulfillmentType, status),
+    ),
+    customer: order.customer,
+  );
 }
 
-/// Un pedido del panel para los tests: a domicilio o, con [pickupCode], de
+/// Un pedido del panel para los tests: a domicilio (con [hasDeliveryCode],
+/// de los que se entregan con el código del cliente) o, con [pickupCode], de
 /// recojo en tienda. Con los estados siguientes que mandaría el servidor.
 AdminOrder adminOrder(
   String id,
@@ -224,6 +251,7 @@ AdminOrder adminOrder(
   String customer = 'Ana Quispe',
   int day = 4,
   String? pickupCode,
+  bool hasDeliveryCode = false,
   DateTime? readyForPickupAt,
   int? number,
 }) => AdminOrder(
@@ -240,6 +268,7 @@ AdminOrder adminOrder(
       status,
     ),
     pickupCode: pickupCode,
+    hasDeliveryCode: hasDeliveryCode,
     totalCents: 3380,
     deliveryAddress: pickupCode == null ? 'Av. Arequipa 123, Lince' : null,
     createdAt: DateTime.utc(2026, 10, day, 15, 30),
@@ -852,8 +881,9 @@ class FakeOrderRepository implements OrderRepository {
       number: 1001 + orders.length,
       status: OrderStatus.pendingConfirmation,
       fulfillmentType: fulfillmentType,
-      // Como el servidor: el código lo genera él, solo con recojo.
+      // Como el servidor: los códigos los genera él, según el tipo.
       pickupCode: pickup ? 'K7M2XQ' : null,
+      deliveryCode: pickup ? null : 'P4R9TW',
       totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
       deliveryAddress: pickup ? null : deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
@@ -885,6 +915,7 @@ class FakeOrderRepository implements OrderRepository {
       totalCents: order.totalCents,
       deliveryAddress: order.deliveryAddress,
       pickupCode: order.pickupCode,
+      deliveryCode: order.deliveryCode,
       createdAt: order.createdAt,
       lines: order.lines,
     );

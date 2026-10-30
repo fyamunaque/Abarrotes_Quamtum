@@ -20,11 +20,15 @@ abstract interface class AdminOrdersRepository {
 
   /// Cambia el estado. Si el estado actual no lo permite (p. ej. otra persona
   /// ya lo cambió), `ApiFailure` 400 con el motivo. Recoger un pedido en
-  /// caja lleva el [pickupCode] que muestra el cliente.
+  /// caja lleva el [pickupCode] que muestra el cliente, y entregar uno a
+  /// domicilio, el [deliveryCode] que el cliente le da al repartidor o,
+  /// sin él (solo con `staff.manage`), [withoutCodeReason]: por qué.
   Future<AdminOrder> changeStatus(
     String id,
     OrderStatus status, {
     String? pickupCode,
+    String? deliveryCode,
+    String? withoutCodeReason,
   });
 }
 
@@ -62,10 +66,14 @@ class HttpAdminOrdersRepository implements AdminOrdersRepository {
     String id,
     OrderStatus status, {
     String? pickupCode,
+    String? deliveryCode,
+    String? withoutCodeReason,
   }) async {
     final json = await _api.patch('/orders/${Uri.encodeComponent(id)}/status', {
       'status': status.name,
       'pickupCode': ?pickupCode,
+      'deliveryCode': ?deliveryCode,
+      'withoutCodeReason': ?withoutCodeReason,
     }, fallback: 'No se pudo cambiar el estado.');
     return decodeResponse(() => AdminOrder.fromJson(json));
   }

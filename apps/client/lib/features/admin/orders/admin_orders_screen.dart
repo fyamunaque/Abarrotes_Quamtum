@@ -25,7 +25,7 @@ import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
-import 'pickup_code_dialog.dart';
+import 'order_code_dialog.dart';
 
 /// Las dos vistas de Pedidos: todos, y los de recojo para caja.
 const ordersTabs = <PanelTab>[
@@ -343,15 +343,29 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
 
   Future<void> _change(AdminOrder order, OrderStatus next) async {
     final notifier = ref.read(adminOrdersProvider(widget.filter).notifier);
-    // Recoger en caja: el código que muestra el cliente. Si no coincide, el
-    // diálogo lo dice y deja volver a escribirlo.
-    if (order.order.fulfillmentType == FulfillmentType.pickup &&
-        next == OrderStatus.delivered) {
+    final type = order.order.fulfillmentType;
+    // Entregarlo: el código que da el cliente (el de recojo en caja, el de
+    // entrega al repartidor; los pedidos a domicilio de antes no tienen).
+    // Si no coincide, el diálogo lo dice y deja volver a escribirlo.
+    final needsCode = switch (type) {
+      FulfillmentType.pickup => true,
+      FulfillmentType.delivery => order.order.hasDeliveryCode,
+    };
+    if (next == OrderStatus.delivered && needsCode) {
+      // Sin el código, solo quien administra la tienda (el servidor lo
+      // vuelve a revisar).
+      final canSkipCode =
+          type == FulfillmentType.delivery &&
+          ref.read(permissionsProvider).contains(StaffPermission.staffManage);
       setState(() => _error = null);
-      await showPickupCodeDialog(
+      await showOrderCodeDialog(
         context,
-        onSubmit: (code) =>
-            notifier.changeStatus(order, next, pickupCode: code),
+        type: type,
+        onSubmit: (code) => notifier.changeStatus(order, next, code: code),
+        onDeliverWithoutCode: canSkipCode
+            ? (reason) =>
+                  notifier.changeStatus(order, next, withoutCodeReason: reason)
+            : null,
       );
       return;
     }
@@ -471,8 +485,11 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
           const Text('Recojo en tienda'),
           if (order.order.pickupCode case final code?)
             Text('Código $code', style: muted),
-        ] else
+        ] else ...[
           Text(order.order.deliveryAddress ?? '—'),
+          if (order.order.deliveredWithoutCodeReason case final reason?)
+            Text('Entregado sin código: $reason', style: muted),
+        ],
         const Divider(height: 32),
         for (final line in order.order.lines)
           Padding(

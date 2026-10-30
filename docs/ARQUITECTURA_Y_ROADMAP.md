@@ -73,10 +73,10 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - registro e ingreso con Firebase, y "¿Olvidaste tu contraseña?" (el enlace de Firebase para crear una nueva); crear una cuenta pide una contraseña fuerte, el celular, el DNI (opcional) y aceptar los términos y la política de privacidad, y para pedir hace falta el correo confirmado ("Mi cuenta" completa lo que falte);
   - catálogo con búsqueda y categorías, y detalle de producto;
   - carrito guardado en el dispositivo;
-  - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger".
+  - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger", y a domicilio, el código de entrega para dárselo al repartidor.
 - **Panel:**
   - inicio con ventas de hoy, la semana y el mes (lo entregado o recogido), ticket promedio, pedidos por estado y por tipo de entrega, gráfico de 30 días, stock bajo, por vencer y top 5;
-  - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido pide el código del cliente;
+  - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido o entregado pide el código del cliente (a domicilio, quien administra la tienda puede entregar sin él, con el motivo);
   - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
   - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
   - productos (con su foto: se sube desde el panel, o se toma con la cámara del teléfono, o se pega una URL), inventario (entradas, salidas y ajustes) y promociones;

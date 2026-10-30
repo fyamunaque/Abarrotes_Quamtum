@@ -257,6 +257,31 @@ void main() {
         'pickupCode': 'K7M2XQ',
       });
     });
+
+    test('entregar a domicilio manda el código o el motivo', () async {
+      final repository = HttpAdminOrdersRepository(
+        api((_) => {...order, 'status': 'delivered'}),
+      );
+
+      await repository.changeStatus(
+        'o-1',
+        OrderStatus.delivered,
+        deliveryCode: 'P4R9TW',
+      );
+      await repository.changeStatus(
+        'o-1',
+        OrderStatus.delivered,
+        withoutCodeReason: 'No tenía el celular',
+      );
+
+      expect(
+        [for (final request in sent) jsonDecode(request.body)],
+        [
+          {'status': 'delivered', 'deliveryCode': 'P4R9TW'},
+          {'status': 'delivered', 'withoutCodeReason': 'No tenía el celular'},
+        ],
+      );
+    });
   });
 
   group('productos', () {

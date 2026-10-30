@@ -15,6 +15,9 @@ class Order {
     this.fulfillmentType = FulfillmentType.delivery,
     this.deliveryAddress,
     this.pickupCode,
+    this.deliveryCode,
+    this.hasDeliveryCode = false,
+    this.deliveredWithoutCodeReason,
     this.readyForPickupAt,
     this.allowedNextStatuses = const [],
     this.priceChanges = const [],
@@ -46,6 +49,11 @@ class Order {
         totalCents: parseCents(total),
         deliveryAddress: json['deliveryAddress'] as String?,
         pickupCode: json['pickupCode'] as String?,
+        deliveryCode: json['deliveryCode'] as String?,
+        hasDeliveryCode:
+            json['hasDeliveryCode'] == true || json['deliveryCode'] != null,
+        deliveredWithoutCodeReason:
+            json['deliveredWithoutCodeReason'] as String?,
         readyForPickupAt: switch (json['readyForPickupAt']) {
           final String at => DateTime.parse(at),
           _ => null,
@@ -94,6 +102,17 @@ class Order {
   /// Solo en recojo: el código que el cliente muestra en caja. Lo reciben el
   /// dueño del pedido y el personal que ve los pedidos.
   final String? pickupCode;
+
+  /// Solo a domicilio: el código que el cliente le da al repartidor. Lo
+  /// recibe solo el dueño del pedido; el panel nunca lo ve.
+  final String? deliveryCode;
+
+  /// Si entregarlo pide el código de entrega (los pedidos de antes no lo
+  /// tienen). Lo sabe también el panel, para pedírselo al cliente.
+  final bool hasDeliveryCode;
+
+  /// Si se entregó sin el código de entrega: por qué.
+  final String? deliveredWithoutCodeReason;
 
   /// Cuándo quedó listo para recoger.
   final DateTime? readyForPickupAt;
