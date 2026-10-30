@@ -1081,6 +1081,14 @@ void main() {
             null,
           ],
         );
+        // Pero sabe cuál lo pide, para pedírselo al entregar.
+        expect(
+          {
+            for (final o in panel['data'])
+              o['fulfillmentType']: o['hasDeliveryCode'],
+          },
+          {'delivery': true, 'pickup': false},
+        );
         final (_, confirmed) = await client.patch(
           '/orders/${placed['id']}/status',
           {'status': 'confirmed'},
@@ -1116,9 +1124,11 @@ void main() {
 
       test('un pedido de antes, sin código, se entrega como siempre', () async {
         final order = await shop.order(status: OrderStatus.outForDelivery);
+        final (_, panel) = await client.get('/orders', as: 'uid-staff');
 
         final (status, done) = await deliver(order);
 
+        expect(panel['data'][0]['hasDeliveryCode'], isFalse);
         expect((status, done['status']), (200, 'delivered'));
       });
 

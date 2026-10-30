@@ -271,7 +271,8 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 Cada pedido JSON lleva `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
 desde 1001, lo pone el servidor al crearlo), `fulfillmentType`, `deliveryAddress` (null en recojo),
 `pickupCode` (solo para su dueño y el personal con `orders.view`; si no, null), `deliveryCode`
-(solo para su dueño), `deliveredWithoutCodeReason` (si se entregó sin el código), `readyForPickupAt` y
+(solo para su dueño), `hasDeliveryCode` (para todos: si entregarlo pide el código; los pedidos
+de antes no lo tienen), `deliveredWithoutCodeReason` (si se entregó sin el código), `readyForPickupAt` y
 `allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
 botones con eso, sin las transiciones escritas a mano.
 

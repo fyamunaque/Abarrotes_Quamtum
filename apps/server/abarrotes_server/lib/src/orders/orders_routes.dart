@@ -272,6 +272,9 @@ Map<String, Object?> orderJson(
     'deliveryAddress': order.deliveryAddress,
     'pickupCode': withCodes || withPickupCode ? order.pickupCode : null,
     'deliveryCode': withCodes ? order.deliveryCode : null,
+    // Para todos: si entregarlo pide el código (los pedidos de antes no lo
+    // tienen), así el panel sabe si pedírselo al cliente.
+    'hasDeliveryCode': order.deliveryCode != null,
     'deliveredWithoutCodeReason': order.deliveredWithoutCodeReason,
     'readyForPickupAt': order.readyForPickupAt?.toUtc().toIso8601String(),
     'createdAt': order.createdAt.toUtc().toIso8601String(),
