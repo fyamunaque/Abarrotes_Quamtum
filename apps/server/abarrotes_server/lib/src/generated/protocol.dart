@@ -312,6 +312,12 @@ class Protocol extends _is.DatabaseSerializationManager {
           isNullable: false,
           dartType: 'UuidValue',
         ),
+        _isp.ColumnDefinition(
+          name: 'orderId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: true,
+          dartType: 'UuidValue?',
+        ),
       ],
       foreignKeys: [
         _isp.ForeignKeyDefinition(
@@ -334,8 +340,32 @@ class Protocol extends _is.DatabaseSerializationManager {
           onDelete: _isp.ForeignKeyAction.restrict,
           matchType: null,
         ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'inventory_movements_fk_2',
+          columns: ['orderId'],
+          referenceTable: 'orders',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
       ],
-      indexes: [],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'inventory_movements_order_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'orderId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+      ],
       managed: true,
     ),
     _isp.TableDefinition(

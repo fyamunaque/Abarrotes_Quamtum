@@ -196,6 +196,7 @@ void main() {
           );
           expect(movements.first.reason, 'Cancelación del pedido ${order.id}');
           expect(movements.first.userId, shop.staff.id);
+          expect({for (final m in movements) m.orderId}, {order.id});
         },
       );
 
@@ -463,7 +464,7 @@ void main() {
         expect(
           [
             for (final m in await movements())
-              (m.type, m.quantity, m.userId, m.reason),
+              (m.type, m.quantity, m.userId, m.reason, m.orderId.toString()),
           ],
           unorderedEquals([
             for (final quantity in [2, 1])
@@ -472,6 +473,7 @@ void main() {
                 quantity,
                 shop.customer.id,
                 'Pedido ${order['id']}',
+                order['id'],
               ),
           ]),
         );

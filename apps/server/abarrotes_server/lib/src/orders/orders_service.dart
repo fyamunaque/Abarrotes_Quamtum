@@ -221,6 +221,7 @@ class OrdersService {
             reason: 'Pedido ${order.id}',
           ),
           by: customer,
+          orderId: order.id,
           transaction: transaction,
         );
       }
@@ -478,6 +479,7 @@ class OrdersService {
           reason: 'Cancelación del pedido ${order.id}',
         ),
         by: by,
+        orderId: order.id,
         transaction: transaction,
       );
     }

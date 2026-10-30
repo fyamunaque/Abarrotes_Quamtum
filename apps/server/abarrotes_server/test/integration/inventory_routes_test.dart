@@ -4,7 +4,7 @@ import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/inventory/inventory_routes.dart';
 import 'package:abarrotes_server/src/inventory/inventory_service.dart';
 import 'package:abarrotes_server/src/inventory/stock_alerts.dart';
-import 'package:serverpod/serverpod.dart';
+import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
@@ -152,6 +152,8 @@ void main() {
               'currentStock': 15,
             },
             'user': {'id': isA<String>(), 'name': 'Usuario uid-staff'},
+            // Registrado a mano: no es de un pedido.
+            'order': null,
           });
           expect(await stockOf(arroz), 15);
           expect(await InventoryMovement.db.count(session), 1);
@@ -283,6 +285,164 @@ void main() {
           )).$1,
           404,
         );
+      });
+
+      group('filtros', () {
+        late Product leche;
+        late Order order;
+
+        /// Un movimiento del día [day] de la tienda, a mediodía; de [order]
+        /// si se dice.
+        Future<InventoryMovement> movement(
+          Product product,
+          String day, {
+          MovementType type = MovementType.outgoing,
+          Order? of,
+        }) async {
+          final user = await User.db.findFirstRow(
+            session,
+            where: (user) => user.firebaseUid.equals('uid-cliente'),
+          );
+          return InventoryMovement.db.insertRow(
+            session,
+            InventoryMovement(
+              type: type,
+              quantity: 1,
+              reason: of == null ? 'Conteo' : 'Pedido ${of.id}',
+              productId: product.id!,
+              userId: user!.id!,
+              orderId: of?.id,
+              createdAt: storeDayStart(day).add(const Duration(hours: 12)),
+            ),
+          );
+        }
+
+        setUp(() async {
+          final lacteos = await Category.db.insertRow(
+            session,
+            Category(name: 'Lácteos'),
+          );
+          leche = await Product.db.insertRow(
+            session,
+            Product(
+              name: 'Leche evaporada',
+              sku: 'LECHE-400',
+              priceCents: 450,
+              categoryId: lacteos.id!,
+              currentStock: 10,
+            ),
+          );
+          final customer = await User.db.findFirstRow(
+            session,
+            where: (user) => user.firebaseUid.equals('uid-cliente'),
+          );
+          order = await Order.db.insertRow(
+            session,
+            Order(
+              number: 1024,
+              status: OrderStatus.cancelled,
+              fulfillmentType: FulfillmentType.delivery,
+              deliveryAddress: 'Av. Arequipa 123',
+              totalCents: 900,
+              customerId: customer!.id!,
+            ),
+          );
+          await movement(arroz, '2026-09-20');
+          await movement(arroz, '2026-09-22', of: order);
+          await movement(leche, '2026-09-22', of: order);
+          await movement(
+            leche,
+            '2026-09-25',
+            type: MovementType.incoming,
+            of: order,
+          );
+        });
+
+        Future<List<(String, String?)>> find(String query) async {
+          final (status, body) = await client.get(
+            '/inventory/movements?$query',
+            as: 'uid-staff',
+          );
+          expect(status, 200, reason: query);
+          return [
+            for (final m in body['data'] as List)
+              (
+                m['product']['name'] as String,
+                (m['createdAt'] as String).substring(0, 10),
+              ),
+          ];
+        }
+
+        test('por origen: los de pedidos o los manuales', () async {
+          // Los más recientes primero; el mismo día, el último registrado.
+          expect(await find('origin=orders'), [
+            ('Leche evaporada', '2026-09-25'),
+            ('Leche evaporada', '2026-09-22'),
+            ('Arroz', '2026-09-22'),
+          ]);
+          expect(await find('origin=manual'), [('Arroz', '2026-09-20')]);
+          expect(
+            (await client.get(
+              '/inventory/movements?origin=web',
+              as: 'uid-staff',
+            )).$2['message'],
+            ['origin debe ser orders o manual'],
+          );
+        });
+
+        test('por categoría', () async {
+          final lacteos = leche.categoryId;
+
+          expect(
+            {for (final (name, _) in await find('categoryId=$lacteos')) name},
+            {'Leche evaporada'},
+          );
+          expect(await find('categoryId=$lacteos&origin=manual'), isEmpty);
+        });
+
+        test('busca por producto, SKU o N.º de pedido', () async {
+          Future<Set<String>> names(String search) async => {
+            for (final (name, _) in await find(
+              'search=${Uri.encodeQueryComponent(search)}',
+            ))
+              name,
+          };
+
+          expect(await names('arroz'), {'Arroz'});
+          expect(await names('leche-4'), {'Leche evaporada'});
+          expect((await find('search=1024')).length, 3);
+          expect(await names('1025'), isEmpty);
+        });
+
+        test('por días de la tienda, ambos incluidos', () async {
+          expect((await find('from=2026-09-22&to=2026-09-22')).length, 2);
+          expect(await find('from=2026-09-23'), [
+            ('Leche evaporada', '2026-09-25'),
+          ]);
+          expect(await find('to=2026-09-21'), [('Arroz', '2026-09-20')]);
+          expect(
+            (await client.get(
+              '/inventory/movements?from=2026-09-25&to=2026-09-20',
+              as: 'uid-staff',
+            )).$1,
+            400,
+          );
+        });
+
+        test('cada uno dice de qué pedido es', () async {
+          final (_, body) = await client.get(
+            '/inventory/movements?productId=${arroz.id}',
+            as: 'uid-staff',
+          );
+
+          expect(
+            [for (final m in body['data'] as List) m['order']],
+            [
+              {'id': order.id.toString(), 'number': 1024},
+              null,
+            ],
+          );
+        });
       });
     });
 
