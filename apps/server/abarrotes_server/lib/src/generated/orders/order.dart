@@ -26,6 +26,8 @@ abstract class Order
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required this.totalCents,
+    int? subtotalCents,
+    int? discountCents,
     this.deliveryAddress,
     this.pickupCode,
     this.readyForPickupAt,
@@ -38,6 +40,8 @@ abstract class Order
     this.items,
   }) : status = status ?? _i2b33p21.OrderStatus.pendingConfirmation,
        fulfillmentType = fulfillmentType ?? _icim3nyh.FulfillmentType.delivery,
+       subtotalCents = subtotalCents ?? 0,
+       discountCents = discountCents ?? 0,
        createdAt = createdAt ?? DateTime.now(),
        updatedAt = updatedAt ?? DateTime.now();
 
@@ -47,6 +51,8 @@ abstract class Order
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required int totalCents,
+    int? subtotalCents,
+    int? discountCents,
     String? deliveryAddress,
     String? pickupCode,
     DateTime? readyForPickupAt,
@@ -76,6 +82,8 @@ abstract class Order
               (jsonSerialization['fulfillmentType'] as String),
             ),
       totalCents: jsonSerialization['totalCents'] as int,
+      subtotalCents: jsonSerialization['subtotalCents'] as int?,
+      discountCents: jsonSerialization['discountCents'] as int?,
       deliveryAddress: jsonSerialization['deliveryAddress'] as String?,
       pickupCode: jsonSerialization['pickupCode'] as String?,
       readyForPickupAt: jsonSerialization['readyForPickupAt'] == null
@@ -125,8 +133,15 @@ abstract class Order
   /// tienda.
   _icim3nyh.FulfillmentType fulfillmentType;
 
-  /// Total en céntimos.
+  /// Lo que se cobra, en céntimos: el subtotal menos los descuentos.
   int totalCents;
+
+  /// A precio normal, sin los regalos (igual al total en los pedidos de
+  /// antes de los tipos de promoción).
+  int subtotalCents;
+
+  /// Lo que ahorraron las promociones (subtotal − total).
+  int discountCents;
 
   /// Solo a domicilio: el servidor la exige ahí; en recojo va null.
   String? deliveryAddress;
@@ -170,6 +185,8 @@ abstract class Order
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     int? totalCents,
+    int? subtotalCents,
+    int? discountCents,
     String? deliveryAddress,
     String? pickupCode,
     DateTime? readyForPickupAt,
@@ -190,6 +207,8 @@ abstract class Order
       'status': status.toJson(),
       'fulfillmentType': fulfillmentType.toJson(),
       'totalCents': totalCents,
+      'subtotalCents': subtotalCents,
+      'discountCents': discountCents,
       if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
       if (pickupCode != null) 'pickupCode': pickupCode,
       if (readyForPickupAt != null)
@@ -214,6 +233,8 @@ abstract class Order
       'status': status.toJson(),
       'fulfillmentType': fulfillmentType.toJson(),
       'totalCents': totalCents,
+      'subtotalCents': subtotalCents,
+      'discountCents': discountCents,
       if (deliveryAddress != null) 'deliveryAddress': deliveryAddress,
       if (pickupCode != null) 'pickupCode': pickupCode,
       if (readyForPickupAt != null)
@@ -273,6 +294,8 @@ class _OrderImpl extends Order {
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     required int totalCents,
+    int? subtotalCents,
+    int? discountCents,
     String? deliveryAddress,
     String? pickupCode,
     DateTime? readyForPickupAt,
@@ -289,6 +312,8 @@ class _OrderImpl extends Order {
          status: status,
          fulfillmentType: fulfillmentType,
          totalCents: totalCents,
+         subtotalCents: subtotalCents,
+         discountCents: discountCents,
          deliveryAddress: deliveryAddress,
          pickupCode: pickupCode,
          readyForPickupAt: readyForPickupAt,
@@ -311,6 +336,8 @@ class _OrderImpl extends Order {
     _i2b33p21.OrderStatus? status,
     _icim3nyh.FulfillmentType? fulfillmentType,
     int? totalCents,
+    int? subtotalCents,
+    int? discountCents,
     Object? deliveryAddress = _Undefined,
     Object? pickupCode = _Undefined,
     Object? readyForPickupAt = _Undefined,
@@ -328,6 +355,8 @@ class _OrderImpl extends Order {
       status: status ?? this.status,
       fulfillmentType: fulfillmentType ?? this.fulfillmentType,
       totalCents: totalCents ?? this.totalCents,
+      subtotalCents: subtotalCents ?? this.subtotalCents,
+      discountCents: discountCents ?? this.discountCents,
       deliveryAddress: deliveryAddress is String?
           ? deliveryAddress
           : this.deliveryAddress,
@@ -375,6 +404,16 @@ class OrderUpdateTable extends _is.UpdateTable<OrderTable> {
 
   _is.ColumnValue<int, int> totalCents(int value) => _is.ColumnValue(
     table.totalCents,
+    value,
+  );
+
+  _is.ColumnValue<int, int> subtotalCents(int value) => _is.ColumnValue(
+    table.subtotalCents,
+    value,
+  );
+
+  _is.ColumnValue<int, int> discountCents(int value) => _is.ColumnValue(
+    table.discountCents,
     value,
   );
 
@@ -450,6 +489,16 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
       'totalCents',
       this,
     );
+    subtotalCents = _is.ColumnInt(
+      'subtotalCents',
+      this,
+      hasDefault: true,
+    );
+    discountCents = _is.ColumnInt(
+      'discountCents',
+      this,
+      hasDefault: true,
+    );
     deliveryAddress = _is.ColumnString(
       'deliveryAddress',
       this,
@@ -498,8 +547,15 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
   /// tienda.
   late final _is.ColumnEnum<_icim3nyh.FulfillmentType> fulfillmentType;
 
-  /// Total en céntimos.
+  /// Lo que se cobra, en céntimos: el subtotal menos los descuentos.
   late final _is.ColumnInt totalCents;
+
+  /// A precio normal, sin los regalos (igual al total en los pedidos de
+  /// antes de los tipos de promoción).
+  late final _is.ColumnInt subtotalCents;
+
+  /// Lo que ahorraron las promociones (subtotal − total).
+  late final _is.ColumnInt discountCents;
 
   /// Solo a domicilio: el servidor la exige ahí; en recojo va null.
   late final _is.ColumnString deliveryAddress;
@@ -585,6 +641,8 @@ class OrderTable extends _is.Table<_is.UuidValue?> {
     status,
     fulfillmentType,
     totalCents,
+    subtotalCents,
+    discountCents,
     deliveryAddress,
     pickupCode,
     readyForPickupAt,

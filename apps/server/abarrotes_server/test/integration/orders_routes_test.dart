@@ -80,12 +80,16 @@ class _Shop {
         productId: arroz.id!,
         quantity: 2,
         unitPriceCents: 390,
+        listUnitPriceCents: 450,
+        lineTotalCents: 780,
       ),
       OrderItem(
         orderId: order.id!,
         productId: aceite.id!,
         quantity: 1,
         unitPriceCents: 1250,
+        listUnitPriceCents: 1250,
+        lineTotalCents: 1250,
       ),
     ]);
     return order;
@@ -284,7 +288,11 @@ void main() {
           expect(arroz, {
             'id': isA<String>(),
             'quantity': 2,
+            'listUnitPrice': '4.5',
             'unitPrice': '3.9',
+            'lineTotal': '7.8',
+            'isGift': false,
+            'promotions': <Object?>[],
             'orderId': latest.id.toString(),
             'productId': shop.arroz.id.toString(),
             'product': {
@@ -850,6 +858,219 @@ void main() {
       });
     });
 
+    group('promociones por tipo', () {
+      setUp(
+        () async =>
+            shop.customer = await completeProfile(session, shop.customer),
+      );
+
+      Future<Promotion> promo(
+        Product product,
+        PromotionType type, {
+        int? percent,
+        int? buy,
+        int? pay,
+        Product? gift,
+        int? giftQuantity,
+      }) => Promotion.db.insertRow(
+        session,
+        Promotion(
+          productId: product.id!,
+          type: type,
+          percent: percent,
+          buyQuantity: buy,
+          payQuantity: pay,
+          giftProductId: gift?.id,
+          giftQuantity: giftQuantity,
+          startDate: testNow.subtract(const Duration(days: 1)),
+          endDate: testNow.add(const Duration(days: 1)),
+        ),
+      );
+
+      Future<ApiResult> order(
+        Product product,
+        int quantity, {
+        num? lineTotal,
+      }) => client.post('/orders', {
+        'deliveryAddress': 'Av. Arequipa 123',
+        'items': [
+          {
+            'productId': product.id.toString(),
+            'quantity': quantity,
+            'lineTotal': ?lineTotal,
+          },
+        ],
+      }, as: 'uid-cliente');
+
+      test('cobra con el motor: 2x1 y 10 %', () async {
+        await promo(shop.arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+        await promo(shop.arroz, PromotionType.percentOff, percent: 10);
+
+        final (status, body) = await order(shop.arroz, 4);
+
+        expect(status, 201);
+        expect(
+          (body['subtotal'], body['discount'], body['total']),
+          ('18', '9.9', '8.1'),
+        );
+        final item = (body['items'] as List).single;
+        expect(item['listUnitPrice'], '4.5');
+        expect(item['unitPrice'], '4.05');
+        expect(item['lineTotal'], '8.1');
+        expect(item['isGift'], false);
+        expect(item['promotions'], [
+          {'label': '10 % menos', 'saved': '1.8'},
+          {'label': '2x1', 'saved': '8.1'},
+        ]);
+        final saved = (await OrderItem.db.find(session)).single;
+        expect((saved.lineTotalCents, saved.listUnitPriceCents), (810, 450));
+        final placed = (await Order.db.find(session)).single;
+        expect(
+          (placed.subtotalCents, placed.discountCents, placed.totalCents),
+          (1800, 990, 810),
+        );
+      });
+
+      test('el regalo va como línea a S/ 0 y descuenta stock', () async {
+        await promo(
+          shop.aceite,
+          PromotionType.gift,
+          buy: 2,
+          gift: shop.arroz,
+          giftQuantity: 1,
+        );
+
+        final (status, body) = await order(shop.aceite, 2);
+
+        expect(status, 201);
+        final gift = (body['items'] as List).singleWhere(
+          (item) => item['isGift'] == true,
+        );
+        expect(
+          (gift['product']['name'], gift['quantity'], gift['lineTotal']),
+          ('Arroz', 1, '0'),
+        );
+        expect(gift['promotions'], [
+          {'label': 'Regalo: Arroz', 'saved': '4.5'},
+        ]);
+        expect(body['total'], '9');
+        expect(await shop.stockOf(shop.aceite), 1);
+        expect(await shop.stockOf(shop.arroz), 7);
+        final giftMovement = await InventoryMovement.db.findFirstRow(
+          session,
+          where: (m) => m.productId.equals(shop.arroz.id),
+        );
+        expect(
+          (giftMovement!.type, giftMovement.quantity, giftMovement.orderId),
+          (
+            MovementType.outgoing,
+            1,
+            UuidValue.fromString(body['id'] as String),
+          ),
+        );
+      });
+
+      test('regalo sin stock: el pedido sale igual con el aviso', () async {
+        await promo(
+          shop.aceite,
+          PromotionType.gift,
+          buy: 2,
+          gift: shop.arroz,
+          giftQuantity: 1,
+        );
+        await Product.db.updateRow(
+          session,
+          shop.arroz.copyWith(currentStock: 0),
+        );
+
+        final (status, body) = await order(shop.aceite, 2);
+
+        expect(status, 201);
+        expect(
+          (body['items'] as List).where((item) => item['isGift'] == true),
+          isEmpty,
+        );
+        expect(body['notices'], ['Arroz ya no está disponible para regalo']);
+      });
+
+      test('lineTotal distinto: va en priceChanges', () async {
+        await promo(shop.arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+        await promo(shop.arroz, PromotionType.percentOff, percent: 10);
+
+        final (status, body) = await order(shop.arroz, 4, lineTotal: 9.9);
+
+        expect(status, 201);
+        expect(body['total'], '8.1');
+        expect(body['priceChanges'], [
+          {
+            'productId': shop.arroz.id.toString(),
+            'name': 'Arroz',
+            'shownLineTotal': '9.9',
+            'lineTotal': '8.1',
+          },
+        ]);
+      });
+
+      test('cancelar devuelve también el regalo', () async {
+        await promo(
+          shop.aceite,
+          PromotionType.gift,
+          buy: 2,
+          gift: shop.arroz,
+          giftQuantity: 1,
+        );
+        final (_, body) = await order(shop.aceite, 2);
+        final placed = await Order.db.findById(
+          session,
+          UuidValue.fromString(body['id'] as String),
+        );
+
+        final (status, _) = await changeStatus(placed!, 'cancelled');
+
+        expect(status, 200);
+        expect(await shop.stockOf(shop.aceite), 3);
+        expect(await shop.stockOf(shop.arroz), 8);
+      });
+
+      test('borrar una promoción usada no rompe el pedido', () async {
+        final twoForOne = await promo(
+          shop.arroz,
+          PromotionType.buyXPayY,
+          buy: 2,
+          pay: 1,
+        );
+        await order(shop.arroz, 2);
+
+        await Promotion.db.deleteRow(session, twoForOne);
+
+        final (status, mine) = await client.get(
+          '/orders/mine',
+          as: 'uid-cliente',
+        );
+        expect(status, 200);
+        final item = (mine['data'] as List).single['items'].single;
+        expect(item['promotions'], [
+          {'label': '2x1', 'saved': '4.5'},
+        ]);
+      });
+
+      test('un pedido sin promociones', () async {
+        final (status, body) = await order(shop.arroz, 2);
+
+        expect(status, 201);
+        expect(
+          (body['subtotal'], body['discount'], body['total']),
+          (
+            '9',
+            '0',
+            '9',
+          ),
+        );
+        expect((body['items'] as List).single['promotions'], isEmpty);
+        expect(body['notices'], isEmpty);
+      });
+    });
+
     group('recojo en tienda', () {
       setUp(
         () async =>
@@ -929,7 +1150,12 @@ void main() {
           shopper: Shopper.anonymous,
           fulfillmentType: FulfillmentType.pickup,
           lines: [
-            (productId: shop.arroz.id!, quantity: 1, shownUnitPriceCents: null),
+            (
+              productId: shop.arroz.id!,
+              quantity: 1,
+              shownUnitPriceCents: null,
+              shownLineTotalCents: null,
+            ),
           ],
         )).order.pickupCode;
 
@@ -1342,6 +1568,7 @@ void main() {
                     productId: shop.aceite.id!,
                     quantity: 2,
                     shownUnitPriceCents: null,
+                    shownLineTotalCents: null,
                   ),
                 ],
               )

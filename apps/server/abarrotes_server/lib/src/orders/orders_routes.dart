@@ -77,7 +77,7 @@ List<RouteEntry> ordersRoutes(
         }
         final items = body.objects(
           'items',
-          allowed: const {'productId', 'quantity', 'unitPrice'},
+          allowed: const {'productId', 'quantity', 'unitPrice', 'lineTotal'},
           min: 1,
           max: 100,
         );
@@ -88,6 +88,11 @@ List<RouteEntry> ordersRoutes(
               quantity: item.integer('quantity', min: 1, max: 999),
               shownUnitPrice: item.cents(
                 'unitPrice',
+                minCents: 0,
+                required: false,
+              ),
+              shownLineTotal: item.cents(
+                'lineTotal',
                 minCents: 0,
                 required: false,
               ),
@@ -107,12 +112,14 @@ List<RouteEntry> ordersRoutes(
                 productId: line.productId!,
                 quantity: line.quantity!,
                 shownUnitPriceCents: line.shownUnitPrice,
+                shownLineTotalCents: line.shownLineTotal,
               ),
           ],
         );
         return jsonResponse(201, {
           ...orderJson(placed.order, withCodes: true),
           'priceChanges': placed.priceChanges.map(priceChangeJson).toList(),
+          'notices': placed.notices,
         });
       }),
     ),
@@ -299,6 +306,9 @@ Map<String, Object?> orderJson(
     'allowedNextStatuses': [
       for (final status in orderStateOfOrder(order).nextStatuses) status.name,
     ],
+    // A precio normal, lo que ahorraron las promociones y lo cobrado.
+    'subtotal': formatMoney(order.subtotalCents),
+    'discount': formatMoney(order.discountCents),
     'total': formatMoney(order.totalCents),
     'deliveryAddress': order.deliveryAddress,
     'pickupCode': withCodes || withPickupCode ? order.pickupCode : null,
@@ -316,7 +326,17 @@ Map<String, Object?> orderJson(
         {
           'id': item.id.toString(),
           'quantity': item.quantity,
+          'listUnitPrice': formatMoney(item.listUnitPriceCents),
           'unitPrice': formatMoney(item.unitPriceCents),
+          'lineTotal': formatMoney(item.lineTotalCents),
+          'isGift': item.isGift,
+          'promotions': [
+            for (final applied in item.promotions ?? const <AppliedPromotion>[])
+              {
+                'label': applied.label,
+                'saved': formatMoney(applied.savedCents),
+              },
+          ],
           'orderId': item.orderId.toString(),
           'productId': item.productId.toString(),
           'product': {
@@ -329,12 +349,19 @@ Map<String, Object?> orderJson(
   };
 }
 
-/// Un precio que cambió entre el carrito y el cobro, para avisarle al cliente.
+/// Un precio que cambió entre el carrito y el cobro, para avisarle al
+/// cliente: el total de la línea o, si el carrito mandó el precio
+/// unitario (apps de antes), ese.
 Map<String, Object?> priceChangeJson(PriceChange change) => {
   'productId': change.productId.toString(),
   'name': change.name,
-  'shownUnitPrice': formatMoney(change.shownUnitPriceCents),
-  'unitPrice': formatMoney(change.unitPriceCents),
+  if (change.shownLineTotalCents case final shown?) ...{
+    'shownLineTotal': formatMoney(shown),
+    'lineTotal': formatMoney(change.lineTotalCents!),
+  } else ...{
+    'shownUnitPrice': formatMoney(change.shownUnitPriceCents!),
+    'unitPrice': formatMoney(change.unitPriceCents!),
+  },
 };
 
 /// Como [orderJson] y, para el panel, quién lo hizo: sus datos de contacto

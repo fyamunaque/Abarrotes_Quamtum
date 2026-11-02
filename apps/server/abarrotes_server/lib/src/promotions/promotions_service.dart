@@ -7,6 +7,7 @@ import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'audience/promotion_audience_rule.dart';
 import 'promotion_announcer.dart';
+import 'promotion_engine.dart';
 import 'promotion_labels.dart';
 import 'promotion_pricing.dart';
 import 'promotion_rules.dart';
@@ -92,6 +93,83 @@ class PromotionsService implements PromotionPricing {
         ],
         limit: 1,
       );
+
+  @override
+  PromotionIncludeList eligibleFor(DateTime now, Shopper shopper) =>
+      Promotion.includeList(
+        where: (promotion) => eligibleWhere(promotion, now, shopper),
+        orderByList: (promotion) => [promotion.id.asc()],
+        include: Promotion.include(giftProduct: Product.include()),
+      );
+
+  @override
+  Future<Set<UuidValue>> giftProductIds(
+    Session session,
+    Set<UuidValue> productIds,
+    Shopper shopper, {
+    Transaction? transaction,
+  }) async {
+    final now = this.now();
+    final gifts = await Promotion.db.find(
+      session,
+      where: (promotion) =>
+          eligibleWhere(promotion, now, shopper) &
+          promotion.productId.inSet(productIds) &
+          promotion.type.equals(PromotionType.gift),
+      transaction: transaction,
+    );
+    return {for (final gift in gifts) gift.giftProductId!};
+  }
+
+  @override
+  Future<PricedCart> price(
+    Session session,
+    List<PricingLine> lines,
+    Shopper shopper, {
+    Transaction? transaction,
+  }) async {
+    final now = this.now();
+    final productIds = {for (final line in lines) line.productId};
+    final promotions = productIds.isEmpty
+        ? const <Promotion>[]
+        : await Promotion.db.find(
+            session,
+            where: (promotion) =>
+                eligibleWhere(promotion, now, shopper) &
+                promotion.productId.inSet(productIds),
+            orderBy: (promotion) => promotion.id,
+            include: Promotion.include(giftProduct: Product.include()),
+            transaction: transaction,
+          );
+    final giftIds = <UuidValue>{for (final p in promotions) ?p.giftProductId};
+    final gifts = giftIds.isEmpty
+        ? const <Product>[]
+        : await Product.db.find(
+            session,
+            where: (product) => product.id.inSet(giftIds),
+            transaction: transaction,
+          );
+    return priceCart(
+      lines,
+      {
+        for (final id in productIds)
+          id: [
+            for (final p in promotions)
+              if (p.productId == id) p,
+          ],
+      },
+      {
+        for (final gift in gifts)
+          gift.id!: (
+            id: gift.id!,
+            name: gift.name,
+            priceCents: gift.priceCents,
+            active: gift.active,
+            stock: gift.currentStock,
+          ),
+      },
+    );
+  }
 
   /// Las vigentes que [shopper] puede usar, de productos activos: por nombre
   /// del producto y, en el mismo producto, la más barata primero.

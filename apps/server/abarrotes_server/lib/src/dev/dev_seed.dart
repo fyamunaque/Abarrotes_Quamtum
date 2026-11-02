@@ -306,6 +306,8 @@ Future<int> _seedOrders(
           OrderItem(
             quantity: line.quantity,
             unitPriceCents: line.unitPrice,
+            listUnitPriceCents: line.unitPrice,
+            lineTotalCents: line.quantity * line.unitPrice,
             orderId: order.id!,
             productId: line.product.id!,
           ),

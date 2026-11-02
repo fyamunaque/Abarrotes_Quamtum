@@ -267,6 +267,20 @@ class Protocol extends _isc.SerializationManager {
               : null)
           as T;
     }
+    if (t == List<_isxjjxbc.AppliedPromotion>) {
+      return (data as List)
+              .map((e) => deserialize<_isxjjxbc.AppliedPromotion>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_isxjjxbc.AppliedPromotion>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_isxjjxbc.AppliedPromotion>(e))
+                    .toList()
+              : null)
+          as T;
+    }
     if (t == List<_i976ojya.InventoryMovement>) {
       return (data as List)
               .map((e) => deserialize<_i976ojya.InventoryMovement>(e))

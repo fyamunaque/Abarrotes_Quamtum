@@ -250,7 +250,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/movements` | `inventory.view` | Historial paginado, el más reciente primero, cada uno con el pedido que lo originó (`order: {id, number}`, o null si se registró a mano). Filtros, que se combinan: `productId` (404 si el producto no existe), `origin` (`orders`: la salida de un pedido o su devolución al cancelarlo; `manual`: los que se registran en el panel), `categoryId`, `search` (el nombre o el SKU del producto, sin importar mayúsculas, y si es un número, también el N.º del pedido), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos; 400 si `from` es posterior). |
 | `GET /inventory/alerts/low-stock` | `inventory.view` | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | `inventory.view` | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
-| `POST /orders` | cualquiera con cuenta | La cuenta tiene que tener el correo confirmado (`email_verified` del token), el celular y los términos vigentes aceptados: si falta algo, 403 con lo que falta ("Confirma tu correo para hacer pedidos…" o "Completa tu cuenta para hacer pedidos…"). `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria, y el servidor le genera su `deliveryCode`; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
+| `POST /orders` | cualquiera con cuenta | La cuenta tiene que tener el correo confirmado (`email_verified` del token), el celular y los términos vigentes aceptados: si falta algo, 403 con lo que falta ("Confirma tu correo para hacer pedidos…" o "Completa tu cuenta para hacer pedidos…"). `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria, y el servidor le genera su `deliveryCode`; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total con el motor de promociones (ver [Cómo se cobra](#cómo-se-cobra-un-pedido)): las promociones vigentes que el cliente puede usar se acumulan, y los regalos van como líneas a S/ 0 que también descuentan stock (si no alcanza, se da lo que haya y el pedido trae `notices`). Cada ítem puede traer `lineTotal` (lo que mostraba el carrito para la línea) o, en las apps de antes, `unitPrice`: nunca se cobran, solo se comparan. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido, `notices` y `priceChanges`: los productos que se cobraron distinto de lo que mostraba el carrito, `{productId, name, shownLineTotal, lineTotal}` (o `{…, shownUnitPrice, unitPrice}` si mandó el precio unitario); vacío si nada cambió. |
 | `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode` o su `deliveryCode`. Filtros, que se combinan: `search` (el N.º si es un número, o un producto del pedido por su nombre, sin importar mayúsculas), `state` (`active`: ni entregado ni cancelado; `delivered` o `cancelled`), `fulfillmentType`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode` (el `deliveryCode` nunca: el repartidor se lo pide al cliente), paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `number` (el número exacto; 400 si no es un entero), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?, deliveryCode?, withoutCodeReason?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente, y entregar uno a domicilio (de `outForDelivery` a `delivered`), el `deliveryCode` que el cliente le da al repartidor (400 si falta o no coincide; los pedidos de antes, sin código, se entregan sin él). Sin el código, solo con `staff.manage` (si no, 403): `withoutCodeReason` (de 5 a 255 caracteres) dice por qué, queda en el pedido (`deliveredWithoutCodeReason`) y en la bitácora (`orderDeliveredWithoutCode`, con el correo del cliente y el N.º del pedido); en cualquier otro cambio, 400. El código de recojo va en la respuesta solo con `orders.view`; el de entrega, nunca. |
@@ -268,13 +268,31 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /staff/members/:id` | `staff.manage` | Baja lógica: pierde sus permisos en la petición siguiente. |
 | `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. |
 
-Cada pedido JSON lleva `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
+Cada pedido JSON lleva `subtotal` (a precio normal), `discount` y `total` (lo cobrado); cada línea, `listUnitPrice` (precio normal), `unitPrice` (con precio especial y porcentajes), `lineTotal` (lo cobrado), `isGift` y `promotions: [{label, saved}]` (una foto: no cambia si después se borra la promoción). Además, `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
 desde 1001, lo pone el servidor al crearlo), `fulfillmentType`, `deliveryAddress` (null en recojo),
 `pickupCode` (solo para su dueño y el personal con `orders.view`; si no, null), `deliveryCode`
 (solo para su dueño), `hasDeliveryCode` (para todos: si entregarlo pide el código; los pedidos
 de antes no lo tienen), `deliveredWithoutCodeReason` (si se entregó sin el código), `readyForPickupAt` y
 `allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
 botones con eso, sin las transiciones escritas a mano.
+
+### Cómo se cobra un pedido
+
+`promotions/promotion_engine.dart` es una función pura (se prueba sin base de datos). La llaman el
+pedido y la cotización a través de `PromotionPricing.price`, con las promociones vigentes que el
+cliente puede usar. En cada línea, en este orden:
+
+1. **Precio unitario:** el precio especial más bajo, o el normal.
+2. **Porcentajes:** todos, en cadena (20 % y 10 % → 28 % menos), redondeando al céntimo en cada
+   paso.
+3. **Por cantidad**, sobre ese precio: primero los NxM y después la unidad extra. Cada unidad
+   entra en una sola; entre dos que compiten gana la que más ahorra.
+4. **Regalos:** `floor(cantidad / X) × Y` unidades del producto de regalo, en una línea a S/ 0,
+   hasta donde alcance su stock (descontando lo que ya se compra de ese producto).
+
+El pedido bloquea los productos comprados **y los de regalo** en orden por id antes de cobrar
+(`giftProductIds`), así dos pedidos a la vez no se traban. El top 5 de las estadísticas suma
+`lineTotalCents` (lo cobrado), así un 2x1 no infla las ventas.
 
 ### Fotos de los productos
 

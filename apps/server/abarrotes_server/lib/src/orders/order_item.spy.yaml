@@ -3,7 +3,18 @@ table: order_items
 fields:
   id: UuidValue?, defaultPersist=random_v7
   quantity: int
-  ### Precio unitario cobrado, en céntimos (el promocional si había promoción).
+  ### Precio unitario después del precio especial y los porcentajes, en
+  ### céntimos (0 en un regalo).
   unitPriceCents: int
+  ### El precio normal del producto al hacer el pedido.
+  ### (default 0 solo para agregar la columna: la migración la completa y el
+  ### servidor siempre la pone).
+  listUnitPriceCents: int, default=0
+  ### Lo que se cobró por la línea, con las promociones por cantidad (2x1…).
+  lineTotalCents: int, default=0
+  ### Una línea de regalo (a S/ 0) de una promoción de regalo.
+  isGift: bool, default=false
+  ### Las promociones que se aplicaron, como foto (nombre y ahorro).
+  promotions: List<AppliedPromotion>?
   order: Order?, relation(name=order_items, onDelete=Restrict, onUpdate=Cascade)
   product: Product?, relation(name=product_order_items, onDelete=Restrict, onUpdate=Cascade)

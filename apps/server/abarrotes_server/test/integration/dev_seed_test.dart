@@ -319,6 +319,8 @@ void main() {
           OrderItem(
             quantity: 1,
             unitPriceCents: 2490,
+            listUnitPriceCents: 2490,
+            lineTotalCents: 2490,
             orderId: order.id!,
             productId: rice.id!,
           ),

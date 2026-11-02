@@ -400,6 +400,33 @@ class Protocol extends _is.DatabaseSerializationManager {
           dartType: 'int',
         ),
         _isp.ColumnDefinition(
+          name: 'listUnitPriceCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
+        ),
+        _isp.ColumnDefinition(
+          name: 'lineTotalCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
+        ),
+        _isp.ColumnDefinition(
+          name: 'isGift',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'false',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promotions',
+          columnType: _isp.ColumnType.json,
+          isNullable: true,
+          dartType: 'List<protocol:AppliedPromotion>?',
+        ),
+        _isp.ColumnDefinition(
           name: 'orderId',
           columnType: _isp.ColumnType.uuid,
           isNullable: false,
@@ -475,6 +502,20 @@ class Protocol extends _is.DatabaseSerializationManager {
           columnType: _isp.ColumnType.bigint,
           isNullable: false,
           dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'subtotalCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
+        ),
+        _isp.ColumnDefinition(
+          name: 'discountCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
         ),
         _isp.ColumnDefinition(
           name: 'deliveryAddress',
@@ -1585,6 +1626,20 @@ class Protocol extends _is.DatabaseSerializationManager {
       return (data != null
               ? (data as List)
                     .map((e) => deserialize<_is46w9g4.OrderItem>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_isxjjxbc.AppliedPromotion>) {
+      return (data as List)
+              .map((e) => deserialize<_isxjjxbc.AppliedPromotion>(e))
+              .toList()
+          as T;
+    }
+    if (t == _is.getType<List<_isxjjxbc.AppliedPromotion>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_isxjjxbc.AppliedPromotion>(e))
                     .toList()
               : null)
           as T;

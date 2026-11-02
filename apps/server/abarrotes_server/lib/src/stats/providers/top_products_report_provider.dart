@@ -22,7 +22,7 @@ class TopProductsReportProvider
              p.name,
              p.sku,
              SUM(oi.quantity)::bigint AS quantity,
-             SUM(oi.quantity * oi."unitPriceCents")::bigint AS revenue
+             SUM(oi."lineTotalCents")::bigint AS revenue
       FROM order_items oi
       JOIN orders o ON o.id = oi."orderId"
       JOIN products p ON p.id = oi."productId"
@@ -31,7 +31,7 @@ class TopProductsReportProvider
         AND o."createdAt" < @end::timestamp
       GROUP BY p.id, p.name, p.sku
       ORDER BY SUM(oi.quantity) DESC,
-               SUM(oi.quantity * oi."unitPriceCents") DESC,
+               SUM(oi."lineTotalCents") DESC,
                p.name
       LIMIT @limit
       ''',
