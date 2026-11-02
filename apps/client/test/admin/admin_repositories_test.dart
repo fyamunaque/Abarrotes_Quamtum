@@ -614,6 +614,117 @@ void main() {
       },
     );
 
+    test('lee el tipo y sus campos', () async {
+      final promotions = await HttpPromotionsRepository(
+        api(
+          (_) => page([
+            {
+              ...promotion,
+              'type': 'gift',
+              'promoPrice': null,
+              'buyQuantity': 2,
+              'giftProduct': {'id': 'p-9', 'name': 'Sal 1 kg'},
+              'giftQuantity': 1,
+            },
+          ]),
+        ),
+      ).list();
+
+      final gift = promotions.items.single;
+      expect(gift.type, PromotionType.gift);
+      expect((gift.giftProductId, gift.giftProductName), ('p-9', 'Sal 1 kg'));
+      expect(gift.label, 'Regalo: Sal 1 kg');
+      expect(gift.promoPriceCents, isNull);
+    });
+
+    test('cada tipo manda solo sus campos; el tipo, solo al crear', () async {
+      final repository = HttpPromotionsRepository(api((_) => promotion));
+
+      await repository.create(
+        const PromotionInput(
+          productId: 'p-1',
+          type: PromotionType.buyXPayY,
+          buyQuantity: 2,
+          payQuantity: 1,
+          startDate: '2026-10-04',
+          endDate: '2026-11-02',
+          active: true,
+        ),
+      );
+      expect(jsonDecode(sent.single.body), {
+        'productId': 'p-1',
+        'type': 'buyXPayY',
+        'buyQuantity': 2,
+        'payQuantity': 1,
+        'startDate': '2026-10-04',
+        'endDate': '2026-11-02',
+        'active': true,
+        'audience': 'everyone',
+        'title': null,
+      });
+
+      await repository.update(
+        'pr-1',
+        const PromotionInput(
+          type: PromotionType.gift,
+          buyQuantity: 2,
+          giftProductId: 'p-9',
+          giftQuantity: 1,
+          startDate: '2026-10-04',
+          endDate: '2026-11-02',
+          active: true,
+        ),
+        confirmOverlap: true,
+      );
+      final patch = jsonDecode(sent.last.body) as Map;
+      expect(patch, isNot(contains('type')));
+      expect(patch, isNot(contains('promoPrice')));
+      expect(patch, containsPair('giftProductId', 'p-9'));
+      expect(patch, containsPair('confirmOverlap', true));
+    });
+
+    test('el cruce llega como PromotionOverlap', () async {
+      final repository = HttpPromotionsRepository(
+        api(
+          (_) => {
+            'statusCode': 409,
+            'message': 'Se acumula con otras promociones del producto',
+            'overlaps': [
+              {
+                'id': 'pr-2',
+                'type': 'buyXPayY',
+                'audience': 'everyone',
+                'label': '2x1',
+                'startDate': '2026-10-01',
+                'endDate': '2026-10-07',
+              },
+            ],
+          },
+          status: 409,
+        ),
+      );
+
+      await expectLater(
+        repository.create(
+          const PromotionInput(
+            productId: 'p-1',
+            promoPriceCents: 890,
+            startDate: '2026-10-04',
+            endDate: '2026-11-02',
+            active: true,
+          ),
+        ),
+        throwsA(
+          isA<PromotionOverlap>().having((o) => o.overlaps.single, 'overlap', (
+            label: '2x1',
+            audience: PromotionAudience.everyone,
+            startDate: '2026-10-01',
+            endDate: '2026-10-07',
+          )),
+        ),
+      );
+    });
+
     test('crear lleva el producto; editar, no; eliminar es DELETE', () async {
       final repository = HttpPromotionsRepository(api((_) => promotion));
 
@@ -628,6 +739,7 @@ void main() {
       );
       expect(jsonDecode(sent.single.body), {
         'productId': 'p-1',
+        'type': 'specialPrice',
         'promoPrice': 8.9,
         'startDate': '2026-10-04',
         'endDate': '2026-11-02',

@@ -593,8 +593,10 @@ class FakePromotionsRepository implements PromotionsRepository {
   final String today;
   final int pageSize;
 
-  /// Lo que se mandó al crear (`null` como id) o editar, en orden.
+  /// Lo que se guardó al crear (`null` como id) o editar, en orden, y si
+  /// se mandó con `confirmOverlap`.
   final sent = <(String?, PromotionInput)>[];
+  final confirmed = <bool>[];
   final deleted = <String>[];
 
   @override
@@ -615,7 +617,10 @@ class FakePromotionsRepository implements PromotionsRepository {
   }
 
   @override
-  Future<Promotion> create(PromotionInput input) async {
+  Future<Promotion> create(
+    PromotionInput input, {
+    bool confirmOverlap = false,
+  }) async {
     final product = products.firstWhere((p) => p.id == input.productId);
     final promotion = _build(
       'promo-${promotions.length + 1}',
@@ -625,14 +630,19 @@ class FakePromotionsRepository implements PromotionsRepository {
       product.priceCents,
       input,
     );
-    _check(promotion, null);
+    _check(promotion, null, confirmOverlap);
     sent.add((null, input));
+    confirmed.add(confirmOverlap);
     promotions.add(promotion);
     return promotion;
   }
 
   @override
-  Future<Promotion> update(String id, PromotionInput input) async {
+  Future<Promotion> update(
+    String id,
+    PromotionInput input, {
+    bool confirmOverlap = false,
+  }) async {
     final i = promotions.indexWhere((p) => p.id == id);
     final current = promotions[i];
     final promotion = _build(
@@ -643,8 +653,9 @@ class FakePromotionsRepository implements PromotionsRepository {
       current.priceCents,
       input,
     );
-    _check(promotion, id);
+    _check(promotion, id, confirmOverlap);
     sent.add((id, input));
+    confirmed.add(confirmOverlap);
     return promotions[i] = promotion;
   }
 
@@ -667,7 +678,19 @@ class FakePromotionsRepository implements PromotionsRepository {
     productName: name,
     sku: sku,
     priceCents: priceCents,
-    promoPriceCents: input.promoPriceCents,
+    type: input.type,
+    promoPriceCents: input.type == PromotionType.specialPrice
+        ? input.promoPriceCents
+        : null,
+    percent: input.percent,
+    buyQuantity: input.buyQuantity,
+    payQuantity: input.payQuantity,
+    giftProductId: input.giftProductId,
+    giftProductName: products
+        .where((p) => p.id == input.giftProductId)
+        .firstOrNull
+        ?.name,
+    giftQuantity: input.giftQuantity,
     startDate: input.startDate,
     endDate: input.endDate,
     active: input.active,
@@ -685,30 +708,34 @@ class FakePromotionsRepository implements PromotionsRepository {
         : PromotionStatus.active,
   );
 
-  void _check(Promotion promotion, String? id) {
-    if (promotion.promoPriceCents >= promotion.priceCents) {
+  /// Como el servidor: el precio especial, menor que el normal; si se
+  /// cruza con otras encendidas del producto (cualquier audiencia), 409
+  /// con la lista, salvo con [confirmOverlap].
+  void _check(Promotion promotion, String? id, bool confirmOverlap) {
+    if (promotion.type == PromotionType.specialPrice &&
+        promotion.promoPriceCents! >= promotion.priceCents) {
       throw ApiFailure(
         'El precio promocional debe ser menor al precio normal '
         '(${promotion.priceCents / 100})',
         status: 400,
       );
     }
-    if (!promotion.active) return;
-    for (final other in promotions) {
-      if (other.id != id &&
-          other.active &&
-          other.productId == promotion.productId &&
-          other.audience == promotion.audience &&
-          other.startDate.compareTo(promotion.endDate) <= 0 &&
-          other.endDate.compareTo(promotion.startDate) >= 0) {
-        throw ApiFailure(
-          '${promotion.productName} ya tiene una promoción'
-          '${promotion.vipOnly ? ' VIP' : ''} del '
-          '${other.startDate} al ${other.endDate} que se cruza con esas fechas',
-          status: 409,
-        );
-      }
-    }
+    if (!promotion.active || confirmOverlap) return;
+    final overlaps = [
+      for (final other in promotions)
+        if (other.id != id &&
+            other.active &&
+            other.productId == promotion.productId &&
+            other.startDate.compareTo(promotion.endDate) <= 0 &&
+            other.endDate.compareTo(promotion.startDate) >= 0)
+          (
+            label: other.label,
+            audience: other.audience,
+            startDate: other.startDate,
+            endDate: other.endDate,
+          ),
+    ];
+    if (overlaps.isNotEmpty) throw PromotionOverlap(overlaps);
   }
 }
 

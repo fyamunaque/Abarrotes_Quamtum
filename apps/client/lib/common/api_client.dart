@@ -5,9 +5,13 @@ import 'package:http/http.dart' as http;
 
 /// Un error de una ruta REST, ya con el mensaje para la persona.
 class ApiFailure implements Exception {
-  const ApiFailure(this.message, {this.status});
+  const ApiFailure(this.message, {this.status, this.details = const {}});
 
   final String message;
+
+  /// Lo que trajo el error además del mensaje (p. ej. `overlaps`, las
+  /// promociones con las que se cruza una nueva).
+  final Map<String, Object?> details;
 
   /// El status HTTP, o null si no hubo respuesta (sin red, sin respuesta a
   /// tiempo).
@@ -147,13 +151,17 @@ class ApiClient {
     final body = _decode(utf8.decode(response.bodyBytes, allowMalformed: true));
     final status = response.statusCode;
     if (status >= 200 && status < 300) return body;
-    throw ApiFailure(switch (status) {
-      401 => 'Tu sesión no es válida. Vuelve a ingresar.',
-      >= 500 => 'El servidor no está disponible. Intenta más tarde.',
-      // 400, 404 y 409 traen un mensaje para la persona (p. ej. "Stock
-      // insuficiente: Aceite tiene 2 unidades").
-      _ => _serverMessage(body) ?? fallback,
-    }, status: status);
+    throw ApiFailure(
+      switch (status) {
+        401 => 'Tu sesión no es válida. Vuelve a ingresar.',
+        >= 500 => 'El servidor no está disponible. Intenta más tarde.',
+        // 400, 404 y 409 traen un mensaje para la persona (p. ej. "Stock
+        // insuficiente: Aceite tiene 2 unidades").
+        _ => _serverMessage(body) ?? fallback,
+      },
+      status: status,
+      details: _details(body),
+    );
   }
 
   /// El `message` del error: un texto, o la lista de errores de validación.
@@ -162,6 +170,15 @@ class ApiClient {
     {'message': final List<Object?> messages} when messages.isNotEmpty =>
       messages.join('. '),
     _ => null,
+  };
+
+  /// Las claves del error que no son las de siempre.
+  static Map<String, Object?> _details(Object? body) => switch (body) {
+    final Map<String, Object?> map => {
+      for (final MapEntry(:key, :value) in map.entries)
+        if (!const {'statusCode', 'message', 'error'}.contains(key)) key: value,
+    },
+    _ => const {},
   };
 
   static Object? _decode(String body) {

@@ -26,20 +26,29 @@ class PromotionsNotifier extends PagedNotifier<Promotion> {
       ref.read(promotionsRepositoryProvider).list(page: page, status: status);
 
   /// Crea la promoción y vuelve a cargar la tabla desde la primera página.
-  Future<Promotion> create(PromotionInput input) async {
+  /// Si se cruza con otras, [PromotionOverlap]: con [confirmOverlap] se
+  /// crea igual.
+  Future<Promotion> create(
+    PromotionInput input, {
+    bool confirmOverlap = false,
+  }) async {
     final promotion = await ref
         .read(promotionsRepositoryProvider)
-        .create(input);
+        .create(input, confirmOverlap: confirmOverlap);
     ref.invalidateSelf();
     return promotion;
   }
 
   /// Guarda los cambios y vuelve a pedir la página: con otro estado (p. ej.
   /// apagada), puede salir del filtro.
-  Future<Promotion> save(String id, PromotionInput input) async {
+  Future<Promotion> save(
+    String id,
+    PromotionInput input, {
+    bool confirmOverlap = false,
+  }) async {
     final promotion = await ref
         .read(promotionsRepositoryProvider)
-        .update(id, input);
+        .update(id, input, confirmOverlap: confirmOverlap);
     replace(promotion, (current) => current.id == id);
     await _refreshQuietly();
     return promotion;

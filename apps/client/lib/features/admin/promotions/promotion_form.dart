@@ -6,20 +6,22 @@ import '../../../admin/vip/vip_customer.dart';
 import '../../../admin/vip/vip_providers.dart';
 import '../../../catalog/product.dart';
 import '../../../common/days.dart';
-import '../../../common/money.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
 import '../shared/product_picker.dart';
+import 'overlap_dialog.dart';
+import 'promotion_type_fields.dart';
 
-/// Crear ([promotion] null) o editar una promoción. Valida como el servidor:
-/// el precio menor que el normal y las fechas en orden. Lo que el servidor
-/// rechaza igual (otra promoción del producto para la misma audiencia en esas
-/// fechas: 409) se muestra. El producto solo se elige al crear; el título es
-/// opcional y la audiencia, "Todos", "Solo clientes VIP" o "Clientes
-/// elegidos" (los VIP que se buscan con [searchVips]). Se cierra con el
-/// aviso para la persona ("Creaste…", "Eliminaste…").
+/// Crear ([promotion] null) o editar una promoción. El producto y el tipo
+/// (precio especial, %, NxM, unidad extra o regalo) solo se eligen al
+/// crear, y cada tipo muestra sus campos, validados como en el servidor. Si
+/// se cruza con otras promociones del producto, avisa con la lista (se
+/// acumulan) y la guarda solo si la persona confirma. El título es opcional
+/// y la audiencia, "Todos", "Solo clientes VIP" o "Clientes elegidos" (los
+/// VIP que se buscan con [searchVips]). Se cierra con el aviso para la
+/// persona ("Creaste…", "Eliminaste…").
 class PromotionForm extends StatefulWidget {
   const PromotionForm({
     super.key,
@@ -31,7 +33,13 @@ class PromotionForm extends StatefulWidget {
 
   final Promotion? promotion;
   final VipSearch searchVips;
-  final Future<Promotion> Function(PromotionInput input) onSubmit;
+
+  /// Con `confirmOverlap`, se guarda aunque se cruce con otras.
+  final Future<Promotion> Function(
+    PromotionInput input, {
+    required bool confirmOverlap,
+  })
+  onSubmit;
 
   /// Solo al editar.
   final Future<void> Function()? onDelete;
@@ -42,9 +50,13 @@ class PromotionForm extends StatefulWidget {
 
 class _PromotionFormState extends State<PromotionForm> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _price;
+  late final PromotionTypeControllers _fields;
   late final TextEditingController _title;
   Product? _product;
+  late PromotionType _type;
+
+  /// El producto de regalo, al crear un regalo.
+  Product? _gift;
   DateTimeRange? _range;
   late bool _active;
   late PromotionAudience _audience;
@@ -61,11 +73,8 @@ class _PromotionFormState extends State<PromotionForm> {
   void initState() {
     super.initState();
     final promotion = widget.promotion;
-    _price = TextEditingController(
-      text: promotion == null
-          ? null
-          : formatSolesInput(promotion.promoPriceCents),
-    );
+    _fields = PromotionTypeControllers(promotion);
+    _type = promotion?.type ?? PromotionType.specialPrice;
     if (promotion != null) {
       _range = DateTimeRange(
         start: parseDay(promotion.startDate),
@@ -80,35 +89,9 @@ class _PromotionFormState extends State<PromotionForm> {
 
   @override
   void dispose() {
-    _price.dispose();
+    _fields.dispose();
     _title.dispose();
     super.dispose();
-  }
-
-  String? _validatePrice(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return 'Escribe el precio de la promoción.';
-    }
-    final cents = parseSolesInput(value);
-    if (cents == null) return 'Escribe un monto como 19.90.';
-    if (cents < 1) return 'Tiene que ser mayor que 0.';
-    if (_normalCents case final normal? when cents >= normal) {
-      return 'Tiene que ser menor que el precio normal '
-          '(${formatSoles(normal)}).';
-    }
-    return null;
-  }
-
-  /// "Precio normal S/ 24.90 · 20 % menos" con lo que hay escrito.
-  String? get _priceHelper {
-    final normal = _normalCents;
-    if (normal == null) return null;
-    final cents = parseSolesInput(_price.text);
-    final discount = cents == null || cents < 1 || cents >= normal
-        ? null
-        : ((normal - cents) * 100 / normal).round();
-    return 'Precio normal ${formatSoles(normal)}'
-        '${discount == null ? '' : ' · $discount % menos'}';
   }
 
   Future<void> _pickRange(FormFieldState<DateTimeRange> field) async {
@@ -129,23 +112,50 @@ class _PromotionFormState extends State<PromotionForm> {
   Future<void> _submit() async {
     if (_busy || !_formKey.currentState!.validate()) return;
     final range = _range!;
+    // Cada tipo manda solo sus campos (`PromotionInput.toJson`).
+    final input = PromotionInput(
+      productId: _creating ? _product!.id : null,
+      type: _type,
+      promoPriceCents: _fields.priceCents,
+      percent: _fields.percentValue,
+      buyQuantity: _fields.buyValue,
+      payQuantity: _fields.payValue,
+      giftProductId: _gift?.id ?? widget.promotion?.giftProductId,
+      giftQuantity: _fields.giftQuantityValue,
+      startDate: formatDay(range.start),
+      endDate: formatDay(range.end),
+      active: _active,
+      audience: _audience,
+      title: _title.text.trim().isEmpty ? null : _title.text.trim(),
+      recipients: _recipients,
+    );
+    String saved(Promotion promotion) => _creating
+        ? 'Creaste la promoción de ${promotion.productName}.'
+        : 'Guardaste la promoción de ${promotion.productName}.';
+    const fallback = 'No se pudo guardar la promoción.';
+
+    var overlaps = const <PromotionOverlapItem>[];
     await _run(() async {
-      final saved = await widget.onSubmit(
-        PromotionInput(
-          productId: _creating ? _product!.id : null,
-          promoPriceCents: parseSolesInput(_price.text)!,
-          startDate: formatDay(range.start),
-          endDate: formatDay(range.end),
-          active: _active,
-          audience: _audience,
-          title: _title.text.trim().isEmpty ? null : _title.text.trim(),
-          recipients: _recipients,
-        ),
-      );
-      return _creating
-          ? 'Creaste la promoción de ${saved.productName}.'
-          : 'Guardaste la promoción de ${saved.productName}.';
-    }, fallback: 'No se pudo guardar la promoción.');
+      try {
+        return saved(await widget.onSubmit(input, confirmOverlap: false));
+      } on PromotionOverlap catch (overlap) {
+        overlaps = overlap.overlaps;
+        return null;
+      }
+    }, fallback: fallback);
+    // Se pregunta con el formulario libre; "Volver" lo deja abierto, sin
+    // error.
+    if (overlaps.isEmpty || !mounted) return;
+    final confirmed = await showOverlapDialog(
+      context,
+      overlaps,
+      confirmLabel: _creating ? 'Crear igual' : 'Guardar igual',
+    );
+    if (!confirmed || !mounted) return;
+    await _run(
+      () async => saved(await widget.onSubmit(input, confirmOverlap: true)),
+      fallback: fallback,
+    );
   }
 
   Future<void> _delete() async {
@@ -165,10 +175,11 @@ class _PromotionFormState extends State<PromotionForm> {
     }, fallback: 'No se pudo eliminar la promoción.');
   }
 
-  /// Corre [action] mostrando el progreso y cierra con su aviso. Si falla,
-  /// el formulario queda abierto con el error.
+  /// Corre [action] mostrando el progreso y cierra con su aviso (sin aviso,
+  /// null, queda abierto). Si falla, el formulario queda abierto con el
+  /// error.
   Future<void> _run(
-    Future<String> Function() action, {
+    Future<String?> Function() action, {
     required String fallback,
   }) async {
     setState(() {
@@ -177,7 +188,7 @@ class _PromotionFormState extends State<PromotionForm> {
     });
     try {
       final message = await action();
-      if (mounted) Navigator.of(context).pop(message);
+      if (message != null && mounted) Navigator.of(context).pop(message);
     } catch (error) {
       if (mounted) setState(() => _error = errorMessage(error, fallback));
     } finally {
@@ -222,17 +233,42 @@ class _PromotionFormState extends State<PromotionForm> {
             inputFormatters: [LengthLimitingTextInputFormatter(100)],
           ),
           const SizedBox(height: 16),
-          TextFormField(
-            controller: _price,
-            enabled: !_busy,
-            decoration: InputDecoration(
-              labelText: 'Precio de la promoción',
-              prefixText: 'S/ ',
-              helperText: _priceHelper,
+          if (promotion == null)
+            DropdownButtonFormField<PromotionType>(
+              style: Theme.of(context).textTheme.bodyLarge,
+              initialValue: _type,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Tipo de promoción'),
+              items: [
+                for (final type in PromotionType.values)
+                  DropdownMenuItem(value: type, child: Text(type.label)),
+              ],
+              onChanged: _busy
+                  ? null
+                  : (type) => setState(() => _type = type ?? _type),
+            )
+          else
+            InputDecorator(
+              decoration: const InputDecoration(
+                labelText: 'Tipo de promoción',
+                helperText: 'No cambia. Para otro tipo, crea otra.',
+                enabled: false,
+              ),
+              child: Text(promotion.type.label),
             ),
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            onChanged: (_) => setState(() {}),
-            validator: _validatePrice,
+          const SizedBox(height: 16),
+          PromotionTypeFields(
+            type: _type,
+            controllers: _fields,
+            normalCents: _normalCents,
+            productId: promotion?.productId ?? _product?.id,
+            gift: _gift,
+            onGiftChanged: (product) => setState(() => _gift = product),
+            enabled: !_busy,
+            // Al editar, el regalo no cambia.
+            fixedGiftName: promotion == null
+                ? null
+                : promotion.giftProductName ?? '',
           ),
           const SizedBox(height: 16),
           FormField<DateTimeRange>(

@@ -29,11 +29,42 @@ enum PromotionAudience {
   final String label;
 }
 
+/// Qué da una promoción, con los nombres del servidor.
+enum PromotionType {
+  specialPrice('Precio especial'),
+  percentOff('% de descuento'),
+  buyXPayY('NxM'),
+  extraUnit('Unidad extra'),
+  gift('Regalo');
+
+  const PromotionType(this.label);
+
+  final String label;
+}
+
+/// Una promoción con la que se cruza otra al crearla o editarla (el
+/// servidor las lista para que la persona decida).
+typedef PromotionOverlapItem = ({
+  String label,
+  PromotionAudience audience,
+  String startDate,
+  String endDate,
+});
+
+/// La promoción se cruza con otras del producto: se acumulan. Para
+/// guardarla igual, se manda con `confirmOverlap`.
+class PromotionOverlap implements Exception {
+  const PromotionOverlap(this.overlaps);
+
+  final List<PromotionOverlapItem> overlaps;
+}
+
 /// Un cliente VIP elegido para una promoción: su id en `/vip-customers` y
 /// su correo.
 typedef PromotionRecipient = ({String id, String email});
 
-/// Una promoción: un precio especial de un producto por unos días, para
+/// Una promoción de un producto por unos días: un precio especial, un %,
+/// un NxM, una unidad extra con descuento o un regalo ([type]), para
 /// todos, para los clientes VIP o para algunos VIP elegidos.
 class Promotion {
   const Promotion({
@@ -42,7 +73,7 @@ class Promotion {
     required this.productName,
     required this.sku,
     required this.priceCents,
-    required this.promoPriceCents,
+    this.promoPriceCents,
     required this.startDate,
     required this.endDate,
     required this.active,
@@ -50,6 +81,13 @@ class Promotion {
     this.audience = PromotionAudience.everyone,
     this.title,
     this.recipients = const [],
+    this.type = PromotionType.specialPrice,
+    this.percent,
+    this.buyQuantity,
+    this.payQuantity,
+    this.giftProductId,
+    this.giftProductName,
+    this.giftQuantity,
   });
 
   /// Como la manda `/promotions`. Sin `audience`, es para todos.
@@ -62,7 +100,6 @@ class Promotion {
             'sku': final String sku,
             'price': final String price,
           },
-          'promoPrice': final String promoPrice,
           'startDate': final String startDate,
           'endDate': final String endDate,
           'active': final bool active,
@@ -75,7 +112,30 @@ class Promotion {
         productName: productName,
         sku: sku,
         priceCents: parseCents(price),
-        promoPriceCents: parseCents(promoPrice),
+        promoPriceCents: switch (map['promoPrice']) {
+          final String price => parseCents(price),
+          _ => null,
+        },
+        // Sin type (un servidor anterior), precio especial.
+        type: switch (map['type']) {
+          null => PromotionType.specialPrice,
+          final String name =>
+            PromotionType.values.asNameMap()[name] ??
+                (throw FormatException('Tipo desconocido', name)),
+          final other => throw FormatException('Tipo inválido', other),
+        },
+        percent: map['percent'] as int?,
+        buyQuantity: map['buyQuantity'] as int?,
+        payQuantity: map['payQuantity'] as int?,
+        giftProductId: switch (map['giftProduct']) {
+          {'id': final String id} => id,
+          _ => null,
+        },
+        giftProductName: switch (map['giftProduct']) {
+          {'name': final String name} => name,
+          _ => null,
+        },
+        giftQuantity: map['giftQuantity'] as int?,
         startDate: startDate,
         endDate: endDate,
         active: active,
@@ -114,7 +174,27 @@ class Promotion {
 
   /// El precio normal del producto.
   final int priceCents;
-  final int promoPriceCents;
+
+  final PromotionType type;
+
+  /// Solo en [PromotionType.specialPrice].
+  final int? promoPriceCents;
+
+  /// En [PromotionType.percentOff] y [PromotionType.extraUnit]: cuánto
+  /// menos, en %.
+  final int? percent;
+
+  /// En un NxM, la N que se lleva; en la unidad extra, cada cuántas; en un
+  /// regalo, cada cuántas unidades hay regalo.
+  final int? buyQuantity;
+
+  /// En un NxM, la M que se paga.
+  final int? payQuantity;
+
+  /// En un regalo: qué producto y cuántos.
+  final String? giftProductId;
+  final String? giftProductName;
+  final int? giftQuantity;
 
   /// Días de la tienda (`AAAA-MM-DD`), ambos incluidos.
   final String startDate;
@@ -134,17 +214,56 @@ class Promotion {
   /// Solo para clientes VIP: todos o los elegidos.
   bool get vipOnly => audience != PromotionAudience.everyone;
 
-  /// El descuento sobre el precio normal, redondeado.
-  int get discountPercent => priceCents == 0
-      ? 0
-      : ((priceCents - promoPriceCents) * 100 / priceCents).round();
+  /// El descuento sobre el precio normal, redondeado: el de un precio
+  /// especial o un %; null en los demás tipos.
+  int? get discountPercent => switch (type) {
+    PromotionType.specialPrice when priceCents > 0 =>
+      ((priceCents - promoPriceCents!) * 100 / priceCents).round(),
+    PromotionType.percentOff => percent,
+    _ => null,
+  };
+
+  /// Cómo se nombra, como en el servidor: "Precio especial S/ 19.90",
+  /// "20 % menos", "2x1", "2.ª al 50 %" o "Regalo: Sal 1 kg".
+  String get label => promotionLabel(
+    type,
+    promoPriceCents: promoPriceCents,
+    percent: percent,
+    buyQuantity: buyQuantity,
+    payQuantity: payQuantity,
+    giftProductName: giftProductName,
+  );
 }
 
-/// Lo que se manda al crear o editar una promoción. El producto solo se
-/// elige al crear.
+/// [type] con sus datos, como lo nombra el servidor.
+String promotionLabel(
+  PromotionType type, {
+  int? promoPriceCents,
+  int? percent,
+  int? buyQuantity,
+  int? payQuantity,
+  String? giftProductName,
+}) => switch (type) {
+  PromotionType.specialPrice =>
+    'Precio especial ${formatSoles(promoPriceCents ?? 0)}',
+  PromotionType.percentOff => '$percent % menos',
+  PromotionType.buyXPayY => '${buyQuantity}x$payQuantity',
+  PromotionType.extraUnit => '$buyQuantity.ª al $percent %',
+  PromotionType.gift =>
+    giftProductName == null ? 'Regalo' : 'Regalo: $giftProductName',
+};
+
+/// Lo que se manda al crear o editar una promoción. El producto y el tipo
+/// solo se eligen al crear: al editar no se mandan.
 class PromotionInput {
   const PromotionInput({
-    required this.promoPriceCents,
+    this.type = PromotionType.specialPrice,
+    this.promoPriceCents,
+    this.percent,
+    this.buyQuantity,
+    this.payQuantity,
+    this.giftProductId,
+    this.giftQuantity,
     required this.startDate,
     required this.endDate,
     required this.active,
@@ -155,7 +274,13 @@ class PromotionInput {
   });
 
   final String? productId;
-  final int promoPriceCents;
+  final PromotionType type;
+  final int? promoPriceCents;
+  final int? percent;
+  final int? buyQuantity;
+  final int? payQuantity;
+  final String? giftProductId;
+  final int? giftQuantity;
 
   /// `AAAA-MM-DD`, ambos incluidos.
   final String startDate;
@@ -172,7 +297,24 @@ class PromotionInput {
 
   Map<String, Object?> toJson() => {
     'productId': ?productId,
-    'promoPrice': promoPriceCents / 100,
+    if (productId != null) 'type': type.name,
+    ...switch (type) {
+      PromotionType.specialPrice => {'promoPrice': promoPriceCents! / 100},
+      PromotionType.percentOff => {'percent': percent},
+      PromotionType.buyXPayY => {
+        'buyQuantity': buyQuantity,
+        'payQuantity': payQuantity,
+      },
+      PromotionType.extraUnit => {
+        'buyQuantity': buyQuantity,
+        'percent': percent,
+      },
+      PromotionType.gift => {
+        'buyQuantity': buyQuantity,
+        'giftProductId': giftProductId,
+        'giftQuantity': giftQuantity,
+      },
+    },
     'startDate': startDate,
     'endDate': endDate,
     'active': active,
