@@ -268,13 +268,19 @@ servidor devolvió su perfil.
   servidor lo vea (`email_verified`).
 
 **Clientes VIP** (`isVipProvider`): lo decide el servidor (VIP activo y correo verificado).
-- El catálogo pide los productos con el ID token: el servidor da a cada cliente su mejor precio.
+- El catálogo pide los productos con el ID token: el servidor da a cada cliente su precio por
+  unidad (`unitPrice`, con el precio especial más bajo y los %) y las promociones que puede usar.
   Si la cuenta pasa a ser VIP (o deja de serlo), los productos se vuelven a pedir.
+- Las promociones por cantidad y de regalo (`Product.offers`) van en insignias sobre la foto de la
+  tarjeta (`OfferBadges`: "2x1", "2.ª al 50 %", "+ regalo", en `accent`; el lector de pantalla
+  dice lo que da cada una), así las tarjetas de una fila siguen del mismo alto. El detalle explica
+  cada una (`OfferDescriptions`: "2x1 en este producto", "Regalo: Sal 1 kg por cada 2").
 - Un precio VIP va con el normal tachado, el swoosh y la insignia `VipTag` (`accent` sobre
   crema). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
   animaciones".
 - "Ofertas exclusivas" (`features/offers/`), en el inicio y arriba del catálogo completo: las
-  promociones VIP de `/promotions/active` (también las de clientes elegidos, para ellos). Tocar
+  promociones VIP de `/promotions/active` (también las de clientes elegidos, para ellos; un %
+  lleva su precio y un NxM, una unidad extra o un regalo, su insignia junto al precio normal). Tocar
   una abre el producto. Va en la misma fila que
   se desliza de costado (`CardStrip`, en `features/shared/`, también con el mouse en la web)
   que "Más de" en el detalle.
