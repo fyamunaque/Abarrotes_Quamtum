@@ -15,10 +15,6 @@ abstract interface class PromotionPricing {
     Shopper shopper,
   );
 
-  /// Para el `include` de un producto: el precio especial más bajo de esas
-  /// promociones, o ninguno.
-  PromotionIncludeList bestFor(DateTime now, Shopper shopper);
-
   /// Para el `include` de un producto: todas las que [shopper] puede usar,
   /// con su producto de regalo.
   PromotionIncludeList eligibleFor(DateTime now, Shopper shopper);

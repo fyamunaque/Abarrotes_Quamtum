@@ -182,7 +182,7 @@ class ProductsService {
 
   ProductInclude _include(DateTime now, Shopper shopper) => Product.include(
     category: Category.include(),
-    promotions: _pricing.bestFor(now, shopper),
+    promotions: _pricing.eligibleFor(now, shopper),
   );
 
   static const _notFound = 'Producto no encontrado';

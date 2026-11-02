@@ -132,6 +132,8 @@ void main() {
       'GET /inventory/alerts/low-stock': 'inventory.view',
       'GET /inventory/alerts/expiring': 'inventory.view',
       'POST /orders': 'cuenta',
+      // La cotización del carrito: pública, con token si lo hay.
+      'POST /orders/quote': 'pública',
       'GET /orders/mine': 'cuenta',
       'GET /orders': 'orders.view',
       'PATCH /orders/:id/status': 'orders.updateStatus',

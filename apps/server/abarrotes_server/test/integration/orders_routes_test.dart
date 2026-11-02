@@ -1071,6 +1071,117 @@ void main() {
       });
     });
 
+    group('POST /orders/quote', () {
+      Future<void> promo(
+        Product product,
+        PromotionType type, {
+        int? percent,
+        int? buy,
+        int? pay,
+        PromotionAudience audience = PromotionAudience.everyone,
+      }) => Promotion.db.insertRow(
+        session,
+        Promotion(
+          productId: product.id!,
+          type: type,
+          percent: percent,
+          buyQuantity: buy,
+          payQuantity: pay,
+          audience: audience,
+          startDate: testNow.subtract(const Duration(days: 1)),
+          endDate: testNow.add(const Duration(days: 1)),
+        ),
+      );
+
+      Future<ApiResult> quote(
+        List<(Product, int)> items, {
+        String? as,
+        String? email,
+      }) => client.post(
+        '/orders/quote',
+        {
+          'items': [
+            for (final (product, quantity) in items)
+              {'productId': product.id.toString(), 'quantity': quantity},
+          ],
+        },
+        as: as,
+        email: email,
+      );
+
+      test('cotiza sin cuenta con las de todos y no toca nada', () async {
+        await promo(shop.arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+
+        final (status, body) = await quote([(shop.arroz, 4)]);
+
+        expect(status, 200);
+        expect(
+          (body['subtotal'], body['discount'], body['total']),
+          (
+            '18',
+            '9',
+            '9',
+          ),
+        );
+        final line = (body['lines'] as List).single;
+        expect(line['product']['name'], 'Arroz');
+        expect(line['lineTotal'], '9');
+        expect(line['promotions'], [
+          {'label': '2x1', 'saved': '9'},
+        ]);
+        expect(body['notices'], isEmpty);
+        expect(await shop.stockOf(shop.arroz), 8);
+        expect(await Order.db.count(session), 0);
+      });
+
+      test('con un VIP suma sus promociones', () async {
+        await promo(shop.arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+        await promo(
+          shop.arroz,
+          PromotionType.percentOff,
+          percent: 10,
+          audience: PromotionAudience.vip,
+        );
+        await insertUser(session, 'uid-vip');
+        await insertVips(session, shop.staff, ['vip@tienda.pe']);
+
+        final (_, anonymous) = await quote([(shop.arroz, 4)]);
+        final (_, vip) = await quote(
+          [(shop.arroz, 4)],
+          as: 'uid-vip',
+          email: 'vip@tienda.pe',
+        );
+
+        expect(anonymous['total'], '9');
+        expect(vip['total'], '8.1');
+      });
+
+      test('producto de baja: aviso y sin línea', () async {
+        await Product.db.updateRow(
+          session,
+          shop.aceite.copyWith(active: false),
+        );
+
+        final (status, body) = await quote([(shop.arroz, 1), (shop.aceite, 1)]);
+
+        expect(status, 200);
+        expect(
+          [for (final l in body['lines'] as List) l['product']['name']],
+          ['Arroz'],
+        );
+        expect(body['notices'], ['Ya no está disponible: Aceite']);
+        expect(body['total'], '4.5');
+      });
+
+      test('valida el body', () async {
+        final (status, _) = await client.post('/orders/quote', {
+          'items': [],
+        });
+
+        expect(status, 400);
+      });
+    });
+
     group('recojo en tienda', () {
       setUp(
         () async =>

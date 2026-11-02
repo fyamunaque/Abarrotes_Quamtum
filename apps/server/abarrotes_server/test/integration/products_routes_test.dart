@@ -133,7 +133,9 @@ void main() {
             'createdAt': isA<String>(),
             'categoryId': abarrotes.id.toString(),
             'category': {'id': abarrotes.id.toString(), 'name': 'Abarrotes'},
+            'unitPrice': '4.5',
             'promotion': null,
+            'promotions': <Object?>[],
           });
         },
       );
@@ -269,6 +271,39 @@ void main() {
         for (final product in page['data'] as List)
           product['name'] as String: product['promotion'],
       };
+
+      test('el catálogo trae las promociones por tipo', () async {
+        await Promotion.db.delete(session, await Promotion.db.find(session));
+        for (final (type, percent, buy, pay) in [
+          (PromotionType.percentOff, 20, null, null),
+          (PromotionType.buyXPayY, null, 2, 1),
+        ]) {
+          final period = toStoredPeriod(today, addDays(today, 6));
+          await Promotion.db.insertRow(
+            session,
+            Promotion(
+              productId: arroz.id!,
+              type: type,
+              percent: percent,
+              buyQuantity: buy,
+              payQuantity: pay,
+              startDate: period.startDate,
+              endDate: period.endDate,
+            ),
+          );
+        }
+
+        final (status, body) = await client.get('/products/${arroz.id}');
+
+        expect(status, 200);
+        expect(body['unitPrice'], '3.6');
+        expect(
+          [for (final p in body['promotions'] as List) p['label']],
+          unorderedEquals(['20 % menos', '2x1']),
+        );
+        // Sin precio especial, la promoción de las apps de antes va en null.
+        expect(body['promotion'], isNull);
+      });
 
       test('quien no es VIP ve la de todos y nada de la VIP', () async {
         for (final (status, body) in [

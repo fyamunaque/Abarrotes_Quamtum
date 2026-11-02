@@ -11,6 +11,7 @@ import '../common/money.dart';
 import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
+import '../promotions/promotion_engine.dart';
 import 'orders_service.dart';
 import 'states/order_states.dart';
 
@@ -120,6 +121,53 @@ List<RouteEntry> ordersRoutes(
           ...orderJson(placed.order, withCodes: true),
           'priceChanges': placed.priceChanges.map(priceChangeJson).toList(),
           'notices': placed.notices,
+        });
+      }),
+    ),
+    (
+      '/orders/quote',
+      // Pública: sin token (o con uno que no sirve), con las promociones de
+      // todos. Cómo se cobraría el carrito, sin guardar nada.
+      ApiRoute(Method.post, (session, request) async {
+        final body = InputReader.body(
+          await readJsonBody(request),
+          allowed: const {'items'},
+        );
+        final items = body.objects(
+          'items',
+          allowed: const {'productId', 'quantity'},
+          min: 1,
+          max: 100,
+        );
+        final lines = [
+          for (final item in items ?? const <InputReader>[])
+            (
+              productId: item.uuid('productId'),
+              quantity: item.integer('quantity', min: 1, max: 999),
+            ),
+        ];
+        body.check();
+
+        final (:cart, :products) = await orders.quote(
+          session,
+          shopper: await shoppers.resolve(
+            session,
+            await optionalIdentity(guards.verifier, request),
+          ),
+          lines: [
+            for (final line in lines)
+              (productId: line.productId!, quantity: line.quantity!),
+          ],
+        );
+        return jsonResponse(200, {
+          'lines': [
+            for (final line in cart.lines)
+              pricedLineJson(line, products[line.productId]!),
+          ],
+          'subtotal': formatMoney(cart.subtotalCents),
+          'discount': formatMoney(cart.discountCents),
+          'total': formatMoney(cart.totalCents),
+          'notices': cart.notices,
         });
       }),
     ),
@@ -348,6 +396,25 @@ Map<String, Object?> orderJson(
     ],
   };
 }
+
+/// Una línea cotizada, como las del pedido (sin ids de pedido ni de línea).
+Map<String, Object?> pricedLineJson(PricedLine line, Product product) => {
+  'productId': line.productId.toString(),
+  'product': {
+    'id': product.id.toString(),
+    'name': product.name,
+    'imageUrl': product.imageUrl,
+  },
+  'quantity': line.quantity,
+  'listUnitPrice': formatMoney(line.listUnitPriceCents),
+  'unitPrice': formatMoney(line.unitPriceCents),
+  'lineTotal': formatMoney(line.lineTotalCents),
+  'isGift': line.isGift,
+  'promotions': [
+    for (final applied in line.promotions)
+      {'label': applied.label, 'saved': formatMoney(applied.savedCents)},
+  ],
+};
 
 /// Un precio que cambió entre el carrito y el cobro, para avisarle al
 /// cliente: el total de la línea o, si el carrito mandó el precio

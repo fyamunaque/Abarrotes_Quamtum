@@ -11,6 +11,8 @@ import '../common/money.dart';
 import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
+import '../promotions/promotion_engine.dart';
+import '../promotions/promotion_labels.dart';
 import '../promotions/promotion_rules.dart';
 import 'product_images.dart';
 import 'products_service.dart';
@@ -272,10 +274,18 @@ String? _imageUrl(InputReader body) => body.url(
   orPathUnder: ProductImages.urlPrefix,
 );
 
-/// Como lo lee la app (`Product.fromJson`): precios como texto ("4.5") y
-/// la promoción vigente de quien mira (o null) con días de la tienda.
+/// Como lo lee la app (`Product.fromJson`): precios como texto ("4.5"),
+/// `unitPrice` (con el precio especial y los porcentajes de quien mira) y
+/// `promotions`, las vigentes que puede usar, con días de la tienda.
+/// `promotion` es el precio especial más bajo (o null), para las apps de
+/// antes.
 Map<String, Object?> productJson(Product product) {
   final category = product.category!;
+  final promotions = product.promotions ?? const <Promotion>[];
+  final specials = [
+    for (final p in promotions)
+      if (p.type == PromotionType.specialPrice) p,
+  ]..sort((a, b) => a.promoPriceCents!.compareTo(b.promoPriceCents!));
   return {
     'id': product.id.toString(),
     'name': product.name,
@@ -290,7 +300,35 @@ Map<String, Object?> productJson(Product product) {
     'createdAt': product.createdAt.toUtc().toIso8601String(),
     'categoryId': product.categoryId.toString(),
     'category': {'id': category.id.toString(), 'name': category.name},
-    'promotion': _promotionJson(product.promotions?.firstOrNull),
+    'unitPrice': formatMoney(unitPriceFor(product.priceCents, promotions)),
+    'promotion': _promotionJson(specials.firstOrNull),
+    'promotions': [for (final p in promotions) _offerJson(p)],
+  };
+}
+
+/// Una promoción vigente del producto, con su tipo y cómo se nombra.
+Map<String, Object?> _offerJson(Promotion promotion) {
+  final days = toDayPeriod(promotion.startDate, promotion.endDate);
+  return {
+    'id': promotion.id.toString(),
+    'type': promotion.type.name,
+    'label': promotionLabel(promotion),
+    'audience': promotion.audience.name,
+    'title': promotion.title,
+    'startDate': days.startDate,
+    'endDate': days.endDate,
+    'promoPrice': switch (promotion.promoPriceCents) {
+      final cents? => formatMoney(cents),
+      null => null,
+    },
+    'percent': promotion.percent,
+    'buyQuantity': promotion.buyQuantity,
+    'payQuantity': promotion.payQuantity,
+    'giftProduct': switch (promotion.giftProduct) {
+      final gift? => {'id': gift.id.toString(), 'name': gift.name},
+      null => null,
+    },
+    'giftQuantity': promotion.giftQuantity,
   };
 }
 
@@ -300,7 +338,7 @@ Map<String, Object?>? _promotionJson(Promotion? promotion) {
   final days = toDayPeriod(promotion.startDate, promotion.endDate);
   return {
     'id': promotion.id.toString(),
-    // Solo los precios especiales llegan aquí (ver `bestFor`).
+    // Solo un precio especial llega aquí (ver `productJson`).
     'promoPrice': formatMoney(promotion.promoPriceCents!),
     'startDate': days.startDate,
     'endDate': days.endDate,

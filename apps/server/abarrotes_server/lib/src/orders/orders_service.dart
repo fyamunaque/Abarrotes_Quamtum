@@ -8,6 +8,7 @@ import '../common/shopper.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart' hide AuditLogRepository;
 import '../inventory/inventory_service.dart';
+import '../promotions/promotion_engine.dart';
 import '../promotions/promotion_pricing.dart';
 import '../staff/audit_log_repository.dart';
 import 'order_number.dart';
@@ -297,6 +298,71 @@ class OrdersService {
         notices: cart.notices,
       );
     });
+  }
+
+  /// Cómo se cobraría el carrito [lines] para [shopper], sin guardar nada
+  /// ni tocar el stock: lo que muestra el carrito antes de pedir. Los
+  /// productos que no existen o están de baja no entran y van en los
+  /// avisos. Devuelve también los productos (comprados y de regalo), para
+  /// mostrarlos.
+  Future<({PricedCart cart, Map<UuidValue, Product> products})> quote(
+    Session session, {
+    required Shopper shopper,
+    required List<({UuidValue productId, int quantity})> lines,
+  }) async {
+    final quantities = <UuidValue, int>{};
+    for (final line in lines) {
+      quantities.update(
+        line.productId,
+        (quantity) => quantity + line.quantity,
+        ifAbsent: () => line.quantity,
+      );
+    }
+    final found = {
+      for (final product in await Product.db.find(
+        session,
+        where: (product) => product.id.inSet(quantities.keys.toSet()),
+      ))
+        product.id!: product,
+    };
+    final notices = [
+      for (final id in quantities.keys)
+        if (found[id] case final product? when !product.active)
+          'Ya no está disponible: ${product.name}'
+        else if (found[id] == null)
+          'Uno de los productos ya no existe',
+    ];
+    final available = [
+      for (final MapEntry(key: id, value: quantity) in quantities.entries)
+        if (found[id] case final product? when product.active)
+          (
+            productId: id,
+            name: product.name,
+            listUnitPriceCents: product.priceCents,
+            quantity: quantity,
+          ),
+    ];
+    final priced = await _pricing.price(session, available, shopper);
+    final giftIds = {
+      for (final line in priced.lines)
+        if (line.isGift && !found.containsKey(line.productId)) line.productId,
+    };
+    final products = {
+      ...found,
+      if (giftIds.isNotEmpty)
+        for (final gift in await Product.db.find(
+          session,
+          where: (product) => product.id.inSet(giftIds),
+        ))
+          gift.id!: gift,
+    };
+    return (
+      cart: PricedCart(
+        lines: priced.lines,
+        notices: [...notices, ...priced.notices],
+      ),
+      products: products,
+    );
   }
 
   /// Un código (de recojo o de entrega, según [column]) que ningún pedido

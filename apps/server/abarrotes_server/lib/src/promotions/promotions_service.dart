@@ -82,19 +82,6 @@ class PromotionsService implements PromotionPricing {
   }
 
   @override
-  PromotionIncludeList bestFor(DateTime now, Shopper shopper) =>
-      Promotion.includeList(
-        where: (promotion) =>
-            eligibleWhere(promotion, now, shopper) &
-            promotion.type.equals(PromotionType.specialPrice),
-        orderByList: (promotion) => [
-          promotion.promoPriceCents.asc(),
-          promotion.id.asc(),
-        ],
-        limit: 1,
-      );
-
-  @override
   PromotionIncludeList eligibleFor(DateTime now, Shopper shopper) =>
       Promotion.includeList(
         where: (promotion) => eligibleWhere(promotion, now, shopper),
