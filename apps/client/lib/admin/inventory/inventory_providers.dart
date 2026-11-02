@@ -10,15 +10,47 @@ final inventoryRepositoryProvider = Provider<InventoryRepository>(
   (ref) => HttpInventoryRepository(ref.watch(authedApiProvider)),
 );
 
-final movementsProvider =
-    AsyncNotifierProvider.autoDispose<MovementsNotifier, PageList<Movement>>(
+/// Los filtros del historial (vacío o null: todos). [from] y [to] son días
+/// de la tienda, ambos incluidos.
+typedef MovementsFilter = ({
+  String search,
+  MovementOrigin? origin,
+  String? categoryId,
+  DateTime? from,
+  DateTime? to,
+});
+
+/// Sin filtros.
+const MovementsFilter allMovements = (
+  search: '',
+  origin: null,
+  categoryId: null,
+  from: null,
+  to: null,
+);
+
+/// El historial de inventario, con sus filtros.
+final movementsProvider = AsyncNotifierProvider.autoDispose
+    .family<MovementsNotifier, PageList<Movement>, MovementsFilter>(
       MovementsNotifier.new,
     );
 
 class MovementsNotifier extends PagedNotifier<Movement> {
+  MovementsNotifier(this.filter);
+
+  final MovementsFilter filter;
+
   @override
-  Future<PageList<Movement>> fetch(int page) =>
-      ref.read(inventoryRepositoryProvider).movements(page: page);
+  Future<PageList<Movement>> fetch(int page) => ref
+      .read(inventoryRepositoryProvider)
+      .movements(
+        page: page,
+        search: filter.search,
+        origin: filter.origin,
+        categoryId: filter.categoryId,
+        from: filter.from,
+        to: filter.to,
+      );
 
   /// Registra el movimiento y vuelve a la primera página, donde aparece.
   Future<Movement> record(MovementInput input) async {

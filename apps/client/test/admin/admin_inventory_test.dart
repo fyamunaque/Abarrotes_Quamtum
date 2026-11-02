@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/admin/inventory/inventory_providers.dart';
 import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/products/admin_products_providers.dart';
+import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/features/admin/shared/admin_table.dart';
 
@@ -27,16 +28,54 @@ const _oil = Product(
   category: groceries,
 );
 
+const _milk = Product(
+  id: 'leche',
+  name: 'Leche evaporada 400 g',
+  sku: 'LEC-400',
+  priceCents: 450,
+  stock: 20,
+  category: dairy,
+);
+
+/// La salida de un pedido y, al cancelarlo, su devolución.
 final _sale = Movement(
   id: 'mov-0',
   type: MovementType.outgoing,
   quantity: 2,
-  reason: 'Pedido 8f2c',
+  reason: 'Pedido 0199a1b2',
   createdAt: DateTime.utc(2026, 10, 3, 18),
   productId: 'aceite',
   productName: 'Aceite vegetal 1 L',
   sku: 'ACE-1L',
   userName: 'Rosa Díaz',
+  orderId: 'pedido-1024',
+  orderNumber: 1024,
+);
+final _return = Movement(
+  id: 'mov-1',
+  type: MovementType.incoming,
+  quantity: 2,
+  reason: 'Cancelación del pedido 0199a1b2',
+  createdAt: DateTime.utc(2026, 10, 3, 19),
+  productId: 'aceite',
+  productName: 'Aceite vegetal 1 L',
+  sku: 'ACE-1L',
+  userName: 'Ana Staff',
+  orderId: 'pedido-1024',
+  orderNumber: 1024,
+);
+
+/// Uno registrado a mano.
+final _count = Movement(
+  id: 'mov-2',
+  type: MovementType.adjustment,
+  quantity: -1,
+  reason: 'Conteo de fin de mes',
+  createdAt: DateTime.utc(2026, 10, 1, 15),
+  productId: 'arroz',
+  productName: 'Arroz extra 5 kg',
+  sku: 'ARR-5K',
+  userName: 'Ana Staff',
 );
 
 void main() {
@@ -101,8 +140,130 @@ void main() {
     expect(inTable('Aceite vegetal 1 L'), findsOneWidget);
     expect(inTable('Salida'), findsOneWidget);
     expect(inTable('−2'), findsOneWidget);
-    expect(inTable('Pedido 8f2c'), findsOneWidget);
+    // El de un pedido, con su número (no el id que escribe el servidor).
+    expect(inTable('Pedido N.º 1024'), findsOneWidget);
     expect(inTable('Rosa Díaz'), findsOneWidget);
+  });
+
+  group('búsqueda y filtros', () {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final milk = Movement(
+      id: 'mov-leche',
+      type: MovementType.incoming,
+      quantity: 12,
+      reason: 'Compra al proveedor',
+      createdAt: today.add(const Duration(hours: 10)),
+      productId: 'leche',
+      productName: 'Leche evaporada 400 g',
+      sku: 'LEC-400',
+      userName: 'Ana Staff',
+    );
+
+    setUp(() {
+      inventory = FakeInventoryRepository(
+        [_rice, _oil, _milk],
+        movements: [milk, _return, _sale, _count],
+      );
+    });
+
+    Future<void> pumpWithCategories(WidgetTester tester, {double? width}) =>
+        pumpPanel(
+          tester,
+          at: '/admin/inventario',
+          width: width ?? 1280,
+          overrides: [
+            inventoryRepositoryProvider.overrideWithValue(inventory),
+            adminProductsRepositoryProvider.overrideWithValue(
+              FakeAdminProductsRepository([_rice, _oil, _milk]),
+            ),
+            catalogRepositoryProvider.overrideWithValue(
+              FakeCatalogRepository(),
+            ),
+          ],
+        );
+
+    Future<void> search(WidgetTester tester, String text) async {
+      await tester.enterText(find.byType(TextField).first, text);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('por producto, SKU o N.º de pedido', (tester) async {
+      await pumpWithCategories(tester);
+
+      await search(tester, 'leche');
+      expect(inTable('Leche evaporada 400 g'), findsOneWidget);
+      expect(inTable('Aceite vegetal 1 L'), findsNothing);
+      expect(inventory.queries.last.search, 'leche');
+
+      await search(tester, '1024');
+      expect(inTable('Pedido N.º 1024'), findsOneWidget);
+      expect(inTable('Cancelación del pedido N.º 1024'), findsOneWidget);
+      expect(inTable('Leche evaporada 400 g'), findsNothing);
+
+      await search(tester, 'nada así');
+      expect(
+        find.text('Ningún movimiento coincide con los filtros.'),
+        findsOneWidget,
+      );
+      await tapAndSettle(tester, find.byTooltip('Borrar la búsqueda'));
+      expect(inTable('Leche evaporada 400 g'), findsOneWidget);
+    });
+
+    testWidgets('por origen y categoría', (tester) async {
+      await pumpWithCategories(tester);
+
+      await tapAndSettle(tester, find.widgetWithText(ChoiceChip, 'Pedidos'));
+      expect(inventory.queries.last.origin, MovementOrigin.orders);
+      expect(inTable('Pedido N.º 1024'), findsOneWidget);
+      expect(inTable('Conteo de fin de mes'), findsNothing);
+
+      await tapAndSettle(tester, find.widgetWithText(ChoiceChip, 'Manuales'));
+      expect(inTable('Conteo de fin de mes'), findsOneWidget);
+      expect(inTable('Pedido N.º 1024'), findsNothing);
+
+      await tapAndSettle(tester, find.byType(DropdownButtonFormField<String?>));
+      await tapAndSettle(tester, find.text('Lácteos').last);
+      expect(inventory.queries.last.categoryId, dairy.id);
+      expect(inventory.queries.last.origin, MovementOrigin.manual);
+      expect(inTable('Leche evaporada 400 g'), findsOneWidget);
+      expect(inTable('Arroz extra 5 kg'), findsNothing);
+    });
+
+    testWidgets('por fechas, y se quitan con la "x"', (tester) async {
+      await pumpWithCategories(tester);
+
+      await tapAndSettle(tester, find.widgetWithText(OutlinedButton, 'Fechas'));
+      final picker = find.byType(DateRangePickerDialog);
+      expect(picker, findsOneWidget);
+      // Hoy, de inicio y de fin: el mes de hoy es el último del calendario.
+      Finder day(int number) =>
+          find.descendant(of: picker, matching: find.text('$number')).last;
+      await tapAndSettle(tester, day(today.day));
+      await tapAndSettle(tester, day(today.day));
+      await tapAndSettle(tester, find.text('Listo'));
+
+      expect(
+        (inventory.queries.last.from, inventory.queries.last.to),
+        (today, today),
+      );
+      expect(inTable('Leche evaporada 400 g'), findsOneWidget);
+      expect(inTable('Aceite vegetal 1 L'), findsNothing);
+      expect(find.text('Fechas'), findsNothing);
+
+      await tapAndSettle(tester, find.byTooltip('Quitar las fechas'));
+      expect(inventory.queries.last.from, isNull);
+      expect(find.text('Fechas'), findsOneWidget);
+      expect(inTable('Aceite vegetal 1 L'), findsWidgets);
+    });
+
+    testWidgets('en el teléfono, los filtros sin desbordes', (tester) async {
+      await pumpWithCategories(tester, width: 320);
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Origen'), findsOneWidget);
+    });
   });
 
   testWidgets('registrar una entrada: buscar el producto y ver el stock', (

@@ -450,6 +450,50 @@ void main() {
       expect(first.type, MovementType.outgoing);
       expect(first.change, -2);
       expect(first.userName, 'Ana Quispe');
+      // Uno de antes del vínculo con el pedido: el motivo tal cual.
+      expect(first.orderNumber, isNull);
+      expect(first.reasonLabel, 'Pedido o-1');
+    });
+
+    test('los filtros van en la query; el pedido, con su número', () async {
+      final movements =
+          await HttpInventoryRepository(
+            api(
+              (_) => page([
+                {
+                  ...movement,
+                  'order': {'id': 'o-1', 'number': 1024},
+                },
+                {
+                  ...movement,
+                  'type': 'incoming',
+                  'order': {'id': 'o-1', 'number': 1024},
+                },
+                {...movement, 'reason': 'Conteo', 'order': null},
+              ]),
+            ),
+          ).movements(
+            search: 'arroz',
+            origin: MovementOrigin.orders,
+            categoryId: 'c-1',
+            from: DateTime(2026, 9, 28),
+            to: DateTime(2026, 10, 4),
+          );
+
+      expect(sent.single.url.queryParameters, {
+        'page': '1',
+        'limit': '20',
+        'search': 'arroz',
+        'origin': 'orders',
+        'categoryId': 'c-1',
+        'from': '2026-09-28',
+        'to': '2026-10-04',
+      });
+      expect(
+        [for (final m in movements.items) m.reasonLabel],
+        ['Pedido N.º 1024', 'Cancelación del pedido N.º 1024', 'Conteo'],
+      );
+      expect(movements.items.first.orderId, 'o-1');
     });
 
     test('registrar: un ajuste con signo y motivo', () async {

@@ -79,7 +79,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido o entregado pide el código del cliente (a domicilio, quien administra la tienda puede entregar sin él, con el motivo);
   - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
   - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
-  - productos (con su foto: se sube desde el panel, o se toma con la cámara del teléfono, o se pega una URL), inventario (entradas, salidas y ajustes) y promociones;
+  - productos (con su foto: se sube desde el panel, o se toma con la cámara del teléfono, o se pega una URL), inventario (entradas, salidas y ajustes, y el historial con búsqueda por producto, SKU o N.º de pedido y filtros por origen, categoría y fechas) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
   - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;
   - cada sección y cada botón según los `permissions` de `/users/me` (lo demás, "No tienes acceso a esta sección"), y al ingresar cada uno llega a su sección: la Cajera a Pedidos, el Almacenero a Inventario. Un rol que cambió rige al volver a la app, sin cerrar sesión.

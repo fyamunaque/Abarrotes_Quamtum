@@ -157,7 +157,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           },
         ),
         const SizedBox(height: 12),
-        _FilterRow(
+        FilterRow(
           label: 'Entrega',
           child: FilterChips<FulfillmentType?>(
             options: [
@@ -247,34 +247,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             _ => 'Ningún pedido coincide con los filtros.',
           },
         ),
-      ],
-    );
-  }
-}
-
-/// Una fila de chips con su nombre adelante. Si los chips bajan a otra
-/// línea, el nombre queda a la altura de la primera.
-class _FilterRow extends StatelessWidget {
-  const _FilterRow({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 68,
-          // El alto de un chip, con su área táctil.
-          height: kMinInteractiveDimension,
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(label, style: Theme.of(context).textTheme.labelLarge),
-          ),
-        ),
-        Expanded(child: child),
       ],
     );
   }

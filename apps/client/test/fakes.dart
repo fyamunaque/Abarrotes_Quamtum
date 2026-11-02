@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:neils/admin/emails.dart';
+import 'package:neils/admin/inventory/inventory_providers.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
 import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_order.dart';
@@ -494,13 +495,53 @@ class FakeInventoryRepository implements InventoryRepository {
   final int pageSize;
   final recorded = <MovementInput>[];
 
+  /// Los filtros con que se pidió cada página.
+  final queries = <MovementsFilter>[];
+
+  /// Filtra como el servidor: [search] en el nombre o el SKU (sin
+  /// mayúsculas) o, si es un número, el N.º del pedido; los días, en la
+  /// hora del dispositivo.
   @override
-  Future<PageList<Movement>> movements({int page = 1}) async => PageList(
-    history.skip((page - 1) * pageSize).take(pageSize).toList(),
-    total: history.length,
-    page: page,
-    pageSize: pageSize,
-  );
+  Future<PageList<Movement>> movements({
+    int page = 1,
+    String? search,
+    MovementOrigin? origin,
+    String? categoryId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    queries.add((
+      search: search ?? '',
+      origin: origin,
+      categoryId: categoryId,
+      from: from,
+      to: to,
+    ));
+    final text = (search ?? '').toLowerCase();
+    final number = int.tryParse(text);
+    bool matches(Movement m) {
+      final local = m.createdAt.toLocal();
+      final day = DateTime(local.year, local.month, local.day);
+      return (origin == null ||
+              (origin == MovementOrigin.orders) == (m.orderId != null)) &&
+          (categoryId == null ||
+              _products[m.productId]?.category?.id == categoryId) &&
+          (text.isEmpty ||
+              m.productName.toLowerCase().contains(text) ||
+              m.sku.toLowerCase().contains(text) ||
+              (number != null && m.orderNumber == number)) &&
+          (from == null || !day.isBefore(from)) &&
+          (to == null || !day.isAfter(to));
+    }
+
+    final matching = history.where(matches).toList();
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 
   @override
   Future<Movement> record(MovementInput input) async {
