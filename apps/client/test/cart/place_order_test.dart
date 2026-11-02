@@ -4,6 +4,7 @@ import 'package:neils/auth/auth_providers.dart';
 import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 
@@ -76,14 +77,15 @@ void main() {
   });
 
   test('después de pedir, "Mis pedidos" se vuelve a cargar', () async {
-    container.listen(myOrdersProvider, (_, _) {});
+    final mineProvider = myOrdersProvider(allMyOrders);
+    container.listen(mineProvider, (_, _) {});
     await flushEvents();
-    expect((await container.read(myOrdersProvider.future)).items, isEmpty);
+    expect((await container.read(mineProvider.future)).items, isEmpty);
 
     cart.add(rice);
     final order = await cart.placeOrder(deliveryAddress: 'Av. Arequipa 123');
 
-    final mine = await container.read(myOrdersProvider.future);
+    final mine = await container.read(mineProvider.future);
     expect([for (final o in mine.items) o.id], [order.id]);
   });
 }

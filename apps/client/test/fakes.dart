@@ -29,6 +29,7 @@ import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_repository.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
+import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/session.dart';
@@ -880,6 +881,9 @@ class FakeOrderRepository implements OrderRepository {
   /// El tipo de entrega y la dirección de cada pedido, como llegaron.
   final deliveries = <(FulfillmentType, String?)>[];
 
+  /// Los filtros con que se pidió cada página de "Mis pedidos".
+  final filters = <MyOrdersFilter>[];
+
   @override
   Future<Order> place(
     String idToken, {
@@ -938,12 +942,44 @@ class FakeOrderRepository implements OrderRepository {
     return order;
   }
 
+  /// Filtra como el servidor: [MyOrdersFilter.search] es el N.º o un
+  /// producto (sin mayúsculas); los días, en la hora del dispositivo.
   @override
-  Future<PageList<Order>> mine(String idToken, {int page = 1}) async {
+  Future<PageList<Order>> mine(
+    String idToken, {
+    int page = 1,
+    MyOrdersFilter filter = allMyOrders,
+  }) async {
     tokens.add(idToken);
+    filters.add(filter);
+    final text = filter.search.trim().toLowerCase();
+    final number = int.tryParse(text);
+    bool matches(Order order) {
+      final local = order.createdAt.toLocal();
+      final day = DateTime(local.year, local.month, local.day);
+      final finished =
+          order.status == OrderStatus.delivered ||
+          order.status == OrderStatus.cancelled;
+      final inProgress = switch (filter.progress) {
+        OrderProgress.active => !finished,
+        OrderProgress.delivered => order.status == OrderStatus.delivered,
+        OrderProgress.cancelled => order.status == OrderStatus.cancelled,
+        null => true,
+      };
+      return inProgress &&
+          (filter.fulfillmentType == null ||
+              order.fulfillmentType == filter.fulfillmentType) &&
+          (text.isEmpty ||
+              (number != null && order.number == number) ||
+              order.lines.any((l) => l.name.toLowerCase().contains(text))) &&
+          (filter.from == null || !day.isBefore(filter.from!)) &&
+          (filter.to == null || !day.isAfter(filter.to!));
+    }
+
+    final matching = orders.where(matches).toList();
     return PageList(
-      orders.skip((page - 1) * pageSize).take(pageSize).toList(),
-      total: orders.length,
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
     );
   }
 

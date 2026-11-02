@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -5,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../common/money.dart';
 import '../../orders/fulfillment.dart';
 import '../../orders/order.dart';
+import '../../orders/order_filter.dart';
 import '../../orders/order_status.dart';
 import '../../orders/orders_providers.dart';
 import '../../router/routes.dart';
@@ -12,21 +15,79 @@ import '../../theme/brand_colors.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/brand.dart';
 import '../shared/date_format.dart';
+import '../shared/dates_filter.dart';
 import '../shared/error_message.dart';
+import '../shared/filter_chips.dart';
 import '../shared/info_line.dart';
 import '../shared/store_details.dart';
 import 'order_tracker.dart';
 
-/// Los pedidos de la cuenta, cada uno con su seguimiento. Con [newOrderId]
-/// (al venir de confirmar), un aviso de que el pedido llegó.
-class MyOrdersScreen extends ConsumerWidget {
+/// Los pedidos de la cuenta, cada uno con su seguimiento, con la búsqueda
+/// (N.º o producto) y los filtros por estado, entrega y fechas. Con
+/// [newOrderId] (al venir de confirmar), un aviso de que el pedido llegó.
+class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key, this.newOrderId});
 
   final String? newOrderId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final orders = ref.watch(myOrdersProvider);
+  ConsumerState<MyOrdersScreen> createState() => _MyOrdersScreenState();
+}
+
+class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
+  final _search = TextEditingController();
+  Timer? _debounce;
+  MyOrdersFilter _filter = allMyOrders;
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _update({
+    String? search,
+    OrderProgress? Function()? progress,
+    FulfillmentType? Function()? fulfillmentType,
+    (DateTime?, DateTime?)? dates,
+  }) => setState(
+    () => _filter = (
+      search: search ?? _filter.search,
+      progress: progress == null ? _filter.progress : progress(),
+      fulfillmentType: fulfillmentType == null
+          ? _filter.fulfillmentType
+          : fulfillmentType(),
+      from: dates == null ? _filter.from : dates.$1,
+      to: dates == null ? _filter.to : dates.$2,
+    ),
+  );
+
+  /// Busca cuando se deja de escribir, no con cada letra.
+  void _onSearch(String text) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      if (text.trim() != _filter.search) _update(search: text.trim());
+    });
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _search.clear();
+    _update(search: '');
+  }
+
+  void _clearFilters() {
+    _debounce?.cancel();
+    _search.clear();
+    setState(() => _filter = allMyOrders);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = myOrdersProvider(_filter);
+    final orders = ref.watch(provider);
+    final newOrderId = widget.newOrderId;
     return PublicScaffold(
       title: 'Mis pedidos',
       maxWidth: 720,
@@ -45,7 +106,7 @@ class MyOrdersScreen extends ConsumerWidget {
                 tooltip: 'Actualizar',
                 icon: const Icon(Icons.refresh),
                 onPressed: orders.hasValue
-                    ? () => _refresh(context, ref)
+                    ? () => _showErrors(ref.read(provider.notifier).refresh())
                     : null,
               ),
             ],
@@ -62,8 +123,21 @@ class MyOrdersScreen extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 16),
+          _Filters(
+            search: _search,
+            filter: _filter,
+            onSearch: _onSearch,
+            onClearSearch: _clearSearch,
+            onProgress: (progress) => _update(progress: () => progress),
+            onFulfillmentType: (type) => _update(fulfillmentType: () => type),
+            onDates: (from, to) => _update(dates: (from, to)),
+          ),
+          const SizedBox(height: 16),
           // Mientras recarga se sigue viendo la lista anterior.
           switch (orders) {
+            AsyncValue(value: final list?)
+                when list.items.isEmpty && _filter != allMyOrders =>
+              _NoMatches(onClear: _clearFilters),
             AsyncValue(value: final list?) when list.items.isEmpty =>
               const _NoOrders(),
             AsyncValue(value: final list?) => Column(
@@ -78,7 +152,9 @@ class MyOrdersScreen extends ConsumerWidget {
                     child: list.loadingMore
                         ? const CircularProgressIndicator()
                         : OutlinedButton(
-                            onPressed: () => _loadMore(context, ref),
+                            onPressed: () => _showErrors(
+                              ref.read(provider.notifier).loadMore(),
+                            ),
                             child: const Text('Ver más pedidos'),
                           ),
                   ),
@@ -92,7 +168,7 @@ class MyOrdersScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 FilledButton.tonal(
-                  onPressed: () => ref.invalidate(myOrdersProvider),
+                  onPressed: () => ref.invalidate(provider),
                   child: const Text('Reintentar'),
                 ),
               ],
@@ -107,17 +183,11 @@ class MyOrdersScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _refresh(BuildContext context, WidgetRef ref) =>
-      _showErrors(context, ref.read(myOrdersProvider.notifier).refresh());
-
-  Future<void> _loadMore(BuildContext context, WidgetRef ref) =>
-      _showErrors(context, ref.read(myOrdersProvider.notifier).loadMore());
-
-  Future<void> _showErrors(BuildContext context, Future<void> action) async {
+  Future<void> _showErrors(Future<void> action) async {
     try {
       await action;
     } catch (error) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -127,6 +197,115 @@ class MyOrdersScreen extends ConsumerWidget {
         );
       }
     }
+  }
+}
+
+/// "Buscar por N.º o producto", los chips de estado y de entrega, y las
+/// fechas. En el teléfono los chips se deslizan de lado.
+class _Filters extends StatelessWidget {
+  const _Filters({
+    required this.search,
+    required this.filter,
+    required this.onSearch,
+    required this.onClearSearch,
+    required this.onProgress,
+    required this.onFulfillmentType,
+    required this.onDates,
+  });
+
+  final TextEditingController search;
+  final MyOrdersFilter filter;
+  final ValueChanged<String> onSearch;
+  final VoidCallback onClearSearch;
+  final ValueChanged<OrderProgress?> onProgress;
+  final ValueChanged<FulfillmentType?> onFulfillmentType;
+  final void Function(DateTime? from, DateTime? to) onDates;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TextField(
+          controller: search,
+          decoration: InputDecoration(
+            labelText: 'Buscar por N.º o producto',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: ListenableBuilder(
+              listenable: search,
+              builder: (_, _) => search.text.isEmpty
+                  ? const SizedBox.shrink()
+                  : IconButton(
+                      tooltip: 'Borrar la búsqueda',
+                      icon: const Icon(Icons.close),
+                      onPressed: onClearSearch,
+                    ),
+            ),
+          ),
+          textInputAction: TextInputAction.search,
+          onChanged: onSearch,
+        ),
+        const SizedBox(height: 12),
+        FilterChips<OrderProgress?>(
+          options: [
+            (null, 'Todos'),
+            for (final progress in OrderProgress.values)
+              (progress, progress.label),
+          ],
+          selected: filter.progress,
+          onSelected: onProgress,
+        ),
+        const SizedBox(height: 8),
+        FilterChips<FulfillmentType?>(
+          options: const [
+            (null, 'Domicilio y recojo'),
+            (FulfillmentType.delivery, 'Domicilio'),
+            (FulfillmentType.pickup, 'Recojo'),
+          ],
+          selected: filter.fulfillmentType,
+          onSelected: onFulfillmentType,
+        ),
+        const SizedBox(height: 8),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: DatesFilter(
+            from: filter.from,
+            to: filter.to,
+            helpText: 'Pedidos entre',
+            onChanged: onDates,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Con la búsqueda o los filtros, ningún pedido: "Quitar filtros" vuelve a
+/// todos.
+class _NoMatches extends StatelessWidget {
+  const _NoMatches({required this.onClear});
+
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 32),
+      child: Column(
+        children: [
+          Text(
+            'Ningún pedido coincide con la búsqueda.',
+            style: Theme.of(context).textTheme.titleMedium,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: onClear,
+            child: const Text('Quitar filtros'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
