@@ -103,6 +103,8 @@ List<RouteEntry> promotionsRoutes(
         final audience = _readAudience(body);
         final title = _readTitle(body);
         final recipientIds = _readRecipientIds(body);
+        final confirmOverlap =
+            body.boolean('confirmOverlap', required: false) ?? false;
         body.check();
 
         final promotion = await promotions.create(session, productId!, (
@@ -119,6 +121,7 @@ List<RouteEntry> promotionsRoutes(
           audience: audience ?? PromotionAudience.everyone,
           title: title,
           recipientIds: recipientIds ?? const [],
+          confirmOverlap: confirmOverlap,
         ));
         return jsonResponse(201, json(promotion));
       }),
@@ -139,6 +142,8 @@ List<RouteEntry> promotionsRoutes(
         final audience = _readAudience(body);
         final title = _readTitle(body);
         final recipientIds = _readRecipientIds(body);
+        final confirmOverlap =
+            body.boolean('confirmOverlap', required: false) ?? false;
         body.check();
 
         final promotion = await promotions.update(
@@ -165,6 +170,7 @@ List<RouteEntry> promotionsRoutes(
                 ((audience ?? current.audience) == PromotionAudience.selected
                     ? current.recipientIds
                     : const []),
+            confirmOverlap: confirmOverlap,
           ),
         );
         return jsonResponse(200, json(promotion));
@@ -193,6 +199,7 @@ const _fields = {
   'audience',
   'title',
   'recipientIds',
+  'confirmOverlap',
 };
 
 /// Los campos de cada tipo, todos opcionales aquí: cuáles lleva cada tipo

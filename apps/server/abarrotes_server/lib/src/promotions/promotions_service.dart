@@ -7,6 +7,7 @@ import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'audience/promotion_audience_rule.dart';
 import 'promotion_announcer.dart';
+import 'promotion_labels.dart';
 import 'promotion_pricing.dart';
 import 'promotion_rules.dart';
 
@@ -28,6 +29,8 @@ typedef PromotionInput = ({
   PromotionAudience audience,
   String? title,
   List<UuidValue> recipientIds,
+  // Crearla o guardarla aunque se cruce con otras (se acumulan).
+  bool confirmOverlap,
 });
 
 /// Promociones: las del dashboard y, según las reglas de audiencia, las que
@@ -240,6 +243,7 @@ class PromotionsService implements PromotionPricing {
       audience: current.audience,
       title: current.title,
       recipientIds: _recipientIdsOf(current),
+      confirmOverlap: false,
     ));
     await _validate(
       session,
@@ -313,11 +317,10 @@ class PromotionsService implements PromotionPricing {
   /// - Una de clientes elegidos lleva al menos uno, y cada uno nuevo tiene
   ///   que ser un VIP activo (los que ya estaban se quedan aunque los den de
   ///   baja: dejan de usarla solos). Las demás no llevan elegidos.
-  /// - Dos promociones encendidas del mismo producto y la misma audiencia no
-  ///   pueden cruzarse en el tiempo. De audiencias distintas sí (una para
-  ///   todos y otra VIP): cada cliente paga la más barata de las que puede
-  ///   usar. Las de clientes elegidos tampoco se revisan: cada una es para
-  ///   otros clientes, y se cobra igual la más barata.
+  /// - Si se cruza con otras encendidas del mismo producto (fechas que se
+  ///   pisan, de cualquier audiencia y tipo), 409 con la lista en
+  ///   `overlaps`, salvo [PromotionInput.confirmOverlap]: se acumulan y el
+  ///   administrador decide.
   Future<void> _validate(
     Session session,
     Product product,
@@ -363,22 +366,19 @@ class PromotionsService implements PromotionPricing {
           'Algún cliente elegido no es un cliente VIP activo',
         );
       }
-      return;
-    }
-    if (input.recipientIds.isNotEmpty) {
+    } else if (input.recipientIds.isNotEmpty) {
       throw const ApiException.badRequest(
         'recipientIds solo va en una promoción para clientes elegidos',
       );
     }
-    if (!input.active) return;
+    if (!input.active || input.confirmOverlap) return;
 
     final period = toStoredPeriod(input.startDate, input.endDate);
-    final overlapping = await Promotion.db.findFirstRow(
+    final overlapping = await Promotion.db.find(
       session,
       where: (promotion) {
         final crosses =
             promotion.productId.equals(product.id) &
-            promotion.audience.equals(input.audience) &
             promotion.active.equals(true) &
             (promotion.startDate < period.endDate) &
             (promotion.endDate > period.startDate);
@@ -386,15 +386,28 @@ class PromotionsService implements PromotionPricing {
             ? crosses
             : crosses & promotion.id.notEquals(exceptId);
       },
+      orderBy: (promotion) => promotion.startDate,
+      include: Promotion.include(giftProduct: Product.include()),
     );
-    if (overlapping != null) {
-      final days = toDayPeriod(overlapping.startDate, overlapping.endDate);
-      final kind = input.audience == PromotionAudience.everyone
-          ? 'una promoción'
-          : 'una promoción ${input.audience.name.toUpperCase()}';
+    if (overlapping.isNotEmpty) {
       throw ApiException.conflict(
-        '${product.name} ya tiene $kind del ${days.startDate} al '
-        '${days.endDate} que se cruza con esas fechas',
+        'Se acumula con otras promociones del producto',
+        details: {
+          'overlaps': [
+            for (final other in overlapping)
+              {
+                'id': other.id.toString(),
+                'type': other.type.name,
+                'audience': other.audience.name,
+                'label': promotionLabel(other),
+                'startDate': toDayPeriod(
+                  other.startDate,
+                  other.endDate,
+                ).startDate,
+                'endDate': toDayPeriod(other.startDate, other.endDate).endDate,
+              },
+          ],
+        },
       );
     }
   }

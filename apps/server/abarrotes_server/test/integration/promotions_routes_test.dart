@@ -348,27 +348,54 @@ void main() {
     });
 
     test(
-      'una promoción VIP y una para todos del mismo producto pueden cruzarse; '
-      'dos VIP, no',
+      'una que se cruza avisa con la lista; confirmOverlap la crea',
       () async {
         await create({});
 
-        final (vipStatus, _) = await create({'audience': 'vip'});
         final (status, body) = await create({
           'audience': 'vip',
+          'promoPrice': 3.5,
           'startDate': day(3),
-          'endDate': day(10),
+          'endDate': day(9),
         });
 
-        expect(vipStatus, 201);
         expect(status, 409);
         expect(
           body['message'],
-          'Arroz Costeño 1 kg ya tiene una promoción VIP del 2026-10-01 al '
-          '2026-10-07 que se cruza con esas fechas',
+          'Se acumula con otras promociones del producto',
         );
+        expect(body['overlaps'], [
+          {
+            'id': isA<String>(),
+            'type': 'specialPrice',
+            'audience': 'everyone',
+            'label': 'Precio especial S/ 3.90',
+            'startDate': day(0),
+            'endDate': day(6),
+          },
+        ]);
+        expect(await Promotion.db.count(session), 1);
+
+        final (confirmed, _) = await create({
+          'audience': 'vip',
+          'promoPrice': 3.5,
+          'startDate': day(3),
+          'endDate': day(9),
+          'confirmOverlap': true,
+        });
+        expect(confirmed, 201);
       },
     );
+
+    test('editar no se cruza consigo misma', () async {
+      final (_, created) = await create({});
+
+      final (status, _) = await client.patch('/promotions/${created['id']}', {
+        'promoPrice': 3.5,
+      }, as: 'uid-staff');
+
+      expect(status, 200);
+    });
 
     test('el estado sale de la fecha: scheduled, expired y disabled', () async {
       final scheduled = await create({
@@ -384,7 +411,8 @@ void main() {
     });
 
     test(
-      'dos promociones encendidas del mismo producto no se cruzan (409)',
+      'misma audiencia y tipo también se acumula si se confirma; apagadas, '
+      'de otro producto o en otras fechas no avisan',
       () async {
         await create({});
 
@@ -392,17 +420,38 @@ void main() {
           'startDate': day(3),
           'endDate': day(10),
         });
-
         expect(status, 409);
+        expect((body['overlaps'] as List).single['audience'], 'everyone');
         expect(
-          body['message'],
-          'Arroz Costeño 1 kg ya tiene una promoción del 2026-10-01 al '
-          '2026-10-07 que se cruza con esas fechas',
+          (await create({
+            'startDate': day(3),
+            'endDate': day(10),
+            'confirmOverlap': true,
+          })).$1,
+          201,
         );
-        // Apagada sí puede cruzarse, y desde el día siguiente al último, también.
+
+        // Apagada, desde el día siguiente al último o de otro producto: nada
+        // que avisar.
         expect((await create({'active': false})).$1, 201);
         expect(
-          (await create({'startDate': day(7), 'endDate': day(8)})).$1,
+          (await create({'startDate': day(11), 'endDate': day(12)})).$1,
+          201,
+        );
+        final leche = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Leche',
+            sku: 'LECHE-9',
+            priceCents: 420,
+            categoryId: arroz.categoryId,
+          ),
+        );
+        expect(
+          (await create({
+            'productId': leche.id.toString(),
+            'promoPrice': 4,
+          })).$1,
           201,
         );
       },
@@ -556,7 +605,11 @@ void main() {
         );
         await create({'title': 'Semana del arroz'});
         vipPromo =
-            (await create({'audience': 'vip', 'promoPrice': 3.5})).$2
+            (await create({
+                  'audience': 'vip',
+                  'promoPrice': 3.5,
+                  'confirmOverlap': true,
+                })).$2
                 as Map<String, Object?>;
         await create({'productId': leche.id.toString(), 'promoPrice': 3.6});
         // Ninguna de estas está vigente para nadie.
@@ -726,7 +779,10 @@ void main() {
         ]);
         expect(await PromotionRecipient.db.count(session), 2);
         // Las demás, sin elegidos.
-        final (_, everyone) = await create({'promoPrice': 4});
+        final (_, everyone) = await create({
+          'promoPrice': 4,
+          'confirmOverlap': true,
+        });
         expect(everyone['recipients'], isEmpty);
       });
 
@@ -774,10 +830,20 @@ void main() {
         expect(await Promotion.db.count(session), 0);
       });
 
-      test('no se revisa el cruce con otras: cada una es para otros', () async {
+      test('también avisan del cruce, como las demás', () async {
         expect((await selected([ana])).$1, 201);
-        expect((await selected([ana], {'promoPrice': 3})).$1, 201);
-        expect((await create({'audience': 'vip'})).$1, 201);
+
+        final (status, body) = await selected([ana], {'promoPrice': 3});
+        expect(status, 409);
+        expect((body['overlaps'] as List).single['audience'], 'selected');
+        expect(
+          (await selected([ana], {'promoPrice': 3, 'confirmOverlap': true})).$1,
+          201,
+        );
+        expect(
+          (await create({'audience': 'vip', 'confirmOverlap': true})).$1,
+          201,
+        );
       });
 
       test(

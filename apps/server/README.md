@@ -239,7 +239,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `PUT /products/:id/image` | `products.manage` | El body es la foto tal cual (JPEG, PNG o WebP, hasta 8 MB; si pesa más, 413). La guarda procesada (ver "Fotos de los productos"), pone su ruta en `imageUrl`, borra la foto subida que tenía y devuelve el producto. Algo que no es una imagen, o de más de 40 megapíxeles, es 400. |
 | `GET /images/products/:productId/:file` | público | La foto subida (`image/jpeg`), con `Cache-Control: public, max-age=31536000, immutable`: cada foto nueva tiene otro nombre. 404 si no existe. |
 | `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero, cada una con `type`, `label` (cómo se nombra: "Precio especial S/ 19.90", "20 % menos", "2x1", "2.ª al 50 %", "Regalo: Sal 1 kg"), los campos de su tipo y `recipients: [{id, email}]` (los VIP elegidos, por correo; vacío si no es de clientes elegidos). Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
-| `POST /promotions` | `promotions.manage` | `{productId, type?, startDate, endDate, active?, audience?, title?, recipientIds?}` y los campos de su `type`: `specialPrice` (por defecto) lleva `promoPrice`; `percentOff`, `percent` (1–90); `buyXPayY` (NxM: 2x1, 3x2…), `buyQuantity` (2–10) y `payQuantity` (menor); `extraUnit` (cada N.ª unidad con un % menos), `buyQuantity` (2–10) y `percent` (1–100); `gift`, `buyQuantity` (cada cuántas, 1–10), `giftProductId` (otro producto, activo) y `giftQuantity` (1–10). Un campo de otro tipo es 400. Días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto), `vip` o `selected` (solo los VIP de `recipientIds`, los ids de `/vip-customers`: de 1 a 100, cada uno un VIP activo; en otra audiencia, 400); `title`: hasta 100 caracteres. |
+| `POST /promotions` | `promotions.manage` | `{productId, type?, startDate, endDate, active?, audience?, title?, recipientIds?}` y los campos de su `type`: `specialPrice` (por defecto) lleva `promoPrice`; `percentOff`, `percent` (1–90); `buyXPayY` (NxM: 2x1, 3x2…), `buyQuantity` (2–10) y `payQuantity` (menor); `extraUnit` (cada N.ª unidad con un % menos), `buyQuantity` (2–10) y `percent` (1–100); `gift`, `buyQuantity` (cada cuántas, 1–10), `giftProductId` (otro producto, activo) y `giftQuantity` (1–10). Un campo de otro tipo es 400. Si se cruza con otras del producto, 409 con `overlaps` (ver las reglas abajo); `confirmOverlap: true` la crea igual. Días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto), `vip` o `selected` (solo los VIP de `recipientIds`, los ids de `/vip-customers`: de 1 a 100, cada uno un VIP activo; en otra audiencia, 400); `title`: hasta 100 caracteres. |
 | `PATCH /promotions/:id` | `promotions.manage` | Cambia los campos de su tipo, fechas, `active`, `audience`, `title` (`null` lo borra) o `recipientIds` (los reemplaza; sin el campo quedan los mismos, y si pasa a otra audiencia, ninguno); el producto y el tipo no cambian. |
 | `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`; las de `selected`, solo a sus elegidos. |
 | `DELETE /promotions/:id` | `promotions.manage` | 204. |
@@ -379,10 +379,11 @@ pregunta (con `title` y `audience`), o `null`. Reglas de las promociones
 
 - El estado sale de la fecha y del interruptor `active`; no se guarda.
 - `promoPrice` tiene que ser menor al precio normal (400).
-- Dos promociones encendidas del mismo producto y la misma audiencia no pueden cruzarse en el
-  tiempo (409). De audiencias distintas sí (una para todos y otra VIP): cada cliente paga la más
-  barata de las que puede usar. Las de clientes elegidos no se revisan: cada una es para otros
-  clientes, y se cobra igual la más barata.
+- Las promociones de un producto **se acumulan**. Si una que se crea o se edita (encendida) se
+  cruza con otras encendidas del mismo producto (fechas que se pisan, de cualquier audiencia y
+  tipo), responde 409 "Se acumula con otras promociones del producto" con la lista en
+  `overlaps: [{id, type, audience, label, startDate, endDate}]`; con `confirmOverlap: true`
+  se guarda igual. El panel muestra esa lista y deja elegir.
 
 ### Clientes VIP y audiencias de las promociones
 
