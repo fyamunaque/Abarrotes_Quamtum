@@ -247,6 +247,30 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
 /// Un pedido del panel para los tests: a domicilio (con [hasDeliveryCode],
 /// de los que se entregan con el código del cliente) o, con [pickupCode], de
 /// recojo en tienda. Con los estados siguientes que mandaría el servidor.
+/// Las líneas de un pedido con un 2x1 en el arroz y una sal de regalo:
+/// subtotal S/ 49.80, descuentos S/ 24.90 y total S/ 24.90.
+const promotionOrderLines = [
+  OrderLine(
+    productId: 'arroz',
+    name: 'Arroz extra 5 kg',
+    quantity: 2,
+    listUnitPriceCents: 2490,
+    unitPriceCents: 2490,
+    lineTotalCents: 2490,
+    promotions: [(label: '2x1', savedCents: 2490)],
+  ),
+  OrderLine(
+    productId: 'sal',
+    name: 'Sal 1 kg',
+    quantity: 1,
+    listUnitPriceCents: 150,
+    unitPriceCents: 0,
+    lineTotalCents: 0,
+    isGift: true,
+    promotions: [(label: 'Regalo: Sal 1 kg', savedCents: 150)],
+  ),
+];
+
 AdminOrder adminOrder(
   String id,
   OrderStatus status, {
@@ -256,6 +280,11 @@ AdminOrder adminOrder(
   bool hasDeliveryCode = false,
   DateTime? readyForPickupAt,
   int? number,
+
+  /// Con otras líneas (las de [promotionOrderLines]): el total es lo que
+  /// suman y el subtotal, el total más [discountCents].
+  List<OrderLine>? lines,
+  int discountCents = 0,
 }) => AdminOrder(
   order: Order(
     id: id,
@@ -271,23 +300,34 @@ AdminOrder adminOrder(
     ),
     pickupCode: pickupCode,
     hasDeliveryCode: hasDeliveryCode,
-    totalCents: 3380,
+    totalCents: switch (lines) {
+      final lines? => lines.fold(0, (sum, line) => sum + line.lineTotalCents),
+      null => 3380,
+    },
+    subtotalCents: switch (lines) {
+      final lines? =>
+        lines.fold(0, (sum, line) => sum + line.lineTotalCents) + discountCents,
+      null => null,
+    },
+    discountCents: discountCents,
     deliveryAddress: pickupCode == null ? 'Av. Arequipa 123, Lince' : null,
     createdAt: DateTime.utc(2026, 10, day, 15, 30),
-    lines: const [
-      OrderLine(
-        productId: 'arroz',
-        name: 'Arroz extra 5 kg',
-        quantity: 1,
-        unitPriceCents: 2490,
-      ),
-      OrderLine(
-        productId: 'aceite',
-        name: 'Aceite vegetal 1 L',
-        quantity: 1,
-        unitPriceCents: 890,
-      ),
-    ],
+    lines:
+        lines ??
+        const [
+          OrderLine(
+            productId: 'arroz',
+            name: 'Arroz extra 5 kg',
+            quantity: 1,
+            unitPriceCents: 2490,
+          ),
+          OrderLine(
+            productId: 'aceite',
+            name: 'Aceite vegetal 1 L',
+            quantity: 1,
+            unitPriceCents: 890,
+          ),
+        ],
   ),
   customer: OrderCustomer(
     name: customer,
@@ -959,7 +999,7 @@ class FakeOrderRepository implements OrderRepository {
       // Como el servidor: los códigos los genera él, según el tipo.
       pickupCode: pickup ? 'K7M2XQ' : null,
       deliveryCode: pickup ? null : 'P4R9TW',
-      totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
+      totalCents: orderLines.fold(0, (sum, line) => sum + line.lineTotalCents),
       deliveryAddress: pickup ? null : deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,

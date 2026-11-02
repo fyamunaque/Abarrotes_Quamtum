@@ -59,6 +59,75 @@ void main() {
     expect(order.statusLabel, 'En espera de recojo');
   });
 
+  test('lee el detalle del cobro', () {
+    final order = Order.fromJson({
+      ...base,
+      'subtotal': '49.8',
+      'discount': '24.9',
+      'items': [
+        {
+          'productId': 'arroz',
+          'quantity': 2,
+          'listUnitPrice': '24.9',
+          'unitPrice': '24.9',
+          'lineTotal': '24.9',
+          'isGift': false,
+          'promotions': [
+            {'label': '2x1', 'saved': '24.9'},
+          ],
+          'product': {'name': 'Arroz extra 5 kg'},
+        },
+        {
+          'productId': 'sal',
+          'quantity': 1,
+          'listUnitPrice': '1.5',
+          'unitPrice': '0',
+          'lineTotal': '0',
+          'isGift': true,
+          'promotions': [
+            {'label': 'Regalo: Sal 1 kg', 'saved': '1.5'},
+          ],
+          'product': {'name': 'Sal 1 kg'},
+        },
+      ],
+    });
+
+    expect(
+      (order.subtotalCents, order.discountCents, order.totalCents),
+      (4980, 2490, 2490),
+    );
+    final [arroz, sal] = order.lines;
+    expect(
+      (arroz.listUnitPriceCents, arroz.unitPriceCents, arroz.lineTotalCents),
+      (2490, 2490, 2490),
+    );
+    expect(arroz.isGift, isFalse);
+    expect(arroz.promotions, [(label: '2x1', savedCents: 2490)]);
+    expect((sal.listUnitPriceCents, sal.lineTotalCents), (150, 0));
+    expect(sal.isGift, isTrue);
+  });
+
+  test('de un servidor anterior: sin descuento', () {
+    final order = Order.fromJson({
+      ...base,
+      'total': '49.8',
+      'items': [
+        {
+          'productId': 'arroz',
+          'quantity': 2,
+          'unitPrice': '24.9',
+          'product': {'name': 'Arroz extra 5 kg'},
+        },
+      ],
+    });
+
+    expect((order.subtotalCents, order.discountCents), (4980, 0));
+    final line = order.lines.single;
+    expect((line.listUnitPriceCents, line.lineTotalCents), (2490, 4980));
+    expect(line.isGift, isFalse);
+    expect(line.promotions, isEmpty);
+  });
+
   test('a domicilio: el código de entrega, si lo tiene, y el motivo', () {
     // El dueño recibe el código.
     final mine = Order.fromJson({...base, 'deliveryCode': 'P4R9TW'});

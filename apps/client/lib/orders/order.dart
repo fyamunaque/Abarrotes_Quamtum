@@ -9,6 +9,8 @@ class Order {
     required this.id,
     required this.status,
     required this.totalCents,
+    this._subtotalCents,
+    this.discountCents = 0,
     required this.createdAt,
     required this.lines,
     this.number,
@@ -47,6 +49,15 @@ class Order {
           _ => FulfillmentType.delivery,
         },
         totalCents: parseCents(total),
+        // Sin los campos (un servidor anterior), sin descuentos.
+        subtotalCents: switch (json['subtotal']) {
+          final String subtotal => parseCents(subtotal),
+          _ => null,
+        },
+        discountCents: switch (json['discount']) {
+          final String discount => parseCents(discount),
+          _ => 0,
+        },
         deliveryAddress: json['deliveryAddress'] as String?,
         pickupCode: json['pickupCode'] as String?,
         deliveryCode: json['deliveryCode'] as String?,
@@ -94,7 +105,13 @@ class Order {
 
   final OrderStatus status;
   final FulfillmentType fulfillmentType;
+
+  /// Lo que se cobró: [subtotalCents] (los precios normales, sin los
+  /// regalos) menos [discountCents] (lo que ahorraron las promociones).
   final int totalCents;
+  final int? _subtotalCents;
+  int get subtotalCents => _subtotalCents ?? totalCents;
+  final int discountCents;
 
   /// Solo a domicilio.
   final String? deliveryAddress;
@@ -163,27 +180,62 @@ class PriceChange {
   final int unitPriceCents;
 }
 
-/// Una línea del pedido, con el precio que se cobró.
+/// Una promoción que se aplicó a una línea ("2x1") y cuánto ahorró.
+typedef AppliedPromotion = ({String label, int savedCents});
+
+/// Una línea del pedido, con lo que se cobró: el precio normal, el
+/// unitario (con el precio especial y los %), el total de la línea (con
+/// el NxM o la unidad extra) y las promociones que se le aplicaron. Un
+/// regalo va en su propia línea, en 0.
 class OrderLine {
   const OrderLine({
     required this.productId,
     required this.name,
     required this.quantity,
     required this.unitPriceCents,
+    this._listUnitPriceCents,
+    this._lineTotalCents,
+    this.isGift = false,
+    this.promotions = const [],
   });
 
   factory OrderLine.fromJson(Object? json) => switch (json) {
     {
-      'productId': final String productId,
-      'quantity': final int quantity,
-      'unitPrice': final String unitPrice,
-      'product': {'name': final String name},
-    } =>
+          'productId': final String productId,
+          'quantity': final int quantity,
+          'unitPrice': final String unitPrice,
+          'product': {'name': final String name},
+        } &&
+        final Map<Object?, Object?> map =>
       OrderLine(
         productId: productId,
         name: name,
         quantity: quantity,
         unitPriceCents: parseCents(unitPrice),
+        // Sin los campos (un servidor anterior), el unitario por la
+        // cantidad.
+        listUnitPriceCents: switch (map['listUnitPrice']) {
+          final String price => parseCents(price),
+          _ => null,
+        },
+        lineTotalCents: switch (map['lineTotal']) {
+          final String total => parseCents(total),
+          _ => null,
+        },
+        isGift: map['isGift'] == true,
+        promotions: switch (map['promotions']) {
+          final List<Object?> list => [
+            for (final item in list)
+              switch (item) {
+                {'label': final String label, 'saved': final String saved} => (
+                  label: label,
+                  savedCents: parseCents(saved),
+                ),
+                _ => throw FormatException('No es una promoción', item),
+              },
+          ],
+          _ => const [],
+        },
       ),
     _ => throw FormatException('No es una línea de pedido', json),
   };
@@ -193,5 +245,12 @@ class OrderLine {
   final int quantity;
   final int unitPriceCents;
 
-  int get totalCents => unitPriceCents * quantity;
+  final int? _listUnitPriceCents;
+  int get listUnitPriceCents => _listUnitPriceCents ?? unitPriceCents;
+
+  final int? _lineTotalCents;
+  int get lineTotalCents => _lineTotalCents ?? unitPriceCents * quantity;
+
+  final bool isGift;
+  final List<AppliedPromotion> promotions;
 }

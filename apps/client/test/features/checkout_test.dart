@@ -128,7 +128,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Pedido N.º 1001'), findsOneWidget);
-    expect(find.text('S/ 58.70'), findsOneWidget);
+    // Arriba de la tarjeta y al final del detalle del cobro.
+    expect(find.text('S/ 58.70'), findsNWidgets(2));
     expect(find.text('2 × Arroz extra 5 kg'), findsOneWidget);
     expect(
       tester.widget<OrderTracker>(find.byType(OrderTracker)).status,
@@ -435,6 +436,52 @@ void main() {
     expect(find.byIcon(Icons.place_outlined), findsOneWidget);
     // Ya entregado: en una línea.
     expect(find.text('Entrega en Av. Brasil 450, Jesús María'), findsOneWidget);
+  });
+
+  testWidgets('Mis pedidos muestra las promociones y el regalo', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    orders.orders.addAll([
+      Order(
+        id: 'con-promociones',
+        status: OrderStatus.confirmed,
+        deliveryAddress: 'Av. Brasil 450',
+        subtotalCents: 4980,
+        discountCents: 2490,
+        totalCents: 2490,
+        createdAt: DateTime.utc(2026, 10, 14, 15),
+        lines: promotionOrderLines,
+      ),
+      // Sin descuentos: solo el total.
+      Order(
+        id: 'sin-promociones',
+        status: OrderStatus.delivered,
+        deliveryAddress: 'Av. Brasil 450',
+        totalCents: 890,
+        createdAt: DateTime.utc(2026, 10, 12, 15),
+        lines: const [
+          OrderLine(
+            productId: 'aceite',
+            name: 'Aceite vegetal 1 L',
+            quantity: 1,
+            unitPriceCents: 890,
+          ),
+        ],
+      ),
+    ]);
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    expect(find.text('2 × Arroz extra 5 kg'), findsOneWidget);
+    expect(find.text('2x1 −${formatSoles(2490)}'), findsOneWidget);
+    expect(find.text('1 × Sal 1 kg'), findsOneWidget);
+    expect(find.text('Regalo'), findsOneWidget);
+    expect(find.text('Subtotal'), findsOneWidget);
+    expect(find.text(formatSoles(4980)), findsOneWidget);
+    expect(find.text('Descuentos'), findsOneWidget);
+    expect(find.text('−${formatSoles(2490)}'), findsOneWidget);
   });
 
   testWidgets('a domicilio, en curso: el código para el repartidor', (

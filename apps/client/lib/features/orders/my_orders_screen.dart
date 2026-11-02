@@ -20,6 +20,7 @@ import '../shared/error_message.dart';
 import '../shared/filter_chips.dart';
 import '../shared/info_line.dart';
 import '../shared/store_details.dart';
+import 'order_lines.dart';
 import 'order_tracker.dart';
 
 /// Los pedidos de la cuenta, cada uno con su seguimiento, con la búsqueda
@@ -440,17 +441,7 @@ class _OrderCard extends StatelessWidget {
               FulfillmentType.delivery => _DeliveryDetails(order),
             },
             const SizedBox(height: 16),
-            for (final line in order.lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: Text('${line.quantity} × ${line.name}')),
-                    Text(formatSoles(line.totalCents)),
-                  ],
-                ),
-              ),
+            OrderLines(order: order),
           ],
         ),
       ),

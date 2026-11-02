@@ -64,7 +64,7 @@ void main() {
       ],
       [('p-arroz', 'Arroz', 2, 390), ('p-aceite', 'Aceite', 1, 450)],
     );
-    expect(order.lines.first.totalCents, 780);
+    expect(order.lines.first.lineTotalCents, 780);
   }
 
   test('hacer un pedido: POST /orders con el token y el precio del carrito, '
