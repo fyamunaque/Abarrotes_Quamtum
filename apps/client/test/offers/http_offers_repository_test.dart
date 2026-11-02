@@ -64,6 +64,47 @@ void main() {
     expect(vip.endDate, '2026-10-15');
   });
 
+  test('un 2x1 o un % VIP también son ofertas', () async {
+    final offers = await HttpOffersRepository(
+      ApiClient(
+        MockClient(
+          (_) async => json(200, {
+            'data': [
+              {
+                ...offer('o-1', 'vip'),
+                'type': 'buyXPayY',
+                'label': '2x1',
+                'promoPrice': null,
+                'buyQuantity': 2,
+                'payQuantity': 1,
+              },
+              {
+                ...offer('o-2', 'selected'),
+                'type': 'percentOff',
+                'label': '20 % menos',
+                'promoPrice': null,
+                'percent': 20,
+              },
+            ],
+            'meta': {'total': 2, 'page': 1, 'limit': 100},
+          }),
+        ),
+        baseUrl: Uri.parse('http://api.pe'),
+      ),
+      idToken: () async => 'token-ana',
+    ).exclusive();
+
+    final [deal, percent] = offers;
+    expect(deal.promoPriceCents, isNull);
+    expect(
+      (deal.deal?.label, deal.deal?.description),
+      ('2x1', '2x1 en este producto'),
+    );
+    // El % queda en el precio: 24.90 menos 20 %.
+    expect(percent.promoPriceCents, 1992);
+    expect(percent.deal, isNull);
+  });
+
   test('una respuesta con otra forma: "algo inesperado"', () {
     expect(
       HttpOffersRepository(

@@ -378,6 +378,38 @@ void main() {
       expect(find.text('Este producto ya no está disponible.'), findsOneWidget);
     });
 
+    testWidgets('el detalle explica cada oferta', (tester) async {
+      catalog = FakeCatalogRepository(
+        productList: const [
+          Product(
+            id: 'aceite',
+            name: 'Aceite vegetal 1 L',
+            priceCents: 1090,
+            stock: 30,
+            offers: [
+              (
+                type: 'buyXPayY',
+                label: '2x1',
+                title: 'Semana del aceite',
+                description: '2x1 en este producto',
+              ),
+              (
+                type: 'gift',
+                label: 'Regalo: Sal 1 kg',
+                title: null,
+                description: 'Regalo: Sal 1 kg por cada 2',
+              ),
+            ],
+          ),
+        ],
+      );
+      await pumpApp(tester, at: '/producto/aceite');
+
+      expect(find.text('2x1 en este producto'), findsOneWidget);
+      expect(find.text('Semana del aceite'), findsOneWidget);
+      expect(find.text('Regalo: Sal 1 kg por cada 2'), findsOneWidget);
+    });
+
     testWidgets('sin stock no se puede agregar', (tester) async {
       catalog = FakeCatalogRepository(
         productList: const [

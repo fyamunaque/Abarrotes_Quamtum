@@ -6,10 +6,12 @@ import '../../common/days.dart';
 import '../../offers/offer.dart';
 import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
+import '../catalog/offer_badges.dart';
 import '../catalog/price_tag.dart';
 import '../catalog/product_photo.dart';
 import '../shared/card_strip.dart';
 import '../shared/date_format.dart';
+import '../shared/vip_tag.dart';
 
 /// "Ofertas exclusivas": las promociones VIP de la cuenta, en una fila que se
 /// desliza de costado. Tocar una abre el producto, que ya trae el precio VIP.
@@ -96,9 +98,23 @@ class _OfferCard extends StatelessWidget {
                   PriceTag.prices(
                     priceCents: offer.priceCents,
                     promoPriceCents: offer.promoPriceCents,
-                    vipPrice: offer.vip,
+                    vipPrice: offer.vip && offer.deal == null,
                     fontSize: 20,
                   ),
+                  // Un NxM, una unidad extra o un regalo: el precio es el
+                  // normal y la oferta va en su insignia.
+                  if (offer.deal case final deal?) ...[
+                    const SizedBox(height: 6),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        OfferBadges([deal]),
+                        if (offer.vip) const VipTag(),
+                      ],
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text('Hasta el $until', style: muted),
                 ],
