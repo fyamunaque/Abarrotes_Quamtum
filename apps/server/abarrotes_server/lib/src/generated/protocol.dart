@@ -21,6 +21,7 @@ import 'orders/order.dart' as _ia2sbmwd;
 import 'orders/order_item.dart' as _is46w9g4;
 import 'orders/order_status.dart' as _ishke5og;
 import 'products/product.dart' as _io8c7sps;
+import 'promotions/applied_promotion.dart' as _isxjjxbc;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
 import 'promotions/promotion_recipient.dart' as _iyra33mk;
@@ -43,6 +44,7 @@ export 'orders/order.dart';
 export 'orders/order_item.dart';
 export 'orders/order_status.dart';
 export 'products/product.dart';
+export 'promotions/applied_promotion.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
 export 'promotions/promotion_recipient.dart';
@@ -1438,6 +1440,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _io8c7sps.Product) {
       return _io8c7sps.Product.fromJson(data) as T;
     }
+    if (t == _isxjjxbc.AppliedPromotion) {
+      return _isxjjxbc.AppliedPromotion.fromJson(data) as T;
+    }
     if (t == _i8z66r5b.Promotion) {
       return _i8z66r5b.Promotion.fromJson(data) as T;
     }
@@ -1505,6 +1510,10 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _is.getType<_io8c7sps.Product?>()) {
       return (data != null ? _io8c7sps.Product.fromJson(data) : null) as T;
+    }
+    if (t == _is.getType<_isxjjxbc.AppliedPromotion?>()) {
+      return (data != null ? _isxjjxbc.AppliedPromotion.fromJson(data) : null)
+          as T;
     }
     if (t == _is.getType<_i8z66r5b.Promotion?>()) {
       return (data != null ? _i8z66r5b.Promotion.fromJson(data) : null) as T;
@@ -1726,6 +1735,7 @@ class Protocol extends _is.DatabaseSerializationManager {
       _is46w9g4.OrderItem => 'OrderItem',
       _ishke5og.OrderStatus => 'OrderStatus',
       _io8c7sps.Product => 'Product',
+      _isxjjxbc.AppliedPromotion => 'AppliedPromotion',
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
       _iyra33mk.PromotionRecipient => 'PromotionRecipient',
@@ -1770,6 +1780,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'OrderStatus';
       case _io8c7sps.Product():
         return 'Product';
+      case _isxjjxbc.AppliedPromotion():
+        return 'AppliedPromotion';
       case _i8z66r5b.Promotion():
         return 'Promotion';
       case _ik9fivqg.PromotionAudience():
@@ -1835,6 +1847,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'Product') {
       return deserialize<_io8c7sps.Product>(data['data']);
+    }
+    if (dataClassName == 'AppliedPromotion') {
+      return deserialize<_isxjjxbc.AppliedPromotion>(data['data']);
     }
     if (dataClassName == 'Promotion') {
       return deserialize<_i8z66r5b.Promotion>(data['data']);

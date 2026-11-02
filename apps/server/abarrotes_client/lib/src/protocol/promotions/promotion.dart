@@ -19,8 +19,8 @@ import '../promotions/promotion_type.dart' as _i4iqhu0d;
 
 /// Una promoción de un producto por un periodo: un precio especial, un
 /// porcentaje, un NxM, una unidad extra con descuento o un regalo (`type`).
-/// Las fechas son días de la
-/// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
+/// Las fechas son días de la tienda (America/Lima): [inicio 00:00, día
+/// siguiente al fin 00:00).
 abstract class Promotion
     implements _isc.SerializableModel, _isc.ProtocolSerialization {
   Promotion._({
