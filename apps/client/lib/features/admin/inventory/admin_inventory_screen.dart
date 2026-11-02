@@ -125,10 +125,10 @@ class _AdminInventoryScreenState extends ConsumerState<AdminInventoryScreen> {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 SizedBox(
-                  width: narrow ? constraints.maxWidth : 340,
+                  width: narrow ? constraints.maxWidth : 360,
                   child: PanelSearchField(
                     controller: _search,
-                    label: 'Buscar producto, SKU o N.º de pedido',
+                    label: 'Buscar producto, SKU o pedido',
                     onChanged: _onSearch,
                     onClear: _clearSearch,
                   ),

@@ -122,6 +122,7 @@ class _OrderCodeDialogState extends State<_OrderCodeDialog> {
               decoration: const InputDecoration(
                 labelText: 'Motivo',
                 helperText: 'Por ejemplo: el cliente no tenía el celular.',
+                helperMaxLines: 2,
               ),
               textCapitalization: TextCapitalization.sentences,
               maxLength: 255,

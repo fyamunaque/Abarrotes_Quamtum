@@ -340,7 +340,7 @@ class _AudienceField extends StatelessWidget {
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) => SegmentedButton<PromotionAudience>(
-            direction: constraints.maxWidth < 520
+            direction: constraints.maxWidth < 440
                 ? Axis.vertical
                 : Axis.horizontal,
             segments: [
