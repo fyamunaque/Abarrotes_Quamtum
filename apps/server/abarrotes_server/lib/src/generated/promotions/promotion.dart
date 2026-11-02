@@ -16,14 +16,24 @@ import 'package:serverpod/serverpod.dart' as _is;
 import '../products/product.dart' as _iubf72bi;
 import '../promotions/promotion_audience.dart' as _ifhe3ya9;
 import '../promotions/promotion_recipient.dart' as _i7eleph1;
+import '../promotions/promotion_type.dart' as _i4iqhu0d;
 
-/// Precio especial de un producto por un periodo. Las fechas son días de la
+/// Una promoción de un producto por un periodo: un precio especial, un
+/// porcentaje, un NxM, una unidad extra con descuento o un regalo (`type`).
+/// Las fechas son días de la
 /// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
 abstract class Promotion
     implements _is.TableRow<_is.UuidValue?>, _is.ProtocolSerialization {
   Promotion._({
     this.id,
-    required this.promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    this.promoPriceCents,
+    this.percent,
+    this.buyQuantity,
+    this.payQuantity,
+    this.giftProductId,
+    this.giftProduct,
+    this.giftQuantity,
     required this.startDate,
     required this.endDate,
     bool? active,
@@ -32,12 +42,20 @@ abstract class Promotion
     _ifhe3ya9.PromotionAudience? audience,
     this.recipients,
     this.title,
-  }) : active = active ?? true,
+  }) : type = type ?? _i4iqhu0d.PromotionType.specialPrice,
+       active = active ?? true,
        audience = audience ?? _ifhe3ya9.PromotionAudience.everyone;
 
   factory Promotion({
     _is.UuidValue? id,
-    required int promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    int? promoPriceCents,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    _is.UuidValue? giftProductId,
+    _iubf72bi.Product? giftProduct,
+    int? giftQuantity,
     required DateTime startDate,
     required DateTime endDate,
     bool? active,
@@ -53,7 +71,26 @@ abstract class Promotion
       id: jsonSerialization['id'] == null
           ? null
           : _is.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
-      promoPriceCents: jsonSerialization['promoPriceCents'] as int,
+      type: jsonSerialization['type'] == null
+          ? null
+          : _i4iqhu0d.PromotionType.fromJson(
+              (jsonSerialization['type'] as String),
+            ),
+      promoPriceCents: jsonSerialization['promoPriceCents'] as int?,
+      percent: jsonSerialization['percent'] as int?,
+      buyQuantity: jsonSerialization['buyQuantity'] as int?,
+      payQuantity: jsonSerialization['payQuantity'] as int?,
+      giftProductId: jsonSerialization['giftProductId'] == null
+          ? null
+          : _is.UuidValueJsonExtension.fromJson(
+              jsonSerialization['giftProductId'],
+            ),
+      giftProduct: jsonSerialization['giftProduct'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<_iubf72bi.Product>(
+              jsonSerialization['giftProduct'],
+            ),
+      giftQuantity: jsonSerialization['giftQuantity'] as int?,
       startDate: _is.DateTimeJsonExtension.fromJson(
         jsonSerialization['startDate'],
       ),
@@ -91,7 +128,27 @@ abstract class Promotion
   @override
   _is.UuidValue? id;
 
-  int promoPriceCents;
+  _i4iqhu0d.PromotionType type;
+
+  /// Solo en `specialPrice`: el precio de la promoción, en céntimos.
+  int? promoPriceCents;
+
+  /// En `percentOff` y `extraUnit`: cuánto menos, en %.
+  int? percent;
+
+  /// En `buyXPayY`, la N que se lleva; en `extraUnit`, cada cuántas
+  /// unidades; en `gift`, cada cuántas unidades hay regalo.
+  int? buyQuantity;
+
+  /// En `buyXPayY`: la M que se paga.
+  int? payQuantity;
+
+  _is.UuidValue? giftProductId;
+
+  /// En `gift`: el producto que se regala y cuántos por cada `buyQuantity`.
+  _iubf72bi.Product? giftProduct;
+
+  int? giftQuantity;
 
   DateTime startDate;
 
@@ -121,7 +178,14 @@ abstract class Promotion
   @_is.useResult
   Promotion copyWith({
     _is.UuidValue? id,
+    _i4iqhu0d.PromotionType? type,
     int? promoPriceCents,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    _is.UuidValue? giftProductId,
+    _iubf72bi.Product? giftProduct,
+    int? giftQuantity,
     DateTime? startDate,
     DateTime? endDate,
     bool? active,
@@ -136,7 +200,14 @@ abstract class Promotion
     return {
       '__className__': 'Promotion',
       if (id != null) 'id': id?.toJson(),
-      'promoPriceCents': promoPriceCents,
+      'type': type.toJson(),
+      if (promoPriceCents != null) 'promoPriceCents': promoPriceCents,
+      if (percent != null) 'percent': percent,
+      if (buyQuantity != null) 'buyQuantity': buyQuantity,
+      if (payQuantity != null) 'payQuantity': payQuantity,
+      if (giftProductId != null) 'giftProductId': giftProductId?.toJson(),
+      if (giftProduct != null) 'giftProduct': giftProduct?.toJson(),
+      if (giftQuantity != null) 'giftQuantity': giftQuantity,
       'startDate': startDate.toJson(),
       'endDate': endDate.toJson(),
       'active': active,
@@ -154,7 +225,14 @@ abstract class Promotion
     return {
       '__className__': 'Promotion',
       if (id != null) 'id': id?.toJson(),
-      'promoPriceCents': promoPriceCents,
+      'type': type.toJson(),
+      if (promoPriceCents != null) 'promoPriceCents': promoPriceCents,
+      if (percent != null) 'percent': percent,
+      if (buyQuantity != null) 'buyQuantity': buyQuantity,
+      if (payQuantity != null) 'payQuantity': payQuantity,
+      if (giftProductId != null) 'giftProductId': giftProductId?.toJson(),
+      if (giftProduct != null) 'giftProduct': giftProduct?.toJsonForProtocol(),
+      if (giftQuantity != null) 'giftQuantity': giftQuantity,
       'startDate': startDate.toJson(),
       'endDate': endDate.toJson(),
       'active': active,
@@ -170,10 +248,12 @@ abstract class Promotion
   }
 
   static PromotionInclude include({
+    _iubf72bi.ProductInclude? giftProduct,
     _iubf72bi.ProductInclude? product,
     _i7eleph1.PromotionRecipientIncludeList? recipients,
   }) {
     return PromotionInclude._(
+      giftProduct: giftProduct,
       product: product,
       recipients: recipients,
     );
@@ -208,7 +288,14 @@ class _Undefined {}
 class _PromotionImpl extends Promotion {
   _PromotionImpl({
     _is.UuidValue? id,
-    required int promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    int? promoPriceCents,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    _is.UuidValue? giftProductId,
+    _iubf72bi.Product? giftProduct,
+    int? giftQuantity,
     required DateTime startDate,
     required DateTime endDate,
     bool? active,
@@ -219,7 +306,14 @@ class _PromotionImpl extends Promotion {
     String? title,
   }) : super._(
          id: id,
+         type: type,
          promoPriceCents: promoPriceCents,
+         percent: percent,
+         buyQuantity: buyQuantity,
+         payQuantity: payQuantity,
+         giftProductId: giftProductId,
+         giftProduct: giftProduct,
+         giftQuantity: giftQuantity,
          startDate: startDate,
          endDate: endDate,
          active: active,
@@ -236,7 +330,14 @@ class _PromotionImpl extends Promotion {
   @override
   Promotion copyWith({
     Object? id = _Undefined,
-    int? promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    Object? promoPriceCents = _Undefined,
+    Object? percent = _Undefined,
+    Object? buyQuantity = _Undefined,
+    Object? payQuantity = _Undefined,
+    Object? giftProductId = _Undefined,
+    Object? giftProduct = _Undefined,
+    Object? giftQuantity = _Undefined,
     DateTime? startDate,
     DateTime? endDate,
     bool? active,
@@ -248,7 +349,20 @@ class _PromotionImpl extends Promotion {
   }) {
     return Promotion(
       id: id is _is.UuidValue? ? id : this.id,
-      promoPriceCents: promoPriceCents ?? this.promoPriceCents,
+      type: type ?? this.type,
+      promoPriceCents: promoPriceCents is int?
+          ? promoPriceCents
+          : this.promoPriceCents,
+      percent: percent is int? ? percent : this.percent,
+      buyQuantity: buyQuantity is int? ? buyQuantity : this.buyQuantity,
+      payQuantity: payQuantity is int? ? payQuantity : this.payQuantity,
+      giftProductId: giftProductId is _is.UuidValue?
+          ? giftProductId
+          : this.giftProductId,
+      giftProduct: giftProduct is _iubf72bi.Product?
+          ? giftProduct
+          : this.giftProduct?.copyWith(),
+      giftQuantity: giftQuantity is int? ? giftQuantity : this.giftQuantity,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       active: active ?? this.active,
@@ -268,8 +382,42 @@ class _PromotionImpl extends Promotion {
 class PromotionUpdateTable extends _is.UpdateTable<PromotionTable> {
   PromotionUpdateTable(super.table);
 
-  _is.ColumnValue<int, int> promoPriceCents(int value) => _is.ColumnValue(
+  _is.ColumnValue<_i4iqhu0d.PromotionType, _i4iqhu0d.PromotionType> type(
+    _i4iqhu0d.PromotionType value,
+  ) => _is.ColumnValue(
+    table.type,
+    value,
+  );
+
+  _is.ColumnValue<int, int> promoPriceCents(int? value) => _is.ColumnValue(
     table.promoPriceCents,
+    value,
+  );
+
+  _is.ColumnValue<int, int> percent(int? value) => _is.ColumnValue(
+    table.percent,
+    value,
+  );
+
+  _is.ColumnValue<int, int> buyQuantity(int? value) => _is.ColumnValue(
+    table.buyQuantity,
+    value,
+  );
+
+  _is.ColumnValue<int, int> payQuantity(int? value) => _is.ColumnValue(
+    table.payQuantity,
+    value,
+  );
+
+  _is.ColumnValue<_is.UuidValue, _is.UuidValue> giftProductId(
+    _is.UuidValue? value,
+  ) => _is.ColumnValue(
+    table.giftProductId,
+    value,
+  );
+
+  _is.ColumnValue<int, int> giftQuantity(int? value) => _is.ColumnValue(
+    table.giftQuantity,
     value,
   );
 
@@ -312,8 +460,34 @@ class PromotionUpdateTable extends _is.UpdateTable<PromotionTable> {
 class PromotionTable extends _is.Table<_is.UuidValue?> {
   PromotionTable({super.tableRelation}) : super(tableName: 'promotions') {
     updateTable = PromotionUpdateTable(this);
+    type = _is.ColumnEnum(
+      'type',
+      this,
+      _is.EnumSerialization.byName,
+      hasDefault: true,
+    );
     promoPriceCents = _is.ColumnInt(
       'promoPriceCents',
+      this,
+    );
+    percent = _is.ColumnInt(
+      'percent',
+      this,
+    );
+    buyQuantity = _is.ColumnInt(
+      'buyQuantity',
+      this,
+    );
+    payQuantity = _is.ColumnInt(
+      'payQuantity',
+      this,
+    );
+    giftProductId = _is.ColumnUuid(
+      'giftProductId',
+      this,
+    );
+    giftQuantity = _is.ColumnInt(
+      'giftQuantity',
       this,
     );
     startDate = _is.ColumnDateTime(
@@ -347,7 +521,27 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
 
   late final PromotionUpdateTable updateTable;
 
+  late final _is.ColumnEnum<_i4iqhu0d.PromotionType> type;
+
+  /// Solo en `specialPrice`: el precio de la promoción, en céntimos.
   late final _is.ColumnInt promoPriceCents;
+
+  /// En `percentOff` y `extraUnit`: cuánto menos, en %.
+  late final _is.ColumnInt percent;
+
+  /// En `buyXPayY`, la N que se lleva; en `extraUnit`, cada cuántas
+  /// unidades; en `gift`, cada cuántas unidades hay regalo.
+  late final _is.ColumnInt buyQuantity;
+
+  /// En `buyXPayY`: la M que se paga.
+  late final _is.ColumnInt payQuantity;
+
+  late final _is.ColumnUuid giftProductId;
+
+  /// En `gift`: el producto que se regala y cuántos por cada `buyQuantity`.
+  _iubf72bi.ProductTable? _giftProduct;
+
+  late final _is.ColumnInt giftQuantity;
 
   late final _is.ColumnDateTime startDate;
 
@@ -371,6 +565,19 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
 
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   late final _is.ColumnString title;
+
+  _iubf72bi.ProductTable get giftProduct {
+    if (_giftProduct != null) return _giftProduct!;
+    _giftProduct = _is.createRelationTable(
+      relationFieldName: 'giftProduct',
+      field: Promotion.t.giftProductId,
+      foreignField: _iubf72bi.Product.t.id,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _iubf72bi.ProductTable(tableRelation: foreignTableRelation),
+    );
+    return _giftProduct!;
+  }
 
   _iubf72bi.ProductTable get product {
     if (_product != null) return _product!;
@@ -422,7 +629,13 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
   @override
   List<_is.Column> get columns => [
     id,
+    type,
     promoPriceCents,
+    percent,
+    buyQuantity,
+    payQuantity,
+    giftProductId,
+    giftQuantity,
     startDate,
     endDate,
     active,
@@ -433,6 +646,9 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
 
   @override
   _is.Table? getRelationTable(String relationField) {
+    if (relationField == 'giftProduct') {
+      return giftProduct;
+    }
     if (relationField == 'product') {
       return product;
     }
@@ -445,12 +661,16 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
 
 class PromotionInclude extends _is.IncludeObject {
   PromotionInclude._({
+    _iubf72bi.ProductInclude? giftProduct,
     _iubf72bi.ProductInclude? product,
     _i7eleph1.PromotionRecipientIncludeList? recipients,
   }) {
+    _giftProduct = giftProduct;
     _product = product;
     _recipients = recipients;
   }
+
+  _iubf72bi.ProductInclude? _giftProduct;
 
   _iubf72bi.ProductInclude? _product;
 
@@ -458,6 +678,7 @@ class PromotionInclude extends _is.IncludeObject {
 
   @override
   Map<String, _is.Include?> get includes => {
+    'giftProduct': _giftProduct,
     'product': _product,
     'recipients': _recipients,
   };
@@ -491,6 +712,8 @@ class PromotionRepository {
   final attach = const PromotionAttachRepository._();
 
   final attachRow = const PromotionAttachRowRepository._();
+
+  final detachRow = const PromotionDetachRowRepository._();
 
   /// Returns a list of [Promotion]s matching the given query parameters.
   ///
@@ -923,6 +1146,29 @@ class PromotionAttachRowRepository {
   const PromotionAttachRowRepository._();
 
   /// Creates a relation between the given [Promotion] and [Product]
+  /// by setting the [Promotion]'s foreign key `giftProductId` to refer to the [Product].
+  Future<void> giftProduct(
+    _is.DatabaseSession session,
+    Promotion promotion,
+    _iubf72bi.Product giftProduct, {
+    _is.Transaction? transaction,
+  }) async {
+    if (promotion.id == null) {
+      throw ArgumentError.notNull('promotion.id');
+    }
+    if (giftProduct.id == null) {
+      throw ArgumentError.notNull('giftProduct.id');
+    }
+
+    var $promotion = promotion.copyWith(giftProductId: giftProduct.id);
+    await session.db.updateRow<Promotion>(
+      $promotion,
+      columns: [Promotion.t.giftProductId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between the given [Promotion] and [Product]
   /// by setting the [Promotion]'s foreign key `productId` to refer to the [Product].
   Future<void> product(
     _is.DatabaseSession session,
@@ -966,6 +1212,32 @@ class PromotionAttachRowRepository {
     await session.db.updateRow<_i7eleph1.PromotionRecipient>(
       $promotionRecipient,
       columns: [_i7eleph1.PromotionRecipient.t.promotionId],
+      transaction: transaction,
+    );
+  }
+}
+
+class PromotionDetachRowRepository {
+  const PromotionDetachRowRepository._();
+
+  /// Detaches the relation between this [Promotion] and the [Product] set in `giftProduct`
+  /// by setting the [Promotion]'s foreign key `giftProductId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> giftProduct(
+    _is.DatabaseSession session,
+    Promotion promotion, {
+    _is.Transaction? transaction,
+  }) async {
+    if (promotion.id == null) {
+      throw ArgumentError.notNull('promotion.id');
+    }
+
+    var $promotion = promotion.copyWith(giftProductId: null);
+    await session.db.updateRow<Promotion>(
+      $promotion,
+      columns: [Promotion.t.giftProductId],
       transaction: transaction,
     );
   }

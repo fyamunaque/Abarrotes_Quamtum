@@ -14,3 +14,7 @@ int? toCents(num amount) {
   final cents = (amount * 100).round();
   return (amount * 100 - cents).abs() < 1e-6 ? cents : null;
 }
+
+/// [cents] como se lee en un texto para personas: "S/ 17.90".
+String formatSoles(int cents) =>
+    'S/ ${cents ~/ 100}.${(cents % 100).toString().padLeft(2, '0')}';

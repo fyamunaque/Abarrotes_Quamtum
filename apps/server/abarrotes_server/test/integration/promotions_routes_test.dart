@@ -82,7 +82,14 @@ void main() {
             'sku': 'ARROZ-1',
             'price': '4.5',
           },
+          'type': 'specialPrice',
+          'label': 'Precio especial S/ 3.90',
           'promoPrice': '3.9',
+          'percent': null,
+          'buyQuantity': null,
+          'payQuantity': null,
+          'giftProduct': null,
+          'giftQuantity': null,
           'startDate': '2026-10-01',
           'endDate': '2026-10-07',
           'active': true,
@@ -124,6 +131,207 @@ void main() {
         'title': null,
       }, as: 'uid-staff');
       expect(cleared['title'], isNull);
+    });
+
+    group('tipos', () {
+      late Product sal;
+
+      setUp(() async {
+        sal = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Sal 1 kg',
+            sku: 'SAL-1',
+            priceCents: 150,
+            categoryId: arroz.categoryId,
+          ),
+        );
+      });
+
+      /// Una promoción de [type] para el arroz, sin precio promocional, en
+      /// los días [from]–[to] (así no se cruzan entre ellas).
+      Future<ApiResult> typed(
+        String type,
+        Map<String, Object?> fields, {
+        int from = 0,
+        int to = 1,
+      }) => client.post('/promotions', {
+        'productId': arroz.id.toString(),
+        'type': type,
+        'startDate': day(from),
+        'endDate': day(to),
+        ...fields,
+      }, as: 'uid-staff');
+
+      test('crea cada tipo con sus campos', () async {
+        final (percentStatus, percent) = await typed('percentOff', {
+          'percent': 20,
+        });
+        expect(percentStatus, 201);
+        expect(
+          (percent['type'], percent['label'], percent['promoPrice']),
+          ('percentOff', '20 % menos', null),
+        );
+        expect(percent['percent'], 20);
+
+        final (_, twoForOne) = await typed(
+          'buyXPayY',
+          {
+            'buyQuantity': 2,
+            'payQuantity': 1,
+          },
+          from: 2,
+          to: 3,
+        );
+        expect(twoForOne['label'], '2x1');
+        expect(
+          (twoForOne['buyQuantity'], twoForOne['payQuantity']),
+          (2, 1),
+        );
+
+        final (_, extra) = await typed(
+          'extraUnit',
+          {
+            'buyQuantity': 2,
+            'percent': 50,
+          },
+          from: 4,
+          to: 5,
+        );
+        expect(extra['label'], '2.ª al 50 %');
+
+        final (giftStatus, gift) = await typed(
+          'gift',
+          {
+            'buyQuantity': 2,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 1,
+          },
+          from: 6,
+          to: 7,
+        );
+        expect(giftStatus, 201);
+        expect(gift['label'], 'Regalo: Sal 1 kg');
+        expect(gift['giftProduct'], {
+          'id': sal.id.toString(),
+          'name': 'Sal 1 kg',
+        });
+        expect(gift['giftQuantity'], 1);
+      });
+
+      test('sin type es precio especial, como antes', () async {
+        final (status, body) = await create({});
+
+        expect(status, 201);
+        expect(body['type'], 'specialPrice');
+        expect(body['label'], 'Precio especial S/ 3.90');
+        expect(body['giftProduct'], isNull);
+      });
+
+      test('valida los campos de cada tipo', () async {
+        Future<Object?> error(String type, Map<String, Object?> fields) async {
+          final (status, body) = await typed(type, fields);
+          expect(status, 400, reason: '$type $fields');
+          return body['message'];
+        }
+
+        Matcher says(String message) =>
+            anyOf(equals(message), contains(message));
+
+        expect(
+          await error('percentOff', {'percent': 0}),
+          says('percent debe estar entre 1 y 90'),
+        );
+        expect(
+          await error('percentOff', {'percent': 91}),
+          says('percent debe estar entre 1 y 90'),
+        );
+        expect(
+          await error('extraUnit', {'buyQuantity': 2, 'percent': 101}),
+          says('percent debe estar entre 1 y 100'),
+        );
+        expect(
+          await error('buyXPayY', {'buyQuantity': 2, 'payQuantity': 2}),
+          says('payQuantity debe ser menor que buyQuantity'),
+        );
+        expect(
+          await error('buyXPayY', {'buyQuantity': 11, 'payQuantity': 1}),
+          says('buyQuantity debe estar entre 2 y 10'),
+        );
+        expect(
+          await error('gift', {
+            'buyQuantity': 11,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 1,
+          }),
+          says('buyQuantity debe estar entre 1 y 10'),
+        );
+        expect(
+          await error('gift', {
+            'buyQuantity': 2,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 11,
+          }),
+          says('giftQuantity debe estar entre 1 y 10'),
+        );
+        expect(
+          await error('gift', {
+            'buyQuantity': 2,
+            'giftProductId': arroz.id.toString(),
+            'giftQuantity': 1,
+          }),
+          says('El regalo tiene que ser otro producto'),
+        );
+        final apagado = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Azúcar',
+            sku: 'AZU-1',
+            priceCents: 300,
+            categoryId: arroz.categoryId,
+            active: false,
+          ),
+        );
+        for (final id in [
+          apagado.id.toString(),
+          '0199a000-0000-7000-8000-000000000000',
+        ]) {
+          expect(
+            await error('gift', {
+              'buyQuantity': 2,
+              'giftProductId': id,
+              'giftQuantity': 1,
+            }),
+            says('El producto de regalo no existe o está dado de baja'),
+          );
+        }
+        expect(
+          await error('buyXPayY', {
+            'buyQuantity': 2,
+            'payQuantity': 1,
+            'percent': 10,
+          }),
+          says('percent no va en una promoción buyXPayY'),
+        );
+        expect(
+          await error('specialPrice', {}),
+          says('promoPrice es obligatorio en un precio especial'),
+        );
+        expect(await Promotion.db.count(session), 0);
+      });
+
+      test('el tipo no cambia al editar', () async {
+        final (_, created) = await create({});
+
+        final (status, body) = await client.patch(
+          '/promotions/${created['id']}',
+          {'type': 'percentOff'},
+          as: 'uid-staff',
+        );
+
+        expect(status, 400);
+        expect(body['message'], ['La propiedad type no está permitida']);
+      });
     });
 
     test('valida la audiencia y el título', () async {
@@ -377,7 +585,14 @@ void main() {
             'id': isA<String>(),
             'title': 'Semana del arroz',
             'audience': 'everyone',
+            'type': 'specialPrice',
+            'label': 'Precio especial S/ 3.90',
             'promoPrice': '3.9',
+            'percent': null,
+            'buyQuantity': null,
+            'payQuantity': null,
+            'giftProduct': null,
+            'giftQuantity': null,
             'startDate': '2026-10-01',
             'endDate': '2026-10-07',
             'product': {

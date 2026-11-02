@@ -23,6 +23,7 @@ import 'products/product.dart' as _io8c7sps;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
 import 'promotions/promotion_recipient.dart' as _iyra33mk;
+import 'promotions/promotion_type.dart' as _i09c7in8;
 import 'staff/audit_action.dart' as _i6v8ft9w;
 import 'staff/audit_log.dart' as _ias3z63p;
 import 'staff/permission.dart' as _iwx11llg;
@@ -44,6 +45,7 @@ export 'products/product.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
 export 'promotions/promotion_recipient.dart';
+export 'promotions/promotion_type.dart';
 export 'staff/audit_action.dart';
 export 'staff/audit_log.dart';
 export 'staff/permission.dart';
@@ -123,6 +125,9 @@ class Protocol extends _isc.SerializationManager {
     if (t == _iyra33mk.PromotionRecipient) {
       return _iyra33mk.PromotionRecipient.fromJson(data) as T;
     }
+    if (t == _i09c7in8.PromotionType) {
+      return _i09c7in8.PromotionType.fromJson(data) as T;
+    }
     if (t == _i6v8ft9w.AuditAction) {
       return _i6v8ft9w.AuditAction.fromJson(data) as T;
     }
@@ -188,6 +193,10 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _isc.getType<_iyra33mk.PromotionRecipient?>()) {
       return (data != null ? _iyra33mk.PromotionRecipient.fromJson(data) : null)
+          as T;
+    }
+    if (t == _isc.getType<_i09c7in8.PromotionType?>()) {
+      return (data != null ? _i09c7in8.PromotionType.fromJson(data) : null)
           as T;
     }
     if (t == _isc.getType<_i6v8ft9w.AuditAction?>()) {
@@ -395,6 +404,7 @@ class Protocol extends _isc.SerializationManager {
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
       _iyra33mk.PromotionRecipient => 'PromotionRecipient',
+      _i09c7in8.PromotionType => 'PromotionType',
       _i6v8ft9w.AuditAction => 'AuditAction',
       _ias3z63p.AuditLog => 'AuditLog',
       _iwx11llg.Permission => 'Permission',
@@ -441,6 +451,8 @@ class Protocol extends _isc.SerializationManager {
         return 'PromotionAudience';
       case _iyra33mk.PromotionRecipient():
         return 'PromotionRecipient';
+      case _i09c7in8.PromotionType():
+        return 'PromotionType';
       case _i6v8ft9w.AuditAction():
         return 'AuditAction';
       case _ias3z63p.AuditLog():
@@ -503,6 +515,9 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'PromotionRecipient') {
       return deserialize<_iyra33mk.PromotionRecipient>(data['data']);
+    }
+    if (dataClassName == 'PromotionType') {
+      return deserialize<_i09c7in8.PromotionType>(data['data']);
     }
     if (dataClassName == 'AuditAction') {
       return deserialize<_i6v8ft9w.AuditAction>(data['data']);

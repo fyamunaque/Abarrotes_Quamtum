@@ -1,0 +1,17 @@
+### Qué da una promoción. Cada tipo usa sus campos de `Promotion`; el cobro
+### de cada línea lo calcula `promotion_engine.dart`.
+enum: PromotionType
+serialized: byName
+default: specialPrice
+values:
+  ### Un precio menor que el normal (`promoPriceCents`).
+  - specialPrice
+  ### Un porcentaje menos sobre el precio (`percent`).
+  - percentOff
+  ### Lleva N, paga M (`buyQuantity`, `payQuantity`): 2x1, 3x2…
+  - buyXPayY
+  ### Cada N.ª unidad con un porcentaje menos (`buyQuantity`, `percent`).
+  - extraUnit
+  ### Cada X unidades, Y de otro producto gratis (`buyQuantity`,
+  ### `giftProduct`, `giftQuantity`).
+  - gift

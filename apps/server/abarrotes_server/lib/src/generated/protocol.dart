@@ -24,6 +24,7 @@ import 'products/product.dart' as _io8c7sps;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
 import 'promotions/promotion_recipient.dart' as _iyra33mk;
+import 'promotions/promotion_type.dart' as _i09c7in8;
 import 'staff/audit_action.dart' as _i6v8ft9w;
 import 'staff/audit_log.dart' as _ias3z63p;
 import 'staff/permission.dart' as _iwx11llg;
@@ -45,6 +46,7 @@ export 'products/product.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
 export 'promotions/promotion_recipient.dart';
+export 'promotions/promotion_type.dart';
 export 'staff/audit_action.dart';
 export 'staff/audit_log.dart';
 export 'staff/permission.dart';
@@ -774,10 +776,47 @@ class Protocol extends _is.DatabaseSerializationManager {
           columnDefault: 'random_v7',
         ),
         _isp.ColumnDefinition(
+          name: 'type',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'protocol:PromotionType',
+          columnDefault: '\'specialPrice\'',
+        ),
+        _isp.ColumnDefinition(
           name: 'promoPriceCents',
           columnType: _isp.ColumnType.bigint,
-          isNullable: false,
-          dartType: 'int',
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'percent',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'buyQuantity',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'payQuantity',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'giftProductId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: true,
+          dartType: 'UuidValue?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'giftQuantity',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
         ),
         _isp.ColumnDefinition(
           name: 'startDate',
@@ -821,6 +860,16 @@ class Protocol extends _is.DatabaseSerializationManager {
       foreignKeys: [
         _isp.ForeignKeyDefinition(
           constraintName: 'promotions_fk_0',
+          columns: ['giftProductId'],
+          referenceTable: 'products',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promotions_fk_1',
           columns: ['productId'],
           referenceTable: 'products',
           referenceTableSchema: 'public',
@@ -1398,6 +1447,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _iyra33mk.PromotionRecipient) {
       return _iyra33mk.PromotionRecipient.fromJson(data) as T;
     }
+    if (t == _i09c7in8.PromotionType) {
+      return _i09c7in8.PromotionType.fromJson(data) as T;
+    }
     if (t == _i6v8ft9w.AuditAction) {
       return _i6v8ft9w.AuditAction.fromJson(data) as T;
     }
@@ -1463,6 +1515,10 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _is.getType<_iyra33mk.PromotionRecipient?>()) {
       return (data != null ? _iyra33mk.PromotionRecipient.fromJson(data) : null)
+          as T;
+    }
+    if (t == _is.getType<_i09c7in8.PromotionType?>()) {
+      return (data != null ? _i09c7in8.PromotionType.fromJson(data) : null)
           as T;
     }
     if (t == _is.getType<_i6v8ft9w.AuditAction?>()) {
@@ -1673,6 +1729,7 @@ class Protocol extends _is.DatabaseSerializationManager {
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
       _iyra33mk.PromotionRecipient => 'PromotionRecipient',
+      _i09c7in8.PromotionType => 'PromotionType',
       _i6v8ft9w.AuditAction => 'AuditAction',
       _ias3z63p.AuditLog => 'AuditLog',
       _iwx11llg.Permission => 'Permission',
@@ -1719,6 +1776,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'PromotionAudience';
       case _iyra33mk.PromotionRecipient():
         return 'PromotionRecipient';
+      case _i09c7in8.PromotionType():
+        return 'PromotionType';
       case _i6v8ft9w.AuditAction():
         return 'AuditAction';
       case _ias3z63p.AuditLog():
@@ -1785,6 +1844,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'PromotionRecipient') {
       return deserialize<_iyra33mk.PromotionRecipient>(data['data']);
+    }
+    if (dataClassName == 'PromotionType') {
+      return deserialize<_i09c7in8.PromotionType>(data['data']);
     }
     if (dataClassName == 'AuditAction') {
       return deserialize<_i6v8ft9w.AuditAction>(data['data']);

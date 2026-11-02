@@ -11,10 +11,17 @@ import 'promotion_pricing.dart';
 import 'promotion_rules.dart';
 
 /// Datos de una promoción tal como llegan en el body (días de la tienda).
-/// [recipientIds], los clientes VIP elegidos: solo con la audiencia
-/// `selected` (vacío en las demás).
+/// [type] decide qué campos lleva (ver [PromotionType]); los de otros
+/// tipos van en null. [recipientIds], los clientes VIP elegidos: solo con
+/// la audiencia `selected` (vacío en las demás).
 typedef PromotionInput = ({
-  int promoPriceCents,
+  PromotionType type,
+  int? promoPriceCents,
+  int? percent,
+  int? buyQuantity,
+  int? payQuantity,
+  UuidValue? giftProductId,
+  int? giftQuantity,
   String startDate,
   String endDate,
   bool active,
@@ -73,7 +80,9 @@ class PromotionsService implements PromotionPricing {
   @override
   PromotionIncludeList bestFor(DateTime now, Shopper shopper) =>
       Promotion.includeList(
-        where: (promotion) => eligibleWhere(promotion, now, shopper),
+        where: (promotion) =>
+            eligibleWhere(promotion, now, shopper) &
+            promotion.type.equals(PromotionType.specialPrice),
         orderByList: (promotion) => [
           promotion.promoPriceCents.asc(),
           promotion.id.asc(),
@@ -170,7 +179,13 @@ class PromotionsService implements PromotionPricing {
         session,
         Promotion(
           productId: productId,
+          type: input.type,
           promoPriceCents: input.promoPriceCents,
+          percent: input.percent,
+          buyQuantity: input.buyQuantity,
+          payQuantity: input.payQuantity,
+          giftProductId: input.giftProductId,
+          giftQuantity: input.giftQuantity,
           startDate: period.startDate,
           endDate: period.endDate,
           active: input.active,
@@ -212,7 +227,13 @@ class PromotionsService implements PromotionPricing {
     final current = await get(session, id);
     final days = toDayPeriod(current.startDate, current.endDate);
     final input = changes((
+      type: current.type,
       promoPriceCents: current.promoPriceCents,
+      percent: current.percent,
+      buyQuantity: current.buyQuantity,
+      payQuantity: current.payQuantity,
+      giftProductId: current.giftProductId,
+      giftQuantity: current.giftQuantity,
       startDate: days.startDate,
       endDate: days.endDate,
       active: current.active,
@@ -234,6 +255,11 @@ class PromotionsService implements PromotionPricing {
         session,
         current.copyWith(
           promoPriceCents: input.promoPriceCents,
+          percent: input.percent,
+          buyQuantity: input.buyQuantity,
+          payQuantity: input.payQuantity,
+          giftProductId: input.giftProductId,
+          giftQuantity: input.giftQuantity,
           startDate: period.startDate,
           endDate: period.endDate,
           active: input.active,
@@ -281,6 +307,8 @@ class PromotionsService implements PromotionPricing {
 
   /// Reglas de negocio:
   /// - El último día no puede ser anterior al primero.
+  /// - Cada tipo lleva sus campos y solo esos (ver [_typeProblems]); el
+  ///   regalo es otro producto, que existe y está activo.
   /// - El precio promocional tiene que ser menor al precio normal.
   /// - Una de clientes elegidos lleva al menos uno, y cada uno nuevo tiene
   ///   que ser un VIP activo (los que ya estaban se quedan aunque los den de
@@ -302,7 +330,18 @@ class PromotionsService implements PromotionPricing {
         'endDate no puede ser anterior a startDate',
       );
     }
-    if (input.promoPriceCents >= product.priceCents) {
+    final problems = _typeProblems(input, product.id!);
+    if (problems.isNotEmpty) throw ApiException.badRequest(problems);
+    if (input.giftProductId case final giftId?) {
+      final gift = await Product.db.findById(session, giftId);
+      if (gift == null || !gift.active) {
+        throw const ApiException.badRequest(
+          'El producto de regalo no existe o está dado de baja',
+        );
+      }
+    }
+    if (input.promoPriceCents case final promoPrice?
+        when promoPrice >= product.priceCents) {
       throw ApiException.badRequest(
         'El precio promocional debe ser menor al precio normal '
         '(${formatMoney(product.priceCents)})',
@@ -360,8 +399,75 @@ class PromotionsService implements PromotionPricing {
     }
   }
 
+  /// Los campos de [PromotionInput.type]: los que le faltan, los que no
+  /// van y los que se salen de rango, con el mensaje para cada uno.
+  static List<String> _typeProblems(
+    PromotionInput input,
+    UuidValue productId,
+  ) {
+    final type = input.type;
+    final fields = <String, Object?>{
+      'promoPrice': input.promoPriceCents,
+      'percent': input.percent,
+      'buyQuantity': input.buyQuantity,
+      'payQuantity': input.payQuantity,
+      'giftProductId': input.giftProductId,
+      'giftQuantity': input.giftQuantity,
+    };
+    final own = _fieldsOf[type]!;
+    final problems = [
+      for (final MapEntry(:key, :value) in fields.entries)
+        if (value != null && !own.contains(key))
+          '$key no va en una promoción ${type.name}'
+        else if (value == null && own.contains(key))
+          type == PromotionType.specialPrice
+              ? '$key es obligatorio en un precio especial'
+              : '$key es obligatorio en una promoción ${type.name}',
+    ];
+    if (problems.isNotEmpty) return problems;
+
+    void range(String field, int value, int min, int max) {
+      if (value < min || value > max) {
+        problems.add('$field debe estar entre $min y $max');
+      }
+    }
+
+    switch (type) {
+      case PromotionType.specialPrice:
+        break;
+      case PromotionType.percentOff:
+        range('percent', input.percent!, 1, 90);
+      case PromotionType.buyXPayY:
+        range('buyQuantity', input.buyQuantity!, 2, 10);
+        if (input.payQuantity! < 1) {
+          problems.add('payQuantity debe ser mayor o igual a 1');
+        } else if (input.payQuantity! >= input.buyQuantity!) {
+          problems.add('payQuantity debe ser menor que buyQuantity');
+        }
+      case PromotionType.extraUnit:
+        range('buyQuantity', input.buyQuantity!, 2, 10);
+        range('percent', input.percent!, 1, 100);
+      case PromotionType.gift:
+        range('buyQuantity', input.buyQuantity!, 1, 10);
+        range('giftQuantity', input.giftQuantity!, 1, 10);
+        if (input.giftProductId == productId) {
+          problems.add('El regalo tiene que ser otro producto');
+        }
+    }
+    return problems;
+  }
+
+  static const _fieldsOf = {
+    PromotionType.specialPrice: {'promoPrice'},
+    PromotionType.percentOff: {'percent'},
+    PromotionType.buyXPayY: {'buyQuantity', 'payQuantity'},
+    PromotionType.extraUnit: {'buyQuantity', 'percent'},
+    PromotionType.gift: {'buyQuantity', 'giftProductId', 'giftQuantity'},
+  };
+
   static final _include = Promotion.include(
     product: Product.include(),
+    giftProduct: Product.include(),
     recipients: PromotionRecipient.includeList(
       include: PromotionRecipient.include(vipCustomer: VipCustomer.include()),
     ),

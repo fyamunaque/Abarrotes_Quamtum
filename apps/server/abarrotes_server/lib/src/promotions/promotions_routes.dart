@@ -9,6 +9,7 @@ import '../common/money.dart';
 import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
+import 'promotion_labels.dart';
 import 'promotion_rules.dart';
 import 'promotions_service.dart';
 
@@ -89,10 +90,13 @@ List<RouteEntry> promotionsRoutes(
       staffOnly(Method.post, (session, request) async {
         final body = InputReader.body(
           await readJsonBody(request),
-          allowed: {..._fields, 'productId'},
+          allowed: {..._fields, 'productId', 'type'},
         );
         final productId = body.uuid('productId');
-        final promoPriceCents = _readPromoPrice(body, required: true);
+        final type =
+            body.oneOf('type', PromotionType.values, required: false) ??
+            PromotionType.specialPrice;
+        final fields = _readTypeFields(body);
         final startDate = body.day('startDate');
         final endDate = body.day('endDate');
         final active = body.boolean('active', required: false) ?? true;
@@ -102,7 +106,13 @@ List<RouteEntry> promotionsRoutes(
         body.check();
 
         final promotion = await promotions.create(session, productId!, (
-          promoPriceCents: promoPriceCents!,
+          type: type,
+          promoPriceCents: fields.promoPriceCents,
+          percent: fields.percent,
+          buyQuantity: fields.buyQuantity,
+          payQuantity: fields.payQuantity,
+          giftProductId: fields.giftProductId,
+          giftQuantity: fields.giftQuantity,
           startDate: startDate!,
           endDate: endDate!,
           active: active,
@@ -117,12 +127,12 @@ List<RouteEntry> promotionsRoutes(
       '/promotions/:id',
       staffOnly(Method.patch, (session, request) async {
         final id = idParam(request);
-        // El producto no cambia: para otro producto, otra promoción.
+        // El producto y el tipo no cambian: para otro, otra promoción.
         final body = InputReader.body(
           await readJsonBody(request),
           allowed: _fields,
         );
-        final promoPriceCents = _readPromoPrice(body, required: false);
+        final fields = _readTypeFields(body);
         final startDate = body.day('startDate', required: false);
         final endDate = body.day('endDate', required: false);
         final active = body.boolean('active', required: false);
@@ -135,7 +145,13 @@ List<RouteEntry> promotionsRoutes(
           session,
           id,
           (current) => (
-            promoPriceCents: promoPriceCents ?? current.promoPriceCents,
+            type: current.type,
+            promoPriceCents: fields.promoPriceCents ?? current.promoPriceCents,
+            percent: fields.percent ?? current.percent,
+            buyQuantity: fields.buyQuantity ?? current.buyQuantity,
+            payQuantity: fields.payQuantity ?? current.payQuantity,
+            giftProductId: fields.giftProductId ?? current.giftProductId,
+            giftQuantity: fields.giftQuantity ?? current.giftQuantity,
             startDate: startDate ?? current.startDate,
             endDate: endDate ?? current.endDate,
             active: active ?? current.active,
@@ -166,6 +182,11 @@ List<RouteEntry> promotionsRoutes(
 
 const _fields = {
   'promoPrice',
+  'percent',
+  'buyQuantity',
+  'payQuantity',
+  'giftProductId',
+  'giftQuantity',
   'startDate',
   'endDate',
   'active',
@@ -174,9 +195,25 @@ const _fields = {
   'recipientIds',
 };
 
-/// El precio promocional, de 0.01 en adelante.
-int? _readPromoPrice(InputReader body, {required bool required}) =>
-    body.cents('promoPrice', minCents: 1, required: required);
+/// Los campos de cada tipo, todos opcionales aquí: cuáles lleva cada tipo
+/// y sus rangos los revisa `PromotionsService`. El precio promocional, de
+/// 0.01 en adelante.
+({
+  int? promoPriceCents,
+  int? percent,
+  int? buyQuantity,
+  int? payQuantity,
+  UuidValue? giftProductId,
+  int? giftQuantity,
+})
+_readTypeFields(InputReader body) => (
+  promoPriceCents: body.cents('promoPrice', minCents: 1, required: false),
+  percent: body.integer('percent', required: false),
+  buyQuantity: body.integer('buyQuantity', required: false),
+  payQuantity: body.integer('payQuantity', required: false),
+  giftProductId: body.uuid('giftProductId', required: false),
+  giftQuantity: body.integer('giftQuantity', required: false),
+);
 
 /// A quién va dirigida: `everyone` (por defecto), `vip` o `selected` (los
 /// VIP de `recipientIds`).
@@ -222,7 +259,7 @@ Map<String, Object?> promotionJson(Promotion promotion, DateTime now) {
       'sku': product.sku,
       'price': formatMoney(product.priceCents),
     },
-    'promoPrice': formatMoney(promotion.promoPriceCents),
+    ..._typeJson(promotion),
     'startDate': days.startDate,
     'endDate': days.endDate,
     'active': promotion.active,
@@ -241,6 +278,25 @@ Map<String, Object?> promotionJson(Promotion promotion, DateTime now) {
   };
 }
 
+/// El tipo y sus campos, con el nombre para las personas (`label`). Los
+/// que no son del tipo van en null.
+Map<String, Object?> _typeJson(Promotion promotion) => {
+  'type': promotion.type.name,
+  'label': promotionLabel(promotion),
+  'promoPrice': switch (promotion.promoPriceCents) {
+    final cents? => formatMoney(cents),
+    null => null,
+  },
+  'percent': promotion.percent,
+  'buyQuantity': promotion.buyQuantity,
+  'payQuantity': promotion.payQuantity,
+  'giftProduct': switch (promotion.giftProduct) {
+    final gift? => {'id': gift.id.toString(), 'name': gift.name},
+    null => null,
+  },
+  'giftQuantity': promotion.giftQuantity,
+};
+
 /// Una promoción vigente como la ven los clientes: con el producto y su
 /// precio normal, sin datos internos (sku, estado).
 Map<String, Object?> activePromotionJson(Promotion promotion) {
@@ -250,7 +306,7 @@ Map<String, Object?> activePromotionJson(Promotion promotion) {
     'id': promotion.id.toString(),
     'title': promotion.title,
     'audience': promotion.audience.name,
-    'promoPrice': formatMoney(promotion.promoPriceCents),
+    ..._typeJson(promotion),
     'startDate': days.startDate,
     'endDate': days.endDate,
     'product': {

@@ -300,7 +300,8 @@ Map<String, Object?>? _promotionJson(Promotion? promotion) {
   final days = toDayPeriod(promotion.startDate, promotion.endDate);
   return {
     'id': promotion.id.toString(),
-    'promoPrice': formatMoney(promotion.promoPriceCents),
+    // Solo los precios especiales llegan aquí (ver `bestFor`).
+    'promoPrice': formatMoney(promotion.promoPriceCents!),
     'startDate': days.startDate,
     'endDate': days.endDate,
     'title': promotion.title,

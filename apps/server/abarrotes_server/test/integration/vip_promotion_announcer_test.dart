@@ -158,6 +158,22 @@ void main() {
       },
     );
 
+    test('un 2x1: el aviso dice la promoción en vez del precio', () {
+      final message = vipPromotionMessage(
+        promotion.copyWith(
+          type: PromotionType.buyXPayY,
+          promoPriceCents: null,
+          buyQuantity: 2,
+          payQuantity: 1,
+        ),
+      );
+
+      expect(
+        message.body,
+        'Semana VIP: 2x1 en Arroz extra 5 kg, hasta el 15 oct.',
+      );
+    });
+
     test('sin push configurado no manda nada', () async {
       push = FakePushSender(enabled: false);
 

@@ -5,6 +5,7 @@ import 'package:serverpod/serverpod.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_announcer.dart';
+import '../promotions/promotion_labels.dart';
 import '../push/device_push.dart';
 import '../push/push_sender.dart';
 import 'vip_service.dart';
@@ -89,7 +90,9 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
 
 /// El aviso de una promoción VIP (con su producto): "Nueva oferta
 /// exclusiva" y, p. ej., "Semana VIP: Arroz extra 5 kg a S/ 17.90 (antes
-/// S/ 24.90), hasta el 15 oct." Los datos dicen a la app qué abrir.
+/// S/ 24.90), hasta el 15 oct." Las que no son de precio dicen la promoción:
+/// "2x1 en Arroz extra 5 kg, hasta el 15 oct." Los datos dicen a la app qué
+/// abrir.
 PushMessage vipPromotionMessage(Promotion promotion) {
   final product = promotion.product!;
   // endDate es el límite exclusivo: el último día es el anterior.
@@ -98,9 +101,12 @@ PushMessage vipPromotionMessage(Promotion promotion) {
   return PushMessage(
     title: 'Nueva oferta exclusiva',
     body:
-        '${title == null ? '' : '$title: '}${product.name} a '
-        '${_soles(promotion.promoPriceCents)} '
-        '(antes ${_soles(product.priceCents)}), hasta el ${_day(lastDay)}.',
+        '${title == null ? '' : '$title: '}'
+        '${switch (promotion.promoPriceCents) {
+          final price? => '${product.name} a ${_soles(price)} '
+              '(antes ${_soles(product.priceCents)})',
+          null => '${promotionLabel(promotion)} en ${product.name}',
+        }}, hasta el ${_day(lastDay)}.',
     data: {
       'type': 'vip_promotion',
       'promotionId': promotion.id.toString(),
