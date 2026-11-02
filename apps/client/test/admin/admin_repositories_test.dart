@@ -573,6 +573,47 @@ void main() {
       );
     });
 
+    test(
+      'clientes elegidos: llegan con su correo y se mandan sus ids',
+      () async {
+        final repository = HttpPromotionsRepository(
+          api(
+            (_) => page([
+              {
+                ...promotion,
+                'audience': 'selected',
+                'recipients': [
+                  {'id': 'v-1', 'email': 'ana@tienda.pe'},
+                ],
+              },
+            ]),
+          ),
+        );
+
+        final chosen = (await repository.list()).items.single;
+        expect(chosen.audience, PromotionAudience.selected);
+        expect(chosen.vipOnly, isTrue);
+        expect(chosen.recipients, [(id: 'v-1', email: 'ana@tienda.pe')]);
+
+        PromotionInput input(PromotionAudience audience) => PromotionInput(
+          promoPriceCents: 790,
+          startDate: '2026-10-04',
+          endDate: '2026-11-02',
+          active: true,
+          audience: audience,
+          recipients: const [(id: 'v-1', email: 'ana@tienda.pe')],
+        );
+        expect(input(PromotionAudience.selected).toJson()['recipientIds'], [
+          'v-1',
+        ]);
+        // Con otra audiencia no van: el servidor los quita.
+        expect(
+          input(PromotionAudience.vip).toJson(),
+          isNot(contains('recipientIds')),
+        );
+      },
+    );
+
     test('crear lleva el producto; editar, no; eliminar es DELETE', () async {
       final repository = HttpPromotionsRepository(api((_) => promotion));
 

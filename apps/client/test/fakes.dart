@@ -672,6 +672,9 @@ class FakePromotionsRepository implements PromotionsRepository {
     active: input.active,
     audience: input.audience,
     title: input.title,
+    recipients: input.audience == PromotionAudience.selected
+        ? input.recipients
+        : const [],
     status: !input.active
         ? PromotionStatus.disabled
         : today.compareTo(input.startDate) < 0

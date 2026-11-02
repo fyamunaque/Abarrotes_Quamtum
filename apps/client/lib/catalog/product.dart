@@ -39,7 +39,8 @@ class Product {
           _ => null,
         },
         vipPrice: switch (json['promotion']) {
-          {'audience': 'vip'} => true,
+          // Para los VIP: todos o algunos elegidos.
+          {'audience': 'vip' || 'selected'} => true,
           _ => false,
         },
         imageUrl: json['imageUrl'] as String?,

@@ -11,6 +11,15 @@ final vipRepositoryProvider = Provider<VipRepository>(
   (ref) => HttpVipRepository(ref.watch(authedApiProvider)),
 );
 
+/// Busca hasta 20 clientes VIP activos cuyo correo contiene lo escrito.
+typedef VipSearch = Future<List<VipCustomer>> Function(String search);
+
+/// Para elegir a quién va una promoción de clientes elegidos.
+final vipSearchProvider = Provider<VipSearch>((ref) {
+  final vips = ref.watch(vipRepositoryProvider);
+  return (search) async => (await vips.list(search: search)).items;
+});
+
 /// Los clientes VIP, filtrados por lo buscado ('' para todos).
 final vipCustomersProvider = AsyncNotifierProvider.autoDispose
     .family<VipCustomersNotifier, PageList<VipCustomer>, String>(
