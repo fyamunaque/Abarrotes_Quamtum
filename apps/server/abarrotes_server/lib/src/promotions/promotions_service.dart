@@ -240,16 +240,23 @@ class PromotionsService implements PromotionPricing {
   }
 
   /// Las vigentes que [shopper] puede usar, de productos activos: por nombre
-  /// del producto y, en el mismo producto, la más barata primero.
+  /// del producto y, en el mismo producto, la más barata primero. Con
+  /// [specialPriceOnly], solo los precios especiales.
   Future<(List<Promotion>, int)> activeFor(
     Session session,
     Shopper shopper,
-    PageQuery page,
-  ) async {
+    PageQuery page, {
+    bool specialPriceOnly = false,
+  }) async {
     final now = this.now();
-    Expression where(PromotionTable promotion) =>
-        eligibleWhere(promotion, now, shopper) &
-        promotion.product.active.equals(true);
+    Expression where(PromotionTable promotion) {
+      final active =
+          eligibleWhere(promotion, now, shopper) &
+          promotion.product.active.equals(true);
+      return specialPriceOnly
+          ? active & promotion.type.equals(PromotionType.specialPrice)
+          : active;
+    }
 
     final promotions = await Promotion.db.find(
       session,

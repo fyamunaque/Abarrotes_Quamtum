@@ -30,10 +30,17 @@ List<RouteEntry> promotionsRoutes(
     (
       '/promotions/active',
       // Pública: sin token (o con uno que no sirve), las de todos. Las de una
-      // audiencia que el cliente no cumple no salen ni en el total.
+      // audiencia que el cliente no cumple no salen ni en el total. Sin
+      // `types=all`, solo los precios especiales: las apps de antes leen
+      // `promoPrice` en cada una y no conocen los otros tipos.
       ApiRoute(Method.get, (session, request) async {
-        final query = InputReader.query(request, allowed: PageQuery.fields);
+        final query = InputReader.query(
+          request,
+          allowed: {...PageQuery.fields, 'types'},
+        );
         final page = PageQuery.read(query);
+        final types = query.text('types', maxLength: 10, required: false);
+        if (types != null && types != 'all') query.reject('types debe ser all');
         query.check();
 
         final shopper = await shoppers.resolve(
@@ -44,6 +51,7 @@ List<RouteEntry> promotionsRoutes(
           session,
           shopper,
           page,
+          specialPriceOnly: types != 'all',
         );
         return jsonResponse(
           200,

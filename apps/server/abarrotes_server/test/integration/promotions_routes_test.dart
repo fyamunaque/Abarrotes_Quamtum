@@ -712,6 +712,30 @@ void main() {
         },
       );
 
+      test('los otros tipos, solo con types=all (las apps de antes leen '
+          'promoPrice)', () async {
+        final (created, _) = await client.post('/promotions', {
+          'productId': leche.id.toString(),
+          'type': 'buyXPayY',
+          'buyQuantity': 2,
+          'payQuantity': 1,
+          'startDate': day(0),
+          'endDate': day(6),
+          'confirmOverlap': true,
+        }, as: 'uid-staff');
+        expect(created, 201);
+
+        final (_, before) = await client.get('/promotions/active');
+        final (_, all) = await client.get('/promotions/active?types=all');
+
+        List<Object?> types(Object? body) => [
+          for (final p in (body as Map)['data'] as List) (p as Map)['type'],
+        ];
+        expect(types(before), everyElement('specialPrice'));
+        expect(types(all), contains('buyXPayY'));
+        expect((await client.get('/promotions/active?types=x')).$1, 400);
+      });
+
       test('pagina y valida el query', () async {
         final (_, page2) = await client.get(
           '/promotions/active?limit=1&page=2',
