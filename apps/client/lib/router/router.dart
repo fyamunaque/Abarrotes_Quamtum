@@ -10,6 +10,7 @@ import '../features/admin/no_access_screen.dart';
 import '../features/admin/orders/admin_orders_screen.dart';
 import '../features/admin/orders/admin_pickup_screen.dart';
 import '../features/admin/products/admin_products_screen.dart';
+import '../features/admin/promotions/admin_promo_codes_screen.dart';
 import '../features/admin/promotions/admin_promotions_screen.dart';
 import '../features/admin/store/admin_store_screen.dart';
 import '../features/admin/team/admin_roles_screen.dart';
@@ -97,6 +98,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: Routes.adminPickup,
             builder: (_, _) => const AdminPickupScreen(),
+          ),
+          GoRoute(
+            path: Routes.adminPromoCodes,
+            builder: (_, _) => const AdminPromoCodesScreen(),
           ),
           GoRoute(
             path: Routes.adminRoles,

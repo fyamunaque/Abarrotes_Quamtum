@@ -52,6 +52,9 @@ abstract final class Routes {
   static const adminProducts = '/admin/productos';
   static const adminInventory = '/admin/inventario';
   static const adminPromotions = '/admin/promociones';
+
+  /// Los códigos promocionales: con el permiso de las promociones.
+  static const adminPromoCodes = '/admin/promociones/codigos';
   static const adminVip = '/admin/clientes-vip';
 
   /// Los datos de la tienda: solo con `store.manage`.

@@ -6,15 +6,18 @@ import '../../../admin/promotions/promotions_providers.dart';
 import '../../../admin/vip/vip_providers.dart';
 import '../../../common/days.dart';
 import '../../../common/money.dart';
+import '../../../router/routes.dart';
 import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
 import '../../shared/filter_chips.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import '../shared/vip_badge.dart';
 import 'promotion_form.dart';
+import 'promotions_tabs.dart';
 
 /// Las promociones, filtradas por estado: crear, editar (precio, fechas,
 /// encendida, título y audiencia) y eliminar. Las exclusivas de los clientes
@@ -37,6 +40,10 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
       title: promotion == null ? 'Nueva promoción' : 'Editar promoción',
       builder: (_) => PromotionForm(
         promotion: promotion,
+        // La de un código se edita con su código fijo.
+        promoCodeId: promotion?.audience == PromotionAudience.code
+            ? promotion?.promoCodeId
+            : null,
         onSubmit: (input, {required confirmOverlap}) => promotion == null
             ? notifier.create(input, confirmOverlap: confirmOverlap)
             : notifier.save(
@@ -72,6 +79,8 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
         ),
       ],
       children: [
+        const PanelTabs(tabs: promotionsTabs, current: Routes.adminPromotions),
+        const SizedBox(height: 16),
         FilterChips<PromotionStatus?>(
           options: [
             (null, 'Todas'),
@@ -108,6 +117,7 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
             if (p.audience == PromotionAudience.vip) 'solo clientes VIP',
             if (p.audience == PromotionAudience.selected)
               'para ${p.recipients.length} clientes VIP elegidos',
+            if (p.promoCode case final code?) 'del código $code',
             ...switch (_promoCents(p)) {
               final cents? => [
                 'de ${formatSoles(p.priceCents)} a ${formatSoles(cents)}',
@@ -163,6 +173,8 @@ class _ProductCell extends StatelessWidget {
                 'Elegidos (${promotion.recipients.length})',
                 style: theme.textTheme.labelMedium,
               ),
+            if (promotion.promoCode case final code?)
+              Text('Código $code', style: theme.textTheme.labelMedium),
           ],
         ),
         Text(

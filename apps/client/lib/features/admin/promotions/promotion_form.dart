@@ -29,9 +29,14 @@ class PromotionForm extends StatefulWidget {
     required this.onSubmit,
     required this.searchVips,
     this.onDelete,
+    this.promoCodeId,
   });
 
   final Promotion? promotion;
+
+  /// Una promoción de este código: la audiencia es el código y no se
+  /// elige.
+  final String? promoCodeId;
   final VipSearch searchVips;
 
   /// Con `confirmOverlap`, se guarda aunque se cruce con otras.
@@ -65,6 +70,13 @@ class _PromotionFormState extends State<PromotionForm> {
   String? _error;
 
   bool get _creating => widget.promotion == null;
+
+  /// El código que la da, si es de un código.
+  String? get _promoCodeId =>
+      widget.promoCodeId ??
+      (widget.promotion?.audience == PromotionAudience.code
+          ? widget.promotion?.promoCodeId
+          : null);
 
   /// El precio normal del producto, o null si todavía no se eligió.
   int? get _normalCents => widget.promotion?.priceCents ?? _product?.priceCents;
@@ -125,9 +137,10 @@ class _PromotionFormState extends State<PromotionForm> {
       startDate: formatDay(range.start),
       endDate: formatDay(range.end),
       active: _active,
-      audience: _audience,
+      audience: _promoCodeId == null ? _audience : PromotionAudience.code,
       title: _title.text.trim().isEmpty ? null : _title.text.trim(),
       recipients: _recipients,
+      promoCodeId: _promoCodeId,
     );
     String saved(Promotion promotion) => _creating
         ? 'Creaste la promoción de ${promotion.productName}.'
@@ -302,12 +315,15 @@ class _PromotionFormState extends State<PromotionForm> {
             ),
           ),
           const SizedBox(height: 16),
-          _AudienceField(
-            value: _audience,
-            enabled: !_busy,
-            onChanged: (audience) => setState(() => _audience = audience),
-          ),
-          if (_audience == PromotionAudience.selected) ...[
+          // La de un código la ve solo quien lo activa.
+          if (_promoCodeId == null)
+            _AudienceField(
+              value: _audience,
+              enabled: !_busy,
+              onChanged: (audience) => setState(() => _audience = audience),
+            ),
+          if (_promoCodeId == null &&
+              _audience == PromotionAudience.selected) ...[
             const SizedBox(height: 16),
             _RecipientsField(
               initialValue: _recipients,
@@ -381,15 +397,18 @@ class _AudienceField extends StatelessWidget {
                 : Axis.horizontal,
             segments: [
               for (final audience in PromotionAudience.values)
-                ButtonSegment(
-                  value: audience,
-                  label: Text(audience.label),
-                  icon: Icon(switch (audience) {
-                    PromotionAudience.everyone => Icons.groups_outlined,
-                    PromotionAudience.vip => Icons.workspace_premium_outlined,
-                    PromotionAudience.selected => Icons.how_to_reg_outlined,
-                  }),
-                ),
+                if (audience != PromotionAudience.code)
+                  ButtonSegment(
+                    value: audience,
+                    label: Text(audience.label),
+                    icon: Icon(switch (audience) {
+                      PromotionAudience.everyone => Icons.groups_outlined,
+                      PromotionAudience.vip => Icons.workspace_premium_outlined,
+                      PromotionAudience.selected => Icons.how_to_reg_outlined,
+                      PromotionAudience.code =>
+                        Icons.confirmation_number_outlined,
+                    }),
+                  ),
             ],
             selected: {value},
             showSelectedIcon: false,
@@ -409,6 +428,7 @@ class _AudienceField extends StatelessWidget {
           PromotionAudience.selected =>
             'Solo la ven los clientes VIP que elijas, cuando ingresan con su '
                 'correo verificado. Si alguno deja de ser VIP, deja de verla.',
+          PromotionAudience.code => 'Solo quien activa el código.',
         }, style: muted),
       ],
     );

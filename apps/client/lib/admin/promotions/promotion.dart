@@ -22,7 +22,11 @@ enum PromotionAudience {
   vip('Solo clientes VIP'),
 
   /// Solo los clientes VIP elegidos (`Promotion.recipients`).
-  selected('Clientes elegidos');
+  selected('Clientes elegidos'),
+
+  /// Solo quien activó el código que la da (`Promotion.promoCodeId`). Se
+  /// crea desde el código, no se elige en el formulario.
+  code('Código');
 
   const PromotionAudience(this.label);
 
@@ -88,6 +92,8 @@ class Promotion {
     this.giftProductId,
     this.giftProductName,
     this.giftQuantity,
+    this.promoCodeId,
+    this.promoCode,
   });
 
   /// Como la manda `/promotions`. Sin `audience`, es para todos.
@@ -150,6 +156,14 @@ class Promotion {
           final other => throw FormatException('Audiencia inválida', other),
         },
         title: map['title'] as String?,
+        promoCodeId: switch (map['promoCode']) {
+          {'id': final String id} => id,
+          _ => null,
+        },
+        promoCode: switch (map['promoCode']) {
+          {'code': final String code} => code,
+          _ => null,
+        },
         recipients: switch (map['recipients']) {
           final List<Object?> list => [
             for (final item in list)
@@ -211,8 +225,14 @@ class Promotion {
   /// Con [PromotionAudience.selected]: los clientes VIP elegidos.
   final List<PromotionRecipient> recipients;
 
+  /// Con [PromotionAudience.code]: el código que la da (su id y su texto).
+  final String? promoCodeId;
+  final String? promoCode;
+
   /// Solo para clientes VIP: todos o los elegidos.
-  bool get vipOnly => audience != PromotionAudience.everyone;
+  bool get vipOnly =>
+      audience == PromotionAudience.vip ||
+      audience == PromotionAudience.selected;
 
   /// El descuento sobre el precio normal, redondeado: el de un precio
   /// especial o un %; null en los demás tipos.
@@ -271,6 +291,7 @@ class PromotionInput {
     this.title,
     this.productId,
     this.recipients = const [],
+    this.promoCodeId,
   });
 
   final String? productId;
@@ -294,6 +315,9 @@ class PromotionInput {
   /// Con [PromotionAudience.selected]: los clientes VIP elegidos (al menos
   /// uno). Con otra audiencia no se mandan: el servidor los quita.
   final List<PromotionRecipient> recipients;
+
+  /// Con [PromotionAudience.code]: el código que la da.
+  final String? promoCodeId;
 
   Map<String, Object?> toJson() => {
     'productId': ?productId,
@@ -322,5 +346,6 @@ class PromotionInput {
     'title': title,
     if (audience == PromotionAudience.selected)
       'recipientIds': [for (final recipient in recipients) recipient.id],
+    if (audience == PromotionAudience.code) 'promoCodeId': promoCodeId,
   };
 }

@@ -8,6 +8,8 @@ import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_orders_repository.dart';
 import 'package:neils/admin/products/admin_products_repository.dart';
 import 'package:neils/admin/products/product_input.dart';
+import 'package:neils/admin/promo_codes/promo_code.dart';
+import 'package:neils/admin/promo_codes/promo_codes_repository.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
 import 'package:neils/admin/staff/staff.dart';
@@ -767,6 +769,160 @@ void main() {
       await repository.delete('pr-1');
       expect(sent.last.method, 'DELETE');
       expect(sent.last.url.path, '/promotions/pr-1');
+    });
+  });
+
+  group('códigos promocionales', () {
+    const code = {
+      'id': 'c-1',
+      'code': 'VERANO-10',
+      'active': true,
+      'status': 'active',
+      'startDate': '2026-11-01',
+      'endDate': '2026-11-30',
+      'benefitDays': 7,
+      'maxRedemptions': 100,
+      'usesPerCustomer': 2,
+      'minPurchase': '30',
+      'newCustomersOnly': false,
+      'eligibility': 'listed',
+      'allowedEmails': ['ana@tienda.pe'],
+      'promotions': [
+        {
+          'id': 'pr-1',
+          'productId': 'p-1',
+          'product': {
+            'id': 'p-1',
+            'name': 'Arroz',
+            'sku': 'ARR',
+            'price': '4.5',
+          },
+          'type': 'buyXPayY',
+          'label': '2x1',
+          'promoPrice': null,
+          'buyQuantity': 2,
+          'payQuantity': 1,
+          'startDate': '2026-11-01',
+          'endDate': '2026-11-30',
+          'active': true,
+          'status': 'active',
+          'audience': 'code',
+          'promoCode': {'id': 'c-1', 'code': 'VERANO-10'},
+          'title': null,
+          'recipients': <Object?>[],
+        },
+      ],
+      'redemptions': 47,
+      'orders': 12,
+    };
+
+    test('lee el código con sus límites, condiciones y promociones', () async {
+      final codes = await HttpPromoCodesRepository(api((_) => page([code])))
+          .list(status: PromoCodeStatus.active, search: ' veran ');
+
+      expect(sent.single.url.path, '/promo-codes');
+      expect(sent.single.url.queryParameters, {
+        'page': '1',
+        'limit': '20',
+        'status': 'active',
+        'search': 'veran',
+      });
+      final verano = codes.items.single;
+      expect(
+        (verano.code, verano.status, verano.active),
+        ('VERANO-10', PromoCodeStatus.active, true),
+      );
+      expect(
+        (
+          verano.benefitDays,
+          verano.maxRedemptions,
+          verano.usesPerCustomer,
+          verano.minPurchaseCents,
+        ),
+        (7, 100, 2, 3000),
+      );
+      expect(verano.eligibility, PromoCodeEligibility.listed);
+      expect(verano.allowedEmails, ['ana@tienda.pe']);
+      expect((verano.redemptions, verano.orders), (47, 12));
+      final promotion = verano.promotions.single;
+      expect(promotion.audience, PromotionAudience.code);
+      expect(
+        (promotion.promoCodeId, promotion.promoCode),
+        ('c-1', 'VERANO-10'),
+      );
+      expect(promotion.vipOnly, isFalse);
+    });
+
+    test('crear, editar y borrar', () async {
+      final repository = HttpPromoCodesRepository(api((_) => code));
+      const input = PromoCodeInput(
+        code: 'VERANO-10',
+        startDate: '2026-11-01',
+        endDate: '2026-11-30',
+        active: false,
+        maxRedemptions: 100,
+        minPurchaseCents: 3000,
+        eligibility: PromoCodeEligibility.listed,
+        allowedEmails: ['ana@tienda.pe'],
+      );
+
+      await repository.create(input);
+      expect(sent.single.method, 'POST');
+      expect(jsonDecode(sent.single.body), {
+        'code': 'VERANO-10',
+        'startDate': '2026-11-01',
+        'endDate': '2026-11-30',
+        'active': false,
+        // Un límite vacío va en null: sin límite (y al editar, lo quita).
+        'benefitDays': null,
+        'maxRedemptions': 100,
+        'usesPerCustomer': null,
+        'minPurchase': 30.0,
+        'newCustomersOnly': false,
+        'eligibility': 'listed',
+        'allowedEmails': ['ana@tienda.pe'],
+      });
+
+      await repository.update('c-1', input);
+      expect(
+        (sent.last.method, sent.last.url.path),
+        ('PATCH', '/promo-codes/c-1'),
+      );
+
+      final deleting = HttpPromoCodesRepository(api((_) => null));
+      await deleting.delete('c-1');
+      expect(
+        (sent.single.method, sent.single.url.path),
+        ('DELETE', '/promo-codes/c-1'),
+      );
+    });
+
+    test('una promoción de código manda su código', () async {
+      final repository = HttpPromotionsRepository(
+        api(
+          (_) => {
+            ...(code['promotions'] as List).single as Map<String, Object?>,
+          },
+        ),
+      );
+
+      await repository.create(
+        const PromotionInput(
+          productId: 'p-1',
+          type: PromotionType.buyXPayY,
+          buyQuantity: 2,
+          payQuantity: 1,
+          startDate: '2026-11-01',
+          endDate: '2026-11-30',
+          active: true,
+          audience: PromotionAudience.code,
+          promoCodeId: 'c-1',
+        ),
+      );
+
+      final body = jsonDecode(sent.single.body) as Map;
+      expect(body, containsPair('audience', 'code'));
+      expect(body, containsPair('promoCodeId', 'c-1'));
     });
   });
 
