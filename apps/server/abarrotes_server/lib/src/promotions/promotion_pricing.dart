@@ -20,21 +20,29 @@ abstract interface class PromotionPricing {
   PromotionIncludeList eligibleFor(DateTime now, Shopper shopper);
 
   /// Los productos que se pueden regalar con las promociones de
-  /// [productIds] que [shopper] puede usar (para bloquearlos junto con los
-  /// comprados, en orden, antes de cobrar).
+  /// [productIds] que [shopper] puede usar, también las de los códigos que
+  /// activó [customerId] (para bloquearlos junto con los comprados, en
+  /// orden, antes de cobrar).
   Future<Set<UuidValue>> giftProductIds(
     Session session,
     Set<UuidValue> productIds,
     Shopper shopper, {
     Transaction? transaction,
+    UuidValue? customerId,
   });
 
   /// Cobra [lines] con las promociones vigentes que [shopper] puede usar
   /// (ver `promotion_engine.dart`): precios, descuentos, regalos y avisos.
+  /// Con [customerId], también las de los códigos que activó; con
+  /// [lockCodes] (al hacer el pedido, dentro de [transaction]) sus canjes
+  /// quedan bloqueados hasta el final, y `PricedCart.usedRedemptionIds`
+  /// dice cuáles gasta el pedido.
   Future<PricedCart> price(
     Session session,
     List<PricingLine> lines,
     Shopper shopper, {
     Transaction? transaction,
+    UuidValue? customerId,
+    bool lockCodes = false,
   });
 }

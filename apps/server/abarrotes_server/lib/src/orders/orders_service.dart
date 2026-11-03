@@ -166,6 +166,7 @@ class OrdersService {
         productIds.toSet(),
         shopper,
         transaction: transaction,
+        customerId: customer.id,
       );
       final products = {
         for (final product in await Product.db.find(
@@ -203,6 +204,10 @@ class OrdersService {
         ],
         shopper,
         transaction: transaction,
+        // Los canjes de sus códigos quedan bloqueados hasta el final: dos
+        // pedidos a la vez no pasan los usos.
+        customerId: customer.id,
+        lockCodes: true,
       );
       final bought = {
         for (final line in cart.lines)
@@ -268,6 +273,13 @@ class OrdersService {
             productId: line.productId,
           ),
       ], transaction: transaction);
+      // Un uso de cada código que le ahorró algo.
+      if (cart.usedRedemptionIds.isNotEmpty) {
+        await OrderPromoCodeUse.db.insert(session, [
+          for (final redemptionId in cart.usedRedemptionIds)
+            OrderPromoCodeUse(orderId: order.id!, redemptionId: redemptionId),
+        ], transaction: transaction);
+      }
 
       // Si un producto no alcanza, inventory responde 409 y la transacción
       // deshace también el pedido. Los regalos ya vienen limitados al stock.
@@ -300,14 +312,16 @@ class OrdersService {
     });
   }
 
-  /// Cómo se cobraría el carrito [lines] para [shopper], sin guardar nada
-  /// ni tocar el stock: lo que muestra el carrito antes de pedir. Los
+  /// Cómo se cobraría el carrito [lines] para [shopper] (con los códigos
+  /// que activó [customerId], si tiene cuenta), sin guardar nada, sin tocar
+  /// el stock ni gastar usos: lo que muestra el carrito antes de pedir. Los
   /// productos que no existen o están de baja no entran y van en los
   /// avisos. Devuelve también los productos (comprados y de regalo), para
   /// mostrarlos.
   Future<({PricedCart cart, Map<UuidValue, Product> products})> quote(
     Session session, {
     required Shopper shopper,
+    UuidValue? customerId,
     required List<({UuidValue productId, int quantity})> lines,
   }) async {
     final quantities = <UuidValue, int>{};
@@ -342,7 +356,12 @@ class OrdersService {
             quantity: quantity,
           ),
     ];
-    final priced = await _pricing.price(session, available, shopper);
+    final priced = await _pricing.price(
+      session,
+      available,
+      shopper,
+      customerId: customerId,
+    );
     final giftIds = {
       for (final line in priced.lines)
         if (line.isGift && !found.containsKey(line.productId)) line.productId,

@@ -21,9 +21,10 @@ apps/server/
 ```
 
 Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplies`, `orders`,
-`promotions`, `vip`): ningún dominio importa la lógica de otro. `auth`, `common` y `push` son
+`promotions`, `promo_codes`, `vip`): ningún dominio importa la lógica de otro. `auth`, `common` y `push` son
 infraestructura compartida; lo que un dominio necesita de otro llega por constructor como interfaz
-(p. ej. `PromotionPricing`, ver [Clientes VIP](#clientes-vip-y-audiencias-de-las-promociones)).
+(p. ej. `PromotionPricing`, ver [Clientes VIP](#clientes-vip-y-audiencias-de-las-promociones), o
+`CodeBenefits`, con la que `promo_codes` le dice a `promotions` qué códigos activó cada cliente).
 
 ## Requisitos
 
@@ -243,6 +244,12 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `PATCH /promotions/:id` | `promotions.manage` | Cambia los campos de su tipo, fechas, `active`, `audience`, `title` (`null` lo borra) o `recipientIds` (los reemplaza; sin el campo quedan los mismos, y si pasa a otra audiencia, ninguno); el producto y el tipo no cambian. |
 | `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`; las de `selected`, solo a sus elegidos. |
 | `DELETE /promotions/:id` | `promotions.manage` | 204. |
+| `GET /promo-codes`, `GET /promo-codes/:id` | `promotions.manage` | Paginado, los creados más recientemente primero. Cada uno con `code`, `active`, `status` (`active`, `scheduled`, `expired` o `paused`), `startDate`/`endDate` (días de la tienda), `benefitDays`, `maxRedemptions`, `usesPerCustomer`, `minPurchase` (texto o null), `newCustomersOnly`, `eligibility` (`everyone`, `vip` o `listed`), `allowedEmails`, `promotions` (como las de `/promotions`), `redemptions` (cuántos lo activaron) y `orders` (en cuántos pedidos no cancelados se usó). Filtros: `status` y `search` (en el texto). |
+| `POST /promo-codes` | `promotions.manage` | `{code, startDate, endDate, active?, benefitDays?, maxRedemptions?, usesPerCustomer?, minPurchase?, newCustomersOnly?, eligibility?, allowedEmails?}`. `code` se guarda sin espacios en los extremos y en mayúsculas: de 3 a 20 letras, números o guiones, único (409 "Ya existe el código VERANO-10"). Los límites, desde 1 (null: sin límite). `listed` pide al menos un correo (válidos, se normalizan); en otra condición, `allowedEmails` es 400. Se crea apagado: encenderlo pide al menos una promoción. |
+| `PATCH /promo-codes/:id` | `promotions.manage` | Cambia cualquiera de esos campos (un límite en `null` lo quita). Si alguien ya lo activó, el texto no cambia (409). Pausarlo corta el beneficio de quienes lo activaron; bajar `maxRedemptions` por debajo de los canjes no les quita nada, solo cierra los nuevos. |
+| `DELETE /promo-codes/:id` | `promotions.manage` | 204, con sus promociones. Si alguien ya lo activó, 409: se apaga en vez de borrarlo. Las promociones de un código se crean con `POST /promotions` y `audience: code` con `promoCodeId`. |
+| `POST /promo-codes/redeem` | cuenta, con el correo confirmado (si no, 403) | `{code}`, escrito como sea. Uno que no existe, apagado o fuera de fechas da siempre 404 "El código no existe o ya no está vigente". 409 "Se acabaron los canjes de este código" (la fila del código se bloquea al activarlo) o "Ya activaste este código"; 403 con la condición que no cumple ("Este código es solo para clientes nuevos": sin pedidos no cancelados; "... solo para clientes VIP"; "... no está disponible para tu cuenta"). Responde `{code, expiresAt, usesLeft, minPurchase, promotions: [{label, product: {id, name}}]}`: el beneficio dura `benefitDays` desde que se activa, nunca más allá del fin del código. |
+| `GET /promo-codes/mine` | cuenta | Los códigos activados que todavía sirven (encendidos, sin vencer y con usos), los que vencen antes primero, como los responde `redeem`. |
 | `GET /vip-customers` | `vip.view` | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
 | `POST /vip-customers` | `vip.manage` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
 | `DELETE /vip-customers/:id` | `vip.manage` | Baja lógica (`active: false`): queda quién lo agregó y cuándo. Devuelve el VIP. |
@@ -290,6 +297,17 @@ cliente puede usar. En cada línea, en este orden:
    entra en una sola; entre dos que compiten gana la que más ahorra.
 4. **Regalos:** `floor(cantidad / X) × Y` unidades del producto de regalo, en una línea a S/ 0,
    hasta donde alcance su stock (descontando lo que ya se compra de ese producto).
+
+**Códigos** (`priceCartWithCodes`): las promociones de audiencia `code` valen solo para quien
+activó su código y tiene el canje vigente (código encendido, sin vencer y con usos:
+`DbCodeBenefits`, en `promo_codes/`). El motor cobra primero sin ellas; las de cada código cuyo
+`minPurchase` alcanza ese total se suman a las demás y se cobra otra vez (se nombran "Código
+VERANO-10: 2x1"). Si no alcanza, un aviso: "Con S/ 12.40 más se aplica tu código VERANO-10". Un
+pedido gasta un uso (`OrderPromoCodeUse`) de cada código que le ahorró algo; cancelarlo lo
+devuelve. Al pedir, los canjes del cliente se bloquean (después de los productos) antes de contar
+sus usos, así dos pedidos a la vez no pasan `usesPerCustomer`. La cotización los aplica sin
+gastarlos. El catálogo no muestra las promociones de los códigos: se ven en el carrito y en "Mis
+códigos".
 
 El pedido bloquea los productos comprados **y los de regalo** en orden por id antes de cobrar
 (`giftProductIds`), así dos pedidos a la vez no se traban. El top 5 de las estadísticas suma

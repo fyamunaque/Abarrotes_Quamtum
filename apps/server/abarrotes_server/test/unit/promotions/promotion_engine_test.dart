@@ -1,3 +1,4 @@
+import 'package:abarrotes_server/src/common/money.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/promotions/promotion_engine.dart';
 import 'package:serverpod/serverpod.dart' show UuidValue;
@@ -279,6 +280,87 @@ void main() {
     expect(cart.discountCents, 0);
     expect(only(cart).promotions, isEmpty);
     expect(cart.appliedPromotionIds, isEmpty);
+  });
+
+  group('con códigos', () {
+    PricingCode code(Promotion promotion, {int? min}) => (
+      redemptionId: id(50),
+      code: 'VERANO-10',
+      minPurchaseCents: min,
+      promotions: [promotion],
+    );
+
+    test('segunda pasada con la compra mínima', () {
+      final twoForOne = promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+      PricedCart cart(int quantity) => priceCartWithCodes(
+        [line(arroz, 1000, quantity)],
+        {},
+        {},
+        [code(twoForOne, min: 3000)],
+      );
+
+      // 2 × S/ 10 = S/ 20: sin el código no llega a S/ 30.
+      final short = cart(2);
+      expect(short.totalCents, 2000);
+      expect(short.notices, [
+        'Con ${formatSoles(1000)} más se aplica tu código VERANO-10',
+      ]);
+      expect(short.usedRedemptionIds, isEmpty);
+
+      // 4 × S/ 10 = S/ 40 sin el código: llega, y el 2x1 se aplica.
+      final enough = cart(4);
+      expect(enough.totalCents, 2000);
+      expect(labels(only(enough)), ['Código VERANO-10: 2x1']);
+      expect(enough.usedRedemptionIds, {id(50)});
+      expect(enough.notices, isEmpty);
+    });
+
+    test('se acumula con las demás; sin mínimo, se aplica siempre', () {
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 2)],
+        {
+          arroz: [promo(arroz, PromotionType.percentOff, percent: 10)],
+        },
+        {},
+        [code(promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1))],
+      );
+
+      // 10 % menos (S/ 9 cada uno) y el 2x1 sobre ese precio.
+      expect(cart.totalCents, 900);
+      expect(labels(only(cart)), ['10 % menos', 'Código VERANO-10: 2x1']);
+      expect(cart.usedRedemptionIds, {id(50)});
+    });
+
+    test('un código que no ahorra nada no gasta el uso', () {
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 1)],
+        {},
+        {},
+        [code(promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1))],
+      );
+
+      // Con una unidad, el 2x1 no se completa.
+      expect(cart.totalCents, 1000);
+      expect(only(cart).promotions, isEmpty);
+      expect(cart.usedRedemptionIds, isEmpty);
+    });
+
+    test('sin promociones del código en el carrito, no avisa del mínimo', () {
+      final aceite = id(3);
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 1)],
+        {},
+        {},
+        [
+          code(
+            promo(aceite, PromotionType.buyXPayY, buy: 2, pay: 1),
+            min: 5000,
+          ),
+        ],
+      );
+
+      expect(cart.notices, isEmpty);
+    });
   });
 
   test('unitPriceFor: solo los pasos 1 y 2', () {

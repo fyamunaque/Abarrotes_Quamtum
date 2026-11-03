@@ -7,6 +7,7 @@ import 'package:serverpod/serverpod.dart' hide Order;
 import 'package:test/test.dart';
 
 import '../support/http_harness.dart';
+import '../support/promo_codes_setup.dart';
 import '../support/promotions_setup.dart';
 import '../support/staff_setup.dart';
 import '../support/test_tokens.dart';
@@ -20,76 +21,6 @@ void main() {
   // testNow cae el 1 de octubre en Lima.
   final today = storeDay(testNow);
   String day(int offset) => addDays(today, offset);
-
-  /// Un código encendido de [startOffset] a [endOffset] días desde hoy, con
-  /// un 2x1 de [product].
-  Future<PromoCode> insertCode(
-    Session session,
-    Product product, {
-    String code = 'VERANO-10',
-    bool active = true,
-    int startOffset = 0,
-    int endOffset = 29,
-    int? benefitDays,
-    int? maxRedemptions,
-    int? usesPerCustomer,
-    int? minPurchaseCents,
-    bool newCustomersOnly = false,
-    PromoCodeEligibility eligibility = PromoCodeEligibility.everyone,
-    List<String> allowedEmails = const [],
-  }) async {
-    final promoCode = await PromoCode.db.insertRow(
-      session,
-      PromoCode(
-        code: code,
-        active: active,
-        startDate: storeDayStart(day(startOffset)),
-        endDate: storeDayStart(day(endOffset + 1)),
-        benefitDays: benefitDays,
-        maxRedemptions: maxRedemptions,
-        usesPerCustomer: usesPerCustomer,
-        minPurchaseCents: minPurchaseCents,
-        newCustomersOnly: newCustomersOnly,
-        eligibility: eligibility,
-      ),
-    );
-    for (final email in allowedEmails) {
-      await PromoCodeAllowedEmail.db.insertRow(
-        session,
-        PromoCodeAllowedEmail(promoCodeId: promoCode.id!, email: email),
-      );
-    }
-    await Promotion.db.insertRow(
-      session,
-      Promotion(
-        productId: product.id!,
-        type: PromotionType.buyXPayY,
-        buyQuantity: 2,
-        payQuantity: 1,
-        startDate: storeDayStart(day(startOffset)),
-        endDate: storeDayStart(day(endOffset + 1)),
-        audience: PromotionAudience.code,
-        promoCodeId: promoCode.id,
-      ),
-    );
-    return promoCode;
-  }
-
-  Future<Product> insertRice(Session session) async {
-    final category = await Category.db.insertRow(
-      session,
-      Category(name: 'Abarrotes'),
-    );
-    return Product.db.insertRow(
-      session,
-      Product(
-        name: 'Arroz Costeño 1 kg',
-        sku: 'ARROZ-1',
-        priceCents: 450,
-        categoryId: category.id!,
-      ),
-    );
-  }
 
   withServerpod('Activar un código', (sessionBuilder, _) {
     late Session session;

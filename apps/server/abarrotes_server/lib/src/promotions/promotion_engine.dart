@@ -1,5 +1,6 @@
 import 'package:serverpod/serverpod.dart' show UuidValue;
 
+import '../common/money.dart';
 import '../generated/protocol.dart';
 import 'promotion_labels.dart';
 
@@ -15,6 +16,10 @@ import 'promotion_labels.dart';
 ///    unidad extra. Cada unidad entra en una sola; entre dos que compiten
 ///    gana la que más ahorra.
 /// 4. Regalos: líneas aparte a S/ 0, hasta donde alcance el stock.
+///
+/// Las promociones de los códigos que activó el cliente
+/// ([priceCartWithCodes]) se suman en una segunda pasada, si el total sin
+/// ellas llega a la compra mínima de su código.
 
 /// Un producto que se compra, con su precio normal.
 typedef PricingLine = ({
@@ -64,12 +69,21 @@ class PricedLine {
 
 /// El carrito cobrado: las líneas compradas y, al final, los regalos.
 class PricedCart {
-  PricedCart({required this.lines, required this.notices});
+  PricedCart({
+    required this.lines,
+    required this.notices,
+    this.usedRedemptionIds = const {},
+  });
 
   final List<PricedLine> lines;
 
-  /// Avisos para el cliente (p. ej. un regalo sin stock).
+  /// Avisos para el cliente (p. ej. un regalo sin stock, o cuánto falta
+  /// para la compra mínima de un código).
   final List<String> notices;
+
+  /// Los canjes de código cuyas promociones ahorraron algo: un pedido
+  /// gasta un uso de cada uno.
+  final Set<UuidValue> usedRedemptionIds;
 
   /// A precio normal, sin los regalos.
   int get subtotalCents => lines
@@ -184,6 +198,103 @@ PricedCart priceCart(
     }
   }
   return PricedCart(lines: [...priced, ...gifts], notices: notices);
+}
+
+/// Un código que activó el cliente: su canje, el texto, la compra mínima
+/// (sin las promociones del código) y sus promociones vigentes.
+typedef PricingCode = ({
+  UuidValue redemptionId,
+  String code,
+  int? minPurchaseCents,
+  List<Promotion> promotions,
+});
+
+/// Como [priceCart], con las promociones de [codes]: primero sin ellas; las
+/// de cada código cuyo mínimo alcanza ese total se suman a las demás y se
+/// cobra otra vez. A uno que no llega le queda el aviso con cuánto falta
+/// ("Con S/ 12.40 más se aplica tu código VERANO-10"), si tiene
+/// promociones de algo del carrito. Las del código se nombran con él
+/// ("Código VERANO-10: 2x1").
+PricedCart priceCartWithCodes(
+  List<PricingLine> lines,
+  Map<UuidValue, List<Promotion>> promotionsByProduct,
+  Map<UuidValue, GiftProduct> giftProducts,
+  List<PricingCode> codes,
+) {
+  final base = priceCart(lines, promotionsByProduct, giftProducts);
+  final inCart = {for (final line in lines) line.productId};
+  final notices = <String>[];
+  final codeOf = <UuidValue, PricingCode>{};
+  for (final code in codes) {
+    final relevant = [
+      for (final promotion in code.promotions)
+        if (inCart.contains(promotion.productId)) promotion,
+    ];
+    if (relevant.isEmpty) continue;
+    final missing = (code.minPurchaseCents ?? 0) - base.totalCents;
+    if (missing > 0) {
+      notices.add(
+        'Con ${formatSoles(missing)} más se aplica tu código ${code.code}',
+      );
+      continue;
+    }
+    for (final promotion in relevant) {
+      codeOf[promotion.id!] = code;
+    }
+  }
+  if (codeOf.isEmpty) {
+    return PricedCart(
+      lines: base.lines,
+      notices: [...base.notices, ...notices],
+    );
+  }
+
+  final withCodes = {
+    for (final id in inCart)
+      id: [
+        ...?promotionsByProduct[id],
+        for (final code in codes)
+          for (final promotion in code.promotions)
+            if (promotion.productId == id && codeOf.containsKey(promotion.id))
+              promotion,
+      ],
+  };
+  final priced = priceCart(lines, withCodes, giftProducts);
+  final used = <UuidValue>{};
+  return PricedCart(
+    lines: [
+      for (final line in priced.lines)
+        PricedLine(
+          productId: line.productId,
+          name: line.name,
+          quantity: line.quantity,
+          listUnitPriceCents: line.listUnitPriceCents,
+          unitPriceCents: line.unitPriceCents,
+          lineTotalCents: line.lineTotalCents,
+          isGift: line.isGift,
+          promotions: [
+            for (final applied in line.promotions)
+              if (codeOf[applied.promotionId] case final code?)
+                _fromCode(applied, code, used)
+              else
+                applied,
+          ],
+        ),
+    ],
+    notices: [...priced.notices, ...notices],
+    usedRedemptionIds: used,
+  );
+}
+
+/// [applied] con el nombre de su código; si ahorró algo, su canje queda
+/// en [used].
+AppliedPromotion _fromCode(
+  AppliedPromotion applied,
+  PricingCode code,
+  Set<UuidValue> used,
+) {
+  if (applied.savedCents > 0) used.add(code.redemptionId);
+  return applied.copyWith(label: 'Código ${code.code}: ${applied.label}');
 }
 
 /// El precio por unidad con los pasos 1 y 2 (lo que muestra el catálogo).

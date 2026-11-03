@@ -6,6 +6,7 @@ import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import 'audience/promotion_audience_rule.dart';
+import 'code_benefits.dart';
 import 'promotion_announcer.dart';
 import 'promotion_engine.dart';
 import 'promotion_labels.dart';
@@ -41,16 +42,20 @@ typedef PromotionInput = ({
 class PromotionsService implements PromotionPricing {
   /// [audienceRules] decide quién usa cada audiencia: una audiencia sin regla
   /// no la usa nadie. [announcer] avisa de cada promoción que se crea y ya
-  /// rige (p. ej. un push a los VIP).
+  /// rige (p. ej. un push a los VIP). [codeBenefits] dice qué códigos
+  /// activó cada cliente: las promociones de audiencia `code` solo valen en
+  /// el cobro, para ellos.
   PromotionsService({
     required List<PromotionAudienceRule> audienceRules,
     this._announcer = const NoPromotionAnnouncer(),
+    this._codeBenefits = const NoCodeBenefits(),
     DateTime Function()? now,
   }) : _audienceRules = List.unmodifiable(audienceRules),
        _now = now ?? DateTime.now;
 
   final List<PromotionAudienceRule> _audienceRules;
   final PromotionAnnouncer _announcer;
+  final CodeBenefits _codeBenefits;
   final DateTime Function() _now;
 
   DateTime now() => _now().toUtc();
@@ -97,6 +102,7 @@ class PromotionsService implements PromotionPricing {
     Set<UuidValue> productIds,
     Shopper shopper, {
     Transaction? transaction,
+    UuidValue? customerId,
   }) async {
     final now = this.now();
     final gifts = await Promotion.db.find(
@@ -107,7 +113,49 @@ class PromotionsService implements PromotionPricing {
           promotion.type.equals(PromotionType.gift),
       transaction: transaction,
     );
-    return {for (final gift in gifts) gift.giftProductId!};
+    final benefits = customerId == null
+        ? const <CodeBenefit>[]
+        : await _codeBenefits.activeFor(
+            session,
+            customerId,
+            transaction: transaction,
+          );
+    final codeGifts = await _codePromotions(
+      session,
+      benefits,
+      productIds,
+      now,
+      transaction,
+    );
+    return {
+      for (final gift in [...gifts, ...codeGifts])
+        if (gift.type == PromotionType.gift) gift.giftProductId!,
+    };
+  }
+
+  /// Las promociones vigentes de los códigos de [benefits] para
+  /// [productIds].
+  Future<List<Promotion>> _codePromotions(
+    Session session,
+    List<CodeBenefit> benefits,
+    Set<UuidValue> productIds,
+    DateTime now,
+    Transaction? transaction,
+  ) async {
+    if (benefits.isEmpty || productIds.isEmpty) return const [];
+    return Promotion.db.find(
+      session,
+      where: (promotion) =>
+          activePromotionWhere(promotion, now) &
+          promotion.audience.equals(PromotionAudience.code) &
+          promotion.promoCodeId.inSet(<UuidValue>{
+            for (final benefit in benefits) benefit.promoCodeId,
+          }) &
+          promotion.productId.inSet(productIds),
+      orderBy: (promotion) => promotion.id,
+      include: Promotion.include(giftProduct: Product.include()),
+      transaction: transaction,
+    );
   }
 
   @override
@@ -116,6 +164,8 @@ class PromotionsService implements PromotionPricing {
     List<PricingLine> lines,
     Shopper shopper, {
     Transaction? transaction,
+    UuidValue? customerId,
+    bool lockCodes = false,
   }) async {
     final now = this.now();
     final productIds = {for (final line in lines) line.productId};
@@ -130,7 +180,24 @@ class PromotionsService implements PromotionPricing {
             include: Promotion.include(giftProduct: Product.include()),
             transaction: transaction,
           );
-    final giftIds = <UuidValue>{for (final p in promotions) ?p.giftProductId};
+    final benefits = customerId == null || productIds.isEmpty
+        ? const <CodeBenefit>[]
+        : await _codeBenefits.activeFor(
+            session,
+            customerId,
+            transaction: transaction,
+            lock: lockCodes,
+          );
+    final codePromotions = await _codePromotions(
+      session,
+      benefits,
+      productIds,
+      now,
+      transaction,
+    );
+    final giftIds = <UuidValue>{
+      for (final p in [...promotions, ...codePromotions]) ?p.giftProductId,
+    };
     final gifts = giftIds.isEmpty
         ? const <Product>[]
         : await Product.db.find(
@@ -138,7 +205,7 @@ class PromotionsService implements PromotionPricing {
             where: (product) => product.id.inSet(giftIds),
             transaction: transaction,
           );
-    return priceCart(
+    return priceCartWithCodes(
       lines,
       {
         for (final id in productIds)
@@ -157,6 +224,18 @@ class PromotionsService implements PromotionPricing {
             stock: gift.currentStock,
           ),
       },
+      [
+        for (final benefit in benefits)
+          (
+            redemptionId: benefit.redemptionId,
+            code: benefit.code,
+            minPurchaseCents: benefit.minPurchaseCents,
+            promotions: [
+              for (final p in codePromotions)
+                if (p.promoCodeId == benefit.promoCodeId) p,
+            ],
+          ),
+      ],
     );
   }
 

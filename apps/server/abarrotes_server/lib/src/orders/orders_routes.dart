@@ -148,12 +148,18 @@ List<RouteEntry> ordersRoutes(
         ];
         body.check();
 
+        final identity = await optionalIdentity(guards.verifier, request);
+        // Con cuenta, también las promociones de los códigos que activó.
+        final customer = identity == null
+            ? null
+            : await User.db.findFirstRow(
+                session,
+                where: (user) => user.firebaseUid.equals(identity.uid),
+              );
         final (:cart, :products) = await orders.quote(
           session,
-          shopper: await shoppers.resolve(
-            session,
-            await optionalIdentity(guards.verifier, request),
-          ),
+          shopper: await shoppers.resolve(session, identity),
+          customerId: customer?.id,
           lines: [
             for (final line in lines)
               (productId: line.productId!, quantity: line.quantity!),
