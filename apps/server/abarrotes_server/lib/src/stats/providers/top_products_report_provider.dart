@@ -5,6 +5,7 @@ import '../report_provider.dart';
 import '../reports.dart';
 
 /// Productos más vendidos por unidades en los pedidos aceptados del rango.
+/// Los regalos no cuentan: no se vendieron.
 class TopProductsReportProvider
     extends ReportProvider<TopProductsRange, TopProductsReport> {
   const TopProductsReportProvider();
@@ -29,6 +30,7 @@ class TopProductsReportProvider
       WHERE o.status = ANY(@statuses::text[])
         AND o."createdAt" >= @start::timestamp
         AND o."createdAt" < @end::timestamp
+        AND NOT oi."isGift"
       GROUP BY p.id, p.name, p.sku
       ORDER BY SUM(oi.quantity) DESC,
                SUM(oi."lineTotalCents") DESC,

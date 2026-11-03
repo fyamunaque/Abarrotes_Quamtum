@@ -212,6 +212,35 @@ void main() {
       },
     );
 
+    test('los regalos no cuentan como vendidos', () async {
+      await OrderItem.db.deleteWhere(
+        session,
+        where: (_) => Constant.bool(true),
+      );
+      final placed = await Order.db.findFirstRow(
+        session,
+        where: (o) => o.status.equals(OrderStatus.delivered),
+      );
+      await OrderItem.db.insertRow(
+        session,
+        OrderItem(
+          orderId: placed!.id!,
+          productId: leche.id!,
+          quantity: 5,
+          unitPriceCents: 0,
+          listUnitPriceCents: 450,
+          lineTotalCents: 0,
+          isGift: true,
+        ),
+      );
+
+      final body = await get(
+        '/stats/top-products?from=2026-09-01&to=2026-10-01',
+      );
+
+      expect(body['data'], isEmpty);
+    });
+
     test('el top 5 suma lo cobrado por línea (un 2x1 no infla)', () async {
       await OrderItem.db.deleteWhere(
         session,
