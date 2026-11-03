@@ -38,6 +38,12 @@ abstract final class Routes {
   static String myAccountFrom(String from) =>
       Uri(path: myAccount, queryParameters: {'from': from}).toString();
 
+  /// "Mis códigos" primero en Mi cuenta: al activar uno, vuelve a [from].
+  static String myCodesFrom(String from) => Uri(
+    path: myAccount,
+    queryParameters: {'from': from, 'seccion': 'codigos'},
+  ).toString();
+
   /// Si [path] pide una cuenta (cualquier rol).
   static bool needsAccount(String path) =>
       path == myOrders || path == myAccount;

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:neils/app.dart';
 import 'package:neils/auth/auth_providers.dart';
 import 'package:neils/legal/legal_texts.dart';
+import 'package:neils/promo_codes/my_promo_code.dart';
+import 'package:neils/promo_codes/my_promo_codes_providers.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
 
@@ -18,10 +20,12 @@ void main() {
 
   late FakeAuthRepository auth;
   late FakeUserRepository users;
+  late FakeMyPromoCodesRepository codes;
 
   setUp(() {
     auth = FakeAuthRepository();
     users = FakeUserRepository(auth);
+    codes = FakeMyPromoCodesRepository(available: {'VERANO-10': summerCode});
   });
 
   Future<GoRouter> pumpApp(WidgetTester tester, String at) async {
@@ -33,6 +37,7 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
           userRepositoryProvider.overrideWithValue(users),
+          myPromoCodesRepositoryProvider.overrideWithValue(codes),
         ],
         child: const NeilsApp(),
       ),
@@ -163,6 +168,80 @@ void main() {
 
     expect(router.routerDelegate.currentConfiguration.uri.path, '/mi-cuenta');
     expect(find.text('Guardamos tus datos.'), findsOneWidget);
+  });
+
+  group('Mis códigos', () {
+    Finder codeField() => find.widgetWithText(TextField, 'Escribe tu código');
+
+    Future<void> activate(WidgetTester tester, String code) async {
+      await tester.enterText(codeField(), code);
+      await tester.ensureVisible(find.text('Activar'));
+      await tester.tap(find.text('Activar'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('activar un código lo agrega a la lista', (tester) async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      await pumpApp(tester, '/mi-cuenta');
+      expect(find.text('Todavía no activaste ningún código.'), findsOneWidget);
+
+      await activate(tester, 'verano-10');
+
+      expect(codes.redeemed, ['VERANO-10']);
+      expect(find.text('VERANO-10'), findsOneWidget);
+      expect(find.text('2x1 en Arroz extra 5 kg'), findsOneWidget);
+      expect(find.text('Te quedan 2 usos'), findsOneWidget);
+      expect(find.textContaining('Vence el 30 nov'), findsOneWidget);
+      expect(find.text('Activaste el código VERANO-10.'), findsOneWidget);
+    });
+
+    testWidgets('el error del servidor queda en el campo', (tester) async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      await pumpApp(tester, '/mi-cuenta');
+
+      await activate(tester, 'NO-EXISTE');
+
+      expect(
+        find.text('El código no existe o ya no está vigente'),
+        findsOneWidget,
+      );
+      expect(find.text('Todavía no activaste ningún código.'), findsOneWidget);
+      // Al escribir otro, el error se va.
+      await tester.enterText(codeField(), 'VERANO');
+      await tester.pump();
+      expect(
+        find.text('El código no existe o ya no está vigente'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('sin límite de usos y con compra mínima', (tester) async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      codes.codes.add(
+        MyPromoCode(
+          code: 'CLIENTES-TOP',
+          expiresAt: DateTime.utc(2026, 11, 10, 15),
+          minPurchaseCents: 3000,
+          promotions: const ['20 % menos en Leche evaporada 400 g'],
+        ),
+      );
+      await pumpApp(tester, '/mi-cuenta');
+
+      expect(find.text('Sin límite de usos'), findsOneWidget);
+      expect(find.textContaining('Con compras desde'), findsOneWidget);
+      expect(find.textContaining('Vence el 10 nov'), findsOneWidget);
+    });
+
+    testWidgets('en el teléfono entra sin desbordes', (tester) async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      codes.codes.add(summerCode);
+      await pumpApp(tester, '/mi-cuenta');
+      tester.view.physicalSize = const Size(320, 1200);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('VERANO-10'), findsOneWidget);
+    });
   });
 
   testWidgets('sin sesión, lleva al ingreso', (tester) async {

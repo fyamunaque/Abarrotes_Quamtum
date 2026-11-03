@@ -183,6 +183,42 @@ void main() {
       expect(find.text('Descuentos'), findsNothing);
     });
 
+    testWidgets('la línea del código y el aviso de compra mínima', (
+      tester,
+    ) async {
+      orders.quoteWith = (lines) => Quote(
+        lines: [
+          OrderLine(
+            productId: 'arroz',
+            name: 'Arroz extra 5 kg',
+            quantity: lines.single.quantity,
+            listUnitPriceCents: 2490,
+            unitPriceCents: 2490,
+            lineTotalCents: 2490,
+            promotions: const [
+              (label: 'Código VERANO-10: 2x1', savedCents: 2490),
+            ],
+          ),
+        ],
+        subtotalCents: 4980,
+        discountCents: 2490,
+        totalCents: 2490,
+        notices: ['Con ${formatSoles(1240)} más se aplica tu código OTONO'],
+      );
+      await pumpCart(tester, [(rice, 2)]);
+      await waitForQuote(tester);
+
+      expect(
+        find.text('Código VERANO-10: 2x1 −${formatSoles(2490)}'),
+        findsOneWidget,
+      );
+      expect(
+        find.text('Con ${formatSoles(1240)} más se aplica tu código OTONO'),
+        findsOneWidget,
+      );
+      expect(find.text('¿Tienes un código?'), findsOneWidget);
+    });
+
     testWidgets('cambiar la cantidad vuelve a cotizar', (tester) async {
       await pumpCart(tester, [(rice, 1)]);
       await waitForQuote(tester);

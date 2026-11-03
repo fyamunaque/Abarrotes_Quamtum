@@ -139,6 +139,14 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             else
               for (final notice in quote?.notices ?? const <String>[])
                 _QuoteNotice(notice),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => context.go(Routes.myCodesFrom(Routes.cart)),
+                icon: const Icon(Icons.confirmation_number_outlined),
+                label: const Text('¿Tienes un código?'),
+              ),
+            ),
             const Divider(height: 32),
             _Total(cart, quote: quote),
             const SizedBox(height: 24),

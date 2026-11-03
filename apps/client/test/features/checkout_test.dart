@@ -17,6 +17,7 @@ import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/orders/quote.dart';
+import 'package:neils/promo_codes/my_promo_codes_providers.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/store/store_providers.dart';
 import 'package:neils/store/store_settings.dart';
@@ -33,6 +34,7 @@ void main() {
   late FakeCatalogRepository catalog;
   late FakeOrderRepository orders;
   late FakeStoreRepository store;
+  late FakeMyPromoCodesRepository codes;
   late ProviderContainer container;
 
   setUp(() {
@@ -41,6 +43,7 @@ void main() {
     catalog = FakeCatalogRepository();
     orders = FakeOrderRepository(catalog);
     store = FakeStoreRepository();
+    codes = FakeMyPromoCodesRepository(available: {'VERANO-10': summerCode});
   });
 
   Future<GoRouter> pumpApp(
@@ -62,6 +65,7 @@ void main() {
           catalogRepositoryProvider.overrideWithValue(catalog),
           orderRepositoryProvider.overrideWithValue(orders),
           storeRepositoryProvider.overrideWithValue(store),
+          myPromoCodesRepositoryProvider.overrideWithValue(codes),
         ],
         child: const NeilsApp(),
       ),
@@ -216,6 +220,34 @@ void main() {
     expect((line.shownUnitPriceCents, line.shownLineTotalCents), (2490, 2490));
     // Con sesión, la cotización va con su token.
     expect(orders.quotes.last.$2, isNotNull);
+  });
+
+  testWidgets('el carrito lleva a activar un código y vuelve', (tester) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    final router = await pumpApp(tester, '/carrito');
+    container.read(cartProvider.notifier).add(rice, 2);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    final quotes = orders.quotes.length;
+
+    await tester.ensureVisible(find.text('¿Tienes un código?'));
+    await tester.tap(find.text('¿Tienes un código?'));
+    await tester.pumpAndSettle();
+    expect(location(router), '/mi-cuenta?from=%2Fcarrito&seccion=codigos');
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Escribe tu código'),
+      'VERANO-10',
+    );
+    await tester.tap(find.text('Activar'));
+    await tester.pumpAndSettle();
+
+    expect(location(router), '/carrito');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    // Con el código activado, vuelve a cotizar.
+    expect(orders.quotes.length, greaterThan(quotes));
   });
 
   testWidgets('propone la dirección del perfil', (tester) async {

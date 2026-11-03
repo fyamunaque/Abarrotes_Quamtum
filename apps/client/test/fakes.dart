@@ -35,6 +35,8 @@ import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/quote.dart';
+import 'package:neils/promo_codes/my_promo_code.dart';
+import 'package:neils/promo_codes/my_promo_codes_repository.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
 import 'package:neils/store/store_repository.dart';
@@ -896,6 +898,50 @@ class FakePromoCodesRepository implements PromoCodesRepository {
         redemptions: current?.redemptions ?? 0,
         orders: current?.orders ?? 0,
       );
+}
+
+/// El código VERANO-10 activado: un 2x1 del arroz, dos usos.
+final summerCode = MyPromoCode(
+  code: 'VERANO-10',
+  expiresAt: DateTime.utc(2026, 12, 1, 5),
+  usesLeft: 2,
+  promotions: const ['2x1 en Arroz extra 5 kg'],
+);
+
+/// Los códigos de la cuenta en memoria: [available] son los que se pueden
+/// activar (por su texto, en mayúsculas); los demás dan el 404 del
+/// servidor.
+class FakeMyPromoCodesRepository implements MyPromoCodesRepository {
+  FakeMyPromoCodesRepository({
+    List<MyPromoCode> mine = const [],
+    this.available = const {},
+  }) : codes = [...mine];
+
+  final List<MyPromoCode> codes;
+  final Map<String, MyPromoCode> available;
+
+  /// Los textos que se mandaron a activar, como se escribieron.
+  final redeemed = <String>[];
+
+  @override
+  Future<List<MyPromoCode>> mine(String idToken) async => [...codes];
+
+  @override
+  Future<MyPromoCode> redeem(String idToken, String code) async {
+    redeemed.add(code);
+    final found = available[code.trim().toUpperCase()];
+    if (found == null) {
+      throw const ApiFailure(
+        'El código no existe o ya no está vigente',
+        status: 404,
+      );
+    }
+    if (codes.any((c) => c.code == found.code)) {
+      throw const ApiFailure('Ya activaste este código', status: 409);
+    }
+    codes.add(found);
+    return found;
+  }
 }
 
 /// Los clientes VIP en memoria, como el servidor: solo los activos, por

@@ -67,8 +67,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: Routes.myAccount,
-        builder: (_, state) =>
-            MyAccountScreen(from: state.uri.queryParameters['from']),
+        builder: (_, state) => MyAccountScreen(
+          from: state.uri.queryParameters['from'],
+          codesFirst: state.uri.queryParameters['seccion'] == 'codigos',
+        ),
       ),
       // Solo en debug: en los builds de release esta ruta no existe.
       if (kDebugMode)
