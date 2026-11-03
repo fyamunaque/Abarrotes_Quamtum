@@ -1,24 +1,72 @@
 import 'package:serverpod/serverpod.dart';
 
+import '../auth/firebase_auth_middleware.dart';
 import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/money.dart';
 import '../common/pagination.dart';
+import '../common/shopper.dart';
 import '../generated/protocol.dart';
+import '../promotions/promotion_labels.dart';
 import '../promotions/promotions_routes.dart';
 import 'promo_codes_service.dart';
 
-/// Rutas de los códigos promocionales del panel, con `promotions.manage`.
-List<RouteEntry> promoCodesRoutes(PromoCodesService codes, Guards guards) {
+/// Rutas de los códigos promocionales: activarlos y ver los propios, para
+/// cualquier cuenta; la gestión del panel, con `promotions.manage`.
+List<RouteEntry> promoCodesRoutes(
+  PromoCodesService codes,
+  Guards guards, {
+  required ShopperResolver shoppers,
+}) {
   Route staffOnly(Method method, ApiHandler handler) =>
       guards.require(Permission.promotionsManage, ApiRoute(method, handler));
+  Route signedIn(Method method, ApiHandler handler) =>
+      guards.signedIn(ApiRoute(method, handler));
 
   Map<String, Object?> json(PromoCodeSummary summary) =>
       promoCodeJson(summary, codes.now());
 
   return [
+    (
+      '/promo-codes/redeem',
+      // Con el correo confirmado, como para pedir: el código queda a nombre
+      // de la cuenta.
+      signedIn(Method.post, (session, request) async {
+        if (!request.firebaseIdentity.emailVerified) {
+          return jsonError(
+            403,
+            'Confirma tu correo para activar códigos: te enviamos un enlace.',
+          );
+        }
+        final body = InputReader.body(
+          await readJsonBody(request),
+          allowed: const {'code'},
+        );
+        final code = body.text('code', maxLength: 40);
+        body.check();
+
+        final shopper = await shoppers.resolve(
+          session,
+          request.firebaseIdentity,
+        );
+        final redeemed = await codes.redeem(
+          session,
+          customer: request.currentUser,
+          isVip: shopper.isVip,
+          code: code!,
+        );
+        return jsonResponse(200, redeemedCodeJson(redeemed));
+      }),
+    ),
+    (
+      '/promo-codes/mine',
+      signedIn(Method.get, (session, request) async {
+        final mine = await codes.mine(session, request.currentUser);
+        return jsonResponse(200, mine.map(redeemedCodeJson).toList());
+      }),
+    ),
     (
       '/promo-codes',
       staffOnly(Method.get, (session, request) async {
@@ -226,6 +274,32 @@ List<String>? _readAllowedEmails(InputReader body) => body.strings(
   max: 500,
   required: false,
 );
+
+/// Un código activado como lo ve el cliente: hasta cuándo le sirve (un
+/// instante), los pedidos en que todavía puede usarlo (null: sin límite),
+/// la compra mínima y lo que da cada promoción.
+Map<String, Object?> redeemedCodeJson(RedeemedCode redeemed) {
+  final code = redeemed.redemption.promoCode!;
+  return {
+    'code': code.code,
+    'expiresAt': redeemed.redemption.expiresAt.toUtc().toIso8601String(),
+    'usesLeft': redeemed.usesLeft,
+    'minPurchase': switch (code.minPurchaseCents) {
+      final cents? => formatMoney(cents),
+      null => null,
+    },
+    'promotions': [
+      for (final promotion in code.promotions ?? const <Promotion>[])
+        {
+          'label': promotionLabel(promotion),
+          'product': {
+            'id': promotion.product!.id.toString(),
+            'name': promotion.product!.name,
+          },
+        },
+    ],
+  };
+}
 
 /// Como lo lee el panel: el estado en minúsculas (`active`, `scheduled`,
 /// `expired`, `paused`), días de la tienda, montos como texto y sus

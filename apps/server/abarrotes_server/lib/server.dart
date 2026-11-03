@@ -125,7 +125,7 @@ void run(List<String> args) async {
       shoppers: shoppers,
     ),
     ...promotionsRoutes(promotions, guards, shoppers: shoppers),
-    ...promoCodesRoutes(PromoCodesService(), guards),
+    ...promoCodesRoutes(PromoCodesService(), guards, shoppers: shoppers),
     ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
     ...ordersRoutes(
       OrdersService(

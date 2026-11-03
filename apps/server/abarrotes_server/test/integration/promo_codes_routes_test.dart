@@ -40,6 +40,7 @@ void main() {
         ...promoCodesRoutes(
           PromoCodesService(now: () => testNow),
           testGuards(google),
+          shoppers: testShoppers,
         ),
         ...promotionsRoutes(
           testPromotions(),

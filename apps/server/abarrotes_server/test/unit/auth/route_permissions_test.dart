@@ -67,7 +67,11 @@ void main() {
         shoppers: testShoppers,
       ),
       ...promotionsRoutes(testPromotions(), guards, shoppers: testShoppers),
-      ...promoCodesRoutes(PromoCodesService(), guards),
+      ...promoCodesRoutes(
+        PromoCodesService(),
+        guards,
+        shoppers: testShoppers,
+      ),
       ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
       ...ordersRoutes(
         OrdersService(pricing: testPromotions()),
@@ -130,6 +134,8 @@ void main() {
       'POST /promotions': 'promotions.manage',
       'PATCH /promotions/:id': 'promotions.manage',
       'DELETE /promotions/:id': 'promotions.manage',
+      'POST /promo-codes/redeem': 'cuenta',
+      'GET /promo-codes/mine': 'cuenta',
       'GET /promo-codes': 'promotions.manage',
       'GET /promo-codes/:id': 'promotions.manage',
       'POST /promo-codes': 'promotions.manage',

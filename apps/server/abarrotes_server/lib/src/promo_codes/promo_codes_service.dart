@@ -36,6 +36,10 @@ typedef PromoCodeInput = ({
   List<String> allowedEmails,
 });
 
+/// Un código activado, con el código y sus promociones, y los pedidos en
+/// que todavía puede usarse (null: sin límite).
+typedef RedeemedCode = ({PromoCodeRedemption redemption, int? usesLeft});
+
 /// Un código con lo que muestra el panel: cuántos clientes lo activaron y
 /// en cuántos pedidos (no cancelados) se usó.
 typedef PromoCodeSummary = ({PromoCode code, int redemptions, int orders});
@@ -221,6 +225,185 @@ class PromoCodesService {
       await PromoCode.db.deleteRow(session, code, transaction: transaction);
     });
   }
+
+  /// Activa [code] (escrito como sea) para [customer]. Para no revelar qué
+  /// códigos existen, uno que no existe, apagado o fuera de fechas da el
+  /// mismo 404. La fila del código se bloquea antes de contar sus canjes:
+  /// dos activaciones a la vez no pasan `maxRedemptions`. El beneficio dura
+  /// `benefitDays` días desde ahora, nunca más allá del fin del código.
+  Future<RedeemedCode> redeem(
+    Session session, {
+    required User customer,
+    required bool isVip,
+    required String code,
+  }) async {
+    final text = normalizePromoCode(code);
+    final now = this.now();
+    final id = await session.db.transaction((transaction) async {
+      final found = await PromoCode.db.findFirstRow(
+        session,
+        where: (promoCode) => promoCode.code.equals(text),
+        transaction: transaction,
+        lockMode: LockMode.forUpdate,
+      );
+      if (found == null || statusOf(found, now) != PromoCodeStatus.active) {
+        throw const ApiException(
+          404,
+          'El código no existe o ya no está vigente',
+        );
+      }
+      final already = await PromoCodeRedemption.db.count(
+        session,
+        where: (redemption) =>
+            redemption.promoCodeId.equals(found.id) &
+            redemption.userId.equals(customer.id),
+        transaction: transaction,
+      );
+      if (already > 0) {
+        throw const ApiException.conflict('Ya activaste este código');
+      }
+      if (found.maxRedemptions case final max?) {
+        final taken = await PromoCodeRedemption.db.count(
+          session,
+          where: (redemption) => redemption.promoCodeId.equals(found.id),
+          transaction: transaction,
+        );
+        if (taken >= max) {
+          throw const ApiException.conflict(
+            'Se acabaron los canjes de este código',
+          );
+        }
+      }
+      await _checkConditions(session, found, customer, isVip, transaction);
+
+      final benefitEnd = switch (found.benefitDays) {
+        final days? => now.add(Duration(days: days)),
+        null => found.endDate,
+      };
+      final redemption = await PromoCodeRedemption.db.insertRow(
+        session,
+        PromoCodeRedemption(
+          promoCodeId: found.id!,
+          userId: customer.id!,
+          activatedAt: now,
+          expiresAt: benefitEnd.isBefore(found.endDate)
+              ? benefitEnd
+              : found.endDate,
+        ),
+        transaction: transaction,
+      );
+      return redemption.id!;
+    });
+    return _redeemed(session, id);
+  }
+
+  /// Las condiciones del código: cuál no cumple [customer], con su mensaje.
+  Future<void> _checkConditions(
+    Session session,
+    PromoCode code,
+    User customer,
+    bool isVip,
+    Transaction transaction,
+  ) async {
+    if (code.newCustomersOnly) {
+      final orders = await Order.db.count(
+        session,
+        where: (order) =>
+            order.customerId.equals(customer.id) &
+            order.status.notEquals(OrderStatus.cancelled),
+        transaction: transaction,
+      );
+      if (orders > 0) {
+        throw const ApiException.forbidden(
+          'Este código es solo para clientes nuevos',
+        );
+      }
+    }
+    switch (code.eligibility) {
+      case PromoCodeEligibility.everyone:
+        break;
+      case PromoCodeEligibility.vip when !isVip:
+        throw const ApiException.forbidden(
+          'Este código es solo para clientes VIP',
+        );
+      case PromoCodeEligibility.vip:
+        break;
+      case PromoCodeEligibility.listed:
+        final listed = await PromoCodeAllowedEmail.db.count(
+          session,
+          where: (allowed) =>
+              allowed.promoCodeId.equals(code.id) &
+              allowed.email.equals(normalizeEmail(customer.email)),
+          transaction: transaction,
+        );
+        if (listed == 0) {
+          throw const ApiException.forbidden(
+            'Este código no está disponible para tu cuenta',
+          );
+        }
+    }
+  }
+
+  /// Los códigos que [customer] activó y todavía le sirven: el código
+  /// encendido, sin vencer y con usos. Los que vencen antes, primero.
+  Future<List<RedeemedCode>> mine(Session session, User customer) async {
+    final now = this.now();
+    final redemptions = await PromoCodeRedemption.db.find(
+      session,
+      where: (redemption) =>
+          redemption.userId.equals(customer.id) &
+          redemption.promoCode.active.equals(true) &
+          (redemption.expiresAt > now),
+      orderByList: (redemption) => [
+        redemption.expiresAt.asc(),
+        redemption.id.asc(),
+      ],
+    );
+    return [
+      for (final redemption in redemptions)
+        if (await _redeemed(session, redemption.id!) case final redeemed
+            when redeemed.usesLeft != 0)
+          redeemed,
+    ];
+  }
+
+  Future<RedeemedCode> _redeemed(Session session, UuidValue id) async {
+    final redemption = (await PromoCodeRedemption.db.findById(
+      session,
+      id,
+      include: PromoCodeRedemption.include(
+        promoCode: PromoCode.include(
+          promotions: Promotion.includeList(
+            orderBy: (promotion) => promotion.id,
+            include: Promotion.include(
+              product: Product.include(),
+              giftProduct: Product.include(),
+            ),
+          ),
+        ),
+      ),
+    ))!;
+    final limit = redemption.promoCode!.usesPerCustomer;
+    return (
+      redemption: redemption,
+      usesLeft: limit == null
+          ? null
+          : (limit - await usesOf(session, id)).clamp(0, limit),
+    );
+  }
+
+  /// En cuántos pedidos (no cancelados) se usó el canje [redemptionId].
+  static Future<int> usesOf(
+    Session session,
+    UuidValue redemptionId, {
+    Transaction? transaction,
+  }) => OrderPromoCodeUse.db.count(
+    session,
+    where: (use) =>
+        use.redemptionId.equals(redemptionId) &
+        use.order.status.notEquals(OrderStatus.cancelled),
+    transaction: transaction,
+  );
 
   /// El texto en mayúsculas y los correos normalizados, sin repetir.
   static PromoCodeInput _normalized(PromoCodeInput input) => (
