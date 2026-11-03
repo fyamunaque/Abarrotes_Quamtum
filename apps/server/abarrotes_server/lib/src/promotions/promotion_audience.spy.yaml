@@ -7,3 +7,5 @@ values:
   - vip
   ### Solo los clientes VIP elegidos (sus PromotionRecipient).
   - selected
+  ### Solo quien activó su código promocional (`Promotion.promoCode`).
+  - code

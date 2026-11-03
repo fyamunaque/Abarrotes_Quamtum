@@ -17,3 +17,4 @@
 20261030164443356-clientes-elegidos
 20261102200832995-tipos-de-promocion
 20261102203106445-detalle-del-cobro
+20261102232249740-codigos-promocionales

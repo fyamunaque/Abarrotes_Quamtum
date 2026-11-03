@@ -30,7 +30,12 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
   /// respuesta no espera. Si algo falla, queda en el log de esa sesión.
   @override
   void announce(Promotion promotion) {
-    if (promotion.audience case PromotionAudience.everyone) return;
+    // Las de todos no son VIP, y las de un código son solo para quien lo
+    // activa: no se anuncian.
+    if (promotion.audience
+        case PromotionAudience.everyone || PromotionAudience.code) {
+      return;
+    }
     unawaited(
       _run(
         (session) => announceNow(session, promotion),

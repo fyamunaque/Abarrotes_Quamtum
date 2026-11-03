@@ -221,6 +221,10 @@ void main() {
       vipAnnouncer.announce(
         promotion.copyWith(audience: PromotionAudience.everyone),
       );
+      // La de un código es solo para quien lo activa: no se anuncia.
+      vipAnnouncer.announce(
+        promotion.copyWith(audience: PromotionAudience.code),
+      );
       await Future<void>.delayed(Duration.zero);
       expect(runs, 0);
 

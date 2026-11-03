@@ -28,5 +28,7 @@ fields:
   audience: PromotionAudience, default=everyone
   ### Con la audiencia `selected`: los clientes VIP elegidos.
   recipients: List<PromotionRecipient>?, relation(name=promotion_recipients)
+  ### Con la audiencia `code`: el código que la da.
+  promoCode: PromoCode?, relation(name=promo_code_promotions, optional, onDelete=Restrict, onUpdate=Cascade)
   ### Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   title: String?

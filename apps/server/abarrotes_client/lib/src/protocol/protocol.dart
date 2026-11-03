@@ -20,6 +20,11 @@ import 'orders/order.dart' as _ia2sbmwd;
 import 'orders/order_item.dart' as _is46w9g4;
 import 'orders/order_status.dart' as _ishke5og;
 import 'products/product.dart' as _io8c7sps;
+import 'promo_codes/order_promo_code_use.dart' as _ilzi4lsq;
+import 'promo_codes/promo_code.dart' as _irp1jeb1;
+import 'promo_codes/promo_code_allowed_email.dart' as _ibrrb5eh;
+import 'promo_codes/promo_code_eligibility.dart' as _i7mkv7li;
+import 'promo_codes/promo_code_redemption.dart' as _ij8s76rv;
 import 'promotions/applied_promotion.dart' as _isxjjxbc;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
@@ -43,6 +48,11 @@ export 'orders/order.dart';
 export 'orders/order_item.dart';
 export 'orders/order_status.dart';
 export 'products/product.dart';
+export 'promo_codes/order_promo_code_use.dart';
+export 'promo_codes/promo_code.dart';
+export 'promo_codes/promo_code_allowed_email.dart';
+export 'promo_codes/promo_code_eligibility.dart';
+export 'promo_codes/promo_code_redemption.dart';
 export 'promotions/applied_promotion.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
@@ -118,6 +128,21 @@ class Protocol extends _isc.SerializationManager {
     if (t == _io8c7sps.Product) {
       return _io8c7sps.Product.fromJson(data) as T;
     }
+    if (t == _ilzi4lsq.OrderPromoCodeUse) {
+      return _ilzi4lsq.OrderPromoCodeUse.fromJson(data) as T;
+    }
+    if (t == _irp1jeb1.PromoCode) {
+      return _irp1jeb1.PromoCode.fromJson(data) as T;
+    }
+    if (t == _ibrrb5eh.PromoCodeAllowedEmail) {
+      return _ibrrb5eh.PromoCodeAllowedEmail.fromJson(data) as T;
+    }
+    if (t == _i7mkv7li.PromoCodeEligibility) {
+      return _i7mkv7li.PromoCodeEligibility.fromJson(data) as T;
+    }
+    if (t == _ij8s76rv.PromoCodeRedemption) {
+      return _ij8s76rv.PromoCodeRedemption.fromJson(data) as T;
+    }
     if (t == _isxjjxbc.AppliedPromotion) {
       return _isxjjxbc.AppliedPromotion.fromJson(data) as T;
     }
@@ -188,6 +213,31 @@ class Protocol extends _isc.SerializationManager {
     }
     if (t == _isc.getType<_io8c7sps.Product?>()) {
       return (data != null ? _io8c7sps.Product.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ilzi4lsq.OrderPromoCodeUse?>()) {
+      return (data != null ? _ilzi4lsq.OrderPromoCodeUse.fromJson(data) : null)
+          as T;
+    }
+    if (t == _isc.getType<_irp1jeb1.PromoCode?>()) {
+      return (data != null ? _irp1jeb1.PromoCode.fromJson(data) : null) as T;
+    }
+    if (t == _isc.getType<_ibrrb5eh.PromoCodeAllowedEmail?>()) {
+      return (data != null
+              ? _ibrrb5eh.PromoCodeAllowedEmail.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_i7mkv7li.PromoCodeEligibility?>()) {
+      return (data != null
+              ? _i7mkv7li.PromoCodeEligibility.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _isc.getType<_ij8s76rv.PromoCodeRedemption?>()) {
+      return (data != null
+              ? _ij8s76rv.PromoCodeRedemption.fromJson(data)
+              : null)
+          as T;
     }
     if (t == _isc.getType<_isxjjxbc.AppliedPromotion?>()) {
       return (data != null ? _isxjjxbc.AppliedPromotion.fromJson(data) : null)
@@ -309,6 +359,20 @@ class Protocol extends _isc.SerializationManager {
               : null)
           as T;
     }
+    if (t == List<_ibrrb5eh.PromoCodeAllowedEmail>) {
+      return (data as List)
+              .map((e) => deserialize<_ibrrb5eh.PromoCodeAllowedEmail>(e))
+              .toList()
+          as T;
+    }
+    if (t == _isc.getType<List<_ibrrb5eh.PromoCodeAllowedEmail>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_ibrrb5eh.PromoCodeAllowedEmail>(e))
+                    .toList()
+              : null)
+          as T;
+    }
     if (t == List<_iyra33mk.PromotionRecipient>) {
       return (data as List)
               .map((e) => deserialize<_iyra33mk.PromotionRecipient>(e))
@@ -424,6 +488,11 @@ class Protocol extends _isc.SerializationManager {
       _is46w9g4.OrderItem => 'OrderItem',
       _ishke5og.OrderStatus => 'OrderStatus',
       _io8c7sps.Product => 'Product',
+      _ilzi4lsq.OrderPromoCodeUse => 'OrderPromoCodeUse',
+      _irp1jeb1.PromoCode => 'PromoCode',
+      _ibrrb5eh.PromoCodeAllowedEmail => 'PromoCodeAllowedEmail',
+      _i7mkv7li.PromoCodeEligibility => 'PromoCodeEligibility',
+      _ij8s76rv.PromoCodeRedemption => 'PromoCodeRedemption',
       _isxjjxbc.AppliedPromotion => 'AppliedPromotion',
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
@@ -469,6 +538,16 @@ class Protocol extends _isc.SerializationManager {
         return 'OrderStatus';
       case _io8c7sps.Product():
         return 'Product';
+      case _ilzi4lsq.OrderPromoCodeUse():
+        return 'OrderPromoCodeUse';
+      case _irp1jeb1.PromoCode():
+        return 'PromoCode';
+      case _ibrrb5eh.PromoCodeAllowedEmail():
+        return 'PromoCodeAllowedEmail';
+      case _i7mkv7li.PromoCodeEligibility():
+        return 'PromoCodeEligibility';
+      case _ij8s76rv.PromoCodeRedemption():
+        return 'PromoCodeRedemption';
       case _isxjjxbc.AppliedPromotion():
         return 'AppliedPromotion';
       case _i8z66r5b.Promotion():
@@ -532,6 +611,21 @@ class Protocol extends _isc.SerializationManager {
     }
     if (dataClassName == 'Product') {
       return deserialize<_io8c7sps.Product>(data['data']);
+    }
+    if (dataClassName == 'OrderPromoCodeUse') {
+      return deserialize<_ilzi4lsq.OrderPromoCodeUse>(data['data']);
+    }
+    if (dataClassName == 'PromoCode') {
+      return deserialize<_irp1jeb1.PromoCode>(data['data']);
+    }
+    if (dataClassName == 'PromoCodeAllowedEmail') {
+      return deserialize<_ibrrb5eh.PromoCodeAllowedEmail>(data['data']);
+    }
+    if (dataClassName == 'PromoCodeEligibility') {
+      return deserialize<_i7mkv7li.PromoCodeEligibility>(data['data']);
+    }
+    if (dataClassName == 'PromoCodeRedemption') {
+      return deserialize<_ij8s76rv.PromoCodeRedemption>(data['data']);
     }
     if (dataClassName == 'AppliedPromotion') {
       return deserialize<_isxjjxbc.AppliedPromotion>(data['data']);

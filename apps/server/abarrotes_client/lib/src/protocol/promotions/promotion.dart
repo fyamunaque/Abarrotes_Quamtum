@@ -13,6 +13,7 @@
 import 'package:abarrotes_client/src/protocol/protocol.dart' as _iv4mbvnl;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../products/product.dart' as _iubf72bi;
+import '../promo_codes/promo_code.dart' as _ijnkkha9;
 import '../promotions/promotion_audience.dart' as _ifhe3ya9;
 import '../promotions/promotion_recipient.dart' as _i7eleph1;
 import '../promotions/promotion_type.dart' as _i4iqhu0d;
@@ -40,6 +41,8 @@ abstract class Promotion
     this.product,
     _ifhe3ya9.PromotionAudience? audience,
     this.recipients,
+    this.promoCodeId,
+    this.promoCode,
     this.title,
   }) : type = type ?? _i4iqhu0d.PromotionType.specialPrice,
        active = active ?? true,
@@ -62,6 +65,8 @@ abstract class Promotion
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _isc.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   }) = _PromotionImpl;
 
@@ -118,6 +123,16 @@ abstract class Promotion
                 .deserialize<List<_i7eleph1.PromotionRecipient>>(
                   jsonSerialization['recipients'],
                 ),
+      promoCodeId: jsonSerialization['promoCodeId'] == null
+          ? null
+          : _isc.UuidValueJsonExtension.fromJson(
+              jsonSerialization['promoCodeId'],
+            ),
+      promoCode: jsonSerialization['promoCode'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<_ijnkkha9.PromoCode>(
+              jsonSerialization['promoCode'],
+            ),
       title: jsonSerialization['title'] as String?,
     );
   }
@@ -166,6 +181,11 @@ abstract class Promotion
   /// Con la audiencia `selected`: los clientes VIP elegidos.
   List<_i7eleph1.PromotionRecipient>? recipients;
 
+  _isc.UuidValue? promoCodeId;
+
+  /// Con la audiencia `code`: el código que la da.
+  _ijnkkha9.PromoCode? promoCode;
+
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   String? title;
 
@@ -189,6 +209,8 @@ abstract class Promotion
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _isc.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   });
   @override
@@ -212,6 +234,8 @@ abstract class Promotion
       'audience': audience.toJson(),
       if (recipients != null)
         'recipients': recipients?.toJson(valueToJson: (v) => v.toJson()),
+      if (promoCodeId != null) 'promoCodeId': promoCodeId?.toJson(),
+      if (promoCode != null) 'promoCode': promoCode?.toJson(),
       if (title != null) 'title': title,
     };
   }
@@ -239,6 +263,8 @@ abstract class Promotion
         'recipients': recipients?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (promoCodeId != null) 'promoCodeId': promoCodeId?.toJson(),
+      if (promoCode != null) 'promoCode': promoCode?.toJsonForProtocol(),
       if (title != null) 'title': title,
     };
   }
@@ -269,6 +295,8 @@ class _PromotionImpl extends Promotion {
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _isc.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   }) : super._(
          id: id,
@@ -287,6 +315,8 @@ class _PromotionImpl extends Promotion {
          product: product,
          audience: audience,
          recipients: recipients,
+         promoCodeId: promoCodeId,
+         promoCode: promoCode,
          title: title,
        );
 
@@ -311,6 +341,8 @@ class _PromotionImpl extends Promotion {
     Object? product = _Undefined,
     _ifhe3ya9.PromotionAudience? audience,
     Object? recipients = _Undefined,
+    Object? promoCodeId = _Undefined,
+    Object? promoCode = _Undefined,
     Object? title = _Undefined,
   }) {
     return Promotion(
@@ -340,6 +372,12 @@ class _PromotionImpl extends Promotion {
       recipients: recipients is List<_i7eleph1.PromotionRecipient>?
           ? recipients
           : this.recipients?.map((e0) => e0.copyWith()).toList(),
+      promoCodeId: promoCodeId is _isc.UuidValue?
+          ? promoCodeId
+          : this.promoCodeId,
+      promoCode: promoCode is _ijnkkha9.PromoCode?
+          ? promoCode
+          : this.promoCode?.copyWith(),
       title: title is String? ? title : this.title,
     );
   }

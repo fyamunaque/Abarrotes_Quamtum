@@ -14,6 +14,7 @@
 import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../products/product.dart' as _iubf72bi;
+import '../promo_codes/promo_code.dart' as _ijnkkha9;
 import '../promotions/promotion_audience.dart' as _ifhe3ya9;
 import '../promotions/promotion_recipient.dart' as _i7eleph1;
 import '../promotions/promotion_type.dart' as _i4iqhu0d;
@@ -41,6 +42,8 @@ abstract class Promotion
     this.product,
     _ifhe3ya9.PromotionAudience? audience,
     this.recipients,
+    this.promoCodeId,
+    this.promoCode,
     this.title,
   }) : type = type ?? _i4iqhu0d.PromotionType.specialPrice,
        active = active ?? true,
@@ -63,6 +66,8 @@ abstract class Promotion
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _is.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   }) = _PromotionImpl;
 
@@ -117,6 +122,16 @@ abstract class Promotion
                 .deserialize<List<_i7eleph1.PromotionRecipient>>(
                   jsonSerialization['recipients'],
                 ),
+      promoCodeId: jsonSerialization['promoCodeId'] == null
+          ? null
+          : _is.UuidValueJsonExtension.fromJson(
+              jsonSerialization['promoCodeId'],
+            ),
+      promoCode: jsonSerialization['promoCode'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<_ijnkkha9.PromoCode>(
+              jsonSerialization['promoCode'],
+            ),
       title: jsonSerialization['title'] as String?,
     );
   }
@@ -167,6 +182,11 @@ abstract class Promotion
   /// Con la audiencia `selected`: los clientes VIP elegidos.
   List<_i7eleph1.PromotionRecipient>? recipients;
 
+  _is.UuidValue? promoCodeId;
+
+  /// Con la audiencia `code`: el código que la da.
+  _ijnkkha9.PromoCode? promoCode;
+
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   String? title;
 
@@ -193,6 +213,8 @@ abstract class Promotion
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _is.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   });
   @override
@@ -216,6 +238,8 @@ abstract class Promotion
       'audience': audience.toJson(),
       if (recipients != null)
         'recipients': recipients?.toJson(valueToJson: (v) => v.toJson()),
+      if (promoCodeId != null) 'promoCodeId': promoCodeId?.toJson(),
+      if (promoCode != null) 'promoCode': promoCode?.toJson(),
       if (title != null) 'title': title,
     };
   }
@@ -243,6 +267,8 @@ abstract class Promotion
         'recipients': recipients?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (promoCodeId != null) 'promoCodeId': promoCodeId?.toJson(),
+      if (promoCode != null) 'promoCode': promoCode?.toJsonForProtocol(),
       if (title != null) 'title': title,
     };
   }
@@ -251,11 +277,13 @@ abstract class Promotion
     _iubf72bi.ProductInclude? giftProduct,
     _iubf72bi.ProductInclude? product,
     _i7eleph1.PromotionRecipientIncludeList? recipients,
+    _ijnkkha9.PromoCodeInclude? promoCode,
   }) {
     return PromotionInclude._(
       giftProduct: giftProduct,
       product: product,
       recipients: recipients,
+      promoCode: promoCode,
     );
   }
 
@@ -303,6 +331,8 @@ class _PromotionImpl extends Promotion {
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _is.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   }) : super._(
          id: id,
@@ -321,6 +351,8 @@ class _PromotionImpl extends Promotion {
          product: product,
          audience: audience,
          recipients: recipients,
+         promoCodeId: promoCodeId,
+         promoCode: promoCode,
          title: title,
        );
 
@@ -345,6 +377,8 @@ class _PromotionImpl extends Promotion {
     Object? product = _Undefined,
     _ifhe3ya9.PromotionAudience? audience,
     Object? recipients = _Undefined,
+    Object? promoCodeId = _Undefined,
+    Object? promoCode = _Undefined,
     Object? title = _Undefined,
   }) {
     return Promotion(
@@ -374,6 +408,12 @@ class _PromotionImpl extends Promotion {
       recipients: recipients is List<_i7eleph1.PromotionRecipient>?
           ? recipients
           : this.recipients?.map((e0) => e0.copyWith()).toList(),
+      promoCodeId: promoCodeId is _is.UuidValue?
+          ? promoCodeId
+          : this.promoCodeId,
+      promoCode: promoCode is _ijnkkha9.PromoCode?
+          ? promoCode
+          : this.promoCode?.copyWith(),
       title: title is String? ? title : this.title,
     );
   }
@@ -451,6 +491,13 @@ class PromotionUpdateTable extends _is.UpdateTable<PromotionTable> {
     value,
   );
 
+  _is.ColumnValue<_is.UuidValue, _is.UuidValue> promoCodeId(
+    _is.UuidValue? value,
+  ) => _is.ColumnValue(
+    table.promoCodeId,
+    value,
+  );
+
   _is.ColumnValue<String, String> title(String? value) => _is.ColumnValue(
     table.title,
     value,
@@ -513,6 +560,10 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
       _is.EnumSerialization.byName,
       hasDefault: true,
     );
+    promoCodeId = _is.ColumnUuid(
+      'promoCodeId',
+      this,
+    );
     title = _is.ColumnString(
       'title',
       this,
@@ -563,6 +614,11 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
   /// Con la audiencia `selected`: los clientes VIP elegidos.
   _is.ManyRelation<_i7eleph1.PromotionRecipientTable>? _recipients;
 
+  late final _is.ColumnUuid promoCodeId;
+
+  /// Con la audiencia `code`: el código que la da.
+  _ijnkkha9.PromoCodeTable? _promoCode;
+
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   late final _is.ColumnString title;
 
@@ -606,6 +662,19 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
     return ___recipients!;
   }
 
+  _ijnkkha9.PromoCodeTable get promoCode {
+    if (_promoCode != null) return _promoCode!;
+    _promoCode = _is.createRelationTable(
+      relationFieldName: 'promoCode',
+      field: Promotion.t.promoCodeId,
+      foreignField: _ijnkkha9.PromoCode.t.id,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _ijnkkha9.PromoCodeTable(tableRelation: foreignTableRelation),
+    );
+    return _promoCode!;
+  }
+
   _is.ManyRelation<_i7eleph1.PromotionRecipientTable> get recipients {
     if (_recipients != null) return _recipients!;
     var relationTable = _is.createRelationTable(
@@ -641,6 +710,7 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
     active,
     productId,
     audience,
+    promoCodeId,
     title,
   ];
 
@@ -655,6 +725,9 @@ class PromotionTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'recipients') {
       return __recipients;
     }
+    if (relationField == 'promoCode') {
+      return promoCode;
+    }
     return null;
   }
 }
@@ -664,10 +737,12 @@ class PromotionInclude extends _is.IncludeObject {
     _iubf72bi.ProductInclude? giftProduct,
     _iubf72bi.ProductInclude? product,
     _i7eleph1.PromotionRecipientIncludeList? recipients,
+    _ijnkkha9.PromoCodeInclude? promoCode,
   }) {
     _giftProduct = giftProduct;
     _product = product;
     _recipients = recipients;
+    _promoCode = promoCode;
   }
 
   _iubf72bi.ProductInclude? _giftProduct;
@@ -676,11 +751,14 @@ class PromotionInclude extends _is.IncludeObject {
 
   _i7eleph1.PromotionRecipientIncludeList? _recipients;
 
+  _ijnkkha9.PromoCodeInclude? _promoCode;
+
   @override
   Map<String, _is.Include?> get includes => {
     'giftProduct': _giftProduct,
     'product': _product,
     'recipients': _recipients,
+    'promoCode': _promoCode,
   };
 
   @override
@@ -1191,6 +1269,29 @@ class PromotionAttachRowRepository {
     );
   }
 
+  /// Creates a relation between the given [Promotion] and [PromoCode]
+  /// by setting the [Promotion]'s foreign key `promoCodeId` to refer to the [PromoCode].
+  Future<void> promoCode(
+    _is.DatabaseSession session,
+    Promotion promotion,
+    _ijnkkha9.PromoCode promoCode, {
+    _is.Transaction? transaction,
+  }) async {
+    if (promotion.id == null) {
+      throw ArgumentError.notNull('promotion.id');
+    }
+    if (promoCode.id == null) {
+      throw ArgumentError.notNull('promoCode.id');
+    }
+
+    var $promotion = promotion.copyWith(promoCodeId: promoCode.id);
+    await session.db.updateRow<Promotion>(
+      $promotion,
+      columns: [Promotion.t.promoCodeId],
+      transaction: transaction,
+    );
+  }
+
   /// Creates a relation between this [Promotion] and the given [PromotionRecipient]
   /// by setting the [PromotionRecipient]'s foreign key `promotionId` to refer to this [Promotion].
   Future<void> recipients(
@@ -1238,6 +1339,28 @@ class PromotionDetachRowRepository {
     await session.db.updateRow<Promotion>(
       $promotion,
       columns: [Promotion.t.giftProductId],
+      transaction: transaction,
+    );
+  }
+
+  /// Detaches the relation between this [Promotion] and the [PromoCode] set in `promoCode`
+  /// by setting the [Promotion]'s foreign key `promoCodeId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> promoCode(
+    _is.DatabaseSession session,
+    Promotion promotion, {
+    _is.Transaction? transaction,
+  }) async {
+    if (promotion.id == null) {
+      throw ArgumentError.notNull('promotion.id');
+    }
+
+    var $promotion = promotion.copyWith(promoCodeId: null);
+    await session.db.updateRow<Promotion>(
+      $promotion,
+      columns: [Promotion.t.promoCodeId],
       transaction: transaction,
     );
   }

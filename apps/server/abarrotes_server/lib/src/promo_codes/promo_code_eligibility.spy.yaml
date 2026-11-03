@@ -1,0 +1,9 @@
+### Quién puede activar un código promocional.
+enum: PromoCodeEligibility
+serialized: byName
+values:
+  - everyone
+  ### Los clientes VIP (activos y con el correo verificado).
+  - vip
+  ### Los correos de la lista del código (`PromoCodeAllowedEmail`).
+  - listed
