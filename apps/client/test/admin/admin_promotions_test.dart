@@ -421,7 +421,7 @@ void main() {
     expect(
       find.text(
         'Precio especial ${formatSoles(1990)} · Todos · '
-        '2026-10-01 – 2026-10-15',
+        '1 – 15 oct 2026',
       ),
       findsOneWidget,
     );
@@ -535,7 +535,7 @@ void main() {
     expect(
       find.text(
         'Precio especial ${formatSoles(1790)} · Solo clientes VIP · '
-        '2026-10-01 – 2026-10-15',
+        '1 – 15 oct 2026',
       ),
       findsOneWidget,
     );

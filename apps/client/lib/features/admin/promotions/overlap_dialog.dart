@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../admin/promotions/promotion.dart';
+import '../../../common/days.dart';
+import '../../shared/date_format.dart';
 
 /// Avisa que la promoción se cruza con [overlaps] (se acumulan) y pregunta
 /// si se guarda igual. true con "Crear igual"; false con "Volver" o al
@@ -26,7 +28,7 @@ Future<bool> showOverlapDialog(
                   padding: const EdgeInsets.only(bottom: 8),
                   child: Text(
                     '${overlap.label} · ${overlap.audience.label} · '
-                    '${overlap.startDate} – ${overlap.endDate}',
+                    '${formatStoreRange(context, parseDay(overlap.startDate), parseDay(overlap.endDate))}',
                   ),
                 ),
               const SizedBox(height: 4),

@@ -263,8 +263,8 @@ class _PromoCodeFormState extends ConsumerState<PromoCodeForm> {
             controller: _benefitDays,
             label: 'Días de beneficio',
             helper:
-                'Dura N días desde que cada cliente lo activa. Vacío: hasta '
-                'el fin de la vigencia.',
+                'Cuántos días dura desde que cada cliente lo activa. Vacío: '
+                'hasta el fin de la vigencia.',
             enabled: !_busy,
             validator: (value) => _limit(value, 365),
           ),
