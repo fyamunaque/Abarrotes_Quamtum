@@ -210,8 +210,11 @@ typedef PricingCode = ({
 });
 
 /// Como [priceCart], con las promociones de [codes]: primero sin ellas; las
-/// de cada código cuyo mínimo alcanza ese total se suman a las demás y se
-/// cobra otra vez. A uno que no llega le queda el aviso con cuánto falta
+/// de cada código cuyo mínimo alcanza ese total se suman a las demás, una
+/// por una, y se quedan solo si bajan el total (un código que empata con
+/// una para todos, o que la desplazaría y subiría el precio, no se aplica
+/// ni gasta un uso). A uno que no llega al mínimo le queda el aviso con
+/// cuánto falta
 /// ("Con S/ 12.40 más se aplica tu código VERANO-10"), si tiene
 /// promociones de algo del carrito. Las del código se nombran con él
 /// ("Código VERANO-10: 2x1").
@@ -225,6 +228,17 @@ PricedCart priceCartWithCodes(
   final inCart = {for (final line in lines) line.productId};
   final notices = <String>[];
   final codeOf = <UuidValue, PricingCode>{};
+  var priced = base;
+  Map<UuidValue, List<Promotion>> withCodes(Map<UuidValue, PricingCode> of) => {
+    for (final id in inCart)
+      id: [
+        ...?promotionsByProduct[id],
+        for (final code in codes)
+          for (final promotion in code.promotions)
+            if (promotion.productId == id && of.containsKey(promotion.id))
+              promotion,
+      ],
+  };
   for (final code in codes) {
     final relevant = [
       for (final promotion in code.promotions)
@@ -238,8 +252,16 @@ PricedCart priceCartWithCodes(
       );
       continue;
     }
-    for (final promotion in relevant) {
-      codeOf[promotion.id!] = code;
+    final tentative = {
+      ...codeOf,
+      for (final promotion in relevant) promotion.id!: code,
+    };
+    final candidate = priceCart(lines, withCodes(tentative), giftProducts);
+    if (candidate.totalCents < priced.totalCents) {
+      codeOf
+        ..clear()
+        ..addAll(tentative);
+      priced = candidate;
     }
   }
   if (codeOf.isEmpty) {
@@ -249,17 +271,6 @@ PricedCart priceCartWithCodes(
     );
   }
 
-  final withCodes = {
-    for (final id in inCart)
-      id: [
-        ...?promotionsByProduct[id],
-        for (final code in codes)
-          for (final promotion in code.promotions)
-            if (promotion.productId == id && codeOf.containsKey(promotion.id))
-              promotion,
-      ],
-  };
-  final priced = priceCart(lines, withCodes, giftProducts);
   final used = <UuidValue>{};
   return PricedCart(
     lines: [

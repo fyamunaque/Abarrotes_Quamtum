@@ -345,6 +345,47 @@ void main() {
       expect(cart.usedRedemptionIds, isEmpty);
     });
 
+    test('empatado con una para todos: no gasta el uso', () {
+      // El 2x1 del código es más viejo (id menor) que el de todos.
+      final codeTwoForOne = promo(
+        arroz,
+        PromotionType.buyXPayY,
+        buy: 2,
+        pay: 1,
+      );
+      final everyone = promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 2)],
+        {
+          arroz: [everyone],
+        },
+        {},
+        [code(codeTwoForOne)],
+      );
+
+      expect(cart.totalCents, 1000);
+      expect(labels(only(cart)), ['2x1']);
+      expect(cart.usedRedemptionIds, isEmpty);
+    });
+
+    test('si subiría el total, el código no se aplica', () {
+      // Sin el código: la 2.ª gratis, dos veces (S/ 20). Con su 3x2, que va
+      // primero, quedaría en S/ 30.
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 4)],
+        {
+          arroz: [promo(arroz, PromotionType.extraUnit, buy: 2, percent: 100)],
+        },
+        {},
+        [code(promo(arroz, PromotionType.buyXPayY, buy: 3, pay: 2))],
+      );
+
+      expect(cart.totalCents, 2000);
+      expect(cart.usedRedemptionIds, isEmpty);
+      expect(labels(only(cart)), ['2.ª al 100 %']);
+    });
+
     test('sin promociones del código en el carrito, no avisa del mínimo', () {
       final aceite = id(3);
       final cart = priceCartWithCodes(
