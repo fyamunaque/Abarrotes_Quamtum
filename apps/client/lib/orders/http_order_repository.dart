@@ -5,8 +5,10 @@ import 'fulfillment.dart';
 import 'order.dart';
 import 'order_filter.dart';
 import 'order_repository.dart';
+import 'quote.dart';
 
-/// [OrderRepository] contra `POST /orders` y `GET /orders/mine`.
+/// [OrderRepository] contra `POST /orders`, `POST /orders/quote` y
+/// `GET /orders/mine`.
 class HttpOrderRepository implements OrderRepository {
   HttpOrderRepository(this._api);
 
@@ -35,6 +37,8 @@ class HttpOrderRepository implements OrderRepository {
               'quantity': line.quantity,
               if (line.shownUnitPriceCents case final cents?)
                 'unitPrice': cents / 100,
+              if (line.shownLineTotalCents case final cents?)
+                'lineTotal': cents / 100,
             },
         ],
       },
@@ -42,6 +46,22 @@ class HttpOrderRepository implements OrderRepository {
       fallback: 'No se pudo hacer el pedido.',
     );
     return decodeResponse(() => Order.fromJson(json));
+  }
+
+  @override
+  Future<Quote> quote(List<QuoteLineRequest> lines, {String? idToken}) async {
+    final json = await _api.post(
+      '/orders/quote',
+      {
+        'items': [
+          for (final line in lines)
+            {'productId': line.productId, 'quantity': line.quantity},
+        ],
+      },
+      idToken: idToken,
+      fallback: 'No pudimos calcular las promociones.',
+    );
+    return decodeResponse(() => Quote.fromJson(json));
   }
 
   @override

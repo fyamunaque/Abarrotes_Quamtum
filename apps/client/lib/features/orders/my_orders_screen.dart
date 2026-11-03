@@ -360,13 +360,21 @@ class _ReceivedNotice extends StatelessWidget {
                         'Algunos precios cambiaron desde que los agregaste:',
                         style: muted,
                       ),
+                      // El total de la línea si el carrito tenía la
+                      // cotización; si no, el precio por unidad.
                       for (final change in order.priceChanges)
-                        Text(
-                          '${change.name}: '
-                          '${formatSoles(change.shownUnitPriceCents)} → '
-                          '${formatSoles(change.unitPriceCents)}',
-                          style: muted,
-                        ),
+                        Text(switch (change) {
+                          PriceChange(
+                            shownLineTotalCents: final shown?,
+                            lineTotalCents: final charged?,
+                          ) =>
+                            '${change.name}: ${formatSoles(shown)} → '
+                                '${formatSoles(charged)}',
+                          _ =>
+                            '${change.name}: '
+                                '${formatSoles(change.shownUnitPriceCents ?? 0)} → '
+                                '${formatSoles(change.unitPriceCents ?? 0)}',
+                        }, style: muted),
                     ],
                   ],
                 ),

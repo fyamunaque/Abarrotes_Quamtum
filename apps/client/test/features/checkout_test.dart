@@ -16,6 +16,7 @@ import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
+import 'package:neils/orders/quote.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/store/store_providers.dart';
 import 'package:neils/store/store_settings.dart';
@@ -144,6 +145,8 @@ void main() {
     (tester) async {
       auth = FakeAuthRepository()
         ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      // Sin la cotización, el carrito estima con el precio que tenía.
+      orders.quoteFailure = const ApiFailure('No se pudo');
       await pumpApp(tester, '/carrito');
       // Se agregó cuando el arroz tenía una promoción que ya terminó.
       container
@@ -182,6 +185,38 @@ void main() {
       );
     },
   );
+
+  testWidgets('el pedido manda lineTotal de la cotización', (tester) async {
+    orders.quoteWith = (lines) => Quote(
+      lines: [
+        OrderLine(
+          productId: 'arroz',
+          name: 'Arroz extra 5 kg',
+          quantity: lines.single.quantity,
+          listUnitPriceCents: 2490,
+          unitPriceCents: 2490,
+          lineTotalCents: 2490,
+          promotions: const [(label: '2x1', savedCents: 2490)],
+        ),
+      ],
+      subtotalCents: 4980,
+      discountCents: 2490,
+      totalCents: 2490,
+    );
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    await pumpApp(tester, '/carrito');
+    container.read(cartProvider.notifier).add(rice, 2);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    await confirm(tester, 'Av. Arequipa 123, Lince');
+
+    final line = orders.placed.single.single;
+    expect((line.shownUnitPriceCents, line.shownLineTotalCents), (2490, 2490));
+    // Con sesión, la cotización va con su token.
+    expect(orders.quotes.last.$2, isNotNull);
+  });
 
   testWidgets('propone la dirección del perfil', (tester) async {
     auth = FakeAuthRepository();
@@ -643,7 +678,14 @@ void main() {
     await orders.place(
       't',
       deliveryAddress: 'Av. Arequipa 123',
-      lines: [(productId: 'arroz', quantity: 1, shownUnitPriceCents: null)],
+      lines: [
+        (
+          productId: 'arroz',
+          quantity: 1,
+          shownUnitPriceCents: null,
+          shownLineTotalCents: null,
+        ),
+      ],
     );
     await pumpApp(tester, '/mis-pedidos');
     OrderTracker tracker() =>

@@ -1,0 +1,58 @@
+import '../common/money.dart';
+import 'order.dart';
+
+/// Cómo se cobraría el carrito hoy (`POST /orders/quote` en apps/server),
+/// sin guardar nada: cada línea con sus promociones, los regalos en sus
+/// propias líneas (en 0), el subtotal, los descuentos, el total y los avisos
+/// ("Solo quedaba 1 de Sal 1 kg para regalo").
+class Quote {
+  const Quote({
+    required this.lines,
+    required this.subtotalCents,
+    required this.discountCents,
+    required this.totalCents,
+    this.notices = const [],
+  });
+
+  /// Lanza [FormatException] si [json] no tiene esa forma.
+  factory Quote.fromJson(Object? json) => switch (json) {
+    {
+          'lines': final List<Object?> lines,
+          'subtotal': final String subtotal,
+          'discount': final String discount,
+          'total': final String total,
+        } &&
+        final Map<Object?, Object?> map =>
+      Quote(
+        lines: [for (final line in lines) OrderLine.fromJson(line)],
+        subtotalCents: parseCents(subtotal),
+        discountCents: parseCents(discount),
+        totalCents: parseCents(total),
+        notices: switch (map['notices']) {
+          final List<Object?> notices => [
+            for (final notice in notices)
+              if (notice is String) notice,
+          ],
+          _ => const [],
+        },
+      ),
+    _ => throw FormatException('No es una cotización', json),
+  };
+
+  final List<OrderLine> lines;
+  final int subtotalCents;
+  final int discountCents;
+  final int totalCents;
+  final List<String> notices;
+
+  /// La línea de [productId] que se compra (no un regalo), si está.
+  OrderLine? lineOf(String productId) => lines
+      .where((line) => !line.isGift && line.productId == productId)
+      .firstOrNull;
+
+  /// Los regalos.
+  List<OrderLine> get gifts => [
+    for (final line in lines)
+      if (line.isGift) line,
+  ];
+}

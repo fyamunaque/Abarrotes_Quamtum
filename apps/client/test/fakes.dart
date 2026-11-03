@@ -32,6 +32,7 @@ import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
+import 'package:neils/orders/quote.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
 import 'package:neils/store/store_repository.dart';
@@ -951,6 +952,40 @@ class FakeOrderRepository implements OrderRepository {
   /// Los filtros con que se pidió cada página de "Mis pedidos".
   final filters = <MyOrdersFilter>[];
 
+  /// Cada cotización pedida: las líneas y el token (null sin sesión).
+  final quotes = <(List<QuoteLineRequest>, String?)>[];
+
+  /// Lo que devuelve `quote` (p. ej. con un 2x1). Sin esto, cada línea al
+  /// precio de hoy del catálogo, sin promociones ni descuentos.
+  Quote Function(List<QuoteLineRequest> lines)? quoteWith;
+
+  /// Si no es null, `quote` falla con esto.
+  ApiFailure? quoteFailure;
+
+  @override
+  Future<Quote> quote(List<QuoteLineRequest> lines, {String? idToken}) async {
+    quotes.add((lines, idToken));
+    if (quoteFailure case final failure?) throw failure;
+    if (quoteWith case final quoteWith?) return quoteWith(lines);
+    final priced = [
+      for (final line in lines)
+        if (await catalog.product(line.productId) case final product)
+          OrderLine(
+            productId: product.id,
+            name: product.name,
+            quantity: line.quantity,
+            unitPriceCents: product.finalPriceCents,
+          ),
+    ];
+    final total = priced.fold(0, (sum, line) => sum + line.lineTotalCents);
+    return Quote(
+      lines: priced,
+      subtotalCents: total,
+      discountCents: 0,
+      totalCents: total,
+    );
+  }
+
   @override
   Future<Order> place(
     String idToken, {
@@ -978,7 +1013,19 @@ class FakeOrderRepository implements OrderRepository {
     // mostraba otro.
     for (final line in lines) {
       final product = await catalog.product(line.productId);
-      if (line.shownUnitPriceCents case final shown?
+      final charged = product.finalPriceCents * line.quantity;
+      if (line.shownLineTotalCents case final shown?) {
+        if (shown != charged) {
+          changes.add(
+            PriceChange(
+              productId: product.id,
+              name: product.name,
+              shownLineTotalCents: shown,
+              lineTotalCents: charged,
+            ),
+          );
+        }
+      } else if (line.shownUnitPriceCents case final shown?
           when shown != product.finalPriceCents) {
         changes.add(
           PriceChange(

@@ -78,8 +78,18 @@ void main() {
           'el-token',
           deliveryAddress: 'Av. Arequipa 123',
           lines: [
-            (productId: 'p-arroz', quantity: 2, shownUnitPriceCents: 350),
-            (productId: 'p-aceite', quantity: 1, shownUnitPriceCents: null),
+            (
+              productId: 'p-arroz',
+              quantity: 2,
+              shownUnitPriceCents: 350,
+              shownLineTotalCents: 600,
+            ),
+            (
+              productId: 'p-aceite',
+              quantity: 1,
+              shownUnitPriceCents: null,
+              shownLineTotalCents: null,
+            ),
           ],
         );
 
@@ -90,7 +100,13 @@ void main() {
       'fulfillmentType': 'delivery',
       'deliveryAddress': 'Av. Arequipa 123',
       'items': [
-        {'productId': 'p-arroz', 'quantity': 2, 'unitPrice': 3.5},
+        {
+          'productId': 'p-arroz',
+          'quantity': 2,
+          'unitPrice': 3.5,
+          // El total de la línea que mostraba la cotización.
+          'lineTotal': 6.0,
+        },
         {'productId': 'p-aceite', 'quantity': 1},
       ],
     });
@@ -112,7 +128,14 @@ void main() {
       't',
       fulfillmentType: FulfillmentType.pickup,
       deliveryAddress: 'no se manda',
-      lines: [(productId: 'p-arroz', quantity: 1, shownUnitPriceCents: null)],
+      lines: [
+        (
+          productId: 'p-arroz',
+          quantity: 1,
+          shownUnitPriceCents: null,
+          shownLineTotalCents: null,
+        ),
+      ],
     );
 
     expect(jsonDecode(sent.body), {
@@ -141,6 +164,87 @@ void main() {
     final change = placed.priceChanges.single;
     expect(change.name, 'Arroz');
     expect((change.shownUnitPriceCents, change.unitPriceCents), (350, 390));
+  });
+
+  test('con lineTotal, el cambio llega por el total de la línea', () async {
+    final placed = await repository(
+      (_) async => json(201, {
+        ...order,
+        'priceChanges': [
+          {
+            'productId': 'p-arroz',
+            'name': 'Arroz',
+            'shownLineTotal': '24.9',
+            'lineTotal': '49.8',
+          },
+        ],
+      }),
+    ).place('t', deliveryAddress: 'x', lines: const []);
+
+    final change = placed.priceChanges.single;
+    expect((change.shownLineTotalCents, change.lineTotalCents), (2490, 4980));
+    expect(change.shownUnitPriceCents, isNull);
+  });
+
+  test('quote manda los ítems y lee la respuesta', () async {
+    final sent = <http.Request>[];
+    final repo = repository((request) async {
+      sent.add(request);
+      return json(200, {
+        'lines': [
+          {
+            'productId': 'p-arroz',
+            'product': {'id': 'p-arroz', 'name': 'Arroz', 'imageUrl': null},
+            'quantity': 2,
+            'listUnitPrice': '24.9',
+            'unitPrice': '24.9',
+            'lineTotal': '24.9',
+            'isGift': false,
+            'promotions': [
+              {'label': '2x1', 'saved': '24.9'},
+            ],
+          },
+          {
+            'productId': 'p-sal',
+            'product': {'id': 'p-sal', 'name': 'Sal 1 kg', 'imageUrl': null},
+            'quantity': 1,
+            'listUnitPrice': '1.5',
+            'unitPrice': '0',
+            'lineTotal': '0',
+            'isGift': true,
+            'promotions': [
+              {'label': 'Regalo: Sal 1 kg', 'saved': '1.5'},
+            ],
+          },
+        ],
+        'subtotal': '49.8',
+        'discount': '24.9',
+        'total': '24.9',
+        'notices': ['Solo quedaba 1 de Sal 1 kg para regalo'],
+      });
+    });
+
+    final quote = await repo.quote([
+      (productId: 'p-arroz', quantity: 2),
+    ], idToken: 'el-token');
+    await repo.quote([(productId: 'p-arroz', quantity: 2)]);
+
+    expect(sent.first.url.path, '/orders/quote');
+    expect(sent.first.headers['authorization'], 'Bearer el-token');
+    // Sin sesión, sin token: las promociones de todos.
+    expect(sent.last.headers.containsKey('authorization'), isFalse);
+    expect(jsonDecode(sent.first.body), {
+      'items': [
+        {'productId': 'p-arroz', 'quantity': 2},
+      ],
+    });
+    expect(
+      (quote.subtotalCents, quote.discountCents, quote.totalCents),
+      (4980, 2490, 2490),
+    );
+    expect(quote.lineOf('p-arroz')?.lineTotalCents, 2490);
+    expect([for (final gift in quote.gifts) gift.name], ['Sal 1 kg']);
+    expect(quote.notices, ['Solo quedaba 1 de Sal 1 kg para regalo']);
   });
 
   test('sin stock: el 409 llega con el mensaje del servidor', () {

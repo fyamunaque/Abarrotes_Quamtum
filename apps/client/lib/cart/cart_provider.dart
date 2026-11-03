@@ -7,6 +7,7 @@ import '../common/api_client.dart';
 import '../orders/fulfillment.dart';
 import '../orders/order.dart';
 import '../orders/orders_providers.dart';
+import '../orders/quote.dart';
 import '../session/session.dart';
 import '../session/session_provider.dart';
 import 'cart.dart';
@@ -69,8 +70,10 @@ class CartNotifier extends Notifier<Cart> {
   void clear() => state = const Cart();
 
   /// Hace el pedido con lo que hay en el carrito, a nombre de la cuenta
-  /// abierta: a domicilio, a [deliveryAddress], o para recoger en la tienda. Manda el precio que mostraba cada línea, para que el servidor
-  /// avise si cobra otro. Si sale bien, vacía el carrito y devuelve el
+  /// abierta: a domicilio, a [deliveryAddress], o para recoger en la tienda.
+  /// Manda el precio que mostraba cada línea y, con [quote] (la cotización
+  /// que mostraba el carrito, la de `quoteFor`), el total de la línea con sus
+  /// promociones, para que el servidor avise si cobra otro. Si sale bien, vacía el carrito y devuelve el
   /// pedido (también queda en [placedOrderProvider]).
   ///
   /// Si falla (`ApiFailure` del servidor, p. ej. 409 sin stock, o
@@ -80,6 +83,7 @@ class CartNotifier extends Notifier<Cart> {
   Future<Order> placeOrder({
     FulfillmentType fulfillmentType = FulfillmentType.delivery,
     String? deliveryAddress,
+    Quote? quote,
   }) async {
     final lines = state.lines;
     if (lines.isEmpty) throw const ApiFailure('Tu carrito está vacío.');
@@ -98,6 +102,9 @@ class CartNotifier extends Notifier<Cart> {
                   productId: line.product.id,
                   quantity: line.quantity,
                   shownUnitPriceCents: line.product.finalPriceCents,
+                  shownLineTotalCents: quote
+                      ?.lineOf(line.product.id)
+                      ?.lineTotalCents,
                 ),
             ],
           );

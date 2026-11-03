@@ -149,16 +149,32 @@ class Order {
   final List<PriceChange> priceChanges;
 }
 
-/// Un producto que se cobró distinto de lo que mostraba el carrito.
+/// Un producto que se cobró distinto de lo que mostraba el carrito: el
+/// total de la línea (si el carrito tenía la cotización) o el precio por
+/// unidad.
 class PriceChange {
   const PriceChange({
     required this.productId,
     required this.name,
-    required this.shownUnitPriceCents,
-    required this.unitPriceCents,
+    this.shownUnitPriceCents,
+    this.unitPriceCents,
+    this.shownLineTotalCents,
+    this.lineTotalCents,
   });
 
   factory PriceChange.fromJson(Object? json) => switch (json) {
+    {
+      'productId': final String productId,
+      'name': final String name,
+      'shownLineTotal': final String shown,
+      'lineTotal': final String lineTotal,
+    } =>
+      PriceChange(
+        productId: productId,
+        name: name,
+        shownLineTotalCents: parseCents(shown),
+        lineTotalCents: parseCents(lineTotal),
+      ),
     {
       'productId': final String productId,
       'name': final String name,
@@ -176,8 +192,10 @@ class PriceChange {
 
   final String productId;
   final String name;
-  final int shownUnitPriceCents;
-  final int unitPriceCents;
+  final int? shownUnitPriceCents;
+  final int? unitPriceCents;
+  final int? shownLineTotalCents;
+  final int? lineTotalCents;
 }
 
 /// Una promoción que se aplicó a una línea ("2x1") y cuánto ahorró.
