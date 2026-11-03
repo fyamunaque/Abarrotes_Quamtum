@@ -220,6 +220,30 @@ void main() {
         expect(gift['giftQuantity'], 1);
       });
 
+      test(
+        'si el regalo se dio de baja, la promoción se puede apagar',
+        () async {
+          final (_, gift) = await typed('gift', {
+            'buyQuantity': 2,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 1,
+          });
+          await Product.db.updateRow(session, sal.copyWith(active: false));
+
+          // El panel manda el mismo regalo al guardar.
+          final (status, body) = await client.patch(
+            '/promotions/${gift['id']}',
+            {
+              'active': false,
+              'giftProductId': sal.id.toString(),
+            },
+            as: 'uid-staff',
+          );
+
+          expect((status, body['active']), (200, false));
+        },
+      );
+
       test('sin type es precio especial, como antes', () async {
         final (status, body) = await create({});
 

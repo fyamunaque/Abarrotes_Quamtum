@@ -406,6 +406,7 @@ class PromotionsService implements PromotionPricing {
       input,
       exceptId: id,
       currentRecipients: _recipientIdsOf(current).toSet(),
+      currentGiftId: current.giftProductId,
     );
 
     final period = toStoredPeriod(input.startDate, input.endDate);
@@ -468,7 +469,7 @@ class PromotionsService implements PromotionPricing {
   /// Reglas de negocio:
   /// - El último día no puede ser anterior al primero.
   /// - Cada tipo lleva sus campos y solo esos (ver [_typeProblems]); el
-  ///   regalo es otro producto, que existe y está activo.
+  ///   regalo es otro producto, que existe y está activo (al elegirlo).
   /// - El precio promocional tiene que ser menor al precio normal.
   /// - Una de clientes elegidos lleva al menos uno, y cada uno nuevo tiene
   ///   que ser un VIP activo (los que ya estaban se quedan aunque los den de
@@ -484,6 +485,7 @@ class PromotionsService implements PromotionPricing {
     PromotionInput input, {
     UuidValue? exceptId,
     Set<UuidValue> currentRecipients = const {},
+    UuidValue? currentGiftId,
   }) async {
     if (input.endDate.compareTo(input.startDate) < 0) {
       throw const ApiException.badRequest(
@@ -492,7 +494,9 @@ class PromotionsService implements PromotionPricing {
     }
     final problems = _typeProblems(input, product.id!);
     if (problems.isNotEmpty) throw ApiException.badRequest(problems);
-    if (input.giftProductId case final giftId?) {
+    // Solo uno nuevo: si el de antes se dio de baja, igual se puede apagar o
+    // cambiar la promoción.
+    if (input.giftProductId case final giftId? when giftId != currentGiftId) {
       final gift = await Product.db.findById(session, giftId);
       if (gift == null || !gift.active) {
         throw const ApiException.badRequest(
