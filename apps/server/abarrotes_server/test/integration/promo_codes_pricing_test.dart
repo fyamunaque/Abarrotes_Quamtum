@@ -290,6 +290,76 @@ void main() {
     'Pedidos simultáneos con un código',
     rollbackDatabase: RollbackDatabase.disabled,
     (sessionBuilder, _) {
+      test(
+        'dos pedidos a la vez de productos distintos: el canje se bloquea',
+        () async {
+          final session = sessionBuilder.build();
+          final arroz = await insertRice(session, stock: 100);
+          final aceite = await Product.db.insertRow(
+            session,
+            Product(
+              name: 'Aceite vegetal 1 L',
+              sku: 'ACEITE-1',
+              priceCents: 900,
+              currentStock: 100,
+              categoryId: arroz.categoryId,
+            ),
+          );
+          final verano = await insertCode(session, arroz, usesPerCustomer: 1);
+          // El mismo código da también un 2x1 del aceite.
+          await Promotion.db.insertRow(
+            session,
+            Promotion(
+              productId: aceite.id!,
+              type: PromotionType.buyXPayY,
+              buyQuantity: 2,
+              payQuantity: 1,
+              startDate: storeDayStart(testDay(0)),
+              endDate: storeDayStart(testDay(30)),
+              audience: PromotionAudience.code,
+              promoCodeId: verano.id,
+            ),
+          );
+          final ana = await insertUser(session, 'uid-ana');
+          await PromoCodesService(
+            now: () => testNow,
+          ).redeem(session, customer: ana, isVip: false, code: 'VERANO-10');
+
+          // Sin productos en común, nada los ordena salvo el canje.
+          Future<int> place(Product product) =>
+              OrdersService(pricing: _pricing(), now: () => testNow)
+                  .create(
+                    sessionBuilder.build(),
+                    customer: ana,
+                    shopper: _shopper(ana),
+                    fulfillmentType: FulfillmentType.delivery,
+                    deliveryAddress: 'Av. Arequipa 123',
+                    lines: [
+                      (
+                        productId: product.id!,
+                        quantity: 2,
+                        shownUnitPriceCents: null,
+                        shownLineTotalCents: null,
+                      ),
+                    ],
+                  )
+                  .then((placed) => placed.order.discountCents);
+
+          final discounts = await Future.wait([place(arroz), place(aceite)]);
+
+          // Solo uno con el 2x1.
+          expect(discounts.where((d) => d > 0), hasLength(1));
+          expect(await OrderPromoCodeUse.db.count(session), 1);
+        },
+      );
+    },
+  );
+
+  // Otra base: la de arriba ya tiene su arroz y su código.
+  withServerpod(
+    'Pedidos simultáneos del mismo producto con un código',
+    rollbackDatabase: RollbackDatabase.disabled,
+    (sessionBuilder, _) {
       test('dos pedidos a la vez no pasan usesPerCustomer', () async {
         final session = sessionBuilder.build();
         final arroz = await insertRice(session, stock: 100);
