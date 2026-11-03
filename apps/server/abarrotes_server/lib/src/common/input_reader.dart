@@ -81,26 +81,36 @@ class InputReader {
     required int minCents,
     int maxCents = 9999999999,
     bool required = true,
-  }) => _read(field, required, false, 'un número con 2 decimales como máximo', (
-    value,
-  ) {
-    final amount = _fromQuery && value is String ? num.tryParse(value) : value;
-    if (amount is! num) return null;
-    final cents = toCents(amount);
-    if (cents != null && (cents < minCents || cents > maxCents)) {
-      _errors.add(
-        '${_at(field)} debe estar entre ${formatMoney(minCents)} y ${formatMoney(maxCents)}',
-      );
-    }
-    return cents;
-  });
+    bool nullable = false,
+  }) => _read(
+    field,
+    required,
+    nullable,
+    'un número con 2 decimales como máximo',
+    (
+      value,
+    ) {
+      final amount = _fromQuery && value is String
+          ? num.tryParse(value)
+          : value;
+      if (amount is! num) return null;
+      final cents = toCents(amount);
+      if (cents != null && (cents < minCents || cents > maxCents)) {
+        _errors.add(
+          '${_at(field)} debe estar entre ${formatMoney(minCents)} y ${formatMoney(maxCents)}',
+        );
+      }
+      return cents;
+    },
+  );
 
   int? integer(
     String field, {
     int min = 0,
     int? max,
     bool required = true,
-  }) => _read(field, required, false, 'un número entero', (value) {
+    bool nullable = false,
+  }) => _read(field, required, nullable, 'un número entero', (value) {
     final number = _fromQuery && value is String ? int.tryParse(value) : value;
     if (number is! int) return null;
     if (number < min || (max != null && number > max)) {

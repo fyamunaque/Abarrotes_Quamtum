@@ -95,6 +95,7 @@ void main() {
           'active': true,
           'status': 'active',
           'audience': 'everyone',
+          'promoCode': null,
           'title': null,
           'recipients': <Object?>[],
         });
@@ -342,7 +343,7 @@ void main() {
 
       expect(status, 400);
       expect(body['message'], [
-        'audience debe ser everyone, vip o selected',
+        'audience debe ser everyone, vip, selected o code',
         'title admite como máximo 100 caracteres',
       ]);
     });

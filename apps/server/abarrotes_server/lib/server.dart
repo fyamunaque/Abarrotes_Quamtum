@@ -24,6 +24,8 @@ import 'src/staff/roles_service.dart';
 import 'src/staff/staff_bootstrap.dart';
 import 'src/staff/staff_routes.dart';
 import 'src/staff/staff_service.dart';
+import 'src/promo_codes/promo_codes_routes.dart';
+import 'src/promo_codes/promo_codes_service.dart';
 import 'src/promotions/audience/everyone_audience_rule.dart';
 import 'src/promotions/audience/selected_audience_rule.dart';
 import 'src/promotions/audience/vip_audience_rule.dart';
@@ -123,6 +125,7 @@ void run(List<String> args) async {
       shoppers: shoppers,
     ),
     ...promotionsRoutes(promotions, guards, shoppers: shoppers),
+    ...promoCodesRoutes(PromoCodesService(), guards),
     ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
     ...ordersRoutes(
       OrdersService(

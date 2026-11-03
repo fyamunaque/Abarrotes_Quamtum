@@ -15,7 +15,8 @@ import 'promotion_rules.dart';
 /// Datos de una promoción tal como llegan en el body (días de la tienda).
 /// [type] decide qué campos lleva (ver [PromotionType]); los de otros
 /// tipos van en null. [recipientIds], los clientes VIP elegidos: solo con
-/// la audiencia `selected` (vacío en las demás).
+/// la audiencia `selected` (vacío en las demás). [promoCodeId], el código
+/// que la da: solo con la audiencia `code`.
 typedef PromotionInput = ({
   PromotionType type,
   int? promoPriceCents,
@@ -30,6 +31,7 @@ typedef PromotionInput = ({
   PromotionAudience audience,
   String? title,
   List<UuidValue> recipientIds,
+  UuidValue? promoCodeId,
   // Crearla o guardarla aunque se cruce con otras (se acumulan).
   bool confirmOverlap,
 });
@@ -258,6 +260,7 @@ class PromotionsService implements PromotionPricing {
           endDate: period.endDate,
           active: input.active,
           audience: input.audience,
+          promoCodeId: input.promoCodeId,
           title: input.title,
         ),
         transaction: transaction,
@@ -308,6 +311,7 @@ class PromotionsService implements PromotionPricing {
       audience: current.audience,
       title: current.title,
       recipientIds: _recipientIdsOf(current),
+      promoCodeId: current.promoCodeId,
       confirmOverlap: false,
     ));
     await _validate(
@@ -333,6 +337,7 @@ class PromotionsService implements PromotionPricing {
           endDate: period.endDate,
           active: input.active,
           audience: input.audience,
+          promoCodeId: input.promoCodeId,
           title: input.title,
         ),
         transaction: transaction,
@@ -382,6 +387,7 @@ class PromotionsService implements PromotionPricing {
   /// - Una de clientes elegidos lleva al menos uno, y cada uno nuevo tiene
   ///   que ser un VIP activo (los que ya estaban se quedan aunque los den de
   ///   baja: dejan de usarla solos). Las demás no llevan elegidos.
+  /// - Una de código lleva el código que la da, que existe; las demás, no.
   /// - Si se cruza con otras encendidas del mismo producto (fechas que se
   ///   pisan, de cualquier audiencia y tipo), 409 con la lista en
   ///   `overlaps`, salvo [PromotionInput.confirmOverlap]: se acumulan y el
@@ -434,6 +440,21 @@ class PromotionsService implements PromotionPricing {
     } else if (input.recipientIds.isNotEmpty) {
       throw const ApiException.badRequest(
         'recipientIds solo va en una promoción para clientes elegidos',
+      );
+    }
+    if (input.audience == PromotionAudience.code) {
+      final codeId = input.promoCodeId;
+      if (codeId == null) {
+        throw const ApiException.badRequest(
+          'promoCodeId es obligatorio en una promoción de código',
+        );
+      }
+      if (await PromoCode.db.findById(session, codeId) == null) {
+        throw const ApiException.badRequest('El código indicado no existe');
+      }
+    } else if (input.promoCodeId != null) {
+      throw const ApiException.badRequest(
+        'promoCodeId solo va en una promoción de código',
       );
     }
     if (!input.active || input.confirmOverlap) return;
@@ -546,6 +567,7 @@ class PromotionsService implements PromotionPricing {
   static final _include = Promotion.include(
     product: Product.include(),
     giftProduct: Product.include(),
+    promoCode: PromoCode.include(),
     recipients: PromotionRecipient.includeList(
       include: PromotionRecipient.include(vipCustomer: VipCustomer.include()),
     ),

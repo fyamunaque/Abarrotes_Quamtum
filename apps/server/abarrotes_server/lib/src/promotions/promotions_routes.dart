@@ -103,6 +103,7 @@ List<RouteEntry> promotionsRoutes(
         final audience = _readAudience(body);
         final title = _readTitle(body);
         final recipientIds = _readRecipientIds(body);
+        final promoCodeId = body.uuid('promoCodeId', required: false);
         final confirmOverlap =
             body.boolean('confirmOverlap', required: false) ?? false;
         body.check();
@@ -121,6 +122,7 @@ List<RouteEntry> promotionsRoutes(
           audience: audience ?? PromotionAudience.everyone,
           title: title,
           recipientIds: recipientIds ?? const [],
+          promoCodeId: promoCodeId,
           confirmOverlap: confirmOverlap,
         ));
         return jsonResponse(201, json(promotion));
@@ -142,6 +144,7 @@ List<RouteEntry> promotionsRoutes(
         final audience = _readAudience(body);
         final title = _readTitle(body);
         final recipientIds = _readRecipientIds(body);
+        final promoCodeId = body.uuid('promoCodeId', required: false);
         final confirmOverlap =
             body.boolean('confirmOverlap', required: false) ?? false;
         body.check();
@@ -170,6 +173,12 @@ List<RouteEntry> promotionsRoutes(
                 ((audience ?? current.audience) == PromotionAudience.selected
                     ? current.recipientIds
                     : const []),
+            // Lo mismo con el código: sigue mientras sea de código.
+            promoCodeId:
+                promoCodeId ??
+                ((audience ?? current.audience) == PromotionAudience.code
+                    ? current.promoCodeId
+                    : null),
             confirmOverlap: confirmOverlap,
           ),
         );
@@ -199,6 +208,7 @@ const _fields = {
   'audience',
   'title',
   'recipientIds',
+  'promoCodeId',
   'confirmOverlap',
 };
 
@@ -222,8 +232,8 @@ _readTypeFields(InputReader body) => (
   giftQuantity: body.integer('giftQuantity', required: false),
 );
 
-/// A quién va dirigida: `everyone` (por defecto), `vip` o `selected` (los
-/// VIP de `recipientIds`).
+/// A quién va dirigida: `everyone` (por defecto), `vip`, `selected` (los
+/// VIP de `recipientIds`) o `code` (quien activó el código `promoCodeId`).
 PromotionAudience? _readAudience(InputReader body) =>
     body.oneOf('audience', PromotionAudience.values, required: false);
 
@@ -272,6 +282,11 @@ Map<String, Object?> promotionJson(Promotion promotion, DateTime now) {
     'active': promotion.active,
     'status': promotionStatus(promotion, now).name,
     'audience': promotion.audience.name,
+    // Con la audiencia code: el código que la da.
+    'promoCode': switch (promotion.promoCode) {
+      final code? => {'id': code.id.toString(), 'code': code.code},
+      null => null,
+    },
     'title': promotion.title,
     // Con la audiencia selected: los clientes VIP elegidos, por correo.
     'recipients': [
