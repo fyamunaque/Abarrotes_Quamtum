@@ -45,10 +45,21 @@ void main() {
     expect(order.totalCents, 2 * 2490 + 890);
     expect(orders.tokens, ['token-${auth.current}']);
     expect(container.read(cartProvider).isEmpty, isTrue);
-    // Manda el precio que mostraba el carrito (solo para comparar).
+    // Manda el precio que mostraba el carrito (solo para comparar); sin
+    // cotización, sin el total de la línea.
     expect(orders.placed.single, [
-      (productId: 'arroz', quantity: 2, shownUnitPriceCents: 2490),
-      (productId: 'aceite', quantity: 1, shownUnitPriceCents: 890),
+      (
+        productId: 'arroz',
+        quantity: 2,
+        shownUnitPriceCents: 2490,
+        shownLineTotalCents: null,
+      ),
+      (
+        productId: 'aceite',
+        quantity: 1,
+        shownUnitPriceCents: 890,
+        shownLineTotalCents: null,
+      ),
     ]);
     expect(order.priceChanges, isEmpty);
     expect(container.read(placedOrderProvider), same(order));
