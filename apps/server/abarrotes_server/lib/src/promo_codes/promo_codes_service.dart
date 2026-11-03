@@ -53,6 +53,19 @@ class PromoCodesService {
 
   DateTime now() => _now().toUtc();
 
+  /// Hasta cuándo le sirve [code] a quien lo activó en [activatedAt]: con
+  /// `benefitDays`, esos días desde la activación, sin pasar del fin del
+  /// código; sin ellos, hasta el fin. Se calcula con el código de ahora:
+  /// si el administrador cambia la vigencia o los días, cambia también para
+  /// quienes ya lo activaron.
+  static DateTime expiryOf(DateTime activatedAt, PromoCode code) {
+    final benefitEnd = switch (code.benefitDays) {
+      final days? => activatedAt.add(Duration(days: days)),
+      null => code.endDate,
+    };
+    return benefitEnd.isBefore(code.endDate) ? benefitEnd : code.endDate;
+  }
+
   static PromoCodeStatus statusOf(PromoCode code, DateTime now) {
     if (!code.active) return PromoCodeStatus.paused;
     if (now.isBefore(code.startDate)) return PromoCodeStatus.scheduled;
@@ -276,19 +289,14 @@ class PromoCodesService {
       }
       await _checkConditions(session, found, customer, isVip, transaction);
 
-      final benefitEnd = switch (found.benefitDays) {
-        final days? => now.add(Duration(days: days)),
-        null => found.endDate,
-      };
       final redemption = await PromoCodeRedemption.db.insertRow(
         session,
         PromoCodeRedemption(
           promoCodeId: found.id!,
           userId: customer.id!,
           activatedAt: now,
-          expiresAt: benefitEnd.isBefore(found.endDate)
-              ? benefitEnd
-              : found.endDate,
+          // Cómo quedó al activarlo; lo que vale es expiryOf.
+          expiresAt: expiryOf(now, found),
         ),
         transaction: transaction,
       );
@@ -352,28 +360,35 @@ class PromoCodesService {
       session,
       where: (redemption) =>
           redemption.userId.equals(customer.id) &
-          redemption.promoCode.active.equals(true) &
-          (redemption.expiresAt > now),
-      orderByList: (redemption) => [
-        redemption.expiresAt.asc(),
-        redemption.id.asc(),
-      ],
+          redemption.promoCode.active.equals(true),
+      orderBy: (redemption) => redemption.id,
     );
     return [
       for (final redemption in redemptions)
         if (await _redeemed(session, redemption.id!) case final redeemed
-            when redeemed.usesLeft != 0)
+            when redeemed.usesLeft != 0 &&
+                redeemed.redemption.expiresAt.isAfter(now))
           redeemed,
-    ];
+    ]..sort(
+      (a, b) => a.redemption.expiresAt.compareTo(b.redemption.expiresAt),
+    );
   }
 
   Future<RedeemedCode> _redeemed(Session session, UuidValue id) async {
+    final now = this.now();
     final redemption = (await PromoCodeRedemption.db.findById(
       session,
       id,
       include: PromoCodeRedemption.include(
         promoCode: PromoCode.include(
+          // Solo las que valen hoy: encendidas, en fecha y de productos que
+          // se venden.
           promotions: Promotion.includeList(
+            where: (promotion) =>
+                promotion.active.equals(true) &
+                (promotion.startDate <= now) &
+                (promotion.endDate > now) &
+                promotion.product.active.equals(true),
             orderBy: (promotion) => promotion.id,
             include: Promotion.include(
               product: Product.include(),
@@ -383,9 +398,13 @@ class PromoCodesService {
         ),
       ),
     ))!;
-    final limit = redemption.promoCode!.usesPerCustomer;
+    final code = redemption.promoCode!;
+    final limit = code.usesPerCustomer;
     return (
-      redemption: redemption,
+      // Con el vencimiento de ahora (ver expiryOf).
+      redemption: redemption.copyWith(
+        expiresAt: expiryOf(redemption.activatedAt, code),
+      ),
       usesLeft: limit == null
           ? null
           : (limit - await usesOf(session, id)).clamp(0, limit),

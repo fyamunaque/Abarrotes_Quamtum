@@ -78,6 +78,39 @@ void main() {
       });
     });
 
+    test('lista solo las promociones del código que valen hoy', () async {
+      final verano = await insertCode(session, arroz);
+      Future<void> extra({
+        bool active = true,
+        int start = 0,
+        int percent = 20,
+      }) => Promotion.db.insertRow(
+        session,
+        Promotion(
+          productId: arroz.id!,
+          type: PromotionType.percentOff,
+          percent: percent,
+          active: active,
+          startDate: storeDayStart(day(start)),
+          endDate: storeDayStart(day(30)),
+          audience: PromotionAudience.code,
+          promoCodeId: verano.id,
+        ),
+      );
+      await extra(active: false, percent: 10);
+      await extra(start: 5, percent: 15);
+
+      final (_, body) = await redeem('VERANO-10');
+
+      // La apagada y la que todavía no empieza no salen.
+      expect(
+        [for (final p in body['promotions'] as List) (p as Map)['label']],
+        [
+          '2x1',
+        ],
+      );
+    });
+
     test('inexistente, apagado o fuera de fechas: el mismo 404', () async {
       await insertCode(session, arroz, code: 'APAGADO', active: false);
       await insertCode(session, arroz, code: 'FUTURO', startOffset: 1);
@@ -244,7 +277,7 @@ void main() {
       await PromoCodeRedemption.db.updateWhere(
         session,
         columnValues: (redemption) => [
-          redemption.expiresAt(testNow.subtract(const Duration(days: 1))),
+          redemption.activatedAt(testNow.subtract(const Duration(days: 8))),
         ],
         where: (redemption) =>
             redemption.promoCodeId.notInSet({verano.id!, apagado.id!}),

@@ -5,8 +5,9 @@ import '../promotions/code_benefits.dart';
 import 'promo_codes_service.dart';
 
 /// [CodeBenefits] con los canjes guardados: los del cliente con el código
-/// encendido, sin vencer y con usos (los pedidos no cancelados que los
-/// usaron, menos que `usesPerCustomer`).
+/// encendido, sin vencer (con la vigencia y los días de ahora:
+/// `PromoCodesService.expiryOf`) y con usos (los pedidos no cancelados que
+/// los usaron, menos que `usesPerCustomer`).
 class DbCodeBenefits implements CodeBenefits {
   DbCodeBenefits({DateTime Function()? now}) : _now = now ?? DateTime.now;
 
@@ -20,16 +21,22 @@ class DbCodeBenefits implements CodeBenefits {
     bool lock = false,
   }) async {
     final now = _now().toUtc();
-    final redemptions = await PromoCodeRedemption.db.find(
-      session,
-      where: (redemption) =>
-          redemption.userId.equals(customerId) &
-          redemption.promoCode.active.equals(true) &
-          (redemption.expiresAt > now),
-      orderBy: (redemption) => redemption.id,
-      include: PromoCodeRedemption.include(promoCode: PromoCode.include()),
-      transaction: transaction,
-    );
+    final redemptions = [
+      for (final redemption in await PromoCodeRedemption.db.find(
+        session,
+        where: (redemption) =>
+            redemption.userId.equals(customerId) &
+            redemption.promoCode.active.equals(true),
+        orderBy: (redemption) => redemption.id,
+        include: PromoCodeRedemption.include(promoCode: PromoCode.include()),
+        transaction: transaction,
+      ))
+        if (PromoCodesService.expiryOf(
+          redemption.activatedAt,
+          redemption.promoCode!,
+        ).isAfter(now))
+          redemption,
+    ];
     if (redemptions.isEmpty) return const [];
     if (lock) {
       // Se bloquean por id, en orden, y recién después se cuentan los usos:

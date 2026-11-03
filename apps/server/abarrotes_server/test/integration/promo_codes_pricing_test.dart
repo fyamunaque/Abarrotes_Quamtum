@@ -1,6 +1,7 @@
 import 'package:abarrotes_server/src/common/http_json.dart';
 import 'package:abarrotes_server/src/common/money.dart';
 import 'package:abarrotes_server/src/common/shopper.dart';
+import 'package:abarrotes_server/src/common/store_time.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/orders/orders_service.dart';
 import 'package:abarrotes_server/src/promo_codes/db_code_benefits.dart';
@@ -167,6 +168,58 @@ void main() {
       expect(enough.total, 1350);
       expect(enough.notices, isEmpty);
     });
+
+    test(
+      'cambiar la vigencia o los días llega a los canjes que ya hay',
+      () async {
+        final verano = await insertCode(session, arroz);
+        await redeem(ana);
+        final later = _pricing(
+          now: () => testNow.add(const Duration(days: 5)),
+        );
+        Future<void> change({String? endDate, int? benefitDays}) =>
+            codes.update(
+              session,
+              verano.id!,
+              (current) => (
+                code: current.code,
+                active: current.active,
+                startDate: current.startDate,
+                endDate: endDate ?? current.endDate,
+                benefitDays: benefitDays,
+                maxRedemptions: current.maxRedemptions,
+                usesPerCustomer: current.usesPerCustomer,
+                minPurchaseCents: current.minPurchaseCents,
+                newCustomersOnly: current.newCustomersOnly,
+                eligibility: current.eligibility,
+                allowedEmails: current.allowedEmails,
+              ),
+            );
+        expect((await quote(ana, 2, pricing: later)).total, 450);
+
+        // Se acorta la campaña: termina el día 2, también para quien ya lo
+        // activó.
+        await change(endDate: testDay(2));
+        expect((await quote(ana, 2, pricing: later)).total, 900);
+        // Vuelve a alargarse: vuelve a valer.
+        await change(endDate: testDay(29));
+        expect((await quote(ana, 2, pricing: later)).total, 450);
+        expect(
+          (await codes.mine(session, ana)).single.redemption.expiresAt,
+          storeDayStart(testDay(30)),
+        );
+
+        // Con días de beneficio: desde que lo activó.
+        await change(benefitDays: 3);
+        expect((await quote(ana, 2, pricing: later)).total, 900);
+        await change(benefitDays: 10);
+        expect((await quote(ana, 2, pricing: later)).total, 450);
+        expect(
+          (await codes.mine(session, ana)).single.redemption.expiresAt,
+          testNow.add(const Duration(days: 10)),
+        );
+      },
+    );
 
     test('vencido por benefitDays, ya no aplica', () async {
       await insertCode(session, arroz, benefitDays: 1);
