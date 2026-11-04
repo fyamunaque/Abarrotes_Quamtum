@@ -250,6 +250,21 @@ void main() {
     expect(orders.quotes.length, greaterThan(quotes));
   });
 
+  testWidgets('el aviso del pedido nuevo trae los avisos del cobro', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    orders.placeNotices = ['Solo quedaba 1 de Sal 1 kg para regalo'];
+    await pumpApp(tester, '/carrito');
+    container.read(cartProvider.notifier).add(rice, 2);
+    await tester.pumpAndSettle();
+
+    await confirm(tester, 'Av. Arequipa 123');
+
+    expect(find.text('Solo quedaba 1 de Sal 1 kg para regalo'), findsOneWidget);
+  });
+
   testWidgets('propone la dirección del perfil', (tester) async {
     auth = FakeAuthRepository();
     final ana = auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);

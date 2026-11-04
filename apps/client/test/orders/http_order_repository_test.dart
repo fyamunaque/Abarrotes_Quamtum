@@ -146,6 +146,19 @@ void main() {
     });
   });
 
+  test('la respuesta trae los avisos del cobro', () async {
+    final placed = await repository(
+      (_) async => json(201, {
+        ...order,
+        'notices': ['Solo quedaba 1 de Sal 1 kg para regalo'],
+      }),
+    ).place('t', deliveryAddress: 'x', lines: const []);
+
+    expect(placed.notices, ['Solo quedaba 1 de Sal 1 kg para regalo']);
+    // Sin el campo (Mis pedidos, un servidor anterior), ninguno.
+    expect(Order.fromJson(order).notices, isEmpty);
+  });
+
   test('la respuesta trae los precios que cambiaron', () async {
     final placed = await repository(
       (_) async => json(201, {

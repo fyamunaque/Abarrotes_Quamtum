@@ -23,6 +23,7 @@ class Order {
     this.readyForPickupAt,
     this.allowedNextStatuses = const [],
     this.priceChanges = const [],
+    this.notices = const [],
   });
 
   /// Lanza [FormatException] si [json] no tiene la forma de un pedido.
@@ -83,6 +84,14 @@ class Order {
         priceChanges: switch (json['priceChanges']) {
           final List<Object?> changes => [
             for (final change in changes) PriceChange.fromJson(change),
+          ],
+          _ => const [],
+        },
+        // También solo al crearlo: p. ej. un regalo que se agotó al pedir.
+        notices: switch (json['notices']) {
+          final List<Object?> notices => [
+            for (final notice in notices)
+              if (notice is String) notice,
           ],
           _ => const [],
         },
@@ -147,6 +156,10 @@ class Order {
   /// Los productos que se cobraron a otro precio que el del carrito (p. ej.
   /// terminó una promoción). Solo viene al crear el pedido.
   final List<PriceChange> priceChanges;
+
+  /// Los avisos del cobro (p. ej. "Solo quedaba 1 de Sal 1 kg para
+  /// regalo"). Solo vienen al crear el pedido.
+  final List<String> notices;
 }
 
 /// Un producto que se cobró distinto de lo que mostraba el carrito: el

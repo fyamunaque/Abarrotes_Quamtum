@@ -1104,6 +1104,10 @@ class FakeOrderRepository implements OrderRepository {
   /// Si no es null, `place` falla con esto (p. ej. 409 sin stock).
   ApiFailure? failure;
 
+  /// Los avisos que trae el pedido recién hecho (p. ej. un regalo que se
+  /// agotó al pedir).
+  List<String> placeNotices = const [];
+
   /// Los ID tokens con que se llamó a `place` y `mine`.
   final tokens = <String>[];
 
@@ -1218,6 +1222,7 @@ class FakeOrderRepository implements OrderRepository {
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,
       priceChanges: changes,
+      notices: placeNotices,
     );
     orders.insert(0, order);
     return order;

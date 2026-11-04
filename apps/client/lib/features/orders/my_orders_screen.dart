@@ -376,6 +376,11 @@ class _ReceivedNotice extends StatelessWidget {
                                 '${formatSoles(change.unitPriceCents ?? 0)}',
                         }, style: muted),
                     ],
+                    if (order != null)
+                      for (final notice in order.notices) ...[
+                        const SizedBox(height: 4),
+                        Text(notice, style: muted),
+                      ],
                   ],
                 ),
               ),
