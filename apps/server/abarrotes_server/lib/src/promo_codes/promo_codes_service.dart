@@ -149,18 +149,21 @@ class PromoCodesService {
     final input = _normalized(raw);
     await _validate(session, input);
 
-    final created = await session.db.transaction((transaction) async {
-      final created = await PromoCode.db.insertRow(
-        session,
-        _apply(
-          PromoCode(code: input.code, startDate: now(), endDate: now()),
-          input,
-        ),
-        transaction: transaction,
-      );
-      await _saveEmails(session, created.id!, input, transaction);
-      return created;
-    });
+    final created = await _unique(
+      input.code,
+      () => session.db.transaction((transaction) async {
+        final created = await PromoCode.db.insertRow(
+          session,
+          _apply(
+            PromoCode(code: input.code, startDate: now(), endDate: now()),
+            input,
+          ),
+          transaction: transaction,
+        );
+        await _saveEmails(session, created.id!, input, transaction);
+        return created;
+      }),
+    );
     return get(session, created.id!);
   }
 
@@ -208,32 +211,50 @@ class PromoCodesService {
       ].length,
     );
 
-    await session.db.transaction((transaction) async {
-      await PromoCode.db.updateRow(
-        session,
-        _apply(current, input),
-        transaction: transaction,
-      );
-      await PromoCodeAllowedEmail.db.deleteWhere(
-        session,
-        where: (allowed) => allowed.promoCodeId.equals(id),
-        transaction: transaction,
-      );
-      await _saveEmails(session, id, input, transaction);
-    });
+    await _unique(
+      input.code,
+      () => session.db.transaction((transaction) async {
+        await PromoCode.db.updateRow(
+          session,
+          _apply(current, input),
+          transaction: transaction,
+        );
+        await PromoCodeAllowedEmail.db.deleteWhere(
+          session,
+          where: (allowed) => allowed.promoCodeId.equals(id),
+          transaction: transaction,
+        );
+        await _saveEmails(session, id, input, transaction);
+      }),
+    );
     return get(session, id);
   }
 
   /// Borra el código con sus promociones. Si alguien ya lo activó, no: se
   /// apaga (los canjes y los pedidos lo nombran).
   Future<void> delete(Session session, UuidValue id) async {
-    final code = await _find(session, id);
-    if (await _redemptions(session, id) > 0) {
-      throw const ApiException.conflict(
-        'El código ya se activó: apágalo en vez de borrarlo',
-      );
-    }
     await session.db.transaction((transaction) async {
+      // Como al activarlo: la fila del código se bloquea antes de contar sus
+      // canjes, así nadie lo activa mientras se borra.
+      final code = await PromoCode.db.findById(
+        session,
+        id,
+        transaction: transaction,
+        lockMode: LockMode.forUpdate,
+      );
+      if (code == null) {
+        throw const ApiException(404, 'Código no encontrado');
+      }
+      final redemptions = await PromoCodeRedemption.db.count(
+        session,
+        where: (redemption) => redemption.promoCodeId.equals(id),
+        transaction: transaction,
+      );
+      if (redemptions > 0) {
+        throw const ApiException.conflict(
+          'El código ya se activó: apágalo en vez de borrarlo',
+        );
+      }
       await Promotion.db.deleteWhere(
         session,
         where: (promotion) => promotion.promoCodeId.equals(id),
@@ -427,6 +448,16 @@ class PromoCodesService {
         use.order.status.notEquals(OrderStatus.cancelled),
     transaction: transaction,
   );
+
+  /// [save], pero si otro guardó el mismo texto a la vez (el índice único),
+  /// el 409 de siempre en vez de un error de la base.
+  static Future<T> _unique<T>(String code, Future<T> Function() save) async {
+    try {
+      return await save();
+    } on DatabaseUniqueViolationException {
+      throw ApiException.conflict('Ya existe el código $code');
+    }
+  }
 
   /// El texto en mayúsculas y los correos normalizados, sin repetir.
   static PromoCodeInput _normalized(PromoCodeInput input) => (
