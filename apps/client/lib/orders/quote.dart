@@ -13,6 +13,7 @@ class Quote {
     required this.totalCents,
     this.notices = const [],
     this.requested = const [],
+    this.owner,
   });
 
   /// Lanza [FormatException] si [json] no tiene esa forma.
@@ -51,14 +52,22 @@ class Quote {
   /// del carrito.
   final List<({String productId, int quantity})> requested;
 
-  /// La misma, con lo que se pidió.
-  Quote forRequest(List<({String productId, int quantity})> lines) => Quote(
+  /// Para quién se pidió: el correo de la cuenta, o null sin cuenta. Con
+  /// otra cuenta, otras promociones.
+  final String? owner;
+
+  /// La misma, con lo que se pidió y para quién.
+  Quote forRequest(
+    List<({String productId, int quantity})> lines, {
+    String? owner,
+  }) => Quote(
     lines: this.lines,
     subtotalCents: subtotalCents,
     discountCents: discountCents,
     totalCents: totalCents,
     notices: notices,
     requested: lines,
+    owner: owner,
   );
 
   /// La línea de [productId] que se compra (no un regalo), si está.

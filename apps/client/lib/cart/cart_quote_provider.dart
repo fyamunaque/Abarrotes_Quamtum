@@ -52,18 +52,26 @@ class CartQuoteNotifier extends AsyncNotifier<Quote?> {
         // Sin token: las promociones de todos.
       }
     }
-    return ref.read(orderRepositoryProvider).quote([
+    final requested = [
       for (final line in cart.lines)
         (productId: line.product.id, quantity: line.quantity),
-    ], idToken: token);
+    ];
+    final quote = await ref
+        .read(orderRepositoryProvider)
+        .quote(requested, idToken: token);
+    return quote.forRequest(requested, owner: signedIn?.$1);
   }
 }
 
 /// [quote] si se pidió para [cart] tal como está (los mismos productos y
 /// cantidades, aunque el servidor haya dejado afuera alguno que ya no
-/// está); si no (la del último cambio todavía no llega), null.
-Quote? quoteFor(Cart cart, Quote? quote) {
-  if (quote == null || quote.requested.length != cart.lines.length) {
+/// está) y para [owner], quien mira ahora (ver [quoteOwner]); si no (la
+/// del último cambio, o la de después de ingresar o salir, todavía no
+/// llega), null.
+Quote? quoteFor(Cart cart, Quote? quote, {required String? owner}) {
+  if (quote == null ||
+      quote.owner != owner ||
+      quote.requested.length != cart.lines.length) {
     return null;
   }
   for (final (i, line) in cart.lines.indexed) {
@@ -75,3 +83,18 @@ Quote? quoteFor(Cart cart, Quote? quote) {
   }
   return quote;
 }
+
+/// Para quién es la cotización de [session]: el correo de la cuenta, o
+/// null sin cuenta.
+String? quoteOwner(Session session) => switch (session) {
+  SignedIn(:final user) => user.email,
+  _ => null,
+};
+
+/// La cotización que muestra el carrito: la de [quoted] si es la del
+/// carrito tal como está y para quien mira; con un error, ninguna (la
+/// anterior podría ser de otro carrito o de otra cuenta).
+Quote? shownQuote(Cart cart, AsyncValue<Quote?> quoted, Session session) =>
+    quoted.hasError
+    ? null
+    : quoteFor(cart, quoted.value, owner: quoteOwner(session));

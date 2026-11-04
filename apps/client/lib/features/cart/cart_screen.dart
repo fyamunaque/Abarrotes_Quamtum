@@ -101,7 +101,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     ref.listen(sessionProvider, (_, session) => _prefill(session));
     final cart = ref.watch(cartProvider);
     final quoted = ref.watch(cartQuoteProvider);
-    final quote = quoteFor(cart, quoted.value);
+    final quote = shownQuote(cart, quoted, ref.watch(sessionProvider));
     final quoteFailed = quoted.hasError && !quoted.isLoading;
     final totalCents = quote?.totalCents ?? cart.totalCents;
     final withBar =

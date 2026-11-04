@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:neils/app.dart';
 import 'package:neils/cart/cart_provider.dart';
+import 'package:neils/cart/cart_quote_provider.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
@@ -249,6 +250,31 @@ void main() {
       );
       expect(find.text('2x1 −${formatSoles(2490)}'), findsOneWidget);
       expect(find.text('Descuentos'), findsOneWidget);
+    });
+
+    testWidgets('si falla después de una buena, no queda la anterior', (
+      tester,
+    ) async {
+      orders.quoteWith = riceTwoForOne;
+      await pumpCart(tester, [(rice, 2)]);
+      await waitForQuote(tester);
+      expect(find.text('Descuentos'), findsOneWidget);
+
+      // Se vuelve a pedir con el mismo carrito (p. ej. al activar un
+      // código) y esta vez falla.
+      orders.quoteFailure = const ApiFailure('No se pudo');
+      container.invalidate(cartQuoteProvider);
+      await waitForQuote(tester);
+
+      expect(
+        find.text(
+          'No pudimos calcular las promociones. El total final se confirma '
+          'al pedir.',
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Descuentos'), findsNothing);
+      expect(find.text(formatSoles(4980)), findsNWidgets(2));
     });
 
     testWidgets('cambiar la cantidad vuelve a cotizar', (tester) async {
