@@ -12,6 +12,7 @@ class Quote {
     required this.discountCents,
     required this.totalCents,
     this.notices = const [],
+    this.requested = const [],
   });
 
   /// Lanza [FormatException] si [json] no tiene esa forma.
@@ -44,6 +45,21 @@ class Quote {
   final int discountCents;
   final int totalCents;
   final List<String> notices;
+
+  /// Lo que se pidió cotizar (productos y cantidades). El servidor deja
+  /// afuera los que ya no están (con su aviso): por esto se sabe si es la
+  /// del carrito.
+  final List<({String productId, int quantity})> requested;
+
+  /// La misma, con lo que se pidió.
+  Quote forRequest(List<({String productId, int quantity})> lines) => Quote(
+    lines: this.lines,
+    subtotalCents: subtotalCents,
+    discountCents: discountCents,
+    totalCents: totalCents,
+    notices: notices,
+    requested: lines,
+  );
 
   /// La línea de [productId] que se compra (no un regalo), si está.
   OrderLine? lineOf(String productId) => lines

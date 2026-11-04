@@ -61,7 +61,7 @@ class HttpOrderRepository implements OrderRepository {
       idToken: idToken,
       fallback: 'No pudimos calcular las promociones.',
     );
-    return decodeResponse(() => Quote.fromJson(json));
+    return decodeResponse(() => Quote.fromJson(json).forRequest(lines));
   }
 
   @override

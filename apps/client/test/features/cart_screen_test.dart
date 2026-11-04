@@ -219,6 +219,38 @@ void main() {
       expect(find.text('¿Tienes un código?'), findsOneWidget);
     });
 
+    testWidgets('un producto que ya no está: su aviso y lo demás cotizado', (
+      tester,
+    ) async {
+      // El servidor deja afuera el aceite y lo avisa.
+      orders.quoteWith = (lines) => Quote(
+        lines: [
+          OrderLine(
+            productId: 'arroz',
+            name: 'Arroz extra 5 kg',
+            quantity: lines.first.quantity,
+            listUnitPriceCents: 2490,
+            unitPriceCents: 2490,
+            lineTotalCents: 2490,
+            promotions: const [(label: '2x1', savedCents: 2490)],
+          ),
+        ],
+        subtotalCents: 4980,
+        discountCents: 2490,
+        totalCents: 2490,
+        notices: const ['Ya no está disponible: Aceite vegetal 1 L'],
+      );
+      await pumpCart(tester, [(rice, 2), (oil, 1)]);
+      await waitForQuote(tester);
+
+      expect(
+        find.text('Ya no está disponible: Aceite vegetal 1 L'),
+        findsOneWidget,
+      );
+      expect(find.text('2x1 −${formatSoles(2490)}'), findsOneWidget);
+      expect(find.text('Descuentos'), findsOneWidget);
+    });
+
     testWidgets('cambiar la cantidad vuelve a cotizar', (tester) async {
       await pumpCart(tester, [(rice, 1)]);
       await waitForQuote(tester);

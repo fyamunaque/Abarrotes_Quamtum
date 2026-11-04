@@ -59,14 +59,19 @@ class CartQuoteNotifier extends AsyncNotifier<Quote?> {
   }
 }
 
-/// [quote] si es la de [cart] tal como está (los mismos productos y
-/// cantidades); si no (la del último cambio todavía no llega), null.
+/// [quote] si se pidió para [cart] tal como está (los mismos productos y
+/// cantidades, aunque el servidor haya dejado afuera alguno que ya no
+/// está); si no (la del último cambio todavía no llega), null.
 Quote? quoteFor(Cart cart, Quote? quote) {
-  if (quote == null) return null;
-  final bought = quote.lines.where((line) => !line.isGift).length;
-  if (bought != cart.lines.length) return null;
-  for (final line in cart.lines) {
-    if (quote.lineOf(line.product.id)?.quantity != line.quantity) return null;
+  if (quote == null || quote.requested.length != cart.lines.length) {
+    return null;
+  }
+  for (final (i, line) in cart.lines.indexed) {
+    final requested = quote.requested[i];
+    if (requested.productId != line.product.id ||
+        requested.quantity != line.quantity) {
+      return null;
+    }
   }
   return quote;
 }

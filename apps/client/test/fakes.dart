@@ -1130,7 +1130,9 @@ class FakeOrderRepository implements OrderRepository {
   Future<Quote> quote(List<QuoteLineRequest> lines, {String? idToken}) async {
     quotes.add((lines, idToken));
     if (quoteFailure case final failure?) throw failure;
-    if (quoteWith case final quoteWith?) return quoteWith(lines);
+    if (quoteWith case final quoteWith?) {
+      return quoteWith(lines).forRequest(lines);
+    }
     final priced = [
       for (final line in lines)
         if (await catalog.product(line.productId) case final product)
@@ -1147,6 +1149,7 @@ class FakeOrderRepository implements OrderRepository {
       subtotalCents: total,
       discountCents: 0,
       totalCents: total,
+      requested: lines,
     );
   }
 
