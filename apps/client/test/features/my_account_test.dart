@@ -215,6 +215,23 @@ void main() {
       );
     });
 
+    testWidgets('al volver a Mi cuenta, la lista está al día', (tester) async {
+      auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      codes.codes.add(summerCode);
+      final router = await pumpApp(tester, '/mi-cuenta');
+      expect(find.text('VERANO-10'), findsOneWidget);
+
+      // Un pedido gastó su último uso: el servidor ya no lo trae.
+      router.go('/catalogo');
+      await tester.pumpAndSettle();
+      codes.codes.clear();
+      router.go('/mi-cuenta');
+      await tester.pumpAndSettle();
+
+      expect(find.text('VERANO-10'), findsNothing);
+      expect(find.text('Todavía no activaste ningún código.'), findsOneWidget);
+    });
+
     testWidgets('sin límite de usos y con compra mínima', (tester) async {
       auth.addAccount('ana@tienda.pe', 'secreta', signedIn: true);
       codes.codes.add(

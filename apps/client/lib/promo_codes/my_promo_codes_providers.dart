@@ -15,9 +15,10 @@ final myPromoCodesRepositoryProvider = Provider<MyPromoCodesRepository>(
 );
 
 /// Los códigos que activó la cuenta abierta (sin cuenta, ninguno). Se
-/// vuelven a pedir al cambiar de cuenta.
+/// vuelven a pedir al cambiar de cuenta y cada vez que se abre "Mis
+/// códigos": un pedido (o su cancelación) cambia los usos que quedan.
 final myPromoCodesProvider =
-    AsyncNotifierProvider<MyPromoCodesNotifier, List<MyPromoCode>>(
+    AsyncNotifierProvider.autoDispose<MyPromoCodesNotifier, List<MyPromoCode>>(
       MyPromoCodesNotifier.new,
     );
 
