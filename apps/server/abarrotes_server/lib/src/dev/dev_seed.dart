@@ -9,6 +9,7 @@ import '../generated/protocol.dart';
 import '../orders/order_number.dart';
 import '../orders/pickup_code.dart';
 import '../products/product_images.dart';
+import '../promotions/promotion_labels.dart';
 import '../promotions/promotion_rules.dart';
 
 /// Datos de ejemplo para probar la app contra el servidor local: las
@@ -267,11 +268,21 @@ Future<int> _seedOrders(
           (
             product: product,
             quantity: 1 + random.nextInt(3),
+            promotion: product.promotions?.firstOrNull,
             unitPrice:
                 product.promotions?.firstOrNull?.promoPriceCents ??
                 product.priceCents,
           ),
       ];
+      final totalCents = lines.fold(
+        0,
+        (sum, line) => sum + line.unitPrice * line.quantity,
+      );
+      // A precio normal: lo que ahorró el precio especial es el descuento.
+      final subtotalCents = lines.fold(
+        0,
+        (sum, line) => sum + line.product.priceCents * line.quantity,
+      );
       final order = await Order.db.insertRow(
         session,
         Order(
@@ -280,10 +291,9 @@ Future<int> _seedOrders(
           fulfillmentType: pickup
               ? FulfillmentType.pickup
               : FulfillmentType.delivery,
-          totalCents: lines.fold(
-            0,
-            (sum, line) => sum + line.unitPrice * line.quantity,
-          ),
+          totalCents: totalCents,
+          subtotalCents: subtotalCents,
+          discountCents: subtotalCents - totalCents,
           deliveryAddress: pickup
               ? null
               : customer.address ?? 'Av. Arequipa 1234, Lince',
@@ -306,8 +316,19 @@ Future<int> _seedOrders(
           OrderItem(
             quantity: line.quantity,
             unitPriceCents: line.unitPrice,
-            listUnitPriceCents: line.unitPrice,
+            listUnitPriceCents: line.product.priceCents,
             lineTotalCents: line.quantity * line.unitPrice,
+            promotions: [
+              if (line.promotion case final promotion?
+                  when line.unitPrice < line.product.priceCents)
+                AppliedPromotion(
+                  promotionId: promotion.id!,
+                  label: promotionLabel(promotion),
+                  savedCents:
+                      (line.product.priceCents - line.unitPrice) *
+                      line.quantity,
+                ),
+            ],
             orderId: order.id!,
             productId: line.product.id!,
           ),
