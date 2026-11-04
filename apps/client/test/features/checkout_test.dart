@@ -13,6 +13,7 @@ import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/orders/order_tracker.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
+import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/router/router.dart';
@@ -434,6 +435,157 @@ void main() {
     expect(find.byIcon(Icons.place_outlined), findsOneWidget);
     // Ya entregado: en una línea.
     expect(find.text('Entrega en Av. Brasil 450, Jesús María'), findsOneWidget);
+  });
+
+  testWidgets('a domicilio, en curso: el código para el repartidor', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    Order delivery(String id, OrderStatus status) => Order(
+      id: id,
+      status: status,
+      deliveryAddress: 'Av. Brasil 450',
+      deliveryCode: 'P4R9TW',
+      hasDeliveryCode: true,
+      totalCents: 2490,
+      createdAt: DateTime.utc(2026, 10, 14, 15),
+      lines: const [],
+    );
+    orders.orders.addAll([
+      delivery('en-camino', OrderStatus.outForDelivery),
+      delivery('entregado', OrderStatus.delivered),
+    ]);
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    // Solo el que está en curso: el entregado ya no lo necesita.
+    expect(find.text('Tu código de entrega'), findsOneWidget);
+    expect(find.text('P4R9TW'), findsOneWidget);
+    expect(
+      find.text('Dáselo al repartidor cuando recibas tu pedido.'),
+      findsOneWidget,
+    );
+    expect(
+      find.bySemanticsLabel('Tu código de entrega: P 4 R 9 T W'),
+      findsOneWidget,
+    );
+    semantics.dispose();
+  });
+
+  group('búsqueda y filtros', () {
+    Order mine(
+      int number,
+      OrderStatus status, {
+      FulfillmentType type = FulfillmentType.delivery,
+      required int day,
+      String product = 'Arroz extra 5 kg',
+    }) => Order(
+      id: 'pedido-$number',
+      number: number,
+      status: status,
+      fulfillmentType: type,
+      deliveryAddress: type == FulfillmentType.delivery
+          ? 'Av. Brasil 450'
+          : null,
+      pickupCode: type == FulfillmentType.pickup ? 'K7M2XQ' : null,
+      totalCents: 2490,
+      createdAt: DateTime(2026, 10, day, 12),
+      lines: [
+        OrderLine(
+          productId: product,
+          name: product,
+          quantity: 1,
+          unitPriceCents: 2490,
+        ),
+      ],
+    );
+
+    setUp(() {
+      auth = FakeAuthRepository()
+        ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      orders.orders.addAll([
+        mine(1004, OrderStatus.outForDelivery, day: 20),
+        mine(
+          1003,
+          OrderStatus.readyForPickup,
+          type: FulfillmentType.pickup,
+          day: 18,
+          product: 'Leche evaporada 400 g',
+        ),
+        mine(1002, OrderStatus.cancelled, day: 12),
+        mine(1001, OrderStatus.delivered, day: 5),
+      ]);
+    });
+
+    List<String> titles(WidgetTester tester) => [
+      for (final text in tester.widgetList<Text>(
+        find.textContaining('Pedido N.º'),
+      ))
+        text.data!,
+    ];
+
+    Future<void> search(WidgetTester tester, String text) async {
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Buscar por N.º o producto'),
+        text,
+      );
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('busca por N.º o por producto', (tester) async {
+      await pumpApp(tester, '/mis-pedidos');
+
+      await search(tester, '1003');
+      expect(titles(tester), ['Pedido N.º 1003']);
+      expect(orders.filters.last.search, '1003');
+
+      await search(tester, 'arroz');
+      expect(titles(tester), [
+        'Pedido N.º 1004',
+        'Pedido N.º 1002',
+        'Pedido N.º 1001',
+      ]);
+    });
+
+    testWidgets('por estado y entrega; "Quitar filtros"', (tester) async {
+      await pumpApp(tester, '/mis-pedidos');
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'En curso'));
+      await tester.pumpAndSettle();
+      expect(titles(tester), ['Pedido N.º 1004', 'Pedido N.º 1003']);
+      expect(orders.filters.last.progress, OrderProgress.active);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Recojo'));
+      await tester.pumpAndSettle();
+      expect(titles(tester), ['Pedido N.º 1003']);
+      expect(orders.filters.last.fulfillmentType, FulfillmentType.pickup);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Cancelados'));
+      await tester.pumpAndSettle();
+      expect(
+        find.text('Ningún pedido coincide con la búsqueda.'),
+        findsOneWidget,
+      );
+      expect(find.text('Todavía no hiciste pedidos.'), findsNothing);
+
+      await tester.tap(find.text('Quitar filtros'));
+      await tester.pumpAndSettle();
+      expect(titles(tester), hasLength(4));
+      expect(orders.filters.last, allMyOrders);
+    });
+
+    testWidgets('en el teléfono, los filtros entran', (tester) async {
+      await pumpApp(tester, '/mis-pedidos');
+      tester.view.physicalSize = const Size(360, 800);
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Buscar por N.º o producto'), findsOneWidget);
+      expect(find.widgetWithText(OutlinedButton, 'Fechas'), findsOneWidget);
+    });
   });
 
   testWidgets('"Actualizar" trae el estado nuevo y el seguimiento lo anima', (

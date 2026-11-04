@@ -257,6 +257,31 @@ void main() {
         'pickupCode': 'K7M2XQ',
       });
     });
+
+    test('entregar a domicilio manda el código o el motivo', () async {
+      final repository = HttpAdminOrdersRepository(
+        api((_) => {...order, 'status': 'delivered'}),
+      );
+
+      await repository.changeStatus(
+        'o-1',
+        OrderStatus.delivered,
+        deliveryCode: 'P4R9TW',
+      );
+      await repository.changeStatus(
+        'o-1',
+        OrderStatus.delivered,
+        withoutCodeReason: 'No tenía el celular',
+      );
+
+      expect(
+        [for (final request in sent) jsonDecode(request.body)],
+        [
+          {'status': 'delivered', 'deliveryCode': 'P4R9TW'},
+          {'status': 'delivered', 'withoutCodeReason': 'No tenía el celular'},
+        ],
+      );
+    });
   });
 
   group('productos', () {
@@ -425,6 +450,50 @@ void main() {
       expect(first.type, MovementType.outgoing);
       expect(first.change, -2);
       expect(first.userName, 'Ana Quispe');
+      // Uno de antes del vínculo con el pedido: el motivo tal cual.
+      expect(first.orderNumber, isNull);
+      expect(first.reasonLabel, 'Pedido o-1');
+    });
+
+    test('los filtros van en la query; el pedido, con su número', () async {
+      final movements =
+          await HttpInventoryRepository(
+            api(
+              (_) => page([
+                {
+                  ...movement,
+                  'order': {'id': 'o-1', 'number': 1024},
+                },
+                {
+                  ...movement,
+                  'type': 'incoming',
+                  'order': {'id': 'o-1', 'number': 1024},
+                },
+                {...movement, 'reason': 'Conteo', 'order': null},
+              ]),
+            ),
+          ).movements(
+            search: 'arroz',
+            origin: MovementOrigin.orders,
+            categoryId: 'c-1',
+            from: DateTime(2026, 9, 28),
+            to: DateTime(2026, 10, 4),
+          );
+
+      expect(sent.single.url.queryParameters, {
+        'page': '1',
+        'limit': '20',
+        'search': 'arroz',
+        'origin': 'orders',
+        'categoryId': 'c-1',
+        'from': '2026-09-28',
+        'to': '2026-10-04',
+      });
+      expect(
+        [for (final m in movements.items) m.reasonLabel],
+        ['Pedido N.º 1024', 'Cancelación del pedido N.º 1024', 'Conteo'],
+      );
+      expect(movements.items.first.orderId, 'o-1');
     });
 
     test('registrar: un ajuste con signo y motivo', () async {
@@ -503,6 +572,47 @@ void main() {
         throwsA(isA<ApiFailure>()),
       );
     });
+
+    test(
+      'clientes elegidos: llegan con su correo y se mandan sus ids',
+      () async {
+        final repository = HttpPromotionsRepository(
+          api(
+            (_) => page([
+              {
+                ...promotion,
+                'audience': 'selected',
+                'recipients': [
+                  {'id': 'v-1', 'email': 'ana@tienda.pe'},
+                ],
+              },
+            ]),
+          ),
+        );
+
+        final chosen = (await repository.list()).items.single;
+        expect(chosen.audience, PromotionAudience.selected);
+        expect(chosen.vipOnly, isTrue);
+        expect(chosen.recipients, [(id: 'v-1', email: 'ana@tienda.pe')]);
+
+        PromotionInput input(PromotionAudience audience) => PromotionInput(
+          promoPriceCents: 790,
+          startDate: '2026-10-04',
+          endDate: '2026-11-02',
+          active: true,
+          audience: audience,
+          recipients: const [(id: 'v-1', email: 'ana@tienda.pe')],
+        );
+        expect(input(PromotionAudience.selected).toJson()['recipientIds'], [
+          'v-1',
+        ]);
+        // Con otra audiencia no van: el servidor los quita.
+        expect(
+          input(PromotionAudience.vip).toJson(),
+          isNot(contains('recipientIds')),
+        );
+      },
+    );
 
     test('crear lleva el producto; editar, no; eliminar es DELETE', () async {
       final repository = HttpPromotionsRepository(api((_) => promotion));

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../admin/promotions/promotion.dart';
+import '../../../admin/vip/vip_customer.dart';
+import '../../../admin/vip/vip_providers.dart';
 import '../../../catalog/product.dart';
 import '../../../common/days.dart';
 import '../../../common/money.dart';
@@ -15,17 +17,20 @@ import '../shared/product_picker.dart';
 /// el precio menor que el normal y las fechas en orden. Lo que el servidor
 /// rechaza igual (otra promoción del producto para la misma audiencia en esas
 /// fechas: 409) se muestra. El producto solo se elige al crear; el título es
-/// opcional y la audiencia, "Todos" o "Solo clientes VIP". Se cierra con el
+/// opcional y la audiencia, "Todos", "Solo clientes VIP" o "Clientes
+/// elegidos" (los VIP que se buscan con [searchVips]). Se cierra con el
 /// aviso para la persona ("Creaste…", "Eliminaste…").
 class PromotionForm extends StatefulWidget {
   const PromotionForm({
     super.key,
     this.promotion,
     required this.onSubmit,
+    required this.searchVips,
     this.onDelete,
   });
 
   final Promotion? promotion;
+  final VipSearch searchVips;
   final Future<Promotion> Function(PromotionInput input) onSubmit;
 
   /// Solo al editar.
@@ -43,6 +48,7 @@ class _PromotionFormState extends State<PromotionForm> {
   DateTimeRange? _range;
   late bool _active;
   late PromotionAudience _audience;
+  late List<PromotionRecipient> _recipients;
   bool _busy = false;
   String? _error;
 
@@ -68,6 +74,7 @@ class _PromotionFormState extends State<PromotionForm> {
     }
     _active = promotion?.active ?? true;
     _audience = promotion?.audience ?? PromotionAudience.everyone;
+    _recipients = promotion?.recipients ?? const [];
     _title = TextEditingController(text: promotion?.title);
   }
 
@@ -132,6 +139,7 @@ class _PromotionFormState extends State<PromotionForm> {
           active: _active,
           audience: _audience,
           title: _title.text.trim().isEmpty ? null : _title.text.trim(),
+          recipients: _recipients,
         ),
       );
       return _creating
@@ -263,6 +271,15 @@ class _PromotionFormState extends State<PromotionForm> {
             enabled: !_busy,
             onChanged: (audience) => setState(() => _audience = audience),
           ),
+          if (_audience == PromotionAudience.selected) ...[
+            const SizedBox(height: 16),
+            _RecipientsField(
+              initialValue: _recipients,
+              search: widget.searchVips,
+              enabled: !_busy,
+              onChanged: (recipients) => _recipients = recipients,
+            ),
+          ],
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -297,7 +314,8 @@ class _PromotionFormState extends State<PromotionForm> {
   }
 }
 
-/// "¿Quién la ve?": Todos o Solo clientes VIP, con lo que significa debajo.
+/// "¿Quién la ve?": Todos, Solo clientes VIP o Clientes elegidos, con lo que
+/// significa debajo. En un teléfono, uno debajo del otro.
 class _AudienceField extends StatelessWidget {
   const _AudienceField({
     required this.value,
@@ -320,22 +338,29 @@ class _AudienceField extends StatelessWidget {
       children: [
         Text('¿Quién la ve?', style: theme.textTheme.labelLarge),
         const SizedBox(height: 8),
-        SegmentedButton<PromotionAudience>(
-          segments: [
-            for (final audience in PromotionAudience.values)
-              ButtonSegment(
-                value: audience,
-                label: Text(audience.label),
-                icon: audience == PromotionAudience.vip
-                    ? const Icon(Icons.workspace_premium_outlined)
-                    : const Icon(Icons.groups_outlined),
-              ),
-          ],
-          selected: {value},
-          showSelectedIcon: false,
-          onSelectionChanged: enabled
-              ? (selected) => onChanged(selected.single)
-              : null,
+        LayoutBuilder(
+          builder: (context, constraints) => SegmentedButton<PromotionAudience>(
+            direction: constraints.maxWidth < 440
+                ? Axis.vertical
+                : Axis.horizontal,
+            segments: [
+              for (final audience in PromotionAudience.values)
+                ButtonSegment(
+                  value: audience,
+                  label: Text(audience.label),
+                  icon: Icon(switch (audience) {
+                    PromotionAudience.everyone => Icons.groups_outlined,
+                    PromotionAudience.vip => Icons.workspace_premium_outlined,
+                    PromotionAudience.selected => Icons.how_to_reg_outlined,
+                  }),
+                ),
+            ],
+            selected: {value},
+            showSelectedIcon: false,
+            onSelectionChanged: enabled
+                ? (selected) => onChanged(selected.single)
+                : null,
+          ),
         ),
         const SizedBox(height: 6),
         Text(switch (value) {
@@ -345,8 +370,119 @@ class _AudienceField extends StatelessWidget {
             'Solo la ven los clientes VIP que ingresan con su correo '
                 'verificado. Puede cruzarse con una promoción para todos del '
                 'mismo producto: cada cliente paga la más barata.',
+          PromotionAudience.selected =>
+            'Solo la ven los clientes VIP que elijas, cuando ingresan con su '
+                'correo verificado. Si alguno deja de ser VIP, deja de verla.',
         }, style: muted),
       ],
+    );
+  }
+}
+
+/// Los clientes VIP elegidos de una promoción: el buscador por correo (con
+/// lo que encuentra [search]) y cada elegido en un chip con su "x". Hace
+/// falta al menos uno.
+class _RecipientsField extends StatefulWidget {
+  const _RecipientsField({
+    required this.initialValue,
+    required this.search,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final List<PromotionRecipient> initialValue;
+  final VipSearch search;
+  final bool enabled;
+  final ValueChanged<List<PromotionRecipient>> onChanged;
+
+  static const required = 'Elige al menos un cliente VIP.';
+
+  @override
+  State<_RecipientsField> createState() => _RecipientsFieldState();
+}
+
+class _RecipientsFieldState extends State<_RecipientsField> {
+  /// El texto del buscador, para borrarlo al elegir.
+  TextEditingController? _query;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return FormField<List<PromotionRecipient>>(
+      initialValue: widget.initialValue,
+      // El valor del campo, que cambia al elegir o quitar (antes de que el
+      // formulario se reconstruya).
+      validator: (chosen) =>
+          (chosen ?? const []).isEmpty ? _RecipientsField.required : null,
+      builder: (field) {
+        final chosen = field.value ?? const <PromotionRecipient>[];
+        void change(List<PromotionRecipient> next) {
+          field.didChange(next);
+          widget.onChanged(next);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Autocomplete<VipCustomer>(
+              optionsBuilder: (value) async {
+                final text = value.text.trim();
+                if (text.isEmpty) return const [];
+                final found = await widget.search(text);
+                return [
+                  for (final vip in found)
+                    if (!chosen.any((r) => r.id == vip.id)) vip,
+                ];
+              },
+              displayStringForOption: (vip) => vip.email,
+              onSelected: (vip) {
+                change([...chosen, (id: vip.id, email: vip.email)]);
+                _query?.clear();
+              },
+              fieldViewBuilder: (context, controller, focusNode, _) {
+                _query = controller;
+                return TextField(
+                  controller: controller,
+                  focusNode: focusNode,
+                  enabled: widget.enabled,
+                  decoration: InputDecoration(
+                    labelText: 'Buscar cliente VIP',
+                    hintText: 'Su correo',
+                    prefixIcon: const Icon(Icons.search),
+                    helperText: chosen.isEmpty
+                        ? 'Escribe parte del correo y elígelo.'
+                        : 'Elegidos (${chosen.length})',
+                    errorText: field.errorText,
+                  ),
+                  keyboardType: TextInputType.emailAddress,
+                  autocorrect: false,
+                );
+              },
+            ),
+            if (chosen.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final recipient in chosen)
+                    InputChip(
+                      label: Text(recipient.email),
+                      labelStyle: theme.textTheme.bodyMedium,
+                      onDeleted: widget.enabled
+                          ? () => change([
+                              for (final r in chosen)
+                                if (r.id != recipient.id) r,
+                            ])
+                          : null,
+                      deleteButtonTooltipMessage: 'Quitar a ${recipient.email}',
+                    ),
+                ],
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }

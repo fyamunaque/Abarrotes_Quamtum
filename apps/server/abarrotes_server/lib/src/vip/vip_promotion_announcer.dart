@@ -10,7 +10,8 @@ import '../push/push_sender.dart';
 import 'vip_service.dart';
 
 /// Avisa por push de una promoción VIP que empieza a regir, a cada
-/// dispositivo de los clientes VIP activos con el correo verificado. Uno por
+/// dispositivo de los clientes VIP activos con el correo verificado (en una
+/// de clientes elegidos, solo a los elegidos que siguen siendo VIP). Uno por
 /// uno (nunca por topic: uno lo podría suscribir cualquiera). Las demás
 /// promociones no las anuncia.
 class VipPromotionAnnouncer implements PromotionAnnouncer {
@@ -28,7 +29,7 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
   /// respuesta no espera. Si algo falla, queda en el log de esa sesión.
   @override
   void announce(Promotion promotion) {
-    if (promotion.audience != PromotionAudience.vip) return;
+    if (promotion.audience case PromotionAudience.everyone) return;
     unawaited(
       _run(
         (session) => announceNow(session, promotion),
@@ -52,7 +53,16 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
       );
       return (sent: 0, invalid: 0, failed: 0);
     }
-    final emails = await _vips.activeEmails(session);
+    final vips = await _vips.activeEmails(session);
+    final emails = switch (promotion.audience) {
+      PromotionAudience.selected => {
+        for (final recipient
+            in promotion.recipients ?? const <PromotionRecipient>[])
+          if (vips.contains(recipient.vipCustomer!.email))
+            recipient.vipCustomer!.email,
+      },
+      _ => vips,
+    };
     final devices = emails.isEmpty
         ? const <DeviceToken>[]
         : await DeviceToken.db.find(

@@ -1,6 +1,7 @@
 import '../common/page_list.dart';
 import 'fulfillment.dart';
 import 'order.dart';
+import 'order_filter.dart';
 
 /// Lo que se pide de un producto. [shownUnitPriceCents] es el precio que
 /// mostraba el carrito: el servidor nunca lo cobra, solo lo compara y avisa
@@ -25,6 +26,11 @@ abstract interface class OrderRepository {
     required List<OrderLineRequest> lines,
   });
 
-  /// Una página de los pedidos propios, los más recientes primero.
-  Future<PageList<Order>> mine(String idToken, {int page = 1});
+  /// Una página de los pedidos propios, los más recientes primero, con la
+  /// búsqueda y los filtros de [filter].
+  Future<PageList<Order>> mine(
+    String idToken, {
+    int page = 1,
+    MyOrdersFilter filter = allMyOrders,
+  });
 }

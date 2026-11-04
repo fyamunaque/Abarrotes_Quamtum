@@ -13,6 +13,7 @@
 import 'package:abarrotes_client/src/protocol/protocol.dart' as _iv4mbvnl;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../inventory/movement_type.dart' as _iwxdrlkj;
+import '../orders/order.dart' as _ij3i88ow;
 import '../products/product.dart' as _iubf72bi;
 import '../users/user.dart' as _iqzoui01;
 
@@ -28,6 +29,8 @@ abstract class InventoryMovement
     this.product,
     required this.userId,
     this.user,
+    this.orderId,
+    this.order,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory InventoryMovement({
@@ -40,6 +43,8 @@ abstract class InventoryMovement
     _iubf72bi.Product? product,
     required _isc.UuidValue userId,
     _iqzoui01.User? user,
+    _isc.UuidValue? orderId,
+    _ij3i88ow.Order? order,
   }) = _InventoryMovementImpl;
 
   factory InventoryMovement.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -69,6 +74,14 @@ abstract class InventoryMovement
           : _iv4mbvnl.Protocol().deserialize<_iqzoui01.User>(
               jsonSerialization['user'],
             ),
+      orderId: jsonSerialization['orderId'] == null
+          ? null
+          : _isc.UuidValueJsonExtension.fromJson(jsonSerialization['orderId']),
+      order: jsonSerialization['order'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<_ij3i88ow.Order>(
+              jsonSerialization['order'],
+            ),
     );
   }
 
@@ -94,6 +107,12 @@ abstract class InventoryMovement
   /// Quién lo originó: el cliente que hizo el pedido o el staff que lo canceló.
   _iqzoui01.User? user;
 
+  _isc.UuidValue? orderId;
+
+  /// El pedido que lo originó: su salida o, si se canceló, su devolución. Null
+  /// en los que se registran a mano en el panel.
+  _ij3i88ow.Order? order;
+
   /// Returns a shallow copy of this [InventoryMovement]
   /// with some or all fields replaced by the given arguments.
   @_isc.useResult
@@ -107,6 +126,8 @@ abstract class InventoryMovement
     _iubf72bi.Product? product,
     _isc.UuidValue? userId,
     _iqzoui01.User? user,
+    _isc.UuidValue? orderId,
+    _ij3i88ow.Order? order,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -121,6 +142,8 @@ abstract class InventoryMovement
       if (product != null) 'product': product?.toJson(),
       'userId': userId.toJson(),
       if (user != null) 'user': user?.toJson(),
+      if (orderId != null) 'orderId': orderId?.toJson(),
+      if (order != null) 'order': order?.toJson(),
     };
   }
 
@@ -137,6 +160,8 @@ abstract class InventoryMovement
       if (product != null) 'product': product?.toJsonForProtocol(),
       'userId': userId.toJson(),
       if (user != null) 'user': user?.toJsonForProtocol(),
+      if (orderId != null) 'orderId': orderId?.toJson(),
+      if (order != null) 'order': order?.toJsonForProtocol(),
     };
   }
 
@@ -159,6 +184,8 @@ class _InventoryMovementImpl extends InventoryMovement {
     _iubf72bi.Product? product,
     required _isc.UuidValue userId,
     _iqzoui01.User? user,
+    _isc.UuidValue? orderId,
+    _ij3i88ow.Order? order,
   }) : super._(
          id: id,
          type: type,
@@ -169,6 +196,8 @@ class _InventoryMovementImpl extends InventoryMovement {
          product: product,
          userId: userId,
          user: user,
+         orderId: orderId,
+         order: order,
        );
 
   /// Returns a shallow copy of this [InventoryMovement]
@@ -185,6 +214,8 @@ class _InventoryMovementImpl extends InventoryMovement {
     Object? product = _Undefined,
     _isc.UuidValue? userId,
     Object? user = _Undefined,
+    Object? orderId = _Undefined,
+    Object? order = _Undefined,
   }) {
     return InventoryMovement(
       id: id is _isc.UuidValue? ? id : this.id,
@@ -198,6 +229,8 @@ class _InventoryMovementImpl extends InventoryMovement {
           : this.product?.copyWith(),
       userId: userId ?? this.userId,
       user: user is _iqzoui01.User? ? user : this.user?.copyWith(),
+      orderId: orderId is _isc.UuidValue? ? orderId : this.orderId,
+      order: order is _ij3i88ow.Order? ? order : this.order?.copyWith(),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:abarrotes_server/src/common/shopper.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/promotions/audience/everyone_audience_rule.dart';
 import 'package:abarrotes_server/src/promotions/audience/promotion_audience_rule.dart';
+import 'package:abarrotes_server/src/promotions/audience/selected_audience_rule.dart';
 import 'package:abarrotes_server/src/promotions/audience/vip_audience_rule.dart';
 import 'package:abarrotes_server/src/promotions/promotions_service.dart';
 import 'package:test/test.dart';
@@ -27,6 +28,17 @@ void main() {
       expect(rule.isEligible(Shopper.anonymous), isFalse);
       expect(rule.isEligible(customer), isFalse);
       expect(rule.isEligible(vip), isTrue);
+    });
+
+    test('SelectedAudienceRule: solo VIPs, y entre ellos los elegidos', () {
+      const rule = SelectedAudienceRule();
+
+      expect(rule.audience, PromotionAudience.selected);
+      expect(rule.isEligible(Shopper.anonymous), isFalse);
+      expect(rule.isEligible(customer), isFalse);
+      expect(rule.isEligible(vip), isTrue);
+      // Cuáles le valen lo decide recipientsWhere, en la base.
+      expect(rule, isA<PromotionRecipientsRule>());
     });
   });
 

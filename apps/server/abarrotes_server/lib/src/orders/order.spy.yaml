@@ -18,6 +18,13 @@ fields:
   pickupCode: String?
   ### Cuándo quedó listo para recoger.
   readyForPickupAt: DateTime?
+  ### Solo a domicilio: como el de recojo, pero lo ve solo el cliente, que se
+  ### lo da al repartidor al recibir el pedido. Null en los pedidos de antes
+  ### (se entregan sin código).
+  deliveryCode: String?
+  ### Si se entregó sin el código de entrega: por qué (lo escribe quien
+  ### administra la tienda, el único que puede hacerlo).
+  deliveredWithoutCodeReason: String?
   createdAt: DateTime, default=now
   ### Serverpod no tiene @updatedAt: lo actualiza quien modifica el pedido.
   updatedAt: DateTime, default=now
@@ -26,6 +33,9 @@ fields:
 indexes:
   orders_pickup_code_idx:
     fields: pickupCode
+    unique: true
+  orders_delivery_code_idx:
+    fields: deliveryCode
     unique: true
   orders_number_idx:
     fields: number

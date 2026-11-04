@@ -3,13 +3,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../admin/promotions/promotion.dart';
 import '../../../admin/promotions/promotions_providers.dart';
+import '../../../admin/vip/vip_providers.dart';
 import '../../../common/days.dart';
 import '../../../common/money.dart';
 import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
+import '../../shared/filter_chips.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
-import '../shared/filter_chips.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import '../shared/vip_badge.dart';
@@ -39,6 +40,7 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
         onSubmit: promotion == null
             ? notifier.create
             : (input) => notifier.save(promotion.id, input),
+        searchVips: ref.read(vipSearchProvider),
         onDelete: promotion == null
             ? null
             : () => notifier.delete(promotion.id),
@@ -94,7 +96,9 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
           rowLabel: (p) => [
             p.productName,
             ?p.title,
-            if (p.vipOnly) 'solo clientes VIP',
+            if (p.audience == PromotionAudience.vip) 'solo clientes VIP',
+            if (p.audience == PromotionAudience.selected)
+              'para ${p.recipients.length} clientes VIP elegidos',
             'de ${formatSoles(p.priceCents)} a ${formatSoles(p.promoPriceCents)}',
             '${p.discountPercent} % menos',
             period(p),
@@ -140,6 +144,11 @@ class _ProductCell extends StatelessWidget {
           children: [
             Text(promotion.productName),
             if (promotion.vipOnly) const VipBadge(),
+            if (promotion.audience == PromotionAudience.selected)
+              Text(
+                'Elegidos (${promotion.recipients.length})',
+                style: theme.textTheme.labelMedium,
+              ),
           ],
         ),
         Text(

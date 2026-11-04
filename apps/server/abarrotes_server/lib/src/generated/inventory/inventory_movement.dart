@@ -14,6 +14,7 @@
 import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../inventory/movement_type.dart' as _iwxdrlkj;
+import '../orders/order.dart' as _ij3i88ow;
 import '../products/product.dart' as _iubf72bi;
 import '../users/user.dart' as _iqzoui01;
 
@@ -29,6 +30,8 @@ abstract class InventoryMovement
     this.product,
     required this.userId,
     this.user,
+    this.orderId,
+    this.order,
   }) : createdAt = createdAt ?? DateTime.now();
 
   factory InventoryMovement({
@@ -41,6 +44,8 @@ abstract class InventoryMovement
     _iubf72bi.Product? product,
     required _is.UuidValue userId,
     _iqzoui01.User? user,
+    _is.UuidValue? orderId,
+    _ij3i88ow.Order? order,
   }) = _InventoryMovementImpl;
 
   factory InventoryMovement.fromJson(Map<String, dynamic> jsonSerialization) {
@@ -70,6 +75,14 @@ abstract class InventoryMovement
           : _i1p9jj0z.Protocol().deserialize<_iqzoui01.User>(
               jsonSerialization['user'],
             ),
+      orderId: jsonSerialization['orderId'] == null
+          ? null
+          : _is.UuidValueJsonExtension.fromJson(jsonSerialization['orderId']),
+      order: jsonSerialization['order'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<_ij3i88ow.Order>(
+              jsonSerialization['order'],
+            ),
     );
   }
 
@@ -97,6 +110,12 @@ abstract class InventoryMovement
   /// Quién lo originó: el cliente que hizo el pedido o el staff que lo canceló.
   _iqzoui01.User? user;
 
+  _is.UuidValue? orderId;
+
+  /// El pedido que lo originó: su salida o, si se canceló, su devolución. Null
+  /// en los que se registran a mano en el panel.
+  _ij3i88ow.Order? order;
+
   @override
   _is.Table<_is.UuidValue?> get table => t;
 
@@ -113,6 +132,8 @@ abstract class InventoryMovement
     _iubf72bi.Product? product,
     _is.UuidValue? userId,
     _iqzoui01.User? user,
+    _is.UuidValue? orderId,
+    _ij3i88ow.Order? order,
   });
   @override
   Map<String, dynamic> toJson() {
@@ -127,6 +148,8 @@ abstract class InventoryMovement
       if (product != null) 'product': product?.toJson(),
       'userId': userId.toJson(),
       if (user != null) 'user': user?.toJson(),
+      if (orderId != null) 'orderId': orderId?.toJson(),
+      if (order != null) 'order': order?.toJson(),
     };
   }
 
@@ -143,16 +166,20 @@ abstract class InventoryMovement
       if (product != null) 'product': product?.toJsonForProtocol(),
       'userId': userId.toJson(),
       if (user != null) 'user': user?.toJsonForProtocol(),
+      if (orderId != null) 'orderId': orderId?.toJson(),
+      if (order != null) 'order': order?.toJsonForProtocol(),
     };
   }
 
   static InventoryMovementInclude include({
     _iubf72bi.ProductInclude? product,
     _iqzoui01.UserInclude? user,
+    _ij3i88ow.OrderInclude? order,
   }) {
     return InventoryMovementInclude._(
       product: product,
       user: user,
+      order: order,
     );
   }
 
@@ -193,6 +220,8 @@ class _InventoryMovementImpl extends InventoryMovement {
     _iubf72bi.Product? product,
     required _is.UuidValue userId,
     _iqzoui01.User? user,
+    _is.UuidValue? orderId,
+    _ij3i88ow.Order? order,
   }) : super._(
          id: id,
          type: type,
@@ -203,6 +232,8 @@ class _InventoryMovementImpl extends InventoryMovement {
          product: product,
          userId: userId,
          user: user,
+         orderId: orderId,
+         order: order,
        );
 
   /// Returns a shallow copy of this [InventoryMovement]
@@ -219,6 +250,8 @@ class _InventoryMovementImpl extends InventoryMovement {
     Object? product = _Undefined,
     _is.UuidValue? userId,
     Object? user = _Undefined,
+    Object? orderId = _Undefined,
+    Object? order = _Undefined,
   }) {
     return InventoryMovement(
       id: id is _is.UuidValue? ? id : this.id,
@@ -232,6 +265,8 @@ class _InventoryMovementImpl extends InventoryMovement {
           : this.product?.copyWith(),
       userId: userId ?? this.userId,
       user: user is _iqzoui01.User? ? user : this.user?.copyWith(),
+      orderId: orderId is _is.UuidValue? ? orderId : this.orderId,
+      order: order is _ij3i88ow.Order? ? order : this.order?.copyWith(),
     );
   }
 }
@@ -275,6 +310,12 @@ class InventoryMovementUpdateTable
         table.userId,
         value,
       );
+
+  _is.ColumnValue<_is.UuidValue, _is.UuidValue> orderId(_is.UuidValue? value) =>
+      _is.ColumnValue(
+        table.orderId,
+        value,
+      );
 }
 
 class InventoryMovementTable extends _is.Table<_is.UuidValue?> {
@@ -307,6 +348,10 @@ class InventoryMovementTable extends _is.Table<_is.UuidValue?> {
       'userId',
       this,
     );
+    orderId = _is.ColumnUuid(
+      'orderId',
+      this,
+    );
   }
 
   late final InventoryMovementUpdateTable updateTable;
@@ -327,6 +372,12 @@ class InventoryMovementTable extends _is.Table<_is.UuidValue?> {
 
   /// Quién lo originó: el cliente que hizo el pedido o el staff que lo canceló.
   _iqzoui01.UserTable? _user;
+
+  late final _is.ColumnUuid orderId;
+
+  /// El pedido que lo originó: su salida o, si se canceló, su devolución. Null
+  /// en los que se registran a mano en el panel.
+  _ij3i88ow.OrderTable? _order;
 
   _iubf72bi.ProductTable get product {
     if (_product != null) return _product!;
@@ -354,6 +405,19 @@ class InventoryMovementTable extends _is.Table<_is.UuidValue?> {
     return _user!;
   }
 
+  _ij3i88ow.OrderTable get order {
+    if (_order != null) return _order!;
+    _order = _is.createRelationTable(
+      relationFieldName: 'order',
+      field: InventoryMovement.t.orderId,
+      foreignField: _ij3i88ow.Order.t.id,
+      tableRelation: tableRelation,
+      createTable: (foreignTableRelation) =>
+          _ij3i88ow.OrderTable(tableRelation: foreignTableRelation),
+    );
+    return _order!;
+  }
+
   @override
   List<_is.Column> get columns => [
     id,
@@ -363,6 +427,7 @@ class InventoryMovementTable extends _is.Table<_is.UuidValue?> {
     createdAt,
     productId,
     userId,
+    orderId,
   ];
 
   @override
@@ -373,6 +438,9 @@ class InventoryMovementTable extends _is.Table<_is.UuidValue?> {
     if (relationField == 'user') {
       return user;
     }
+    if (relationField == 'order') {
+      return order;
+    }
     return null;
   }
 }
@@ -381,19 +449,24 @@ class InventoryMovementInclude extends _is.IncludeObject {
   InventoryMovementInclude._({
     _iubf72bi.ProductInclude? product,
     _iqzoui01.UserInclude? user,
+    _ij3i88ow.OrderInclude? order,
   }) {
     _product = product;
     _user = user;
+    _order = order;
   }
 
   _iubf72bi.ProductInclude? _product;
 
   _iqzoui01.UserInclude? _user;
 
+  _ij3i88ow.OrderInclude? _order;
+
   @override
   Map<String, _is.Include?> get includes => {
     'product': _product,
     'user': _user,
+    'order': _order,
   };
 
   @override
@@ -423,6 +496,8 @@ class InventoryMovementRepository {
   const InventoryMovementRepository._();
 
   final attachRow = const InventoryMovementAttachRowRepository._();
+
+  final detachRow = const InventoryMovementDetachRowRepository._();
 
   /// Returns a list of [InventoryMovement]s matching the given query parameters.
   ///
@@ -869,6 +944,55 @@ class InventoryMovementAttachRowRepository {
     await session.db.updateRow<InventoryMovement>(
       $inventoryMovement,
       columns: [InventoryMovement.t.userId],
+      transaction: transaction,
+    );
+  }
+
+  /// Creates a relation between the given [InventoryMovement] and [Order]
+  /// by setting the [InventoryMovement]'s foreign key `orderId` to refer to the [Order].
+  Future<void> order(
+    _is.DatabaseSession session,
+    InventoryMovement inventoryMovement,
+    _ij3i88ow.Order order, {
+    _is.Transaction? transaction,
+  }) async {
+    if (inventoryMovement.id == null) {
+      throw ArgumentError.notNull('inventoryMovement.id');
+    }
+    if (order.id == null) {
+      throw ArgumentError.notNull('order.id');
+    }
+
+    var $inventoryMovement = inventoryMovement.copyWith(orderId: order.id);
+    await session.db.updateRow<InventoryMovement>(
+      $inventoryMovement,
+      columns: [InventoryMovement.t.orderId],
+      transaction: transaction,
+    );
+  }
+}
+
+class InventoryMovementDetachRowRepository {
+  const InventoryMovementDetachRowRepository._();
+
+  /// Detaches the relation between this [InventoryMovement] and the [Order] set in `order`
+  /// by setting the [InventoryMovement]'s foreign key `orderId` to `null`.
+  ///
+  /// This removes the association between the two models without deleting
+  /// the related record.
+  Future<void> order(
+    _is.DatabaseSession session,
+    InventoryMovement inventoryMovement, {
+    _is.Transaction? transaction,
+  }) async {
+    if (inventoryMovement.id == null) {
+      throw ArgumentError.notNull('inventoryMovement.id');
+    }
+
+    var $inventoryMovement = inventoryMovement.copyWith(orderId: null);
+    await session.db.updateRow<InventoryMovement>(
+      $inventoryMovement,
+      columns: [InventoryMovement.t.orderId],
       transaction: transaction,
     );
   }

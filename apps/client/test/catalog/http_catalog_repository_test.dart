@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:neils/catalog/http_catalog_repository.dart';
+import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 
 void main() {
@@ -122,6 +123,17 @@ void main() {
     expect(sent[2].headers, isNot(contains('authorization')));
     final oil = vip.items.single;
     expect(oil.vipPrice, isTrue);
+    // Una de clientes elegidos también es un precio VIP.
+    expect(
+      Product.fromJson({
+        'id': 'p-2',
+        'name': 'Leche',
+        'price': '4.2',
+        'currentStock': 3,
+        'promotion': {'promoPrice': '3.5', 'audience': 'selected'},
+      }).vipPrice,
+      isTrue,
+    );
     expect(oil.finalPriceCents, 790);
   });
 

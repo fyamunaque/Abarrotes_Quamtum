@@ -238,22 +238,22 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /products/:id` | `products.manage` | Baja lógica (`active: false`); devuelve el producto. |
 | `PUT /products/:id/image` | `products.manage` | El body es la foto tal cual (JPEG, PNG o WebP, hasta 8 MB; si pesa más, 413). La guarda procesada (ver "Fotos de los productos"), pone su ruta en `imageUrl`, borra la foto subida que tenía y devuelve el producto. Algo que no es una imagen, o de más de 40 megapíxeles, es 400. |
 | `GET /images/products/:productId/:file` | público | La foto subida (`image/jpeg`), con `Cache-Control: public, max-age=31536000, immutable`: cada foto nueva tiene otro nombre. 404 si no existe. |
-| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero. Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
-| `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto) o `vip`; `title`: hasta 100 caracteres. |
-| `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience` o `title` (`null` lo borra); el producto no cambia. |
-| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`. |
+| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero, cada una con `recipients: [{id, email}]` (los VIP elegidos, por correo; vacío si no es de clientes elegidos). Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
+| `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?, recipientIds?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto), `vip` o `selected` (solo los VIP de `recipientIds`, los ids de `/vip-customers`: de 1 a 100, cada uno un VIP activo; en otra audiencia, 400); `title`: hasta 100 caracteres. |
+| `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience`, `title` (`null` lo borra) o `recipientIds` (los reemplaza; sin el campo quedan los mismos, y si pasa a otra audiencia, ninguno); el producto no cambia. |
+| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`; las de `selected`, solo a sus elegidos. |
 | `DELETE /promotions/:id` | `promotions.manage` | 204. |
 | `GET /vip-customers` | `vip.view` | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
 | `POST /vip-customers` | `vip.manage` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
 | `DELETE /vip-customers/:id` | `vip.manage` | Baja lógica (`active: false`): queda quién lo agregó y cuándo. Devuelve el VIP. |
 | `POST /inventory/movements` | `inventory.adjust` | `{productId, type, quantity, reason?}` con `type` igual a `incoming`, `outgoing` o `adjustment`. Actualiza `currentStock` y registra el movimiento a nombre de quien lo hace, en una sola transacción. Responde el movimiento con el stock nuevo. |
-| `GET /inventory/movements` | `inventory.view` | Historial paginado, el más reciente primero; `?productId=` filtra (404 si el producto no existe). |
+| `GET /inventory/movements` | `inventory.view` | Historial paginado, el más reciente primero, cada uno con el pedido que lo originó (`order: {id, number}`, o null si se registró a mano). Filtros, que se combinan: `productId` (404 si el producto no existe), `origin` (`orders`: la salida de un pedido o su devolución al cancelarlo; `manual`: los que se registran en el panel), `categoryId`, `search` (el nombre o el SKU del producto, sin importar mayúsculas, y si es un número, también el N.º del pedido), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos; 400 si `from` es posterior). |
 | `GET /inventory/alerts/low-stock` | `inventory.view` | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | `inventory.view` | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
-| `POST /orders` | cualquiera con cuenta | La cuenta tiene que tener el correo confirmado (`email_verified` del token), el celular y los términos vigentes aceptados: si falta algo, 403 con lo que falta ("Confirma tu correo para hacer pedidos…" o "Completa tu cuenta para hacer pedidos…"). `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
-| `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode`. |
-| `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode`, paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `number` (el número exacto; 400 si no es un entero), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
-| `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente (400 si falta o no coincide). El código va en la respuesta solo con `orders.view`. |
+| `POST /orders` | cualquiera con cuenta | La cuenta tiene que tener el correo confirmado (`email_verified` del token), el celular y los términos vigentes aceptados: si falta algo, 403 con lo que falta ("Confirma tu correo para hacer pedidos…" o "Completa tu cuenta para hacer pedidos…"). `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria, y el servidor le genera su `deliveryCode`; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
+| `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode` o su `deliveryCode`. Filtros, que se combinan: `search` (el N.º si es un número, o un producto del pedido por su nombre, sin importar mayúsculas), `state` (`active`: ni entregado ni cancelado; `delivered` o `cancelled`), `fulfillmentType`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
+| `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode` (el `deliveryCode` nunca: el repartidor se lo pide al cliente), paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `number` (el número exacto; 400 si no es un entero), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
+| `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?, deliveryCode?, withoutCodeReason?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente, y entregar uno a domicilio (de `outForDelivery` a `delivered`), el `deliveryCode` que el cliente le da al repartidor (400 si falta o no coincide; los pedidos de antes, sin código, se entregan sin él). Sin el código, solo con `staff.manage` (si no, 403): `withoutCodeReason` (de 5 a 255 caracteres) dice por qué, queda en el pedido (`deliveredWithoutCodeReason`) y en la bitácora (`orderDeliveredWithoutCode`, con el correo del cliente y el N.º del pedido); en cualquier otro cambio, 400. El código de recojo va en la respuesta solo con `orders.view`; el de entrega, nunca. |
 | `GET /stats/overview` | `stats.view` | Ventas de hoy, de la semana (desde el lunes) y del mes, con total, pedidos y ticket promedio; los pedidos en cada estado (`ordersByStatus`, también `preparing` y `readyForPickup`) y por tipo de entrega (`ordersByFulfillment: {delivery, pickup}`), de cualquier fecha. |
 | `GET /stats/sales?from=&to=` | `stats.view` | Resumen y un punto por día (los días sin ventas van en 0). Sin rango, los últimos 30 días; como máximo 366. |
 | `GET /stats/top-products?from=&to=&limit=5` | `stats.view` | Los más vendidos por unidades (a igual cantidad, por facturación), `limit` de 1 a 50. |
@@ -270,7 +270,9 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 
 Cada pedido JSON lleva `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
 desde 1001, lo pone el servidor al crearlo), `fulfillmentType`, `deliveryAddress` (null en recojo),
-`pickupCode` (solo para su dueño y el personal con `orders.view`; si no, null), `readyForPickupAt` y
+`pickupCode` (solo para su dueño y el personal con `orders.view`; si no, null), `deliveryCode`
+(solo para su dueño), `hasDeliveryCode` (para todos: si entregarlo pide el código; los pedidos
+de antes no lo tienen), `deliveredWithoutCodeReason` (si se entregó sin el código), `readyForPickupAt` y
 `allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
 botones con eso, sin las transiciones escritas a mano.
 
@@ -319,11 +321,15 @@ Cada estado es una clase (patrón State, `lib/src/orders/states/`) que recibe po
 flujo del pedido y le pregunta a dónde puede pasar. Además, cada estado suma lo suyo:
 - `ReadyForPickupState`: al entrar guarda `readyForPickupAt`, y para salir a `delivered` pide el
   código del cliente (sin espacios y sin importar mayúsculas);
+- `OutForDeliveryState`: para salir a `delivered` pide el código de entrega, igual que el de
+  recojo, si el pedido lo tiene y no se entrega sin código;
 - los handlers no hacen E/S: `OrdersService.changeStatus` los consulta en su transacción.
 
-**El código de recojo** (`orders/pickup_code.dart`): 6 caracteres de
-`23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (sin 0/O/1/I), al azar con `Random.secure()`. Es único en
-toda la tabla (índice único `orders_pickup_code_idx`): al crear el pedido se busca uno libre, y
+**Los códigos de recojo y de entrega** (`orders/pickup_code.dart`): 6 caracteres de
+`23456789ABCDEFGHJKLMNPQRSTUVWXYZ` (sin 0/O/1/I), al azar con `Random.secure()`. El de recojo lo
+muestra el cliente en caja; el de entrega lo ve solo el cliente, que se lo da al repartidor.
+Cada uno es único en su columna (índices únicos `orders_pickup_code_idx` y
+`orders_delivery_code_idx`): al crear el pedido se busca uno libre, y
 si dos pedidos sacan el mismo a la vez, el índice deja pasar uno y el otro recibe 409 "vuelve a
 intentarlo".
 
@@ -375,17 +381,23 @@ pregunta (con `title` y `audience`), o `null`. Reglas de las promociones
 - `promoPrice` tiene que ser menor al precio normal (400).
 - Dos promociones encendidas del mismo producto y la misma audiencia no pueden cruzarse en el
   tiempo (409). De audiencias distintas sí (una para todos y otra VIP): cada cliente paga la más
-  barata de las que puede usar.
+  barata de las que puede usar. Las de clientes elegidos no se revisan: cada una es para otros
+  clientes, y se cobra igual la más barata.
 
 ### Clientes VIP y audiencias de las promociones
 
-Cada promoción tiene una `audience`: `everyone` (todos, también sin cuenta) o `vip`. Quién
+Cada promoción tiene una `audience`: `everyone` (todos, también sin cuenta), `vip` o `selected`
+(solo los VIP elegidos: `PromotionRecipient`, tabla `promotion_recipients`). Quién
 puede usar cada una lo deciden reglas que se inyectan, no condiciones repartidas por el código:
 
 - `common/shopper.dart`: `Shopper` (quién mira o compra) y la interfaz `ShopperResolver`, que lo
   arma desde el token. La implementa `VipShopperResolver` (`vip/`).
 - `promotions/audience/`: la interfaz `PromotionAudienceRule` (`audience` +
-  `isEligible(shopper)`) y sus reglas, `EveryoneAudienceRule` y `VipAudienceRule`.
+  `isEligible(shopper)`) y sus reglas, `EveryoneAudienceRule`, `VipAudienceRule` y
+  `SelectedAudienceRule`. Esta última implementa además `PromotionRecipientsRule`, que elige
+  entre las promociones de su audiencia las de cada cliente (`recipientsWhere`: las que tienen
+  su correo entre los elegidos). Un elegido que deja de ser VIP deja de usarla solo, porque ya
+  no cumple `isEligible`.
 - `PromotionsService` recibe la lista de reglas por constructor y no conoce ninguna. Implementa
   `PromotionPricing` (las promociones que un cliente puede usar y la mejor), lo único que reciben
   `ProductsService` y `OrdersService`.
@@ -417,7 +429,7 @@ dispositivos, con un texto según el tipo de entrega y el estado
 | `confirmed` | "Confirmamos tu pedido" | "Confirmamos tu pedido" |
 | `preparing` | — | "Estamos preparando tu pedido" |
 | `readyForPickup` | — | "Tu pedido está listo para recoger en tienda, tu código es K7M2XQ." |
-| `outForDelivery` | "Tu pedido está en camino" | — |
+| `outForDelivery` | "Tu pedido está en camino" ("Dale este código al repartidor: P4R9TW.") | — |
 | `delivered` | "Entregamos tu pedido" | "Recogiste tu pedido" |
 | `cancelled` | "Cancelamos tu pedido" | "Cancelamos tu pedido" |
 
@@ -427,7 +439,8 @@ La dirección nunca va en el aviso (se ve en la pantalla bloqueada), y `data` ll
 cambio de estado queda igual y el fallo va al log.
 
 Al crear una promoción **VIP que ya rige** (encendida y con hoy dentro de su vigencia), el
-servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado:
+servidor manda un push a cada dispositivo de los clientes VIP activos con el correo verificado
+(si es de clientes elegidos, solo a los elegidos que siguen siendo VIP):
 "Nueva oferta exclusiva", con el producto, el precio y hasta qué día rige, y en `data`
 `{type: vip_promotion, promotionId, productId}` para que la app abra el producto.
 
@@ -487,8 +500,8 @@ El acceso al panel sale del **personal** (`staff_members`, por correo) y su **ro
 - **Reglas** (409 con el motivo): no se puede quitar ni degradar al último Administrador activo
   (se controla con sus filas bloqueadas, así dos cambios a la vez no lo saltean), nadie se
   cambia el rol ni se da de baja a sí mismo, no se asigna un rol inactivo.
-- **La bitácora** (`audit_logs`): cada cambio de roles o personal, con quién lo hizo, en la
-  misma transacción que el cambio.
+- **La bitácora** (`audit_logs`): cada cambio de roles o personal, y cada pedido entregado sin
+  su código, con quién lo hizo, en la misma transacción que el cambio.
 - **El arranque** (`StaffBootstrap`): una base nueva no tiene roles (las bases nuevas se crean
   con `definition.sql`, sin la siembra de la migración); al arrancar se crean el
   Administrador y las plantillas.

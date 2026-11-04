@@ -11,6 +11,8 @@ import 'promotion_pricing.dart';
 import 'promotion_rules.dart';
 
 /// Datos de una promoción tal como llegan en el body (días de la tienda).
+/// [recipientIds], los clientes VIP elegidos: solo con la audiencia
+/// `selected` (vacío en las demás).
 typedef PromotionInput = ({
   int promoPriceCents,
   String startDate,
@@ -18,6 +20,7 @@ typedef PromotionInput = ({
   bool active,
   PromotionAudience audience,
   String? title,
+  List<UuidValue> recipientIds,
 });
 
 /// Promociones: las del dashboard y, según las reglas de audiencia, las que
@@ -45,14 +48,27 @@ class PromotionsService implements PromotionPricing {
       if (rule.isEligible(shopper)) rule.audience,
   };
 
+  /// Las vigentes de las audiencias que [shopper] puede usar; de una regla
+  /// que además elige entre sus promociones (clientes elegidos), solo las
+  /// suyas.
   @override
   Expression eligibleWhere(
     PromotionTable promotion,
     DateTime now,
     Shopper shopper,
-  ) =>
-      activePromotionWhere(promotion, now) &
-      promotion.audience.inSet(audiencesFor(shopper));
+  ) {
+    Expression audiences = Constant.bool(false);
+    for (final rule in _audienceRules) {
+      if (!rule.isEligible(shopper)) continue;
+      audiences |= switch (rule) {
+        final PromotionRecipientsRule rule =>
+          promotion.audience.equals(rule.audience) &
+              rule.recipientsWhere(promotion, shopper),
+        _ => promotion.audience.equals(rule.audience),
+      };
+    }
+    return activePromotionWhere(promotion, now) & audiences;
+  }
 
   @override
   PromotionIncludeList bestFor(DateTime now, Shopper shopper) =>
@@ -149,18 +165,23 @@ class PromotionsService implements PromotionPricing {
     await _validate(session, product, input);
 
     final period = toStoredPeriod(input.startDate, input.endDate);
-    final created = await Promotion.db.insertRow(
-      session,
-      Promotion(
-        productId: productId,
-        promoPriceCents: input.promoPriceCents,
-        startDate: period.startDate,
-        endDate: period.endDate,
-        active: input.active,
-        audience: input.audience,
-        title: input.title,
-      ),
-    );
+    final created = await session.db.transaction((transaction) async {
+      final created = await Promotion.db.insertRow(
+        session,
+        Promotion(
+          productId: productId,
+          promoPriceCents: input.promoPriceCents,
+          startDate: period.startDate,
+          endDate: period.endDate,
+          active: input.active,
+          audience: input.audience,
+          title: input.title,
+        ),
+        transaction: transaction,
+      );
+      await _saveRecipients(session, created.id!, input, transaction);
+      return created;
+    });
     final promotion = await get(session, created.id!);
     if (promotionStatus(promotion, now()) == PromotionStatus.active) {
       _announce(session, promotion);
@@ -197,22 +218,59 @@ class PromotionsService implements PromotionPricing {
       active: current.active,
       audience: current.audience,
       title: current.title,
+      recipientIds: _recipientIdsOf(current),
     ));
-    await _validate(session, current.product!, input, exceptId: id);
+    await _validate(
+      session,
+      current.product!,
+      input,
+      exceptId: id,
+      currentRecipients: _recipientIdsOf(current).toSet(),
+    );
 
     final period = toStoredPeriod(input.startDate, input.endDate);
-    await Promotion.db.updateRow(
-      session,
-      current.copyWith(
-        promoPriceCents: input.promoPriceCents,
-        startDate: period.startDate,
-        endDate: period.endDate,
-        active: input.active,
-        audience: input.audience,
-        title: input.title,
-      ),
-    );
+    await session.db.transaction((transaction) async {
+      await Promotion.db.updateRow(
+        session,
+        current.copyWith(
+          promoPriceCents: input.promoPriceCents,
+          startDate: period.startDate,
+          endDate: period.endDate,
+          active: input.active,
+          audience: input.audience,
+          title: input.title,
+        ),
+        transaction: transaction,
+      );
+      await PromotionRecipient.db.deleteWhere(
+        session,
+        where: (recipient) => recipient.promotionId.equals(id),
+        transaction: transaction,
+      );
+      await _saveRecipients(session, id, input, transaction);
+    });
     return get(session, id);
+  }
+
+  static List<UuidValue> _recipientIdsOf(Promotion promotion) => [
+    for (final recipient
+        in promotion.recipients ?? const <PromotionRecipient>[])
+      recipient.vipCustomerId,
+  ];
+
+  /// Los clientes elegidos de [input] (ninguno si no es de clientes
+  /// elegidos), en la transacción que guarda la promoción.
+  Future<void> _saveRecipients(
+    Session session,
+    UuidValue promotionId,
+    PromotionInput input,
+    Transaction transaction,
+  ) async {
+    if (input.recipientIds.isEmpty) return;
+    await PromotionRecipient.db.insert(session, [
+      for (final vipId in input.recipientIds.toSet())
+        PromotionRecipient(promotionId: promotionId, vipCustomerId: vipId),
+    ], transaction: transaction);
   }
 
   /// Borra la promoción. Los pedidos guardan su precio, así que no se ven
@@ -224,15 +282,20 @@ class PromotionsService implements PromotionPricing {
   /// Reglas de negocio:
   /// - El último día no puede ser anterior al primero.
   /// - El precio promocional tiene que ser menor al precio normal.
+  /// - Una de clientes elegidos lleva al menos uno, y cada uno nuevo tiene
+  ///   que ser un VIP activo (los que ya estaban se quedan aunque los den de
+  ///   baja: dejan de usarla solos). Las demás no llevan elegidos.
   /// - Dos promociones encendidas del mismo producto y la misma audiencia no
   ///   pueden cruzarse en el tiempo. De audiencias distintas sí (una para
   ///   todos y otra VIP): cada cliente paga la más barata de las que puede
-  ///   usar.
+  ///   usar. Las de clientes elegidos tampoco se revisan: cada una es para
+  ///   otros clientes, y se cobra igual la más barata.
   Future<void> _validate(
     Session session,
     Product product,
     PromotionInput input, {
     UuidValue? exceptId,
+    Set<UuidValue> currentRecipients = const {},
   }) async {
     if (input.endDate.compareTo(input.startDate) < 0) {
       throw const ApiException.badRequest(
@@ -243,6 +306,29 @@ class PromotionsService implements PromotionPricing {
       throw ApiException.badRequest(
         'El precio promocional debe ser menor al precio normal '
         '(${formatMoney(product.priceCents)})',
+      );
+    }
+    if (input.audience == PromotionAudience.selected) {
+      if (input.recipientIds.isEmpty) {
+        throw const ApiException.badRequest('Elige al menos un cliente VIP');
+      }
+      final added = input.recipientIds.toSet().difference(currentRecipients);
+      final vips = added.isEmpty
+          ? 0
+          : await VipCustomer.db.count(
+              session,
+              where: (vip) => vip.id.inSet(added) & vip.active.equals(true),
+            );
+      if (vips != added.length) {
+        throw const ApiException.badRequest(
+          'Algún cliente elegido no es un cliente VIP activo',
+        );
+      }
+      return;
+    }
+    if (input.recipientIds.isNotEmpty) {
+      throw const ApiException.badRequest(
+        'recipientIds solo va en una promoción para clientes elegidos',
       );
     }
     if (!input.active) return;
@@ -274,5 +360,10 @@ class PromotionsService implements PromotionPricing {
     }
   }
 
-  static final _include = Promotion.include(product: Product.include());
+  static final _include = Promotion.include(
+    product: Product.include(),
+    recipients: PromotionRecipient.includeList(
+      include: PromotionRecipient.include(vipCustomer: VipCustomer.include()),
+    ),
+  );
 }

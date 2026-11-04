@@ -9,6 +9,7 @@ import '../session/session.dart';
 import '../session/session_provider.dart';
 import 'http_order_repository.dart';
 import 'order.dart';
+import 'order_filter.dart';
 import 'order_repository.dart';
 
 /// Los pedidos desde el servidor. Los tests lo reemplazan por uno en memoria.
@@ -29,14 +30,17 @@ class PlacedOrderNotifier extends Notifier<Order?> {
   void set(Order order) => state = order;
 }
 
-/// Los pedidos de la cuenta abierta, página a página. Se vuelve a cargar si
-/// cambia la cuenta.
-final myOrdersProvider =
-    AsyncNotifierProvider<MyOrdersNotifier, PageList<Order>>(
+/// Los pedidos de la cuenta abierta, página a página, con su búsqueda y
+/// sus filtros. Se vuelve a cargar si cambia la cuenta.
+final myOrdersProvider = AsyncNotifierProvider.autoDispose
+    .family<MyOrdersNotifier, PageList<Order>, MyOrdersFilter>(
       MyOrdersNotifier.new,
     );
 
 class MyOrdersNotifier extends AsyncNotifier<PageList<Order>> {
+  MyOrdersNotifier(this.filter);
+
+  final MyOrdersFilter filter;
   int _page = 1;
 
   @override
@@ -78,6 +82,8 @@ class MyOrdersNotifier extends AsyncNotifier<PageList<Order>> {
 
   Future<PageList<Order>> _fetch(int page) async {
     final token = await ref.read(authRepositoryProvider).idToken();
-    return ref.read(orderRepositoryProvider).mine(token, page: page);
+    return ref
+        .read(orderRepositoryProvider)
+        .mine(token, page: page, filter: filter);
   }
 }

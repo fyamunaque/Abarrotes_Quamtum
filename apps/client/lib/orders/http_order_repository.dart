@@ -1,7 +1,9 @@
 import '../common/api_client.dart';
+import '../common/days.dart';
 import '../common/page_list.dart';
 import 'fulfillment.dart';
 import 'order.dart';
+import 'order_filter.dart';
 import 'order_repository.dart';
 
 /// [OrderRepository] contra `POST /orders` y `GET /orders/mine`.
@@ -43,10 +45,22 @@ class HttpOrderRepository implements OrderRepository {
   }
 
   @override
-  Future<PageList<Order>> mine(String idToken, {int page = 1}) async {
+  Future<PageList<Order>> mine(
+    String idToken, {
+    int page = 1,
+    MyOrdersFilter filter = allMyOrders,
+  }) async {
     final json = await _api.get(
       '/orders/mine',
-      query: {'page': '$page', 'limit': '$pageSize'},
+      query: {
+        'page': '$page',
+        'limit': '$pageSize',
+        if (filter.search.trim().isNotEmpty) 'search': filter.search.trim(),
+        'state': ?filter.progress?.name,
+        'fulfillmentType': ?filter.fulfillmentType?.name,
+        if (filter.from case final from?) 'from': formatDay(from),
+        if (filter.to case final to?) 'to': formatDay(to),
+      },
       idToken: idToken,
       fallback: 'No se pudieron cargar tus pedidos.',
     );

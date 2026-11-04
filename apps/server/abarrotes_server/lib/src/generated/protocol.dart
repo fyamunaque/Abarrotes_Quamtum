@@ -23,6 +23,7 @@ import 'orders/order_status.dart' as _ishke5og;
 import 'products/product.dart' as _io8c7sps;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
+import 'promotions/promotion_recipient.dart' as _iyra33mk;
 import 'staff/audit_action.dart' as _i6v8ft9w;
 import 'staff/audit_log.dart' as _ias3z63p;
 import 'staff/permission.dart' as _iwx11llg;
@@ -43,6 +44,7 @@ export 'orders/order_status.dart';
 export 'products/product.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
+export 'promotions/promotion_recipient.dart';
 export 'staff/audit_action.dart';
 export 'staff/audit_log.dart';
 export 'staff/permission.dart';
@@ -312,6 +314,12 @@ class Protocol extends _is.DatabaseSerializationManager {
           isNullable: false,
           dartType: 'UuidValue',
         ),
+        _isp.ColumnDefinition(
+          name: 'orderId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: true,
+          dartType: 'UuidValue?',
+        ),
       ],
       foreignKeys: [
         _isp.ForeignKeyDefinition(
@@ -334,8 +342,32 @@ class Protocol extends _is.DatabaseSerializationManager {
           onDelete: _isp.ForeignKeyAction.restrict,
           matchType: null,
         ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'inventory_movements_fk_2',
+          columns: ['orderId'],
+          referenceTable: 'orders',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
       ],
-      indexes: [],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'inventory_movements_order_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'orderId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+      ],
       managed: true,
     ),
     _isp.TableDefinition(
@@ -459,6 +491,18 @@ class Protocol extends _is.DatabaseSerializationManager {
           dartType: 'DateTime?',
         ),
         _isp.ColumnDefinition(
+          name: 'deliveryCode',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'deliveredWithoutCodeReason',
+          columnType: _isp.ColumnType.text,
+          isNullable: true,
+          dartType: 'String?',
+        ),
+        _isp.ColumnDefinition(
           name: 'createdAt',
           columnType: _isp.ColumnType.timestampWithoutTimeZone,
           isNullable: false,
@@ -499,6 +543,19 @@ class Protocol extends _is.DatabaseSerializationManager {
             _isp.IndexElementDefinition(
               type: _isp.IndexElementDefinitionType.column,
               definition: 'pickupCode',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+        _isp.IndexDefinition(
+          indexName: 'orders_delivery_code_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'deliveryCode',
             ),
           ],
           type: 'btree',
@@ -625,6 +682,75 @@ class Protocol extends _is.DatabaseSerializationManager {
             _isp.IndexElementDefinition(
               type: _isp.IndexElementDefinitionType.column,
               definition: 'sku',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'promotion_recipients',
+      dartName: 'PromotionRecipient',
+      schema: 'public',
+      module: 'abarrotes',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue?',
+          columnDefault: 'random_v7',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promotionId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+        _isp.ColumnDefinition(
+          name: 'vipCustomerId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promotion_recipients_fk_0',
+          columns: ['promotionId'],
+          referenceTable: 'promotions',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.cascade,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promotion_recipients_fk_1',
+          columns: ['vipCustomerId'],
+          referenceTable: 'vip_customers',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promotion_recipients_pair_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promotionId',
+            ),
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'vipCustomerId',
             ),
           ],
           type: 'btree',
@@ -1269,6 +1395,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _ik9fivqg.PromotionAudience) {
       return _ik9fivqg.PromotionAudience.fromJson(data) as T;
     }
+    if (t == _iyra33mk.PromotionRecipient) {
+      return _iyra33mk.PromotionRecipient.fromJson(data) as T;
+    }
     if (t == _i6v8ft9w.AuditAction) {
       return _i6v8ft9w.AuditAction.fromJson(data) as T;
     }
@@ -1330,6 +1459,10 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _is.getType<_ik9fivqg.PromotionAudience?>()) {
       return (data != null ? _ik9fivqg.PromotionAudience.fromJson(data) : null)
+          as T;
+    }
+    if (t == _is.getType<_iyra33mk.PromotionRecipient?>()) {
+      return (data != null ? _iyra33mk.PromotionRecipient.fromJson(data) : null)
           as T;
     }
     if (t == _is.getType<_i6v8ft9w.AuditAction?>()) {
@@ -1415,6 +1548,20 @@ class Protocol extends _is.DatabaseSerializationManager {
       return (data != null
               ? (data as List)
                     .map((e) => deserialize<_i8z66r5b.Promotion>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_iyra33mk.PromotionRecipient>) {
+      return (data as List)
+              .map((e) => deserialize<_iyra33mk.PromotionRecipient>(e))
+              .toList()
+          as T;
+    }
+    if (t == _is.getType<List<_iyra33mk.PromotionRecipient>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_iyra33mk.PromotionRecipient>(e))
                     .toList()
               : null)
           as T;
@@ -1525,6 +1672,7 @@ class Protocol extends _is.DatabaseSerializationManager {
       _io8c7sps.Product => 'Product',
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
+      _iyra33mk.PromotionRecipient => 'PromotionRecipient',
       _i6v8ft9w.AuditAction => 'AuditAction',
       _ias3z63p.AuditLog => 'AuditLog',
       _iwx11llg.Permission => 'Permission',
@@ -1569,6 +1717,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'Promotion';
       case _ik9fivqg.PromotionAudience():
         return 'PromotionAudience';
+      case _iyra33mk.PromotionRecipient():
+        return 'PromotionRecipient';
       case _i6v8ft9w.AuditAction():
         return 'AuditAction';
       case _ias3z63p.AuditLog():
@@ -1633,6 +1783,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (dataClassName == 'PromotionAudience') {
       return deserialize<_ik9fivqg.PromotionAudience>(data['data']);
     }
+    if (dataClassName == 'PromotionRecipient') {
+      return deserialize<_iyra33mk.PromotionRecipient>(data['data']);
+    }
     if (dataClassName == 'AuditAction') {
       return deserialize<_i6v8ft9w.AuditAction>(data['data']);
     }
@@ -1691,6 +1844,8 @@ class Protocol extends _is.DatabaseSerializationManager {
         return _io8c7sps.Product.t;
       case _i8z66r5b.Promotion:
         return _i8z66r5b.Promotion.t;
+      case _iyra33mk.PromotionRecipient:
+        return _iyra33mk.PromotionRecipient.t;
       case _ias3z63p.AuditLog:
         return _ias3z63p.AuditLog.t;
       case _idva2d1t.Role:

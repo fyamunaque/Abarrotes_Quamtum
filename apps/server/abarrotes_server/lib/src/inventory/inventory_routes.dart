@@ -47,16 +47,38 @@ List<RouteEntry> inventoryRoutes(
       view(Method.get, (session, request) async {
         final query = InputReader.query(
           request,
-          allowed: {...PageQuery.fields, 'productId'},
+          allowed: {
+            ...PageQuery.fields,
+            'productId',
+            'origin',
+            'categoryId',
+            'search',
+            'from',
+            'to',
+          },
         );
         final page = PageQuery.read(query);
         final productId = query.uuid('productId', required: false);
+        final origin = query.oneOf(
+          'origin',
+          MovementOrigin.values,
+          required: false,
+        );
+        final categoryId = query.uuid('categoryId', required: false);
+        final search = query.text('search', maxLength: 100, required: false);
+        final from = query.day('from', required: false);
+        final to = query.day('to', required: false);
         query.check();
 
         final (list, total) = await inventory.list(
           session,
           page,
           productId: productId,
+          origin: origin,
+          categoryId: categoryId,
+          search: search,
+          from: from,
+          to: to,
         );
         return jsonResponse(
           200,
@@ -138,6 +160,11 @@ Map<String, Object?> movementJson(InventoryMovement movement) => {
   'product': _productJson(movement.product!),
   // Quién lo originó: el cliente del pedido o el staff que lo registró.
   'user': {'id': movement.user!.id.toString(), 'name': movement.user!.name},
+  // El pedido que lo originó; null si se registró a mano.
+  'order': switch (movement.order) {
+    final order? => {'id': order.id.toString(), 'number': order.number},
+    null => null,
+  },
 };
 
 Map<String, Object?> _productJson(Product product) => {

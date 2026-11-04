@@ -3,6 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/admin/products/admin_products_providers.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_providers.dart';
+import 'package:neils/admin/vip/vip_customer.dart';
+import 'package:neils/admin/vip/vip_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/admin/promotions/promotion_form.dart';
@@ -428,6 +430,133 @@ void main() {
       find.text('Eliminaste la promoción de Aceite vegetal 1 L.'),
       findsOneWidget,
     );
+  });
+
+  group('clientes elegidos', () {
+    final vips = [
+      for (final name in ['ana', 'luis', 'rosa'])
+        VipCustomer(
+          id: 'vip-$name',
+          email: '$name@tienda.pe',
+          active: true,
+          createdAt: DateTime.utc(2026, 10, 1),
+          hasAccount: true,
+        ),
+    ];
+
+    Future<void> pumpWithVips(WidgetTester tester, {double width = 1280}) =>
+        pumpPanel(
+          tester,
+          at: '/admin/promociones',
+          width: width,
+          overrides: [
+            promotionsRepositoryProvider.overrideWithValue(repository),
+            adminProductsRepositoryProvider.overrideWithValue(
+              FakeAdminProductsRepository([_rice, _milk]),
+            ),
+            vipRepositoryProvider.overrideWithValue(FakeVipRepository(vips)),
+          ],
+        );
+
+    Finder searchField() =>
+        find.widgetWithText(TextField, 'Buscar cliente VIP');
+
+    Future<void> choose(
+      WidgetTester tester,
+      String search,
+      String email,
+    ) async {
+      await tester.enterText(searchField(), search);
+      await tester.pumpAndSettle();
+      await tapAndSettle(tester, find.text(email).last);
+    }
+
+    testWidgets('se buscan, se eligen y se quitan; hace falta uno', (
+      tester,
+    ) async {
+      await pumpWithVips(tester);
+      await tapAndSettle(tester, find.text('Nueva promoción'));
+      await tester.enterText(field('Producto'), 'arroz');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tapAndSettle(
+        tester,
+        find.widgetWithText(ListTile, 'Arroz extra 5 kg'),
+      );
+      await tester.enterText(field('Precio de la promoción'), '18');
+      await pickRange(tester, DateTime(2026, 10, 20), DateTime(2026, 10, 25));
+      await tapAndSettle(tester, find.text('Clientes elegidos'));
+
+      await tapAndSettle(tester, find.text('Crear promoción'));
+      expect(find.text('Elige al menos un cliente VIP.'), findsOneWidget);
+      expect(repository.sent, isEmpty);
+
+      await choose(tester, 'ana', 'ana@tienda.pe');
+      await choose(tester, 'lu', 'luis@tienda.pe');
+      expect(find.widgetWithText(InputChip, 'ana@tienda.pe'), findsOneWidget);
+      expect(find.text('Elegidos (2)'), findsOneWidget);
+      expect(find.text('Elige al menos un cliente VIP.'), findsNothing);
+      // Uno ya elegido no se ofrece otra vez: solo queda Rosa.
+      await tester.enterText(searchField(), 'tienda');
+      await tester.pumpAndSettle();
+      expect(find.text('rosa@tienda.pe'), findsOneWidget);
+      expect(find.text('ana@tienda.pe'), findsOneWidget);
+      await tester.enterText(searchField(), '');
+      await tester.pumpAndSettle();
+
+      await tapAndSettle(tester, find.byTooltip('Quitar a ana@tienda.pe'));
+      expect(find.widgetWithText(InputChip, 'ana@tienda.pe'), findsNothing);
+      await tapAndSettle(tester, find.text('Crear promoción'));
+
+      final (_, input) = repository.sent.single;
+      expect(input.audience, PromotionAudience.selected);
+      expect(input.toJson()['recipientIds'], ['vip-luis']);
+      expect(inTable('Elegidos (1)'), findsOneWidget);
+      expect(find.byType(VipBadge), findsOneWidget);
+    });
+
+    testWidgets('editar una trae a sus elegidos', (tester) async {
+      repository.promotions.add(
+        const Promotion(
+          id: 'p4',
+          productId: 'arroz',
+          productName: 'Arroz extra 5 kg',
+          sku: 'ARR-ELEG',
+          priceCents: 2490,
+          promoPriceCents: 1690,
+          startDate: '2026-10-01',
+          endDate: '2026-10-15',
+          active: true,
+          status: PromotionStatus.active,
+          audience: PromotionAudience.selected,
+          recipients: [(id: 'vip-rosa', email: 'rosa@tienda.pe')],
+        ),
+      );
+      await pumpWithVips(tester);
+
+      expect(inTable('Elegidos (1)'), findsOneWidget);
+      await tapAndSettle(tester, inTable('ARR-ELEG'));
+      expect(
+        tester
+            .widget<SegmentedButton<PromotionAudience>>(
+              find.byType(SegmentedButton<PromotionAudience>),
+            )
+            .selected,
+        {PromotionAudience.selected},
+      );
+      expect(find.widgetWithText(InputChip, 'rosa@tienda.pe'), findsOneWidget);
+    });
+
+    testWidgets('en el teléfono, la audiencia y el buscador entran', (
+      tester,
+    ) async {
+      await pumpWithVips(tester, width: 320);
+      await tapAndSettle(tester, find.text('Arroz extra 5 kg'));
+      await tapAndSettle(tester, find.text('Clientes elegidos'));
+
+      expect(tester.takeException(), isNull);
+      expect(find.text('Buscar cliente VIP'), findsOneWidget);
+    });
   });
 
   testWidgets('en el teléfono, sin desbordes', (tester) async {

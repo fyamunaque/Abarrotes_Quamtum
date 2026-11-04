@@ -7,6 +7,7 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/http_order_repository.dart';
 import 'package:neils/orders/order.dart';
+import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_status.dart';
 
 void main() {
@@ -177,6 +178,36 @@ void main() {
     expect(sent.headers['authorization'], 'Bearer el-token');
     expect(page.total, 11);
     expectOrder(page.items.single);
+  });
+
+  test('mis pedidos: la búsqueda y los filtros van en la query', () async {
+    late http.Request sent;
+    await repository((request) async {
+      sent = request;
+      return json(200, {
+        'data': <Object?>[],
+        'meta': {'total': 0},
+      });
+    }).mine(
+      'el-token',
+      filter: (
+        search: ' arroz ',
+        progress: OrderProgress.active,
+        fulfillmentType: FulfillmentType.pickup,
+        from: DateTime(2026, 10, 1),
+        to: DateTime(2026, 10, 15),
+      ),
+    );
+
+    expect(sent.url.queryParameters, {
+      'page': '1',
+      'limit': '10',
+      'search': 'arroz',
+      'state': 'active',
+      'fulfillmentType': 'pickup',
+      'from': '2026-10-01',
+      'to': '2026-10-15',
+    });
   });
 
   test('un estado que la app no conoce: "algo inesperado"', () {

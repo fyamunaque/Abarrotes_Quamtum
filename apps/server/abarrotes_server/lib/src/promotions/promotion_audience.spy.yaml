@@ -5,3 +5,5 @@ serialized: byName
 values:
   - everyone
   - vip
+  ### Solo los clientes VIP elegidos (sus PromotionRecipient).
+  - selected

@@ -1,12 +1,12 @@
 import 'dart:math';
 
-/// Los caracteres del código de recojo: dígitos y mayúsculas sin los que se
+/// Los caracteres de los códigos de recojo y de entrega: dígitos y mayúsculas sin los que se
 /// confunden al dictarlos o leerlos (0/O y 1/I). Son 32.
 const pickupCodeAlphabet = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
 
 const pickupCodeLength = 6;
 
-/// Genera un código de recojo (en los tests, uno fijo).
+/// Genera un código de recojo o de entrega (en los tests, uno fijo).
 typedef PickupCodeGenerator = String Function();
 
 final _random = Random.secure();
@@ -18,6 +18,7 @@ String randomPickupCode() => String.fromCharCodes([
     pickupCodeAlphabet.codeUnitAt(_random.nextInt(pickupCodeAlphabet.length)),
 ]);
 
-/// Como lo escribe quien atiende en caja: sin espacios y en mayúsculas.
+/// Como lo escribe quien atiende en caja o el repartidor: sin espacios y en
+/// mayúsculas.
 String normalizePickupCode(String code) =>
     code.replaceAll(RegExp(r'\s'), '').toUpperCase();

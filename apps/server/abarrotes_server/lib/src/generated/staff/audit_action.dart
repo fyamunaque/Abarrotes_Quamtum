@@ -21,7 +21,10 @@ enum AuditAction implements _is.SerializableModel {
   staffReactivated,
   staffRoleChanged,
   staffDeactivated,
-  staffSeeded;
+  staffSeeded,
+
+  /// Un pedido a domicilio entregado sin su código (con el motivo).
+  orderDeliveredWithoutCode;
 
   static AuditAction fromJson(String name) {
     switch (name) {
@@ -41,6 +44,8 @@ enum AuditAction implements _is.SerializableModel {
         return AuditAction.staffDeactivated;
       case 'staffSeeded':
         return AuditAction.staffSeeded;
+      case 'orderDeliveredWithoutCode':
+        return AuditAction.orderDeliveredWithoutCode;
       default:
         throw ArgumentError(
           'Value "$name" cannot be converted to "AuditAction"',

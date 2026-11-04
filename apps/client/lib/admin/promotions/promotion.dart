@@ -19,15 +19,22 @@ enum PromotionStatus {
 /// A quién va dirigida una promoción, con los nombres del servidor.
 enum PromotionAudience {
   everyone('Todos'),
-  vip('Solo clientes VIP');
+  vip('Solo clientes VIP'),
+
+  /// Solo los clientes VIP elegidos (`Promotion.recipients`).
+  selected('Clientes elegidos');
 
   const PromotionAudience(this.label);
 
   final String label;
 }
 
+/// Un cliente VIP elegido para una promoción: su id en `/vip-customers` y
+/// su correo.
+typedef PromotionRecipient = ({String id, String email});
+
 /// Una promoción: un precio especial de un producto por unos días, para
-/// todos o solo para los clientes VIP.
+/// todos, para los clientes VIP o para algunos VIP elegidos.
 class Promotion {
   const Promotion({
     required this.id,
@@ -42,6 +49,7 @@ class Promotion {
     required this.status,
     this.audience = PromotionAudience.everyone,
     this.title,
+    this.recipients = const [],
   });
 
   /// Como la manda `/promotions`. Sin `audience`, es para todos.
@@ -82,6 +90,19 @@ class Promotion {
           final other => throw FormatException('Audiencia inválida', other),
         },
         title: map['title'] as String?,
+        recipients: switch (map['recipients']) {
+          final List<Object?> list => [
+            for (final item in list)
+              switch (item) {
+                {'id': final String id, 'email': final String email} => (
+                  id: id,
+                  email: email,
+                ),
+                _ => throw FormatException('No es un cliente elegido', item),
+              },
+          ],
+          _ => const [],
+        },
       ),
     _ => throw FormatException('No es una promoción', json),
   };
@@ -107,7 +128,11 @@ class Promotion {
   /// El nombre de la oferta (p. ej. "Semana del arroz"), si tiene.
   final String? title;
 
-  bool get vipOnly => audience == PromotionAudience.vip;
+  /// Con [PromotionAudience.selected]: los clientes VIP elegidos.
+  final List<PromotionRecipient> recipients;
+
+  /// Solo para clientes VIP: todos o los elegidos.
+  bool get vipOnly => audience != PromotionAudience.everyone;
 
   /// El descuento sobre el precio normal, redondeado.
   int get discountPercent => priceCents == 0
@@ -126,6 +151,7 @@ class PromotionInput {
     this.audience = PromotionAudience.everyone,
     this.title,
     this.productId,
+    this.recipients = const [],
   });
 
   final String? productId;
@@ -140,6 +166,10 @@ class PromotionInput {
   /// Sin título se manda null, que al editar lo borra.
   final String? title;
 
+  /// Con [PromotionAudience.selected]: los clientes VIP elegidos (al menos
+  /// uno). Con otra audiencia no se mandan: el servidor los quita.
+  final List<PromotionRecipient> recipients;
+
   Map<String, Object?> toJson() => {
     'productId': ?productId,
     'promoPrice': promoPriceCents / 100,
@@ -148,5 +178,7 @@ class PromotionInput {
     'active': active,
     'audience': audience.name,
     'title': title,
+    if (audience == PromotionAudience.selected)
+      'recipientIds': [for (final recipient in recipients) recipient.id],
   };
 }

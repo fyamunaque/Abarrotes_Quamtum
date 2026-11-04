@@ -1,0 +1,13 @@
+### Un cliente VIP elegido para una promoción de clientes elegidos (audiencia
+### `selected`). Le vale mientras siga siendo VIP: si lo dan de baja, deja de
+### valerle aunque la fila siga.
+class: PromotionRecipient
+table: promotion_recipients
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  promotion: Promotion?, relation(name=promotion_recipients, onDelete=Cascade, onUpdate=Cascade)
+  vipCustomer: VipCustomer?, relation(onDelete=Restrict, onUpdate=Cascade)
+indexes:
+  promotion_recipients_pair_idx:
+    fields: promotionId, vipCustomerId
+    unique: true

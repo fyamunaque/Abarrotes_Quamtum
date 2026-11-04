@@ -16,7 +16,10 @@ import 'package:serverpod_client/serverpod_client.dart' as _isc;
 /// (PromotionAudienceRule, en lib/src/promotions/audience/).
 enum PromotionAudience implements _isc.SerializableModel {
   everyone,
-  vip;
+  vip,
+
+  /// Solo los clientes VIP elegidos (sus PromotionRecipient).
+  selected;
 
   static PromotionAudience fromJson(String name) {
     switch (name) {
@@ -24,6 +27,8 @@ enum PromotionAudience implements _isc.SerializableModel {
         return PromotionAudience.everyone;
       case 'vip':
         return PromotionAudience.vip;
+      case 'selected':
+        return PromotionAudience.selected;
       default:
         throw ArgumentError(
           'Value "$name" cannot be converted to "PromotionAudience"',

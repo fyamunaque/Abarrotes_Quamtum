@@ -15,17 +15,17 @@ import '../../../session/staff_permission.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
+import '../../shared/filter_chips.dart';
 import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
-import '../shared/filter_chips.dart';
 import '../shared/fulfillment_badge.dart';
 import '../shared/panel_note.dart';
 import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
-import 'pickup_code_dialog.dart';
+import 'order_code_dialog.dart';
 
 /// Las dos vistas de Pedidos: todos, y los de recojo para caja.
 const ordersTabs = <PanelTab>[
@@ -157,7 +157,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           },
         ),
         const SizedBox(height: 12),
-        _FilterRow(
+        FilterRow(
           label: 'Entrega',
           child: FilterChips<FulfillmentType?>(
             options: [
@@ -252,34 +252,6 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   }
 }
 
-/// Una fila de chips con su nombre adelante. Si los chips bajan a otra
-/// línea, el nombre queda a la altura de la primera.
-class _FilterRow extends StatelessWidget {
-  const _FilterRow({required this.label, required this.child});
-
-  final String label;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 68,
-          // El alto de un chip, con su área táctil.
-          height: kMinInteractiveDimension,
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Text(label, style: Theme.of(context).textTheme.labelLarge),
-          ),
-        ),
-        Expanded(child: child),
-      ],
-    );
-  }
-}
-
 /// El estado de los pedidos que se muestran: "Todos" o uno, cada uno con su
 /// punto de color, como en la tabla.
 class _StatusFilter extends StatelessWidget {
@@ -343,15 +315,29 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
 
   Future<void> _change(AdminOrder order, OrderStatus next) async {
     final notifier = ref.read(adminOrdersProvider(widget.filter).notifier);
-    // Recoger en caja: el código que muestra el cliente. Si no coincide, el
-    // diálogo lo dice y deja volver a escribirlo.
-    if (order.order.fulfillmentType == FulfillmentType.pickup &&
-        next == OrderStatus.delivered) {
+    final type = order.order.fulfillmentType;
+    // Entregarlo: el código que da el cliente (el de recojo en caja, el de
+    // entrega al repartidor; los pedidos a domicilio de antes no tienen).
+    // Si no coincide, el diálogo lo dice y deja volver a escribirlo.
+    final needsCode = switch (type) {
+      FulfillmentType.pickup => true,
+      FulfillmentType.delivery => order.order.hasDeliveryCode,
+    };
+    if (next == OrderStatus.delivered && needsCode) {
+      // Sin el código, solo quien administra la tienda (el servidor lo
+      // vuelve a revisar).
+      final canSkipCode =
+          type == FulfillmentType.delivery &&
+          ref.read(permissionsProvider).contains(StaffPermission.staffManage);
       setState(() => _error = null);
-      await showPickupCodeDialog(
+      await showOrderCodeDialog(
         context,
-        onSubmit: (code) =>
-            notifier.changeStatus(order, next, pickupCode: code),
+        type: type,
+        onSubmit: (code) => notifier.changeStatus(order, next, code: code),
+        onDeliverWithoutCode: canSkipCode
+            ? (reason) =>
+                  notifier.changeStatus(order, next, withoutCodeReason: reason)
+            : null,
       );
       return;
     }
@@ -471,8 +457,11 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
           const Text('Recojo en tienda'),
           if (order.order.pickupCode case final code?)
             Text('Código $code', style: muted),
-        ] else
+        ] else ...[
           Text(order.order.deliveryAddress ?? '—'),
+          if (order.order.deliveredWithoutCodeReason case final reason?)
+            Text('Entregado sin código: $reason', style: muted),
+        ],
         const Divider(height: 32),
         for (final line in order.order.lines)
           Padding(

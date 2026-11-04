@@ -115,7 +115,9 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 4. **Pedidos:** filtrar por "Pendiente de confirmación", abrir el pedido recién hecho, **Confirmar**
    y luego **Marcar en camino**.
 5. **De vuelta en la tienda:** en **Mis pedidos**, **Actualizar**: el seguimiento avanza hasta "En
-   camino".
+   camino", con el código de entrega en grande. En el panel, **Marcar entregado** pide ese
+   código, como lo haría el repartidor (con la cuenta admin, también se puede entregar sin
+   código, con el motivo).
 6. **Productos:**
    - buscar por nombre o SKU;
    - el stock bajo resaltado;

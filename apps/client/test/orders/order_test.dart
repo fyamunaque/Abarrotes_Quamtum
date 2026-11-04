@@ -59,6 +59,25 @@ void main() {
     expect(order.statusLabel, 'En espera de recojo');
   });
 
+  test('a domicilio: el código de entrega, si lo tiene, y el motivo', () {
+    // El dueño recibe el código.
+    final mine = Order.fromJson({...base, 'deliveryCode': 'P4R9TW'});
+    // El panel no, pero sabe que lo pide.
+    final panel = Order.fromJson({
+      ...base,
+      'status': 'delivered',
+      'deliveryCode': null,
+      'hasDeliveryCode': true,
+      'deliveredWithoutCodeReason': 'No tenía el celular',
+    });
+
+    expect((mine.deliveryCode, mine.hasDeliveryCode), ('P4R9TW', true));
+    expect((panel.deliveryCode, panel.hasDeliveryCode), (null, true));
+    expect(panel.deliveredWithoutCodeReason, 'No tenía el celular');
+    // Uno de antes, o de un servidor anterior: sin código.
+    expect(Order.fromJson(base).hasDeliveryCode, isFalse);
+  });
+
   test('un estado o un tipo de entrega desconocidos no son un pedido', () {
     expect(
       () => Order.fromJson({...base, 'status': 'teletransportado'}),

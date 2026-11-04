@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:neils/admin/emails.dart';
+import 'package:neils/admin/inventory/inventory_providers.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
 import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_order.dart';
@@ -28,6 +29,7 @@ import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_repository.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
+import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/session/session.dart';
@@ -127,8 +129,15 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
 
   final changes = <(String, OrderStatus)>[];
 
-  /// El código que se mandó en cada cambio de estado.
+  /// Lo que se mandó en cada cambio de estado: el código de recojo, el de
+  /// entrega y el motivo para entregar sin él.
   final pickupCodes = <String?>[];
+  final deliveryCodes = <String?>[];
+  final withoutCodeReasons = <String?>[];
+
+  /// El código de entrega de los pedidos que lo tienen: el que el cliente
+  /// le da al repartidor (el panel no lo recibe).
+  static const deliveryCode = 'P4R9TW';
 
   /// Cuántas veces se pidió una página.
   int listCalls = 0;
@@ -168,8 +177,12 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
     String id,
     OrderStatus status, {
     String? pickupCode,
+    String? deliveryCode,
+    String? withoutCodeReason,
   }) async {
     pickupCodes.add(pickupCode);
+    deliveryCodes.add(deliveryCode);
+    withoutCodeReasons.add(withoutCodeReason);
     if (failNext case final failure?) {
       failNext = null;
       throw failure;
@@ -188,35 +201,51 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
         pickupCode?.replaceAll(' ', '').toUpperCase() != current.pickupCode) {
       throw const ApiFailure('El código de recojo no coincide', status: 400);
     }
+    if (current.status == OrderStatus.outForDelivery &&
+        status == OrderStatus.delivered &&
+        current.hasDeliveryCode &&
+        withoutCodeReason == null &&
+        deliveryCode?.replaceAll(' ', '').toUpperCase() !=
+            FakeAdminOrdersRepository.deliveryCode) {
+      throw const ApiFailure('El código de entrega no coincide', status: 400);
+    }
     changes.add((id, status));
-    return orders[i] = withStatus(orders[i], status);
+    return orders[i] = withStatus(
+      orders[i],
+      status,
+      withoutCodeReason: withoutCodeReason,
+    );
   }
 
-  static AdminOrder withStatus(AdminOrder order, OrderStatus status) =>
-      AdminOrder(
-        order: Order(
-          id: order.order.id,
-          number: order.order.number,
-          status: status,
-          fulfillmentType: order.order.fulfillmentType,
-          totalCents: order.order.totalCents,
-          deliveryAddress: order.order.deliveryAddress,
-          pickupCode: order.order.pickupCode,
-          readyForPickupAt: status == OrderStatus.readyForPickup
-              ? DateTime.now()
-              : order.order.readyForPickupAt,
-          createdAt: order.order.createdAt,
-          lines: order.order.lines,
-          allowedNextStatuses: allowedNextFor(
-            order.order.fulfillmentType,
-            status,
-          ),
-        ),
-        customer: order.customer,
-      );
+  static AdminOrder withStatus(
+    AdminOrder order,
+    OrderStatus status, {
+    String? withoutCodeReason,
+  }) => AdminOrder(
+    order: Order(
+      id: order.order.id,
+      number: order.order.number,
+      status: status,
+      fulfillmentType: order.order.fulfillmentType,
+      totalCents: order.order.totalCents,
+      deliveryAddress: order.order.deliveryAddress,
+      pickupCode: order.order.pickupCode,
+      hasDeliveryCode: order.order.hasDeliveryCode,
+      deliveredWithoutCodeReason:
+          withoutCodeReason ?? order.order.deliveredWithoutCodeReason,
+      readyForPickupAt: status == OrderStatus.readyForPickup
+          ? DateTime.now()
+          : order.order.readyForPickupAt,
+      createdAt: order.order.createdAt,
+      lines: order.order.lines,
+      allowedNextStatuses: allowedNextFor(order.order.fulfillmentType, status),
+    ),
+    customer: order.customer,
+  );
 }
 
-/// Un pedido del panel para los tests: a domicilio o, con [pickupCode], de
+/// Un pedido del panel para los tests: a domicilio (con [hasDeliveryCode],
+/// de los que se entregan con el código del cliente) o, con [pickupCode], de
 /// recojo en tienda. Con los estados siguientes que mandaría el servidor.
 AdminOrder adminOrder(
   String id,
@@ -224,6 +253,7 @@ AdminOrder adminOrder(
   String customer = 'Ana Quispe',
   int day = 4,
   String? pickupCode,
+  bool hasDeliveryCode = false,
   DateTime? readyForPickupAt,
   int? number,
 }) => AdminOrder(
@@ -240,6 +270,7 @@ AdminOrder adminOrder(
       status,
     ),
     pickupCode: pickupCode,
+    hasDeliveryCode: hasDeliveryCode,
     totalCents: 3380,
     deliveryAddress: pickupCode == null ? 'Av. Arequipa 123, Lince' : null,
     createdAt: DateTime.utc(2026, 10, day, 15, 30),
@@ -465,13 +496,53 @@ class FakeInventoryRepository implements InventoryRepository {
   final int pageSize;
   final recorded = <MovementInput>[];
 
+  /// Los filtros con que se pidió cada página.
+  final queries = <MovementsFilter>[];
+
+  /// Filtra como el servidor: [search] en el nombre o el SKU (sin
+  /// mayúsculas) o, si es un número, el N.º del pedido; los días, en la
+  /// hora del dispositivo.
   @override
-  Future<PageList<Movement>> movements({int page = 1}) async => PageList(
-    history.skip((page - 1) * pageSize).take(pageSize).toList(),
-    total: history.length,
-    page: page,
-    pageSize: pageSize,
-  );
+  Future<PageList<Movement>> movements({
+    int page = 1,
+    String? search,
+    MovementOrigin? origin,
+    String? categoryId,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    queries.add((
+      search: search ?? '',
+      origin: origin,
+      categoryId: categoryId,
+      from: from,
+      to: to,
+    ));
+    final text = (search ?? '').toLowerCase();
+    final number = int.tryParse(text);
+    bool matches(Movement m) {
+      final local = m.createdAt.toLocal();
+      final day = DateTime(local.year, local.month, local.day);
+      return (origin == null ||
+              (origin == MovementOrigin.orders) == (m.orderId != null)) &&
+          (categoryId == null ||
+              _products[m.productId]?.category?.id == categoryId) &&
+          (text.isEmpty ||
+              m.productName.toLowerCase().contains(text) ||
+              m.sku.toLowerCase().contains(text) ||
+              (number != null && m.orderNumber == number)) &&
+          (from == null || !day.isBefore(from)) &&
+          (to == null || !day.isAfter(to));
+    }
+
+    final matching = history.where(matches).toList();
+    return PageList(
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
+      page: page,
+      pageSize: pageSize,
+    );
+  }
 
   @override
   Future<Movement> record(MovementInput input) async {
@@ -602,6 +673,9 @@ class FakePromotionsRepository implements PromotionsRepository {
     active: input.active,
     audience: input.audience,
     title: input.title,
+    recipients: input.audience == PromotionAudience.selected
+        ? input.recipients
+        : const [],
     status: !input.active
         ? PromotionStatus.disabled
         : today.compareTo(input.startDate) < 0
@@ -807,6 +881,9 @@ class FakeOrderRepository implements OrderRepository {
   /// El tipo de entrega y la dirección de cada pedido, como llegaron.
   final deliveries = <(FulfillmentType, String?)>[];
 
+  /// Los filtros con que se pidió cada página de "Mis pedidos".
+  final filters = <MyOrdersFilter>[];
+
   @override
   Future<Order> place(
     String idToken, {
@@ -852,8 +929,9 @@ class FakeOrderRepository implements OrderRepository {
       number: 1001 + orders.length,
       status: OrderStatus.pendingConfirmation,
       fulfillmentType: fulfillmentType,
-      // Como el servidor: el código lo genera él, solo con recojo.
+      // Como el servidor: los códigos los genera él, según el tipo.
       pickupCode: pickup ? 'K7M2XQ' : null,
+      deliveryCode: pickup ? null : 'P4R9TW',
       totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
       deliveryAddress: pickup ? null : deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
@@ -864,12 +942,44 @@ class FakeOrderRepository implements OrderRepository {
     return order;
   }
 
+  /// Filtra como el servidor: [MyOrdersFilter.search] es el N.º o un
+  /// producto (sin mayúsculas); los días, en la hora del dispositivo.
   @override
-  Future<PageList<Order>> mine(String idToken, {int page = 1}) async {
+  Future<PageList<Order>> mine(
+    String idToken, {
+    int page = 1,
+    MyOrdersFilter filter = allMyOrders,
+  }) async {
     tokens.add(idToken);
+    filters.add(filter);
+    final text = filter.search.trim().toLowerCase();
+    final number = int.tryParse(text);
+    bool matches(Order order) {
+      final local = order.createdAt.toLocal();
+      final day = DateTime(local.year, local.month, local.day);
+      final finished =
+          order.status == OrderStatus.delivered ||
+          order.status == OrderStatus.cancelled;
+      final inProgress = switch (filter.progress) {
+        OrderProgress.active => !finished,
+        OrderProgress.delivered => order.status == OrderStatus.delivered,
+        OrderProgress.cancelled => order.status == OrderStatus.cancelled,
+        null => true,
+      };
+      return inProgress &&
+          (filter.fulfillmentType == null ||
+              order.fulfillmentType == filter.fulfillmentType) &&
+          (text.isEmpty ||
+              (number != null && order.number == number) ||
+              order.lines.any((l) => l.name.toLowerCase().contains(text))) &&
+          (filter.from == null || !day.isBefore(filter.from!)) &&
+          (filter.to == null || !day.isAfter(filter.to!));
+    }
+
+    final matching = orders.where(matches).toList();
     return PageList(
-      orders.skip((page - 1) * pageSize).take(pageSize).toList(),
-      total: orders.length,
+      matching.skip((page - 1) * pageSize).take(pageSize).toList(),
+      total: matching.length,
     );
   }
 
@@ -885,6 +995,7 @@ class FakeOrderRepository implements OrderRepository {
       totalCents: order.totalCents,
       deliveryAddress: order.deliveryAddress,
       pickupCode: order.pickupCode,
+      deliveryCode: order.deliveryCode,
       createdAt: order.createdAt,
       lines: order.lines,
     );

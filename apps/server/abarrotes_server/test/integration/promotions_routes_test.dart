@@ -89,6 +89,7 @@ void main() {
           'status': 'active',
           'audience': 'everyone',
           'title': null,
+          'recipients': <Object?>[],
         });
       },
     );
@@ -133,7 +134,7 @@ void main() {
 
       expect(status, 400);
       expect(body['message'], [
-        'audience debe ser everyone o vip',
+        'audience debe ser everyone, vip o selected',
         'title admite como máximo 100 caracteres',
       ]);
     });
@@ -451,6 +452,209 @@ void main() {
         final (status, body) = await client.get('/promotions/active?status=x');
         expect(status, 400);
         expect(body['message'], ['La propiedad status no está permitida']);
+      });
+    });
+
+    group('clientes elegidos', () {
+      late VipCustomer ana;
+      late VipCustomer luis;
+      late VipCustomer beto;
+
+      Future<VipCustomer> vip(String email) async =>
+          (await VipCustomer.db.findFirstRow(
+            session,
+            where: (vip) => vip.email.equals(email),
+          ))!;
+
+      Future<void> deactivate(VipCustomer customer) => VipCustomer.db
+          .updateRow(session, customer.copyWith(active: false))
+          .then((_) {});
+
+      Future<ApiResult> selected(
+        List<VipCustomer> recipients, [
+        Map<String, Object?> changes = const {},
+      ]) => create({
+        'audience': 'selected',
+        'promoPrice': 3.2,
+        'recipientIds': [for (final r in recipients) r.id.toString()],
+        ...changes,
+      });
+
+      Future<ApiResult> patch(String id, Map<String, Object?> body) =>
+          client.patch('/promotions/$id', body, as: 'uid-staff');
+
+      List<Object?> emailsOf(Map<String, Object?> body) => [
+        for (final r in body['recipients'] as List) (r as Map)['email'],
+      ];
+
+      setUp(() async {
+        final admin = await insertStaff(session, 'uid-admin');
+        await insertVips(session, admin, [
+          'luis@tienda.pe',
+          'ana@tienda.pe',
+          'beto@tienda.pe',
+        ]);
+        ana = await vip('ana@tienda.pe');
+        luis = await vip('luis@tienda.pe');
+        beto = await vip('beto@tienda.pe');
+        await deactivate(beto);
+      });
+
+      test('POST guarda los elegidos; el panel los ve por correo', () async {
+        final (status, body) = await selected([luis, ana]);
+
+        expect(status, 201);
+        expect(body['audience'], 'selected');
+        expect(body['recipients'], [
+          {'id': ana.id.toString(), 'email': 'ana@tienda.pe'},
+          {'id': luis.id.toString(), 'email': 'luis@tienda.pe'},
+        ]);
+        expect(await PromotionRecipient.db.count(session), 2);
+        // Las demás, sin elegidos.
+        final (_, everyone) = await create({'promoPrice': 4});
+        expect(everyone['recipients'], isEmpty);
+      });
+
+      test('valida los elegidos', () async {
+        Future<Object?> error(Map<String, Object?> body) async {
+          final (status, error) = await create(body);
+          expect(status, 400, reason: '$body');
+          return error['message'];
+        }
+
+        expect(
+          await error({'audience': 'selected'}),
+          'Elige al menos un cliente VIP',
+        );
+        expect(
+          await error({'audience': 'selected', 'recipientIds': []}),
+          ['recipientIds debe tener entre 1 y 100 elementos'],
+        );
+        expect(
+          await error({
+            'audience': 'selected',
+            'recipientIds': ['ana'],
+          }),
+          ['recipientIds[0] debe ser un UUID'],
+        );
+        for (final id in [
+          beto.id.toString(),
+          '0199a000-0000-7000-8000-000000000000',
+        ]) {
+          expect(
+            await error({
+              'audience': 'selected',
+              'recipientIds': [ana.id.toString(), id],
+            }),
+            'Algún cliente elegido no es un cliente VIP activo',
+          );
+        }
+        expect(
+          await error({
+            'audience': 'vip',
+            'recipientIds': [ana.id.toString()],
+          }),
+          'recipientIds solo va en una promoción para clientes elegidos',
+        );
+        expect(await Promotion.db.count(session), 0);
+      });
+
+      test('no se revisa el cruce con otras: cada una es para otros', () async {
+        expect((await selected([ana])).$1, 201);
+        expect((await selected([ana], {'promoPrice': 3})).$1, 201);
+        expect((await create({'audience': 'vip'})).$1, 201);
+      });
+
+      test(
+        'PATCH cambia los elegidos o los deja; con otra audiencia, ninguno',
+        () async {
+          final (_, created) = await selected([ana]);
+          final id = created['id'] as String;
+
+          final (status, changed) = await patch(id, {
+            'recipientIds': [luis.id.toString()],
+          });
+          expect(status, 200);
+          expect(emailsOf(changed), ['luis@tienda.pe']);
+
+          // Sin recipientIds, los mismos; aunque Luis ya no sea VIP (deja de
+          // valerle solo), la promoción se sigue editando.
+          await deactivate(luis);
+          final (kept, same) = await patch(id, {'promoPrice': 3.1});
+          expect(kept, 200);
+          expect(emailsOf(same), ['luis@tienda.pe']);
+          // Pero no se elige a uno que ya no es VIP.
+          expect(
+            (await patch(id, {
+              'recipientIds': [beto.id.toString()],
+            })).$1,
+            400,
+          );
+
+          final (_, vipOnly) = await patch(id, {'audience': 'vip'});
+          expect(vipOnly['audience'], 'vip');
+          expect(vipOnly['recipients'], isEmpty);
+          expect(await PromotionRecipient.db.count(session), 0);
+
+          // De vuelta a clientes elegidos, hay que elegirlos.
+          expect(
+            (await patch(id, {'audience': 'selected'})).$2['message'],
+            'Elige al menos un cliente VIP',
+          );
+        },
+      );
+
+      test(
+        '/promotions/active: solo para los elegidos que siguen siendo VIP',
+        () async {
+          final (_, promotion) = await selected([ana]);
+          for (final uid in ['uid-ana', 'uid-luis']) {
+            await insertUser(session, uid);
+          }
+
+          Future<List<Object?>> audiences(
+            String uid,
+            String email, {
+            bool emailVerified = true,
+          }) async {
+            final (_, body) = await client.get(
+              '/promotions/active',
+              as: uid,
+              email: email,
+              emailVerified: emailVerified,
+            );
+            return [for (final p in body['data'] as List) p['audience']];
+          }
+
+          // Con el correo en mayúsculas también es ella.
+          expect(await audiences('uid-ana', 'Ana@Tienda.pe'), ['selected']);
+          expect(
+            jsonEncode((await client.get('/promotions/active')).$2),
+            isNot(contains(promotion['id'] as String)),
+          );
+          expect(await audiences('uid-luis', 'luis@tienda.pe'), isEmpty);
+          expect(
+            await audiences(
+              'uid-ana',
+              'ana@tienda.pe',
+              emailVerified: false,
+            ),
+            isEmpty,
+          );
+          await deactivate(ana);
+          expect(await audiences('uid-ana', 'ana@tienda.pe'), isEmpty);
+        },
+      );
+
+      test('al crearla, el aviso lleva a los elegidos', () async {
+        await selected([ana, luis]);
+
+        final announced = announcer.announced.single;
+        expect(announced.audience, PromotionAudience.selected);
+        expect(
+          {for (final r in announced.recipients!) r.vipCustomer!.email},
+          {'ana@tienda.pe', 'luis@tienda.pe'},
+        );
       });
     });
 

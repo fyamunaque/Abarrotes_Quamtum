@@ -9,3 +9,9 @@ fields:
   product: Product?, relation(name=product_inventory_movements, onDelete=Restrict, onUpdate=Cascade)
   ### Quién lo originó: el cliente que hizo el pedido o el staff que lo canceló.
   user: User?, relation(name=user_inventory_movements, onDelete=Restrict, onUpdate=Cascade)
+  ### El pedido que lo originó: su salida o, si se canceló, su devolución. Null
+  ### en los que se registran a mano en el panel.
+  order: Order?, relation(optional, onDelete=Restrict, onUpdate=Cascade)
+indexes:
+  inventory_movements_order_idx:
+    fields: orderId

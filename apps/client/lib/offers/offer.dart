@@ -39,7 +39,8 @@ class Offer {
         promoPriceCents: parseCents(promoPrice),
         endDate: endDate,
         title: map['title'] as String?,
-        vip: map['audience'] == 'vip',
+        // Para los VIP: todos o algunos elegidos.
+        vip: map['audience'] == 'vip' || map['audience'] == 'selected',
         imageUrl: product['imageUrl'] as String?,
         categoryId: product['categoryId'] as String?,
       ),

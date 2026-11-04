@@ -167,6 +167,37 @@ void main() {
       expect(push.sent, isEmpty);
     });
 
+    test('una de clientes elegidos: solo a los elegidos que son VIP', () async {
+      await customer('uid-dora', verified: true, devices: ['dora-telefono']);
+      await insertVips(session, admin, ['uid-dora@tienda.pe']);
+      final vips = {
+        for (final vip in await VipCustomer.db.find(session)) vip.email: vip,
+      };
+      final selected = promotion.copyWith(
+        audience: PromotionAudience.selected,
+        recipients: [
+          // Ana sí; Beto ya no es VIP. Dora es VIP, pero no la eligieron.
+          for (final email in ['uid-ana@tienda.pe', 'uid-beto@tienda.pe'])
+            PromotionRecipient(
+              promotionId: promotion.id!,
+              vipCustomerId: vips[email]!.id!,
+              vipCustomer: vips[email],
+            ),
+        ],
+      );
+
+      final summary = await announcer().announceNow(session, selected);
+
+      expect(summary, (sent: 2, invalid: 0, failed: 0));
+      expect(
+        {for (final (token, _) in push.sent) token},
+        {
+          'ana-telefono',
+          'ana-web',
+        },
+      );
+    });
+
     test('announce solo corre para las promociones VIP', () async {
       var runs = 0;
       final vipAnnouncer = announcer(onRun: () => runs++);

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../admin/products/admin_products_providers.dart';
-import '../../../catalog/catalog_providers.dart';
 import '../../../catalog/product.dart';
 import '../../../common/money.dart';
 import '../../../session/session_provider.dart';
@@ -13,6 +12,7 @@ import '../../../theme/brand_colors.dart';
 import '../../catalog/product_photo.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/category_filter.dart';
 import '../shared/panel_note.dart';
 import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
@@ -151,7 +151,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
                 ),
                 SizedBox(
                   width: narrow ? constraints.maxWidth : 240,
-                  child: _CategoryFilter(
+                  child: CategoryFilter(
                     value: _filter.categoryId,
                     onChanged: (id) => setState(
                       () => _filter = (search: _filter.search, categoryId: id),
@@ -205,32 +205,6 @@ String _rowLabel(Product p) => [
   'stock ${p.stock}, mínimo ${p.minStock}${p.lowStock ? ', stock bajo' : ''}',
   p.active ? 'activo' : 'de baja',
 ].join(', ');
-
-class _CategoryFilter extends ConsumerWidget {
-  const _CategoryFilter({required this.value, required this.onChanged});
-
-  final String? value;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(categoriesProvider).value ?? const [];
-    return DropdownButtonFormField<String?>(
-      style: Theme.of(context).textTheme.bodyLarge,
-      // Recién al cargar las categorías se puede mostrar la elegida.
-      key: ValueKey(categories.length),
-      initialValue: categories.any((c) => c.id == value) ? value : null,
-      isExpanded: true,
-      decoration: const InputDecoration(labelText: 'Categoría'),
-      items: [
-        const DropdownMenuItem(child: Text('Todas')),
-        for (final category in categories)
-          DropdownMenuItem(value: category.id, child: Text(category.name)),
-      ],
-      onChanged: onChanged,
-    );
-  }
-}
 
 class _NameCell extends StatelessWidget {
   const _NameCell(this.product);

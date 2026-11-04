@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../admin/orders/admin_order.dart';
 import '../../../admin/orders/admin_orders_providers.dart';
 import '../../../common/money.dart';
+import '../../../orders/fulfillment.dart';
 import '../../../orders/order_status.dart';
 import '../../../router/routes.dart';
 import '../../../session/session_provider.dart';
@@ -20,7 +21,7 @@ import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'admin_orders_screen.dart';
-import 'pickup_code_dialog.dart';
+import 'order_code_dialog.dart';
 
 /// Para caja (con `orders.view`): los pedidos de recojo que se preparan o
 /// esperan a su cliente, con el código en grande y cuánto hace que están
@@ -206,8 +207,9 @@ class _TicketState extends ConsumerState<_Ticket> {
     final notifier = ref.read(pickupQueueProvider.notifier);
     final order = widget.order;
     if (next == OrderStatus.delivered) {
-      final delivered = await showPickupCodeDialog(
+      final delivered = await showOrderCodeDialog(
         context,
+        type: FulfillmentType.pickup,
         onSubmit: (code) =>
             notifier.changeStatus(order, next, pickupCode: code),
       );
