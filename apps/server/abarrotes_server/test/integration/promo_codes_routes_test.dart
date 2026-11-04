@@ -211,6 +211,65 @@ void main() {
       });
     });
 
+    test('encender pide al menos una promoción encendida', () async {
+      final (_, code) = await create({});
+      final id = code['id'] as String;
+      final (_, promotion) = await addPromotion(id);
+      await client.patch('/promotions/${promotion['id']}', {
+        'active': false,
+      }, as: 'uid-staff');
+
+      final (status, body) = await client.patch('/promo-codes/$id', {
+        'active': true,
+      }, as: 'uid-staff');
+
+      expect(status, 400);
+      expect(
+        body['message'],
+        'Enciende al menos una de sus promociones antes de encender el código',
+      );
+    });
+
+    test('con el código encendido, su última promoción no se borra ni se '
+        'apaga', () async {
+      final (_, code) = await create({});
+      final id = code['id'] as String;
+      final (_, first) = await addPromotion(id);
+      await client.patch('/promo-codes/$id', {'active': true}, as: 'uid-staff');
+      const message =
+          'Es la última promoción encendida del código VERANO-10: apaga el '
+          'código antes';
+
+      final (deleted, deleteBody) = await client.delete(
+        '/promotions/${first['id']}',
+        as: 'uid-staff',
+      );
+      expect((deleted, deleteBody['message']), (409, message));
+      final (paused, pauseBody) = await client.patch(
+        '/promotions/${first['id']}',
+        {'active': false},
+        as: 'uid-staff',
+      );
+      expect((paused, pauseBody['message']), (409, message));
+
+      // Con otra encendida, sí.
+      await client.post('/promotions', {
+        'productId': arroz.id.toString(),
+        'type': 'percentOff',
+        'percent': 10,
+        'startDate': day(0),
+        'endDate': day(29),
+        'audience': 'code',
+        'promoCodeId': id,
+        'confirmOverlap': true,
+      }, as: 'uid-staff');
+      final (ok, _) = await client.delete(
+        '/promotions/${first['id']}',
+        as: 'uid-staff',
+      );
+      expect(ok, 204);
+    });
+
     test('las promociones del código', () async {
       final (_, code) = await create({});
       final id = code['id'] as String;

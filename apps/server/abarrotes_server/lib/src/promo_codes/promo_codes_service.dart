@@ -202,6 +202,10 @@ class PromoCodesService {
       input,
       exceptId: id,
       promotions: current.promotions?.length ?? 0,
+      activePromotions: [
+        for (final promotion in current.promotions ?? const <Promotion>[])
+          if (promotion.active) promotion,
+      ].length,
     );
 
     await session.db.transaction((transaction) async {
@@ -446,12 +450,13 @@ class PromoCodesService {
   /// - El último día no puede ser anterior al primero.
   /// - Con `listed`, al menos un correo, todos válidos; con otra
   ///   condición, ninguno.
-  /// - Encendido, con al menos una promoción.
+  /// - Encendido, con al menos una promoción encendida.
   Future<void> _validate(
     Session session,
     PromoCodeInput input, {
     UuidValue? exceptId,
     int promotions = 0,
+    int activePromotions = 0,
   }) async {
     if (!isValidPromoCode(input.code)) {
       throw const ApiException.badRequest(
@@ -484,6 +489,11 @@ class PromoCodesService {
     if (input.active && promotions == 0) {
       throw const ApiException.badRequest(
         'Agrega al menos una promoción antes de encender el código',
+      );
+    }
+    if (input.active && activePromotions == 0) {
+      throw const ApiException.badRequest(
+        'Enciende al menos una de sus promociones antes de encender el código',
       );
     }
     final same = await PromoCode.db.findFirstRow(

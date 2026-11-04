@@ -400,6 +400,11 @@ class PromotionsService implements PromotionPricing {
       promoCodeId: current.promoCodeId,
       confirmOverlap: false,
     ));
+    if (!input.active ||
+        input.audience != PromotionAudience.code ||
+        input.promoCodeId != current.promoCodeId) {
+      await _keepCodeLit(session, current);
+    }
     await _validate(
       session,
       current.product!,
@@ -463,7 +468,35 @@ class PromotionsService implements PromotionPricing {
   /// Borra la promoción. Los pedidos guardan su precio, así que no se ven
   /// afectados.
   Future<void> delete(Session session, UuidValue id) async {
-    await Promotion.db.deleteRow(session, await get(session, id));
+    final promotion = await get(session, id);
+    await _keepCodeLit(session, promotion);
+    await Promotion.db.deleteRow(session, promotion);
+  }
+
+  /// Un código encendido necesita al menos una promoción encendida: la
+  /// última no se borra, ni se apaga ni pasa a otra audiencia (409).
+  Future<void> _keepCodeLit(Session session, Promotion promotion) async {
+    if (promotion.audience != PromotionAudience.code || !promotion.active) {
+      return;
+    }
+    final codeId = promotion.promoCodeId;
+    final code = codeId == null
+        ? null
+        : await PromoCode.db.findById(session, codeId);
+    if (code == null || !code.active) return;
+    final others = await Promotion.db.count(
+      session,
+      where: (other) =>
+          other.promoCodeId.equals(code.id) &
+          other.active.equals(true) &
+          other.id.notEquals(promotion.id),
+    );
+    if (others == 0) {
+      throw ApiException.conflict(
+        'Es la última promoción encendida del código ${code.code}: apaga el '
+        'código antes',
+      );
+    }
   }
 
   /// Reglas de negocio:
