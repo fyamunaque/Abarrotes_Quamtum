@@ -50,7 +50,7 @@ void main() {
     ).exclusive();
 
     expect(sent.url.path, '/promotions/active');
-    expect(sent.url.queryParameters, {'limit': '100'});
+    expect(sent.url.queryParameters, {'limit': '100', 'types': 'all'});
     expect(sent.headers['authorization'], 'Bearer token-ana');
     final vip = offers.single;
     expect(vip.id, 'o-1');
