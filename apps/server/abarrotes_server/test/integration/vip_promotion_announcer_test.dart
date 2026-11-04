@@ -183,6 +183,20 @@ void main() {
       expect(push.sent, isEmpty);
     });
 
+    test('announceNow tampoco avisa una de código ni una para todos', () async {
+      for (final audience in [
+        PromotionAudience.code,
+        PromotionAudience.everyone,
+      ]) {
+        final summary = await announcer().announceNow(
+          session,
+          promotion.copyWith(audience: audience),
+        );
+        expect(summary, (sent: 0, invalid: 0, failed: 0), reason: '$audience');
+      }
+      expect(push.sent, isEmpty);
+    });
+
     test('una de clientes elegidos: solo a los elegidos que son VIP', () async {
       await customer('uid-dora', verified: true, devices: ['dora-telefono']);
       await insertVips(session, admin, ['uid-dora@tienda.pe']);

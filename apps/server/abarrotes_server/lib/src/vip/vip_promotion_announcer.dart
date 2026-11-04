@@ -26,16 +26,19 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
   final SessionRunner _run;
   final VipService _vips;
 
+  /// Solo se anuncian las promociones VIP (todos los VIP o los elegidos):
+  /// las de todos no son VIP, y las de un código son solo para quien lo
+  /// activa.
+  static bool _isVip(Promotion promotion) => switch (promotion.audience) {
+    PromotionAudience.vip || PromotionAudience.selected => true,
+    PromotionAudience.everyone || PromotionAudience.code => false,
+  };
+
   /// En segundo plano, con su propia sesión: la promoción ya se creó y la
   /// respuesta no espera. Si algo falla, queda en el log de esa sesión.
   @override
   void announce(Promotion promotion) {
-    // Las de todos no son VIP, y las de un código son solo para quien lo
-    // activa: no se anuncian.
-    if (promotion.audience
-        case PromotionAudience.everyone || PromotionAudience.code) {
-      return;
-    }
+    if (!_isVip(promotion)) return;
     unawaited(
       _run(
         (session) => announceNow(session, promotion),
@@ -52,6 +55,7 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
     Session session,
     Promotion promotion,
   ) async {
+    if (!_isVip(promotion)) return (sent: 0, invalid: 0, failed: 0);
     if (!_sender.enabled) {
       session.log(
         'Aviso push de la promoción ${promotion.id}: el envío push no está '
