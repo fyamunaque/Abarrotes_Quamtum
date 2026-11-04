@@ -97,6 +97,8 @@ void main() {
   testWidgets('tocar una oferta abre el producto', (tester) async {
     final router = await pumpApp(tester, at: '/', signedIn: vip);
 
+    await tester.ensureVisible(find.text('Precio VIP de la semana'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Precio VIP de la semana'));
     await tester.pumpAndSettle();
 

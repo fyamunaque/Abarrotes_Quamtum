@@ -32,12 +32,60 @@ class AdminHomeScreen extends ConsumerWidget {
         SizedBox(height: 12),
         SalesCard(),
         SizedBox(height: 12),
-        ResponsiveGrid(
-          minWidth: 300,
-          maxColumns: 3,
-          children: [LowStockCard(), ExpiringCard(), TopProductsCard()],
-        ),
+        _StockAndTopProducts(),
       ],
+    );
+  }
+}
+
+/// Stock bajo y Por vencer, una sobre otra, con Más vendidos al lado: así
+/// ninguna tarjeta queda con un hueco por tener el alto de la más larga.
+/// En un teléfono, una debajo de otra.
+class _StockAndTopProducts extends StatelessWidget {
+  const _StockAndTopProducts();
+
+  /// El ancho mínimo de cada columna.
+  static const _minColumnWidth = 300.0;
+  static const _gap = 12.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < _minColumnWidth * 2 + _gap) {
+          return const Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LowStockCard(),
+              SizedBox(height: _gap),
+              ExpiringCard(),
+              SizedBox(height: _gap),
+              TopProductsCard(),
+            ],
+          );
+        }
+        // Las dos columnas del mismo alto: la más corta estira su última
+        // tarjeta.
+        return const IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    LowStockCard(),
+                    SizedBox(height: _gap),
+                    Expanded(child: ExpiringCard()),
+                  ],
+                ),
+              ),
+              SizedBox(width: _gap),
+              Expanded(child: TopProductsCard()),
+            ],
+          ),
+        );
+      },
     );
   }
 }

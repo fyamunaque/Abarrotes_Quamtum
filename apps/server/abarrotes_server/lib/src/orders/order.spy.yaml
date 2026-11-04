@@ -2,6 +2,9 @@ class: Order
 table: orders
 fields:
   id: UuidValue?, defaultPersist=random_v7
+  ### El número que se le dice al cliente ("Pedido N.º 1024"): correlativo,
+  ### desde 1001. Lo pone el servidor al crear el pedido (nextOrderNumber).
+  number: int?
   status: OrderStatus, default=pendingConfirmation
   ### A domicilio (por defecto, como todos los pedidos de antes) o recojo en
   ### tienda.
@@ -23,4 +26,7 @@ fields:
 indexes:
   orders_pickup_code_idx:
     fields: pickupCode
+    unique: true
+  orders_number_idx:
+    fields: number
     unique: true

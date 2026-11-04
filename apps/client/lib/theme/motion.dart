@@ -19,6 +19,9 @@ abstract final class NeilsMotion {
   /// La entrada de un precio VIP en su tarjeta: una vez, al aparecer.
   static const reveal = Duration(milliseconds: 300);
 
+  /// Llevar la pantalla hasta un campo que falta completar.
+  static const scrollTo = Duration(milliseconds: 300);
+
   /// Si la persona pidió reducir las animaciones.
   static bool reduced(BuildContext context) =>
       MediaQuery.disableAnimationsOf(context);

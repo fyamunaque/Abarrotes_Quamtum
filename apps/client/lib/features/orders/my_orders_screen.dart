@@ -149,26 +149,26 @@ class _ReceivedNotice extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLowest,
-          border: Border.all(color: OrderStatusColors.confirmed),
+          border: Border.all(color: StateColors.positive),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Icon(
-                Icons.check_circle,
-                color: OrderStatusColors.confirmed,
-              ),
+              const Icon(Icons.check_circle, color: StateColors.positive),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Recibimos tu pedido. La tienda lo va a confirmar.',
-                      style: theme.textTheme.bodyLarge,
-                    ),
+                    Text(switch (order?.number) {
+                      final number? =>
+                        'Recibimos tu pedido N.º $number. La tienda lo va a '
+                            'confirmar.',
+                      null =>
+                        'Recibimos tu pedido. La tienda lo va a confirmar.',
+                    }, style: theme.textTheme.bodyLarge),
                     if (order != null)
                       Text(
                         'Total: ${formatSoles(order.totalCents)}',
@@ -225,10 +225,19 @@ class _OrderCard extends StatelessWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // El número, para nombrarlo si se llama a la tienda.
                 Expanded(
-                  child: Text(
-                    'Pedido del $date',
-                    style: theme.textTheme.titleMedium,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(order.title, style: theme.textTheme.titleMedium),
+                      Text(
+                        date,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 Text(

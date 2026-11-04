@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../admin/orders/admin_order.dart';
@@ -22,6 +23,7 @@ import '../shared/fulfillment_badge.dart';
 import '../shared/panel_note.dart';
 import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
+import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'pickup_code_dialog.dart';
 
@@ -40,7 +42,7 @@ const ordersTabs = <PanelTab>[
 ];
 
 /// Los pedidos de todos los clientes, filtrados por estado y por tipo de
-/// entrega. Tocar uno abre su detalle, con el stepper para avanzarlo o
+/// entrega, o buscados por su número. Tocar uno abre su detalle, con el stepper para avanzarlo o
 /// cancelarlo (con `orders.updateStatus`). Quién lo hizo, solo con
 /// `customers.view`.
 class AdminOrdersScreen extends ConsumerStatefulWidget {
@@ -56,6 +58,8 @@ class AdminOrdersScreen extends ConsumerStatefulWidget {
 
 class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   AdminOrdersFilter _filter = allOrders;
+  final _number = TextEditingController();
+  Timer? _debounce;
   Timer? _autoRefresh;
 
   @override
@@ -75,8 +79,33 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   @override
   void dispose() {
     _autoRefresh?.cancel();
+    _debounce?.cancel();
+    _number.dispose();
     super.dispose();
   }
+
+  /// Busca cuando se deja de escribir, no con cada número.
+  void _onNumber(String text) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () {
+      final number = int.tryParse(text);
+      if (number == _filter.number) return;
+      setState(() => _filter = _with(number: number));
+    });
+  }
+
+  void _clearNumber() {
+    _debounce?.cancel();
+    _number.clear();
+    setState(() => _filter = _with(number: null));
+  }
+
+  /// [_filter] con [number] cambiado (null: sin buscar).
+  AdminOrdersFilter _with({required int? number}) => (
+    status: _filter.status,
+    fulfillmentType: _filter.fulfillmentType,
+    number: number,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -92,20 +121,42 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
       children: [
         const PanelTabs(tabs: ordersTabs, current: Routes.adminOrders),
         const SizedBox(height: 16),
-        _FilterRow(
-          label: 'Estado',
-          child: FilterChips<OrderStatus?>(
-            options: [
-              (null, 'Todos'),
-              for (final status in OrderStatus.values) (status, status.label),
-            ],
-            selected: status,
-            onSelected: (status) => setState(
-              () => _filter = (status: status, fulfillmentType: type),
-            ),
-          ),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final narrow = constraints.maxWidth < PanelSearchField.narrowBelow;
+            return Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                SizedBox(
+                  width: narrow ? constraints.maxWidth : 240,
+                  child: PanelSearchField(
+                    controller: _number,
+                    label: 'Buscar por N.º',
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: _onNumber,
+                    onClear: _clearNumber,
+                  ),
+                ),
+                SizedBox(
+                  width: narrow ? constraints.maxWidth : 260,
+                  child: _StatusFilter(
+                    value: status,
+                    onChanged: (status) => setState(
+                      () => _filter = (
+                        status: status,
+                        fulfillmentType: type,
+                        number: _filter.number,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         _FilterRow(
           label: 'Entrega',
           child: FilterChips<FulfillmentType?>(
@@ -116,7 +167,11 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
             ],
             selected: type,
             onSelected: (type) => setState(
-              () => _filter = (status: status, fulfillmentType: type),
+              () => _filter = (
+                status: status,
+                fulfillmentType: type,
+                number: _filter.number,
+              ),
             ),
           ),
         ),
@@ -124,6 +179,14 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
         AdminTable<AdminOrder>(
           value: ref.watch(provider),
           columns: [
+            AdminColumn(
+              'N.º',
+              (o) => Text(switch (o.order.number) {
+                final number? => '$number',
+                null => '—',
+              }),
+              flex: 1,
+            ),
             AdminColumn(
               'Fecha',
               (o) => Text(formatDateTime(context, o.order.createdAt)),
@@ -173,9 +236,13 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
           ),
           onPage: (page) => ref.read(provider.notifier).goTo(page),
           onRetry: () => ref.invalidate(provider),
-          emptyText: switch ((status, type)) {
-            (null, null) => 'Todavía no hay pedidos.',
-            (final status?, null) =>
+          emptyText: switch ((status, type, _filter.number)) {
+            (null, null, null) => 'Todavía no hay pedidos.',
+            (null, null, final number?) =>
+              'No hay un pedido con el N.º $number.',
+            (_, _, final number?) =>
+              'El pedido N.º $number no coincide con los filtros.',
+            (final status?, null, null) =>
               'No hay pedidos en estado "${status.label}".',
             _ => 'Ningún pedido coincide con los filtros.',
           },
@@ -185,9 +252,8 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
   }
 }
 
-/// Una fila de filtros con su nombre adelante. Los nombres miden lo mismo,
-/// así los chips de las dos filas empiezan en la misma columna; si los
-/// chips bajan a otra línea, el nombre queda a la altura de la primera.
+/// Una fila de chips con su nombre adelante. Si los chips bajan a otra
+/// línea, el nombre queda a la altura de la primera.
 class _FilterRow extends StatelessWidget {
   const _FilterRow({required this.label, required this.child});
 
@@ -214,10 +280,42 @@ class _FilterRow extends StatelessWidget {
   }
 }
 
-/// "Pedido de Ana Quispe", o solo "Pedido" sin los datos del cliente.
+/// El estado de los pedidos que se muestran: "Todos" o uno, cada uno con su
+/// punto de color, como en la tabla.
+class _StatusFilter extends StatelessWidget {
+  const _StatusFilter({required this.value, required this.onChanged});
+
+  final OrderStatus? value;
+  final ValueChanged<OrderStatus?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<OrderStatus?>(
+      style: Theme.of(context).textTheme.bodyLarge,
+      initialValue: value,
+      isExpanded: true,
+      decoration: const InputDecoration(labelText: 'Estado'),
+      items: [
+        const DropdownMenuItem(child: Text('Todos')),
+        for (final status in OrderStatus.values)
+          DropdownMenuItem(
+            value: status,
+            child: StatusBadge(
+              label: status.label,
+              color: orderStatusColor(status),
+            ),
+          ),
+      ],
+      onChanged: onChanged,
+    );
+  }
+}
+
+/// "Pedido N.º 1024 de Ana Quispe", o "Pedido N.º 1024" sin los datos del
+/// cliente.
 String _title(AdminOrder order) => switch (order.customer) {
-  final customer? => 'Pedido de ${customer.name}',
-  null => 'Pedido',
+  final customer? => '${order.order.title} de ${customer.name}',
+  null => order.order.title,
 };
 
 /// El detalle de un pedido: el cliente, las líneas y el stepper (el
@@ -360,6 +458,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
           Text(customer.name),
           Text(customer.email, style: muted),
           if (customer.phone case final phone?) Text(phone, style: muted),
+          if (customer.dni case final dni?) Text('DNI $dni', style: muted),
         ] else
           Text(
             'Tu rol no incluye ver los datos de los clientes.',

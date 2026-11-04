@@ -10,10 +10,12 @@ abstract interface class CatalogRepository {
 
   /// Una página de productos activos, por nombre. Con [categoryId], solo los
   /// de esa categoría; con [search], solo los que lo tienen en el nombre (o
-  /// el SKU).
+  /// el SKU); con [onSale], solo los que tienen una promoción vigente que la
+  /// cuenta puede usar.
   Future<PageList<Product>> products({
     String? categoryId,
     String? search,
+    bool onSale = false,
     int page = 1,
   });
 

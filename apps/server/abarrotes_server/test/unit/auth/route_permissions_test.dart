@@ -100,6 +100,7 @@ void main() {
 
     expect(protections, {
       'GET /users/me': 'token',
+      'PATCH /users/me': 'token',
       'PUT /users/me/devices': 'token',
       'DELETE /users/me/devices': 'token',
       'GET /customers': 'customers.view',

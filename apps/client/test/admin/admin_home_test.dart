@@ -227,20 +227,39 @@ void main() {
     );
   });
 
-  testWidgets('las tarjetas de una fila tienen el mismo alto', (tester) async {
-    double heightOf(WidgetTester tester, String title) => tester
-        .getSize(
-          find.ancestor(of: find.text(title), matching: find.byType(Card)),
-        )
-        .height;
+  Rect cardOf(WidgetTester tester, String title) => tester.getRect(
+    find.ancestor(of: find.text(title), matching: find.byType(Card)),
+  );
 
-    await pumpHome(tester);
-    // Más vendidos tiene más filas que las otras dos.
-    expect(heightOf(tester, 'Stock bajo'), heightOf(tester, 'Más vendidos'));
-    expect(
-      heightOf(tester, 'Por vencer en 7 días'),
-      heightOf(tester, 'Más vendidos'),
-    );
+  testWidgets(
+    'Stock bajo y Por vencer, una sobre otra, al lado de Más vendidos',
+    (tester) async {
+      await pumpHome(tester);
+      final low = cardOf(tester, 'Stock bajo');
+      final expiring = cardOf(tester, 'Por vencer en 7 días');
+      final top = cardOf(tester, 'Más vendidos');
+
+      expect(expiring.left, low.left);
+      expect(expiring.top, greaterThan(low.bottom));
+      // Más vendidos al lado, del alto de las dos juntas: sin huecos.
+      expect(top.left, greaterThan(low.right));
+      expect(top.top, low.top);
+      expect(top.bottom, closeTo(expiring.bottom, 0.5));
+    },
+  );
+
+  testWidgets('en el teléfono, las tres una debajo de otra', (tester) async {
+    await pumpHome(tester, width: 375);
+    // Una pantalla alta: la lista solo arma lo que se ve.
+    tester.view.physicalSize = const Size(375, 4000);
+    await tester.pumpAndSettle();
+    final low = cardOf(tester, 'Stock bajo');
+    final expiring = cardOf(tester, 'Por vencer en 7 días');
+    final top = cardOf(tester, 'Más vendidos');
+
+    expect(expiring.top, greaterThan(low.bottom));
+    expect(top.top, greaterThan(expiring.bottom));
+    expect(top.left, low.left);
   });
 
   testWidgets('en el teléfono, los KPI de una fila miden lo mismo', (

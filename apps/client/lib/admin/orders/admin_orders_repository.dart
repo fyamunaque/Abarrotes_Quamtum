@@ -14,6 +14,7 @@ abstract interface class AdminOrdersRepository {
     int page = 1,
     OrderStatus? status,
     FulfillmentType? fulfillmentType,
+    int? number,
     int? limit,
   });
 
@@ -39,6 +40,7 @@ class HttpAdminOrdersRepository implements AdminOrdersRepository {
     int page = 1,
     OrderStatus? status,
     FulfillmentType? fulfillmentType,
+    int? number,
     int? limit,
   }) async {
     final json = await _api.get(
@@ -48,6 +50,7 @@ class HttpAdminOrdersRepository implements AdminOrdersRepository {
         'limit': '${limit ?? pageSize}',
         'status': ?status?.name,
         'fulfillmentType': ?fulfillmentType?.name,
+        if (number != null) 'number': '$number',
       },
       fallback: 'No se pudieron cargar los pedidos.',
     );

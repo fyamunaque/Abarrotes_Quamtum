@@ -197,49 +197,7 @@ void main() {
     });
   });
 
-  group('registrarse', () {
-    testWidgets('crea un cliente con su nombre y termina en el catálogo', (
-      tester,
-    ) async {
-      final router = await pumpApp(tester, at: '/registro');
-
-      await tester.enterText(field('Nombre'), 'Ana Quispe');
-      await tester.enterText(field('Correo'), 'ana@tienda.pe');
-      await tester.enterText(field('Contraseña'), '123456');
-      await tester.tap(button('Crear cuenta'));
-      await tester.pumpAndSettle();
-
-      expect(currentPath(router), '/catalogo');
-      expect(find.text('Ana'), findsOneWidget);
-      expect((await users.me('token-${auth.current}')).name, 'Ana Quispe');
-    });
-
-    testWidgets('pide nombre y una contraseña de 6 caracteres', (tester) async {
-      await pumpApp(tester, at: '/registro');
-
-      await tester.enterText(field('Correo'), 'ana@tienda.pe');
-      await tester.enterText(field('Contraseña'), '12345');
-      await tester.tap(button('Crear cuenta'));
-      await tester.pump();
-
-      expect(find.text('Escribe tu nombre.'), findsOneWidget);
-      expect(find.text('Usa al menos 6 caracteres.'), findsOneWidget);
-      expect(auth.current, isNull);
-    });
-
-    testWidgets('un correo ya registrado muestra el error', (tester) async {
-      auth.addAccount('ana@tienda.pe', 'secreta');
-      await pumpApp(tester, at: '/registro');
-
-      await tester.enterText(field('Nombre'), 'Ana');
-      await tester.enterText(field('Correo'), 'ana@tienda.pe');
-      await tester.enterText(field('Contraseña'), '123456');
-      await tester.tap(button('Crear cuenta'));
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Ya hay una cuenta'), findsOneWidget);
-    });
-  });
+  // Registrarse: ver register_test.dart.
 
   group('sesión abierta', () {
     testWidgets('al abrir /admin espera la sesión y después muestra el panel', (

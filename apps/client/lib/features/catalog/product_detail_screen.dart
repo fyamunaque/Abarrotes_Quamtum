@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../cart/cart_provider.dart';
 import '../../catalog/catalog_providers.dart';
+import '../../catalog/category.dart';
 import '../../catalog/product.dart';
 import '../../common/api_client.dart';
 import '../../router/routes.dart';
@@ -13,9 +14,11 @@ import '../shared/press_scale.dart';
 import '../shared/quantity_stepper.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
+import 'product_strip.dart';
 
 /// El detalle de un producto: foto, precio, descripción y agregar al carrito
-/// eligiendo la cantidad.
+/// eligiendo la cantidad. Debajo, "Más de" su categoría: otros productos de
+/// la misma categoría.
 class ProductDetailScreen extends ConsumerWidget {
   const ProductDetailScreen({super.key, required this.productId});
 
@@ -37,7 +40,14 @@ class ProductDetailScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           switch (ref.watch(provider)) {
-            AsyncData(value: final product) => _Detail(product),
+            AsyncData(value: final product) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _Detail(product),
+                if (product.category case final category?)
+                  _Related(category: category, productId: product.id),
+              ],
+            ),
             // 404: no existe o se dio de baja; 400: el id del enlace no es
             // válido. Para la persona es lo mismo.
             AsyncError(error: ApiFailure(status: 400 || 404)) => _Unavailable(
@@ -160,7 +170,7 @@ class _InfoState extends ConsumerState<_Info> {
                 onChanged: (value) => setState(() => _quantity = value),
               ),
               PressScale(
-                child: FilledButton.icon(
+                child: FilledButton.tonalIcon(
                   onPressed: () {
                     addToCart(context, ref, product, quantity);
                     setState(() => _quantity = 1);
@@ -198,6 +208,32 @@ class _InfoState extends ConsumerState<_Info> {
     <= 5 => 'Quedan ${product.stock}',
     _ => 'Disponible',
   };
+}
+
+/// "Más de Lácteos": otros productos de la categoría. Mientras cargan, si
+/// fallan o si no hay otros, no ocupa lugar.
+class _Related extends ConsumerWidget {
+  const _Related({required this.category, required this.productId});
+
+  final Category category;
+  final String productId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final products = ref
+        .watch(
+          relatedProductsProvider((
+            categoryId: category.id,
+            productId: productId,
+          )),
+        )
+        .value;
+    if (products == null || products.isEmpty) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(top: 40),
+      child: ProductStrip(title: 'Más de ${category.name}', products: products),
+    );
+  }
 }
 
 class _Unavailable extends StatelessWidget {

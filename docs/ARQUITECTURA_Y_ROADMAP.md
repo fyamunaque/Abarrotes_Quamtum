@@ -36,7 +36,7 @@ CLAUDE.md
 
 **El servidor:** cada dominio tiene su carpeta en `apps/server/abarrotes_server/lib/src/<dominio>/`, con sus modelos `.spy.yaml`, servicio y rutas. Las rutas REST corren en el servidor web de Serverpod (puerto 8082):
 
-- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea. `GET /customers` (`customers.view`): el listado de clientes para el panel.
+- `users`: `GET /users/me` devuelve el usuario del Firebase ID token (con `isVip`, su rol de personal y sus permisos) y la primera vez lo crea. `PATCH /users/me` guarda el celular, el DNI (opcional, único) y la aceptación de los términos y la política de privacidad (qué versión y cuándo). Para pedir (`POST /orders`) la cuenta necesita el correo confirmado, el celular y los términos vigentes (`common/customer_requirements.dart`, compartido con `orders`). `GET /customers` (`customers.view`): el listado de clientes para el panel.
 - `staff`: roles y permisos del personal. Un catálogo de permisos (`Permission`), roles editables más el Administrador de sistema, el personal por correo (con el correo verificado) y una bitácora. Cada ruta del panel pide su permiso (`guards.require`), nunca solo "ser del personal": un test compara cada ruta con su permiso. `/staff/*` (`staff.manage`) los administra.
 - `categories` y `products`: lectura pública; escritura con `categories.manage` y `products.manage`. Cada producto muestra la mejor promoción vigente que puede usar quien mira. La foto de un producto se sube (`PUT /products/:id/image`), se guarda procesada (800 px, JPEG, sin metadatos) en el almacenamiento de Serverpod, que por defecto es la propia base, y se sirve en `/images/products/...`; también vale una URL externa.
 - `promotions`: CRUD con `promotions.manage`, con el estado según la fecha y la audiencia (`everyone` o `vip`); `GET /promotions/active`, pública, con las vigentes que el cliente puede usar.
@@ -55,9 +55,9 @@ El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas
 
 ## 4. Modelo de datos
 
-Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional), `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó) y `StoreSettings` (los datos de la tienda: un solo registro).
+Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`, el celular, el DNI opcional y la versión de los términos que aceptó), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement`, `Supply` (insumos generales), `Order` con su `OrderStatus`, `OrderItem`, `Promotion` (con su `PromotionAudience` y un título opcional), `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó) y `StoreSettings` (los datos de la tienda: un solo registro).
 
-- **Estados de pedido y tipos de entrega:** cada pedido es a domicilio (`delivery`, por defecto) o de recojo en tienda (`pickup`, con un `pickupCode` de 6 caracteres sin 0/O/1/I, único). A domicilio: `pendingConfirmation → confirmed → outForDelivery → delivered`; con recojo: `pendingConfirmation → confirmed → preparing → readyForPickup → delivered` ("recogido", con el código del cliente). En los dos, `cancelled` es la ruta alterna hasta antes de entregar. El flujo de cada tipo es un Strategy (`FulfillmentFlow`) que consultan los estados (State); el JSON trae `allowedNextStatuses`.
+- **Estados de pedido y tipos de entrega:** cada pedido es a domicilio (`delivery`, por defecto) o de recojo en tienda (`pickup`, con un `pickupCode` de 6 caracteres sin 0/O/1/I, único). A domicilio: `pendingConfirmation → confirmed → outForDelivery → delivered`; con recojo: `pendingConfirmation → confirmed → preparing → readyForPickup → delivered` ("recogido", con el código del cliente). En los dos, `cancelled` es la ruta alterna hasta antes de entregar. El flujo de cada tipo es un Strategy (`FulfillmentFlow`) que consultan los estados (State); el JSON trae `allowedNextStatuses`. Cada pedido lleva además su `number`, el que se le dice al cliente ("Pedido N.º 1024"): correlativo desde 1001, lo pone el servidor al crearlo con un bloqueo de Postgres en la transacción (`nextOrderNumber`), y el índice único queda de respaldo.
 - **Montos en céntimos enteros** (`priceCents`, `totalCents`, `unitPriceCents`, `promoPriceCents`), porque Serverpod no tiene tipo decimal. En el JSON viajan como texto (`"4.5"`).
 - Enums en camelCase. Movimientos: `incoming`, `outgoing`, `adjustment` (`in` es palabra reservada de Dart).
 - Ids UUID v7, tablas en plural (`users`, `orders`, …) y claves foráneas `ON DELETE RESTRICT ON UPDATE CASCADE`.
@@ -70,7 +70,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 - **Fundamentos:** el repo, el CI, PostgreSQL, el servidor Serverpod con el modelo completo y su migración inicial, y la verificación del Firebase ID token con los guards por permiso.
 - **Tienda (cliente):**
-  - registro e ingreso con Firebase;
+  - registro e ingreso con Firebase, y "¿Olvidaste tu contraseña?" (el enlace de Firebase para crear una nueva); crear una cuenta pide una contraseña fuerte, el celular, el DNI (opcional) y aceptar los términos y la política de privacidad, y para pedir hace falta el correo confirmado ("Mi cuenta" completa lo que falte);
   - catálogo con búsqueda y categorías, y detalle de producto;
   - carrito guardado en el dispositivo;
   - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger".
@@ -100,8 +100,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
 4. **Negocio real:**
    - pasarela de pago;
-   - notificaciones (push o email) de cambio de estado;
-   - recuperar la contraseña.
+   - notificaciones (push o email) de cambio de estado.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
 5. **Más gestión en el panel:**

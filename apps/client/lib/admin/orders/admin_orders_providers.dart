@@ -12,14 +12,20 @@ final adminOrdersRepositoryProvider = Provider<AdminOrdersRepository>(
   (ref) => HttpAdminOrdersRepository(ref.watch(authedApiProvider)),
 );
 
-/// Los filtros de la tabla de pedidos (null: todos).
+/// Los filtros de la tabla de pedidos (null: todos). [number] busca un
+/// pedido por su número.
 typedef AdminOrdersFilter = ({
   OrderStatus? status,
   FulfillmentType? fulfillmentType,
+  int? number,
 });
 
 /// Sin filtros.
-const AdminOrdersFilter allOrders = (status: null, fulfillmentType: null);
+const AdminOrdersFilter allOrders = (
+  status: null,
+  fulfillmentType: null,
+  number: null,
+);
 
 /// Los pedidos del panel, con sus filtros.
 final adminOrdersProvider = AsyncNotifierProvider.autoDispose
@@ -39,6 +45,7 @@ class AdminOrdersNotifier extends PagedNotifier<AdminOrder> {
         page: page,
         status: filter.status,
         fulfillmentType: filter.fulfillmentType,
+        number: filter.number,
       );
 
   /// Cambia el estado y deja el pedido actualizado en la página. Devuelve el

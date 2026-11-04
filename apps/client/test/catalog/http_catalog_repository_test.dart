@@ -148,6 +148,19 @@ void main() {
     expect(page.items.single.vipPrice, isFalse);
   });
 
+  test('solo los productos en promoción: onSale=true', () async {
+    late Uri url;
+    await repository((request) async {
+      url = request.url;
+      return json(200, {
+        'data': [],
+        'meta': {'total': 0},
+      });
+    }).products(onSale: true);
+
+    expect(url.queryParameters, {'page': '1', 'limit': '20', 'onSale': 'true'});
+  });
+
   test('lo buscado va recortado, y en blanco no se manda', () async {
     final urls = <Uri>[];
     final repo = repository((request) async {

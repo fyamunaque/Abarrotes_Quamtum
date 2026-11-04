@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Un estado como punto de color + texto (el color nunca va solo: el
-/// ámbar de "pendiente" no se distingue bien del fondo, y el verde de
+/// ámbar de "pendiente" no se distingue bien del fondo, y el índigo de
 /// "confirmado" se parece al azul de "en camino").
 class StatusBadge extends StatelessWidget {
   const StatusBadge({super.key, required this.label, required this.color});

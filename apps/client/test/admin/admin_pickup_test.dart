@@ -25,6 +25,7 @@ void main() {
         OrderStatus.readyForPickup,
         customer: 'Ana Quispe',
         pickupCode: 'K7M2XQ',
+        number: 1031,
         readyForPickupAt: now.subtract(const Duration(minutes: 3, seconds: 20)),
       ),
       adminOrder(
@@ -32,6 +33,7 @@ void main() {
         OrderStatus.readyForPickup,
         customer: 'Luis Ñahui',
         pickupCode: 'P4R9TW',
+        number: 1032,
         readyForPickupAt: now.subtract(
           const Duration(minutes: 12, seconds: 20),
         ),
@@ -84,7 +86,7 @@ void main() {
 
   Future<void> search(WidgetTester tester, String text) async {
     await tester.enterText(
-      find.widgetWithText(TextField, 'Buscar por código o nombre'),
+      find.widgetWithText(TextField, 'Buscar código, N.º o nombre'),
       text,
     );
     await tester.pumpAndSettle();
@@ -103,7 +105,7 @@ void main() {
     expect(find.text('Eva Domicilio'), findsNothing);
   });
 
-  testWidgets('busca por código o por nombre, sin tildes ni mayúsculas', (
+  testWidgets('busca por código, número o nombre, sin tildes ni mayúsculas', (
     tester,
   ) async {
     await pumpPickup(tester);
@@ -113,6 +115,10 @@ void main() {
 
     await search(tester, 'nahui');
     expect(codes(tester), ['P4R9TW']);
+
+    await search(tester, '1032');
+    expect(codes(tester), ['P4R9TW']);
+    expect(find.textContaining('N.º 1032 · Luis Ñahui · '), findsOneWidget);
 
     await search(tester, 'zzz');
     expect(

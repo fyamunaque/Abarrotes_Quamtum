@@ -106,7 +106,7 @@ class AdminRolesScreen extends ConsumerWidget {
               (role) => StatusBadge(
                 label: role.active ? 'Activo' : 'Inactivo',
                 color: role.active
-                    ? OrderStatusColors.confirmed
+                    ? StateColors.positive
                     : Theme.of(context).colorScheme.outline,
               ),
             ),

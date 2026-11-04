@@ -70,4 +70,6 @@ serverpod create-migration                 # y luego: dart run bin/main.dart --r
 dart test                                  # unitarios + integración con PostgreSQL
 ```
 
+Desde VS Code, las tareas de `.vscode/` levantan el servidor y la app sin escribir comandos (`Ctrl+Shift+B`): ver `docs/VSCODE.md`.
+
 Requisitos y detalles de Serverpod (Dart SDK, `passwords.yaml`, Firebase, primer admin): `apps/server/README.md`. Del cliente Flutter (versión de Flutter, config de Firebase, `API_URL`, tema, rutas): `apps/client/README.md`.

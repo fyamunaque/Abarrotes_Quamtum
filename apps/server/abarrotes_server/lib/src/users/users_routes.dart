@@ -4,6 +4,7 @@ import '../auth/authorization.dart';
 import '../auth/firebase_auth_middleware.dart';
 import '../auth/guards.dart';
 import '../common/api_route.dart';
+import '../common/customer_requirements.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/pagination.dart';
@@ -30,27 +31,66 @@ List<RouteEntry> usersRoutes(
   Guards guards, {
   required ShopperResolver shoppers,
 }) => [
-  // El usuario del token; la primera vez lo crea como cliente. Con:
-  // - isVip: si puede usar las promociones VIP (VIP activo y correo
-  //   verificado);
-  // - staffRole y permissions: su rol de personal y sus permisos efectivos,
-  //   leídos ahora (vacíos si no es personal o no verificó el correo);
-  // - role: derivado de eso, para la app (admin, staff o customer).
+  // El usuario del token; la primera vez lo crea como cliente. Con isVip, su
+  // rol y sus permisos (ver _meJson), y role, derivado de eso para la app
+  // (admin, staff o customer).
   (
     '/users/me',
     ApiRoute(Method.get, (session, request) async {
-      final identity = request.firebaseIdentity;
-      final user = await users.findOrCreate(session, identity);
-      final shopper = await shoppers.resolve(session, identity);
-      final access = await guards.authorization.accessOf(session, identity);
-      return jsonResponse(200, {
-        ...userJson(user, access),
-        'isVip': shopper.isVip,
-        'staffRole': access.isStaff
-            ? {'id': access.roleId.toString(), 'name': access.roleName}
-            : null,
-        'permissions': permissionKeys(access.permissions),
-      });
+      final user = await users.findOrCreate(session, request.firebaseIdentity);
+      return jsonResponse(
+        200,
+        await _meJson(session, request, user, guards, shoppers),
+      );
+    }),
+  ),
+  // Los datos de la cuenta propia que pide un pedido: el celular, el DNI
+  // (opcional; null lo borra) y la aceptación de los términos
+  // (`acceptTerms` con la versión vigente). Lo que no viene queda igual.
+  // Responde la cuenta como GET /users/me.
+  (
+    '/users/me',
+    ApiRoute(Method.patch, (session, request) async {
+      final body = InputReader.body(
+        await readJsonBody(request),
+        allowed: const {'phone', 'dni', 'acceptTerms'},
+      );
+      final phoneText = body.text('phone', maxLength: 20, required: false);
+      final phone = phoneText == null ? null : normalizePhone(phoneText);
+      if (phoneText != null && phone == null) {
+        body.reject(
+          'El celular tiene que tener 9 dígitos y empezar con 9.',
+        );
+      }
+      final dni = body.text(
+        'dni',
+        maxLength: 20,
+        required: false,
+        nullable: true,
+      );
+      if (dni != null && !isValidDni(dni)) {
+        body.reject('El DNI tiene que tener 8 dígitos.');
+      }
+      final terms = body.text('acceptTerms', maxLength: 20, required: false);
+      if (terms != null && terms != currentTermsVersion) {
+        body.reject(
+          'Los términos cambiaron: actualiza la app y vuelve a aceptarlos.',
+        );
+      }
+      body.check();
+
+      final user = await users.updateProfile(
+        session,
+        await users.findOrCreate(session, request.firebaseIdentity),
+        phone: phone,
+        dni: dni,
+        clearDni: body.has('dni') && dni == null,
+        acceptTerms: terms != null,
+      );
+      return jsonResponse(
+        200,
+        await _meJson(session, request, user, guards, shoppers),
+      );
     }),
   ),
   // El dispositivo donde la cuenta recibe avisos push (el token de FCM que da
@@ -122,6 +162,31 @@ List<RouteEntry> usersRoutes(
   ),
 ];
 
+/// La cuenta propia ([user], de quien hace la petición), con:
+/// - isVip: si puede usar las promociones VIP (VIP activo y correo
+///   verificado);
+/// - staffRole y permissions: su rol de personal y sus permisos efectivos,
+///   leídos ahora (vacíos si no es personal o no verificó el correo).
+Future<Map<String, Object?>> _meJson(
+  Session session,
+  Request request,
+  User user,
+  Guards guards,
+  ShopperResolver shoppers,
+) async {
+  final identity = request.firebaseIdentity;
+  final shopper = await shoppers.resolve(session, identity);
+  final access = await guards.authorization.accessOf(session, identity);
+  return {
+    ...userJson(user, access),
+    'isVip': shopper.isVip,
+    'staffRole': access.isStaff
+        ? {'id': access.roleId.toString(), 'name': access.roleName}
+        : null,
+    'permissions': permissionKeys(access.permissions),
+  };
+}
+
 /// Un cliente en el listado del panel: sus datos de contacto, nunca el
 /// firebaseUid.
 Map<String, Object?> customerJson(User user) => {
@@ -129,6 +194,7 @@ Map<String, Object?> customerJson(User user) => {
   'name': user.name,
   'email': user.email,
   'phone': user.phone,
+  'dni': user.dni,
   'address': user.address,
   'emailVerified': user.emailVerified,
   'createdAt': user.createdAt.toUtc().toIso8601String(),
@@ -149,6 +215,12 @@ Map<String, Object?> userJson(User user, StaffAccess access) => {
   'phone': user.phone,
   'role': derivedRole(access),
   'address': user.address,
+  'dni': user.dni,
+  'termsVersion': user.termsVersion,
+  'termsAcceptedAt': user.termsAcceptedAt?.toUtc().toIso8601String(),
+  // Si tiene lo que pide un pedido además del correo confirmado: el celular
+  // y los términos vigentes.
+  'profileComplete': isProfileComplete(user),
   'createdAt': user.createdAt.toUtc().toIso8601String(),
 };
 

@@ -385,6 +385,7 @@ void main() {
             'name': 'Usuario uid-cliente',
             'email': 'uid-cliente@tienda.pe',
             'phone': null,
+            'dni': null,
             'address': null,
             'emailVerified': false,
             'createdAt': isA<String>(),
@@ -432,6 +433,7 @@ void main() {
           'name': 'Usuario uid-cliente',
           'email': 'uid-cliente@tienda.pe',
           'phone': null,
+          'dni': null,
         });
         expect(status, 200);
         expect(onlyOrders['data'][0]['customer'], isNull);

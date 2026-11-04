@@ -11,9 +11,16 @@ import 'error_message.dart';
 /// verifiqué" (que vuelve a pedir el perfil). Es un aviso genérico: no dice
 /// qué cambia al verificar.
 class VerifyEmailNotice extends ConsumerStatefulWidget {
-  const VerifyEmailNotice(this.user, {super.key});
+  const VerifyEmailNotice(
+    this.user, {
+    super.key,
+    this.title = 'Verifica tu correo para completar tu cuenta.',
+  });
 
   final SessionUser user;
+
+  /// Lo que dice arriba (p. ej. en el carrito, que hace falta para pedir).
+  final String title;
 
   @override
   ConsumerState<VerifyEmailNotice> createState() => _VerifyEmailNoticeState();
@@ -82,10 +89,7 @@ class _VerifyEmailNoticeState extends ConsumerState<VerifyEmailNotice> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Verifica tu correo para completar tu cuenta.',
-                    style: theme.textTheme.titleSmall,
-                  ),
+                  Text(widget.title, style: theme.textTheme.titleSmall),
                   if (_status case final status?)
                     Semantics(
                       liveRegion: true,

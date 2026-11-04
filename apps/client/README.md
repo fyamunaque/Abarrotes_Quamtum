@@ -30,7 +30,9 @@ App de la tienda para **Android y web**, hecha en Flutter: la tienda para los cl
 | Análisis estático | `flutter analyze` |
 | Tests | `flutter test` |
 | Compilar la web | `flutter build web` (queda en `build/web`) |
+| Servir la web compilada en release | `dart run tool/serve_web.dart` (http://localhost:5006; compila antes si el código cambió, o con `--compilar`). Es lo que usa la tarea "Tienda web" de VS Code (`docs/VSCODE.md`) |
 | Compilar el APK | `flutter build apk --debug` |
+| APK con versión para el teléfono | `dart run tool/build_apk.dart [--instalar]`: sube la versión de `pubspec.yaml` (`--minor`, `--major` o `--misma`), compila en release contra `localhost:8082` (por el cable) y deja `build/apk/neils-<versión>.apk`. Con `--wifi`, para instalarlo a mano en un teléfono en la misma Wi-Fi: en modo profile (como release, con HTTP hacia la red: `src/profile/res/xml/network_security_config.xml`) contra la IP de la computadora, en `neils-<versión>-wifi.apk`. La app muestra la versión (`APP_VERSION`, `config/app_version.dart`) al pie de Ingresar y en el menú de la cuenta. Ver `docs/VSCODE.md` |
 
 ## Firebase y el servidor
 
@@ -46,6 +48,11 @@ servidor, que verifica el ID token en cada petición.
   disponible.
 - Una sola vez, en la consola: **Authentication → Sign-in method → habilitar "Correo
   electrónico/contraseña"**. `localhost` ya viene en los dominios autorizados.
+- **Contraseñas** (recomendado): la app pide al registrarse al menos 8 caracteres con letras
+  y números, pero alguien podría crear una cuenta llamando a Firebase directo. Para que Firebase
+  también lo exija: **Authentication → Settings → Password policy → Require enforcement**, con
+  longitud mínima 8 y carácter numérico. La pantalla de Firebase para crear una contraseña nueva
+  también lo aplica, y su error (`password-does-not-meet-requirements`) sale en español.
 
 **Servidor:** la app llama a las rutas REST de `apps/server` (puerto 8082). La URL se elige al
 compilar con `--dart-define=API_URL=...`. Por defecto:
@@ -108,6 +115,9 @@ Los tokens de la marca:
 
 El naranja sobre crema da 3,0:1 de contraste. Por eso el `primary` de Material (botones, textos
 de acción) es **primaryDark**, y el naranja va en `secondaryContainer` (botones tonales).
+El botón para agregar al carrito es siempre tonal, en el catálogo, el detalle y las filas de
+productos. El `primaryDark` con texto blanco queda para la acción final: Confirmar pedido,
+Ingresar, Crear cuenta.
 
 La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/google_fonts`, así
 que la app no descarga nada:
@@ -119,16 +129,21 @@ que la app no descarga nada:
 | Estado | Color |
 |---|---|
 | Pendiente de confirmación | `#D98C21` |
-| Confirmado | `#3C7A5F` |
+| Confirmado | `#4F5BB5` (índigo) |
 | En camino | `#2E6F9E` |
+| Preparando | `#7A5A9E` |
+| En espera de recojo | `#2A8C82` |
 | Entregado | `#3C7A5F` |
 | Cancelado | `#8C3B33` |
 
 Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre crema
 no alcanza el contraste de un texto. El rojo de cancelado sí (6,8:1). Como paleta para
-distinguir categorías tampoco alcanzan: el verde de confirmado y el azul de en camino se
-parecen (ΔE 11,5) y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el
-color (ver `StatusBadge`).
+distinguir categorías tampoco alcanzan: el índigo de confirmado y el azul de en camino se
+parecen, y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el color (ver
+`StatusBadge`).
+
+Lo que está bien y no es un pedido (las insignias "Activo", "Activa" y "Registrado", y el aviso
+de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado).
 
 **Fotos de los productos** (`ProductPhoto`, en `features/catalog/product_photo.dart`):
 - **Las fotos subidas:** llegan del servidor como ruta relativa (`/images/products/…`) y se
@@ -190,11 +205,14 @@ flutter run -d chrome   # y abrir /vitrina
 
 | Ruta | Quién | Qué |
 |---|---|---|
-| `/`, `/login`, `/registro` | Cualquiera | Portada, ingreso y registro |
+| `/` | Cualquiera | Portada: el logo en grande (la barra no lo repite: `PublicScaffold(showLogo: false)`), el titular, los accesos al catálogo y al registro, "Categorías" (un acceso por categoría, con los colores de `PlaceholderColors` en orden para que dos vecinas no se repitan, que abre `/catalogo?categoria=<id>`; 2 columnas en el teléfono, hasta 5) y "Promociones de hoy" (`GET /products?onSale=true`, en un `ProductStrip` con "Agregar"). Para una cuenta VIP, debajo sus ofertas exclusivas, que no se repiten en las promociones. Deslizar hacia abajo vuelve a pedir el perfil, las categorías y las promociones |
+| `/login` | Cualquiera | Ingreso |
+| `/registro` | Cualquiera | Crear una cuenta: nombre, correo, celular (9 dígitos que empiezan con 9), DNI opcional (con el mensaje de para qué sirve: confirmar quién recibe o recoge el pedido), una contraseña de al menos 8 caracteres con letras y números (con un indicador de seguridad: débil, media o fuerte) repetida, y aceptar los términos de uso y la política de privacidad (`legal/legal_texts.dart`, con su versión; se leen en un diálogo sin perder lo escrito). Crea la cuenta y después guarda celular, DNI y términos (`PATCH /users/me`). Si eso falla (p. ej. el DNI ya está en otra cuenta), la cuenta queda creada y lo escrito pasa a "Mi cuenta" con el error (`pendingProfileProvider`) |
+| `/mi-cuenta?from=...` | Cualquier cuenta | El celular, el DNI y los términos (si falta aceptar la versión vigente, la casilla; si no, cuándo se aceptaron). Se llega desde el menú de la cuenta o tocando el nombre en la barra. Un cliente que ingresa con la cuenta incompleta (sin celular o sin los términos vigentes, `profileComplete`) pasa por aquí y, al guardar, sigue a donde iba (`from`, solo rutas de la app). El personal va al panel como siempre |
 | `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
-| `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda) |
-| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. |
-| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su seguimiento y su entrega, en el mismo lugar y con el mismo formato (`InfoLine`): "Entrega a domicilio" con la dirección o, con recojo en tienda, los datos de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice el total que cobró la tienda y los precios que cambiaron desde el carrito. |
+| `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda). Debajo, "Más de <categoría>": hasta 10 productos de la misma categoría, sin el que se ve (`relatedProductsProvider`), en una fila que se desliza (`ProductStrip`). Si no hay otros, no aparece |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades, total estimado, cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. Como el servidor, pide para pedir el correo confirmado (el aviso para confirmarlo va aquí, no arriba) y la cuenta completa ("Completar mi cuenta" lleva a "Mi cuenta" y vuelve); sin eso, "Confirmar pedido" queda desactivado y la barra del teléfono dice qué falta. En un teléfono (menos de 720 px), el total y el botón van en una barra fija abajo (`PublicScaffold.bottomBar`), con el error del pedido si lo hay; si no entran en una línea (texto agrandado), el botón baja debajo del total. Confirmar desde la barra valida el formulario y, si falta la dirección, lleva la pantalla hasta el campo. El formulario y la barra comparten el tipo de entrega, el envío y el error en `checkoutProvider` (`cart/checkout_provider.dart`). |
+| `/mis-pedidos` | Cualquier cuenta | Cada pedido con su número ("Pedido N.º 1024", con la fecha debajo), su seguimiento y su entrega, en el mismo lugar y con el mismo formato (`InfoLine`): "Entrega a domicilio" con la dirección o, con recojo en tienda, los datos de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice su número ("Recibimos tu pedido N.º 1024"), el total que cobró la tienda y los precios que cambiaron desde el carrito. |
 | `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos` (y `/admin/pedidos/recoger`), `/admin/productos`, `/admin/inventario`, `/admin/promociones`, `/admin/clientes-vip`, `/admin/tienda`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
 | `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
 
@@ -219,8 +237,18 @@ carrito vacío.
 servidor devolvió su perfil.
 - Al arrancar es `SessionLoading`, hasta saber si quedó una cuenta abierta. Firebase la guarda de
   forma segura en cada plataforma y renueva el ID token solo.
+- "¿Olvidaste tu contraseña?", en Ingresar, abre un diálogo con el correo ya escrito y manda
+  el enlace de Firebase para crear una contraseña nueva (`sendPasswordResetEmail`, en español:
+  el correo sale con la plantilla de Firebase, sin configurar nada). Diga lo que diga Firebase de
+  un correo sin cuenta, el mensaje es el mismo ("Si hay una cuenta con ese correo, te enviamos
+  un enlace…"): no revela qué correos tienen cuenta.
+- En escritorio (desde 900 px), Ingresar y Crear una cuenta van a dos columnas: a la izquierda,
+  un panel de la marca (el logo, el titular y qué ofrece la tienda), y el formulario a la
+  derecha. En el teléfono, solo el formulario.
 - Registrarse crea la cuenta en Firebase con su nombre. Después, `GET /users/me` la crea en la
-  tienda, siempre como `customer`. Al equipo lo agrega por correo quien tiene `staff.manage`
+  tienda, siempre como `customer`, y `PATCH /users/me` le guarda el celular, el DNI y los
+  términos (`SessionNotifier.updateProfile`). El perfil trae `phone`, `dni`, `termsVersion`,
+  `termsAcceptedAt` y `profileComplete`. Al equipo lo agrega por correo quien tiene `staff.manage`
   (`/admin/equipo`).
 - El perfil trae `permissions` (`SessionUser.permissions`, el catálogo en
   `session/staff_permission.dart`) y el nombre del rol (`staffRoleName`, que el panel muestra
@@ -246,7 +274,9 @@ servidor devolvió su perfil.
   crema). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
   animaciones".
 - "Ofertas exclusivas" (`features/offers/`), en el inicio y arriba del catálogo completo: las
-  promociones VIP de `/promotions/active`. Tocar una abre el producto.
+  promociones VIP de `/promotions/active`. Tocar una abre el producto. Va en la misma fila que
+  se desliza de costado (`CardStrip`, en `features/shared/`, también con el mouse en la web)
+  que "Más de" en el detalle.
 - Para quien no es VIP no hay nada: ni la sección, ni la insignia, ni el pedido de ofertas.
 
 **Después de ingresar** (`routeAfterSignIn` en `router/route_guard.dart`):
@@ -308,9 +338,9 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 
 | Sección | Qué hace |
 |---|---|
-| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). |
-| Pedidos: Todos los pedidos | Todos los pedidos, con chips por estado ("Estado") y por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
-| Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas) o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
+| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). Stock bajo y Por vencer van una sobre otra, con Más vendidos al lado y del mismo alto, así no quedan huecos; en el teléfono, las tres una debajo de otra. |
+| Pedidos: Todos los pedidos | Todos los pedidos, con la columna "N.º" y "Buscar por N.º" (el número exacto, `?number=`, junto con los otros filtros), un menú "Estado" ("Todos" o uno, cada uno con su punto de color) y chips por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle ("Pedido N.º 1024 de Ana Quispe") muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido abre `showPickupCodeDialog`: pide el código que muestra el cliente y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
+| Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el número del pedido, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas), por el número o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja; cada fila con la foto en miniatura. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. **La foto:**<br>• "Subir foto" elige un archivo o una foto de la galería, y "Tomar foto" usa la cámara (solo en el teléfono). La app la achica a 1600 px antes de subirla, y el servidor la deja en 800 px.<br>• También se puede pegar la URL de una imagen: escribirla descarta la foto elegida, y elegir una foto vacía la URL.<br>• La foto elegida se sube después de guardar el producto (`PUT /products/:id/image`). Si la subida falla, el producto ya quedó guardado: el formulario lo dice y "Reintentar la foto" sube solo la foto.<br>• `PhotoPicker` (`admin/products/photo_picker.dart`) es una interfaz con su implementación sobre `image_picker`, y los tests la reemplazan. |
 | Inventario | El historial de movimientos y "Registrar movimiento": entrada, salida o ajuste (con signo y motivo), con un buscador de producto y cómo queda el stock antes de registrarlo. |
 | Promociones | Chips por estado, crear, editar y eliminar. El precio tiene que ser menor que el normal, la vigencia son días de la tienda (los dos incluidos) y el producto no cambia al editar. Cada una tiene un título opcional y una audiencia: "Todos" o "Solo clientes VIP" (las exclusivas llevan la insignia VIP en la lista). Una promoción que se cruza con otra del producto para la misma audiencia (409) se muestra. |

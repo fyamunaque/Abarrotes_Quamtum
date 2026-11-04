@@ -84,6 +84,18 @@ class FirebaseAuthRepository implements AuthRepository {
     await _sendVerification(user);
   });
 
+  @override
+  Future<void> sendPasswordReset(String email) => _guard(() async {
+    await _auth.setLanguageCode('es');
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+    } on FirebaseAuthException catch (error) {
+      // Sin la protección contra enumeración, Firebase avisa que no hay
+      // cuenta. A la persona se le dice lo mismo que si se mandó.
+      if (error.code != 'user-not-found') rethrow;
+    }
+  });
+
   /// En español: el correo de Firebase sale en el idioma que se le pide.
   Future<void> _sendVerification(User user) async {
     await _auth.setLanguageCode('es');
@@ -110,6 +122,11 @@ String authErrorMessage(String code) => switch (code) {
   'wrong-password' ||
   'user-not-found' => 'El correo o la contraseña no son correctos.',
   'invalid-email' => 'Ese correo no es válido.',
+  'missing-email' => 'Escribe tu correo.',
+  // La política de contraseñas de la consola de Firebase, si está activa.
+  'password-does-not-meet-requirements' =>
+    'La contraseña no cumple lo que pide la tienda: al menos 8 caracteres, '
+        'con letras y números.',
   'user-disabled' => 'Esta cuenta está deshabilitada.',
   'email-already-in-use' =>
     'Ya hay una cuenta con ese correo. Ingresa con ella.',
@@ -157,4 +174,7 @@ class UnavailableAuthRepository implements AuthRepository {
 
   @override
   Future<void> sendEmailVerification() => Future.error(_failure);
+
+  @override
+  Future<void> sendPasswordReset(String email) => Future.error(_failure);
 }

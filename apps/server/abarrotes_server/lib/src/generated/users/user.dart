@@ -34,6 +34,9 @@ abstract class User
     required this.name,
     this.phone,
     this.address,
+    this.dni,
+    this.termsVersion,
+    this.termsAcceptedAt,
     DateTime? createdAt,
     this.orders,
     this.inventoryMovements,
@@ -53,6 +56,9 @@ abstract class User
     required String name,
     String? phone,
     String? address,
+    String? dni,
+    String? termsVersion,
+    DateTime? termsAcceptedAt,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
@@ -76,6 +82,13 @@ abstract class User
       name: jsonSerialization['name'] as String,
       phone: jsonSerialization['phone'] as String?,
       address: jsonSerialization['address'] as String?,
+      dni: jsonSerialization['dni'] as String?,
+      termsVersion: jsonSerialization['termsVersion'] as String?,
+      termsAcceptedAt: jsonSerialization['termsAcceptedAt'] == null
+          ? null
+          : _is.DateTimeJsonExtension.fromJson(
+              jsonSerialization['termsAcceptedAt'],
+            ),
       createdAt: jsonSerialization['createdAt'] == null
           ? null
           : _is.DateTimeJsonExtension.fromJson(jsonSerialization['createdAt']),
@@ -135,9 +148,22 @@ abstract class User
 
   String name;
 
+  /// Celular peruano de 9 dígitos, normalizado ("987654321"). Hace falta
+  /// para pedir (ver common/customer_requirements.dart).
   String? phone;
 
   String? address;
+
+  /// DNI de 8 dígitos, opcional: la tienda puede confirmar quién recibe o
+  /// recoge un pedido. Único: dos cuentas no comparten DNI.
+  String? dni;
+
+  /// Qué versión de los términos de uso y la política de privacidad aceptó
+  /// la cuenta, y cuándo. Para pedir hace falta la vigente
+  /// (currentTermsVersion).
+  String? termsVersion;
+
+  DateTime? termsAcceptedAt;
 
   DateTime createdAt;
 
@@ -169,6 +195,9 @@ abstract class User
     String? name,
     String? phone,
     String? address,
+    String? dni,
+    String? termsVersion,
+    DateTime? termsAcceptedAt,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
@@ -189,6 +218,9 @@ abstract class User
       'name': name,
       if (phone != null) 'phone': phone,
       if (address != null) 'address': address,
+      if (dni != null) 'dni': dni,
+      if (termsVersion != null) 'termsVersion': termsVersion,
+      if (termsAcceptedAt != null) 'termsAcceptedAt': termsAcceptedAt?.toJson(),
       'createdAt': createdAt.toJson(),
       if (orders != null)
         'orders': orders?.toJson(valueToJson: (v) => v.toJson()),
@@ -226,6 +258,9 @@ abstract class User
       'name': name,
       if (phone != null) 'phone': phone,
       if (address != null) 'address': address,
+      if (dni != null) 'dni': dni,
+      if (termsVersion != null) 'termsVersion': termsVersion,
+      if (termsAcceptedAt != null) 'termsAcceptedAt': termsAcceptedAt?.toJson(),
       'createdAt': createdAt.toJson(),
       if (orders != null)
         'orders': orders?.toJson(valueToJson: (v) => v.toJsonForProtocol()),
@@ -311,6 +346,9 @@ class _UserImpl extends User {
     required String name,
     String? phone,
     String? address,
+    String? dni,
+    String? termsVersion,
+    DateTime? termsAcceptedAt,
     DateTime? createdAt,
     List<_ij3i88ow.Order>? orders,
     List<_i4yp9mtd.InventoryMovement>? inventoryMovements,
@@ -327,6 +365,9 @@ class _UserImpl extends User {
          name: name,
          phone: phone,
          address: address,
+         dni: dni,
+         termsVersion: termsVersion,
+         termsAcceptedAt: termsAcceptedAt,
          createdAt: createdAt,
          orders: orders,
          inventoryMovements: inventoryMovements,
@@ -349,6 +390,9 @@ class _UserImpl extends User {
     String? name,
     Object? phone = _Undefined,
     Object? address = _Undefined,
+    Object? dni = _Undefined,
+    Object? termsVersion = _Undefined,
+    Object? termsAcceptedAt = _Undefined,
     DateTime? createdAt,
     Object? orders = _Undefined,
     Object? inventoryMovements = _Undefined,
@@ -366,6 +410,11 @@ class _UserImpl extends User {
       name: name ?? this.name,
       phone: phone is String? ? phone : this.phone,
       address: address is String? ? address : this.address,
+      dni: dni is String? ? dni : this.dni,
+      termsVersion: termsVersion is String? ? termsVersion : this.termsVersion,
+      termsAcceptedAt: termsAcceptedAt is DateTime?
+          ? termsAcceptedAt
+          : this.termsAcceptedAt,
       createdAt: createdAt ?? this.createdAt,
       orders: orders is List<_ij3i88ow.Order>?
           ? orders
@@ -427,6 +476,23 @@ class UserUpdateTable extends _is.UpdateTable<UserTable> {
     value,
   );
 
+  _is.ColumnValue<String, String> dni(String? value) => _is.ColumnValue(
+    table.dni,
+    value,
+  );
+
+  _is.ColumnValue<String, String> termsVersion(String? value) =>
+      _is.ColumnValue(
+        table.termsVersion,
+        value,
+      );
+
+  _is.ColumnValue<DateTime, DateTime> termsAcceptedAt(DateTime? value) =>
+      _is.ColumnValue(
+        table.termsAcceptedAt,
+        value,
+      );
+
   _is.ColumnValue<DateTime, DateTime> createdAt(DateTime value) =>
       _is.ColumnValue(
         table.createdAt,
@@ -462,6 +528,18 @@ class UserTable extends _is.Table<_is.UuidValue?> {
       'address',
       this,
     );
+    dni = _is.ColumnString(
+      'dni',
+      this,
+    );
+    termsVersion = _is.ColumnString(
+      'termsVersion',
+      this,
+    );
+    termsAcceptedAt = _is.ColumnDateTime(
+      'termsAcceptedAt',
+      this,
+    );
     createdAt = _is.ColumnDateTime(
       'createdAt',
       this,
@@ -482,9 +560,22 @@ class UserTable extends _is.Table<_is.UuidValue?> {
 
   late final _is.ColumnString name;
 
+  /// Celular peruano de 9 dígitos, normalizado ("987654321"). Hace falta
+  /// para pedir (ver common/customer_requirements.dart).
   late final _is.ColumnString phone;
 
   late final _is.ColumnString address;
+
+  /// DNI de 8 dígitos, opcional: la tienda puede confirmar quién recibe o
+  /// recoge un pedido. Único: dos cuentas no comparten DNI.
+  late final _is.ColumnString dni;
+
+  /// Qué versión de los términos de uso y la política de privacidad aceptó
+  /// la cuenta, y cuándo. Para pedir hace falta la vigente
+  /// (currentTermsVersion).
+  late final _is.ColumnString termsVersion;
+
+  late final _is.ColumnDateTime termsAcceptedAt;
 
   late final _is.ColumnDateTime createdAt;
 
@@ -749,6 +840,9 @@ class UserTable extends _is.Table<_is.UuidValue?> {
     name,
     phone,
     address,
+    dni,
+    termsVersion,
+    termsAcceptedAt,
     createdAt,
   ];
 

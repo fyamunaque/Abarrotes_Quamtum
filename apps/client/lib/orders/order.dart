@@ -11,6 +11,7 @@ class Order {
     required this.totalCents,
     required this.createdAt,
     required this.lines,
+    this.number,
     this.fulfillmentType = FulfillmentType.delivery,
     this.deliveryAddress,
     this.pickupCode,
@@ -31,6 +32,7 @@ class Order {
       final statuses = OrderStatus.values.asNameMap();
       return Order(
         id: id,
+        number: json['number'] as int?,
         status:
             statuses[status] ??
             (throw FormatException('Estado desconocido', status)),
@@ -71,6 +73,17 @@ class Order {
   }
 
   final String id;
+
+  /// El número que se le dice al cliente ("Pedido N.º 1024"), correlativo.
+  /// Null solo con un servidor anterior.
+  final int? number;
+
+  /// "Pedido N.º 1024", o "Pedido" sin número.
+  String get title => switch (number) {
+    final number? => 'Pedido N.º $number',
+    null => 'Pedido',
+  };
+
   final OrderStatus status;
   final FulfillmentType fulfillmentType;
   final int totalCents;

@@ -327,6 +327,51 @@ void main() {
       );
     });
 
+    testWidgets(
+      '"Agregar al carrito" en el naranja de marca, como en el catálogo',
+      (tester) async {
+        await pumpApp(tester, at: '/producto/arroz');
+
+        final button = find.widgetWithText(FilledButton, 'Agregar al carrito');
+        final surface = tester.widget<Material>(
+          find.descendant(of: button, matching: find.byType(Material)).first,
+        );
+        expect(
+          surface.color,
+          Theme.of(tester.element(button)).colorScheme.secondaryContainer,
+        );
+      },
+    );
+
+    testWidgets(
+      '"Más de" la categoría: los otros productos, sin el que se ve',
+      (tester) async {
+        final router = await pumpApp(tester, at: '/producto/arroz');
+
+        expect(find.text('Más de Abarrotes'), findsOneWidget);
+        expect(shownProducts(tester), ['aceite']);
+
+        await tester.tap(find.widgetWithText(FilledButton, 'Agregar'));
+        await tester.pumpAndSettle();
+        expect(container.read(cartProvider).quantityOf('aceite'), 1);
+        expect(container.read(cartProvider).quantityOf('arroz'), 0);
+
+        await tester.tap(find.text('Aceite vegetal 1 L'));
+        await tester.pumpAndSettle();
+        expect(location(router), '/producto/aceite');
+        expect(shownProducts(tester), ['arroz']);
+      },
+    );
+
+    testWidgets('sin otros productos en la categoría, no hay "Más de"', (
+      tester,
+    ) async {
+      await pumpApp(tester, at: '/producto/leche');
+
+      expect(find.textContaining('Más de'), findsNothing);
+      expect(find.byType(ProductCard), findsNothing);
+    });
+
     testWidgets('un producto que ya no existe lo dice', (tester) async {
       await pumpApp(tester, at: '/producto/no-existe');
 

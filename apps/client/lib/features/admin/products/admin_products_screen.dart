@@ -175,7 +175,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
               (p) => StatusBadge(
                 label: p.active ? 'Activo' : 'De baja',
                 color: p.active
-                    ? OrderStatusColors.confirmed
+                    ? StateColors.positive
                     : Theme.of(context).colorScheme.outline,
               ),
             ),

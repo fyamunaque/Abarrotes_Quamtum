@@ -1,0 +1,196 @@
+// Tareas para levantar el proyecto desde VS Code (ver docs/VSCODE.md).
+// Ctrl+Shift+B corre "Levantar todo"; las demás, en Terminal → Run Task.
+//
+// Cada tarea agrega al PATH el Flutter de `dart.flutterSdkPath` (en
+// .vscode/settings.json, que es de cada máquina). Si Flutter ya está en el
+// PATH, no hace falta.
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      // Primero el servidor y, cuando ya escucha, la tienda: así no compilan
+      // los dos a la vez (con 8 GB de RAM no alcanza).
+      "label": "Levantar todo",
+      "detail": "El servidor y después la tienda web (http://localhost:5006), cada uno en su terminal",
+      "dependsOn": ["Servidor", "Tienda web"],
+      "dependsOrder": "sequence",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Servidor",
+      "detail": "Serverpod: las rutas REST en http://localhost:8082",
+      "type": "shell",
+      "command": "dart run bin/main.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      // Queda "lista" cuando el servidor escucha.
+      "problemMatcher": {
+        "owner": "servidor",
+        "pattern": { "regexp": "^__sin_problemas__$" },
+        "background": {
+          "activeAtBeginning": true,
+          "beginsPattern": "Running build hooks|SERVERPOD version",
+          "endsPattern": "Webserver listening on"
+        }
+      }
+    },
+    {
+      // Sirve la compilación en release que ya está (build/web). Solo compila
+      // (1-2 minutos) si no hay una o si el código cambió desde la última.
+      "label": "Tienda web",
+      "detail": "La tienda en release, en http://localhost:5006 (compila solo si el código cambió)",
+      "type": "shell",
+      "command": "dart run tool/serve_web.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": {
+        "owner": "tienda-web",
+        "pattern": { "regexp": "^__sin_problemas__$" },
+        "background": {
+          "activeAtBeginning": true,
+          "beginsPattern": "Running build hooks|compilando|al día",
+          "endsPattern": "La tienda está en"
+        }
+      }
+    },
+    {
+      "label": "Tienda web: compilar de nuevo",
+      "detail": "Compila la tienda aunque no haya cambios y la sirve (si algo se ve desactualizado)",
+      "type": "shell",
+      "command": "dart run tool/serve_web.dart --compilar",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "isBackground": true,
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": {
+        "owner": "tienda-web",
+        "pattern": { "regexp": "^__sin_problemas__$" },
+        "background": {
+          "activeAtBeginning": true,
+          "beginsPattern": "Running build hooks|compilando",
+          "endsPattern": "La tienda está en"
+        }
+      }
+    },
+    {
+      // Sube la versión de pubspec.yaml (1.0.1 → 1.0.2), compila en release y
+      // deja apps/client/build/apk/neils-1.0.2.apk. Ver docs/VSCODE.md.
+      "label": "App: generar APK",
+      "detail": "Sube la versión y compila el APK en release (unos minutos)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "App: generar APK e instalar en el teléfono",
+      "detail": "Lo mismo y lo instala en el teléfono conectado por USB (con el puerto del servidor por el cable)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart --instalar",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      // Para instalarlo como cualquier app, sin depuración USB: va por la Wi-Fi
+      // a la IP de esta computadora. Queda en build/apk/neils-1.0.2-wifi.apk.
+      "label": "App: generar APK para Wi-Fi",
+      "detail": "Sube la versión y compila un APK que llega al servidor por la Wi-Fi (para copiarlo e instalarlo a mano)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart --wifi",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "App: instalar el último APK en el teléfono",
+      "detail": "Sin compilar: instala el APK de la versión de pubspec.yaml (p. ej. si la instalación falló)",
+      "type": "shell",
+      "command": "dart run tool/build_apk.dart --solo-instalar",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "presentation": { "panel": "dedicated", "reveal": "always", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Preparar paquetes",
+      "detail": "dart pub get en el servidor y flutter pub get en la app (la primera vez y al cambiar dependencias)",
+      "dependsOn": ["Paquetes del servidor", "Paquetes de la app"],
+      "dependsOrder": "sequence",
+      "problemMatcher": []
+    },
+    {
+      "label": "Paquetes del servidor",
+      "type": "shell",
+      "command": "dart pub get",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Paquetes de la app",
+      "type": "shell",
+      "command": "flutter pub get",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/client",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Servidor: aplicar migraciones",
+      "detail": "Después de traer cambios del modelo de datos (una migración nueva)",
+      "type": "shell",
+      "command": "dart run bin/main.dart --role maintenance --apply-migrations",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Servidor: datos de ejemplo",
+      "detail": "Completa el catálogo, las fotos y los pedidos de ejemplo en la base de desarrollo",
+      "type": "shell",
+      "command": "dart run bin/seed_dev.dart",
+      "options": {
+        "cwd": "${workspaceFolder}/apps/server/abarrotes_server",
+        "env": { "Path": "${config:dart.flutterSdkPath}\\bin;${env:Path}" }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Teléfono: pasar el puerto por USB",
+      "detail": "adb reverse: el teléfono conectado por cable llega al servidor en localhost:8082",
+      "type": "process",
+      "command": "${env:LOCALAPPDATA}\\Android\\Sdk\\platform-tools\\adb.exe",
+      "args": ["reverse", "tcp:8082", "tcp:8082"],
+      "problemMatcher": []
+    }
+  ]
+}

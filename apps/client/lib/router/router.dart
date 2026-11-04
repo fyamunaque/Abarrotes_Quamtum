@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../features/account/my_account_screen.dart';
 import '../features/admin/admin_home_screen.dart';
 import '../features/admin/admin_shell.dart';
 import '../features/admin/inventory/admin_inventory_screen.dart';
@@ -62,6 +63,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: Routes.myOrders,
         builder: (_, state) =>
             MyOrdersScreen(newOrderId: state.uri.queryParameters['nuevo']),
+      ),
+      GoRoute(
+        path: Routes.myAccount,
+        builder: (_, state) =>
+            MyAccountScreen(from: state.uri.queryParameters['from']),
       ),
       // Solo en debug: en los builds de release esta ruta no existe.
       if (kDebugMode)

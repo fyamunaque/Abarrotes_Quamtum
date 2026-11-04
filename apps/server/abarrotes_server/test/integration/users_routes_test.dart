@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:abarrotes_server/src/auth/firebase_auth_middleware.dart';
+import 'package:abarrotes_server/src/common/customer_requirements.dart';
 import 'package:abarrotes_server/src/generated/protocol.dart';
 import 'package:abarrotes_server/src/users/users_routes.dart';
 import 'package:abarrotes_server/src/users/users_service.dart';
@@ -89,6 +90,10 @@ void main() {
           'phone': null,
           'role': 'customer',
           'address': null,
+          'dni': null,
+          'termsVersion': null,
+          'termsAcceptedAt': null,
+          'profileComplete': false,
           'createdAt': isA<String>(),
           'isVip': false,
           'staffRole': null,
@@ -245,6 +250,116 @@ void main() {
           expect(other['isVip'], isFalse);
           expect(inactive['isVip'], isFalse);
         });
+      });
+    });
+
+    group('PATCH /users/me', () {
+      Future<(int, dynamic)> patchMe(
+        Object? body, {
+        String uid = 'uid-ana',
+        String email = 'ana@example.com',
+      }) async {
+        final response = await http.patch(
+          url('/users/me'),
+          headers: authAs(uid, email: email),
+          body: jsonEncode(body),
+        );
+        return (response.statusCode, jsonDecode(response.body));
+      }
+
+      Future<User> stored(String uid) async => (await User.db.findFirstRow(
+        session,
+        where: (u) => u.firebaseUid.equals(uid),
+      ))!;
+
+      test('guarda el celular normalizado, el DNI y los términos', () async {
+        final (status, body) = await patchMe({
+          'phone': '+51 987-654-321',
+          'dni': '45678912',
+          'acceptTerms': currentTermsVersion,
+        });
+
+        expect(status, 200);
+        expect(body['phone'], '987654321');
+        expect(body['dni'], '45678912');
+        expect(body['termsVersion'], currentTermsVersion);
+        expect(body['termsAcceptedAt'], isA<String>());
+        expect(body['profileComplete'], isTrue);
+        // Responde la cuenta completa, como GET /users/me.
+        expect(body['role'], 'customer');
+        expect(body['permissions'], <String>[]);
+
+        final user = await stored('uid-ana');
+        expect(user.phone, '987654321');
+        expect(user.dni, '45678912');
+        expect(user.termsAcceptedAt, isNotNull);
+      });
+
+      test('lo que no viene queda igual; dni null lo borra', () async {
+        await patchMe({
+          'phone': '987654321',
+          'dni': '45678912',
+          'acceptTerms': currentTermsVersion,
+        });
+
+        final (_, kept) = await patchMe({'phone': '912345678'});
+        expect(kept['dni'], '45678912');
+        expect(kept['profileComplete'], isTrue);
+
+        final (status, cleared) = await patchMe({'dni': null});
+        expect(status, 200);
+        expect(cleared['dni'], isNull);
+        expect(cleared['phone'], '912345678');
+        expect((await stored('uid-ana')).dni, isNull);
+      });
+
+      test(
+        'sin celular o sin los términos, el perfil no está completo',
+        () async {
+          final (_, phoneOnly) = await patchMe({'phone': '987654321'});
+          expect(phoneOnly['profileComplete'], isFalse);
+
+          final (_, fresh) = await getMe(
+            authAs('uid-luz', email: 'luz@tienda.pe'),
+          );
+          expect(fresh['profileComplete'], isFalse);
+          expect(fresh['termsVersion'], isNull);
+        },
+      );
+
+      test('celular, DNI o términos inválidos: 400 y no guarda nada', () async {
+        final (status, body) = await patchMe({
+          'phone': '812345678',
+          'dni': '1234567',
+          'acceptTerms': '2020-01-01',
+        });
+
+        expect(status, 400);
+        expect(body['message'], [
+          'El celular tiene que tener 9 dígitos y empezar con 9.',
+          'El DNI tiene que tener 8 dígitos.',
+          'Los términos cambiaron: actualiza la app y vuelve a aceptarlos.',
+        ]);
+        expect(await User.db.count(session), 0);
+
+        final (unknown, _) = await patchMe({'role': 'admin'});
+        expect(unknown, 400);
+      });
+
+      test('un DNI de otra cuenta: 409', () async {
+        await patchMe({'dni': '45678912'});
+
+        final (status, body) = await patchMe(
+          {
+            'dni': '45678912',
+          },
+          uid: 'uid-luz',
+          email: 'luz@tienda.pe',
+        );
+
+        expect(status, 409);
+        expect(body['message'], 'Ese DNI ya está registrado en otra cuenta.');
+        expect((await stored('uid-luz')).dni, isNull);
       });
     });
 
