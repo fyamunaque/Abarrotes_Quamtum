@@ -32,3 +32,7 @@ fields:
   promoCode: PromoCode?, relation(name=promo_code_promotions, optional, onDelete=Restrict, onUpdate=Cascade)
   ### Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   title: String?
+indexes:
+  # Las promociones de un código.
+  promotions_promo_code_idx:
+    fields: promoCodeId

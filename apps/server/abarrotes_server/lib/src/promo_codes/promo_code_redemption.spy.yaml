@@ -13,3 +13,6 @@ indexes:
   promo_code_redemptions_pair_idx:
     fields: promoCodeId, userId
     unique: true
+  # Los códigos de un cliente (en cada pedido, cotización y "Mis códigos").
+  promo_code_redemptions_user_idx:
+    fields: userId

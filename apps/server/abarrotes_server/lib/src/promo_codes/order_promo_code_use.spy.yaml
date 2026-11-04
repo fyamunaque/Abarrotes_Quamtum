@@ -11,3 +11,6 @@ indexes:
   order_promo_code_uses_pair_idx:
     fields: orderId, redemptionId
     unique: true
+  # Los usos de un canje (se cuentan en cada pedido y cotización).
+  order_promo_code_uses_redemption_idx:
+    fields: redemptionId
