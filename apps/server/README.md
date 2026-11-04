@@ -21,9 +21,10 @@ apps/server/
 ```
 
 Un dominio por carpeta (`users`, `categories`, `products`, `inventory`, `supplies`, `orders`,
-`promotions`, `vip`): ningún dominio importa la lógica de otro. `auth`, `common` y `push` son
+`promotions`, `promo_codes`, `vip`): ningún dominio importa la lógica de otro. `auth`, `common` y `push` son
 infraestructura compartida; lo que un dominio necesita de otro llega por constructor como interfaz
-(p. ej. `PromotionPricing`, ver [Clientes VIP](#clientes-vip-y-audiencias-de-las-promociones)).
+(p. ej. `PromotionPricing`, ver [Clientes VIP](#clientes-vip-y-audiencias-de-las-promociones), o
+`CodeBenefits`, con la que `promo_codes` le dice a `promotions` qué códigos activó cada cliente).
 
 ## Requisitos
 
@@ -231,18 +232,24 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
 | `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
 | `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
-| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto con `products.view`). |
+| `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto con `products.view`). Cada producto trae `unitPrice` (con el precio especial y los porcentajes que puede usar quien mira), `promotions` (las vigentes que puede usar, cada una con `type`, `label` y sus campos, para las insignias "2x1" o "+ regalo") y `promotion` (el precio especial más bajo, o null: lo leen las apps de antes). |
 | `GET /products/:id` | público | Un inactivo es 404, salvo con `products.view`. |
 | `POST /products` | `products.manage` | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. `imageUrl` es una URL `http(s)` externa; la foto propia se sube después. |
 | `PATCH /products/:id` | `products.manage` | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. `imageUrl` acepta una URL externa o la foto subida que el producto ya tiene (así el formulario lo reenvía sin cambios); otra ruta `/images/...` es 400. Si deja de usar una foto subida, se borra. |
 | `DELETE /products/:id` | `products.manage` | Baja lógica (`active: false`); devuelve el producto. |
 | `PUT /products/:id/image` | `products.manage` | El body es la foto tal cual (JPEG, PNG o WebP, hasta 8 MB; si pesa más, 413). La guarda procesada (ver "Fotos de los productos"), pone su ruta en `imageUrl`, borra la foto subida que tenía y devuelve el producto. Algo que no es una imagen, o de más de 40 megapíxeles, es 400. |
 | `GET /images/products/:productId/:file` | público | La foto subida (`image/jpeg`), con `Cache-Control: public, max-age=31536000, immutable`: cada foto nueva tiene otro nombre. 404 si no existe. |
-| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero, cada una con `recipients: [{id, email}]` (los VIP elegidos, por correo; vacío si no es de clientes elegidos). Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
-| `POST /promotions` | `promotions.manage` | `{productId, promoPrice, startDate, endDate, active?, audience?, title?, recipientIds?}`, días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto), `vip` o `selected` (solo los VIP de `recipientIds`, los ids de `/vip-customers`: de 1 a 100, cada uno un VIP activo; en otra audiencia, 400); `title`: hasta 100 caracteres. |
-| `PATCH /promotions/:id` | `promotions.manage` | Cambia precio, fechas, `active`, `audience`, `title` (`null` lo borra) o `recipientIds` (los reemplaza; sin el campo quedan los mismos, y si pasa a otra audiencia, ninguno); el producto no cambia. |
-| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar, de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`; las de `selected`, solo a sus elegidos. |
-| `DELETE /promotions/:id` | `promotions.manage` | 204. |
+| `GET /promotions`, `GET /promotions/:id` | `promotions.manage` | Paginado, el inicio más reciente primero, cada una con `type`, `label` (cómo se nombra: "Precio especial S/ 19.90", "20 % menos", "2x1", "2.ª al 50 %", "Regalo: Sal 1 kg"), los campos de su tipo y `recipients: [{id, email}]` (los VIP elegidos, por correo; vacío si no es de clientes elegidos). Filtros: `productId`, `status` (`scheduled`, `active`, `expired`, `disabled`). |
+| `POST /promotions` | `promotions.manage` | `{productId, type?, startDate, endDate, active?, audience?, title?, recipientIds?}` y los campos de su `type`: `specialPrice` (por defecto) lleva `promoPrice`; `percentOff`, `percent` (1–90); `buyXPayY` (NxM: 2x1, 3x2…), `buyQuantity` (2–10) y `payQuantity` (menor); `extraUnit` (cada N.ª unidad con un % menos), `buyQuantity` (2–10) y `percent` (1–100); `gift`, `buyQuantity` (cada cuántas, 1–10), `giftProductId` (otro producto, activo) y `giftQuantity` (1–10). Un campo de otro tipo es 400. Si se cruza con otras del producto, 409 con `overlaps` (ver las reglas abajo); `confirmOverlap: true` la crea igual. Días `AAAA-MM-DD` ambos incluidos. `audience`: `everyone` (por defecto), `vip`, `code` (la de un código: lleva `promoCodeId`, que existe; en otra audiencia, 400) o `selected` (solo los VIP de `recipientIds`, los ids de `/vip-customers`: de 1 a 100, cada uno un VIP activo; en otra audiencia, 400); `title`: hasta 100 caracteres. |
+| `PATCH /promotions/:id` | `promotions.manage` | Cambia los campos de su tipo, fechas, `active`, `audience`, `title` (`null` lo borra) o `recipientIds` (los reemplaza; sin el campo quedan los mismos, y si pasa a otra audiencia, ninguno); el producto y el tipo no cambian. |
+| `GET /promotions/active` | público (token opcional) | Paginado: las vigentes que quien pregunta puede usar (con `types=all`, de todos los tipos; sin él, solo los precios especiales, porque las apps de antes leen `promoPrice` en cada una; las de un código nunca), de productos activos, por producto y la más barata primero. Cada una con `title`, `audience`, `promoPrice`, fechas y `product {id, name, price, imageUrl, categoryId}`. Sin token, o sin ser VIP, solo salen las de `everyone`; las de `selected`, solo a sus elegidos. |
+| `DELETE /promotions/:id` | `promotions.manage` | 204. La última promoción encendida de un código encendido no se borra, ni se apaga ni pasa a otra audiencia con `PATCH` (409: primero se apaga el código). |
+| `GET /promo-codes`, `GET /promo-codes/:id` | `promotions.manage` | Paginado, los creados más recientemente primero. Cada uno con `code`, `active`, `status` (`active`, `scheduled`, `expired` o `paused`), `startDate`/`endDate` (días de la tienda), `benefitDays`, `maxRedemptions`, `usesPerCustomer`, `minPurchase` (texto o null), `newCustomersOnly`, `eligibility` (`everyone`, `vip` o `listed`), `allowedEmails`, `promotions` (como las de `/promotions`), `redemptions` (cuántos lo activaron) y `orders` (en cuántos pedidos no cancelados se usó). Filtros: `status` y `search` (en el texto). |
+| `POST /promo-codes` | `promotions.manage` | `{code, startDate, endDate, active?, benefitDays?, maxRedemptions?, usesPerCustomer?, minPurchase?, newCustomersOnly?, eligibility?, allowedEmails?}`. `code` se guarda sin espacios en los extremos y en mayúsculas: de 3 a 20 letras, números o guiones, único (409 "Ya existe el código VERANO-10"). Los límites, desde 1 (null: sin límite). `listed` pide al menos un correo (válidos, se normalizan); en otra condición, `allowedEmails` es 400. Se crea apagado: encenderlo pide al menos una promoción encendida. Si dos personas guardan el mismo texto a la vez, la segunda recibe el mismo 409. |
+| `PATCH /promo-codes/:id` | `promotions.manage` | Cambia cualquiera de esos campos (un límite en `null` lo quita). Si alguien ya lo activó, el texto no cambia (409). Pausarlo corta el beneficio de quienes lo activaron; bajar `maxRedemptions` por debajo de los canjes no les quita nada, solo cierra los nuevos. |
+| `DELETE /promo-codes/:id` | `promotions.manage` | 204, con sus promociones. Si alguien ya lo activó, 409: se apaga en vez de borrarlo (la fila del código se bloquea antes de contar sus canjes, como al activarlo). Las promociones de un código se crean con `POST /promotions` y `audience: code` con `promoCodeId`. |
+| `POST /promo-codes/redeem` | cuenta, con el correo confirmado (si no, 403) | `{code}`, escrito como sea. Uno que no existe, apagado o fuera de fechas da siempre 404 "El código no existe o ya no está vigente". 409 "Se acabaron los canjes de este código" (la fila del código se bloquea al activarlo) o "Ya activaste este código"; 403 con la condición que no cumple ("Este código es solo para clientes nuevos": sin pedidos no cancelados; "... solo para clientes VIP"; "... no está disponible para tu cuenta"). Responde `{code, expiresAt, usesLeft, minPurchase, promotions: [{label, product: {id, name}}]}`: el beneficio dura `benefitDays` desde que se activa, nunca más allá del fin del código. |
+| `GET /promo-codes/mine` | cuenta | Los códigos activados que todavía sirven (encendidos, sin vencer y con usos), los que vencen antes primero, como los responde `redeem`. |
 | `GET /vip-customers` | `vip.view` | Paginado, por correo. Cada uno con `email`, `active`, `createdAt`, `addedBy {id, name, email}` y `hasAccount` (si ese correo ya tiene cuenta). Filtros: `search` (en el correo) e `includeInactive=true` (también los dados de baja). |
 | `POST /vip-customers` | `vip.manage` | `{emails: [...]}` (de 1 a 500). Normaliza (minúsculas, sin espacios), valida el formato e ignora los repetidos. Responde 200 con `{added, duplicates, invalid}`. Un correo dado de baja que vuelve se reactiva y cuenta en `added`. |
 | `DELETE /vip-customers/:id` | `vip.manage` | Baja lógica (`active: false`): queda quién lo agregó y cuándo. Devuelve el VIP. |
@@ -250,7 +257,8 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /inventory/movements` | `inventory.view` | Historial paginado, el más reciente primero, cada uno con el pedido que lo originó (`order: {id, number}`, o null si se registró a mano). Filtros, que se combinan: `productId` (404 si el producto no existe), `origin` (`orders`: la salida de un pedido o su devolución al cancelarlo; `manual`: los que se registran en el panel), `categoryId`, `search` (el nombre o el SKU del producto, sin importar mayúsculas, y si es un número, también el N.º del pedido), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos; 400 si `from` es posterior). |
 | `GET /inventory/alerts/low-stock` | `inventory.view` | `{data}`: productos activos con `currentStock <= minStock`, los más críticos primero, con `shortage` (lo que falta para el mínimo). |
 | `GET /inventory/alerts/expiring?days=7` | `inventory.view` | `{days, until, data}`: productos activos con stock que vencen hasta hoy + `days` (1 a 365), incluidos los ya vencidos, con `daysLeft` (negativo = vencido). |
-| `POST /orders` | cualquiera con cuenta | La cuenta tiene que tener el correo confirmado (`email_verified` del token), el celular y los términos vigentes aceptados: si falta algo, 403 con lo que falta ("Confirma tu correo para hacer pedidos…" o "Completa tu cuenta para hacer pedidos…"). `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria, y el servidor le genera su `deliveryCode`; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total: cobra por producto la mejor promoción vigente que el cliente puede usar (la más barata) o el precio normal. `unitPrice` es el que mostraba el carrito: nunca se cobra, solo se compara. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido y `priceChanges: [{productId, name, shownUnitPrice, unitPrice}]`, los productos que se cobraron distinto de lo que mostraba el carrito (vacío si nada cambió). |
+| `POST /orders` | cualquiera con cuenta | La cuenta tiene que tener el correo confirmado (`email_verified` del token), el celular y los términos vigentes aceptados: si falta algo, 403 con lo que falta ("Confirma tu correo para hacer pedidos…" o "Completa tu cuenta para hacer pedidos…"). `{fulfillmentType?, deliveryAddress?, items: [{productId, quantity, unitPrice?}]}` (de 1 a 100 líneas; cantidad de 1 a 999). `fulfillmentType`: `delivery` (por defecto) lleva `deliveryAddress`, obligatoria, y el servidor le genera su `deliveryCode`; `pickup` (recojo en tienda) no la lleva (400 si viene) y el servidor le genera su `pickupCode`. El servidor pone los precios y el total con el motor de promociones (ver [Cómo se cobra](#cómo-se-cobra-un-pedido)): las promociones vigentes que el cliente puede usar se acumulan, y los regalos van como líneas a S/ 0 que también descuentan stock (si no alcanza, se da lo que haya y el pedido trae `notices`). Cada ítem puede traer `lineTotal` (lo que mostraba el carrito para la línea) o, en las apps de antes, `unitPrice`: nunca se cobran, solo se comparan. El pedido queda a nombre de quien lo crea, en `pendingConfirmation`, y descuenta el stock. Producto dado de baja o inexistente: 400 (`Ya no están disponibles: ...`). Stock insuficiente: 409. En los dos casos no se guarda nada. Responde 201 con el pedido, `notices` y `priceChanges`: los productos que se cobraron distinto de lo que mostraba el carrito, `{productId, name, shownLineTotal, lineTotal}` (o `{…, shownUnitPrice, unitPrice}` si mandó el precio unitario); vacío si nada cambió. |
+| `POST /orders/quote` | público (token opcional) | `{items: [{productId, quantity}]}` (de 1 a 100). Cómo se cobraría ese carrito con las promociones que puede usar quien pregunta, sin guardar nada ni tocar el stock: `{lines, subtotal, discount, total, notices}`, con las líneas como las del pedido (regalos incluidos). Un producto de baja no entra y va en `notices`. |
 | `GET /orders/mine` | cualquiera con cuenta | Los pedidos propios con sus líneas, paginados, los más recientes primero, con su `pickupCode` o su `deliveryCode`. Filtros, que se combinan: `search` (el N.º si es un número, o un producto del pedido por su nombre, sin importar mayúsculas), `state` (`active`: ni entregado ni cancelado; `delivered` o `cancelled`), `fulfillmentType`, `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `GET /orders` | `orders.view` | Pedidos con sus líneas y su `pickupCode` (el `deliveryCode` nunca: el repartidor se lo pide al cliente), paginados (los datos de contacto del cliente, solo con `customers.view`; si no, `customer` va en null), los más recientes primero. Filtros: `status`, `fulfillmentType`, `number` (el número exacto; 400 si no es un entero), `from` y `to` (días de Lima `AAAA-MM-DD`, ambos incluidos). |
 | `PATCH /orders/:id/status` | `orders.updateStatus` | `{status, pickupCode?, deliveryCode?, withoutCodeReason?}`. Valida la transición con el flujo del tipo de entrega y el estado actual: si no está permitida, 400 con el motivo. Recoger un pedido (de `readyForPickup` a `delivered`) pide el `pickupCode` que muestra el cliente, y entregar uno a domicilio (de `outForDelivery` a `delivered`), el `deliveryCode` que el cliente le da al repartidor (400 si falta o no coincide; los pedidos de antes, sin código, se entregan sin él). Sin el código, solo con `staff.manage` (si no, 403): `withoutCodeReason` (de 5 a 255 caracteres) dice por qué, queda en el pedido (`deliveredWithoutCodeReason`) y en la bitácora (`orderDeliveredWithoutCode`, con el correo del cliente y el N.º del pedido); en cualquier otro cambio, 400. El código de recojo va en la respuesta solo con `orders.view`; el de entrega, nunca. |
@@ -268,13 +276,42 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `DELETE /staff/members/:id` | `staff.manage` | Baja lógica: pierde sus permisos en la petición siguiente. |
 | `GET /staff/audit` | `staff.manage` | La bitácora, paginada, lo más reciente primero: `{action, targetEmail, details, createdAt, actor}`. |
 
-Cada pedido JSON lleva `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
+Cada pedido JSON lleva `subtotal` (a precio normal), `discount` y `total` (lo cobrado); cada línea, `listUnitPrice` (precio normal), `unitPrice` (con precio especial y porcentajes), `lineTotal` (lo cobrado), `isGift` y `promotions: [{label, saved}]` (una foto: no cambia si después se borra la promoción). Además, `number` (el número que se le dice al cliente, "Pedido N.º 1024": correlativo
 desde 1001, lo pone el servidor al crearlo), `fulfillmentType`, `deliveryAddress` (null en recojo),
 `pickupCode` (solo para su dueño y el personal con `orders.view`; si no, null), `deliveryCode`
 (solo para su dueño), `hasDeliveryCode` (para todos: si entregarlo pide el código; los pedidos
 de antes no lo tienen), `deliveredWithoutCodeReason` (si se entregó sin el código), `readyForPickupAt` y
 `allowedNextStatuses`: los estados a los que puede pasar según su flujo. Las apps arman sus
 botones con eso, sin las transiciones escritas a mano.
+
+### Cómo se cobra un pedido
+
+`promotions/promotion_engine.dart` es una función pura (se prueba sin base de datos). La llaman el
+pedido y la cotización a través de `PromotionPricing.price`, con las promociones vigentes que el
+cliente puede usar. En cada línea, en este orden:
+
+1. **Precio unitario:** el precio especial más bajo, o el normal.
+2. **Porcentajes:** todos, en cadena (20 % y 10 % → 28 % menos), redondeando al céntimo en cada
+   paso.
+3. **Por cantidad**, sobre ese precio: primero los NxM y después la unidad extra. Cada unidad
+   entra en una sola; entre dos que compiten gana la que más ahorra.
+4. **Regalos:** `floor(cantidad / X) × Y` unidades del producto de regalo, en una línea a S/ 0,
+   hasta donde alcance su stock (descontando lo que ya se compra de ese producto).
+
+**Códigos** (`priceCartWithCodes`): las promociones de audiencia `code` valen solo para quien
+activó su código y tiene el canje vigente (código encendido, sin vencer y con usos:
+`DbCodeBenefits`, en `promo_codes/`). El motor cobra primero sin ellas; las de cada código cuyo
+`minPurchase` alcanza ese total se suman a las demás y se cobra otra vez (se nombran "Código
+VERANO-10: 2x1"). Si no alcanza, un aviso: "Con S/ 12.40 más se aplica tu código VERANO-10". Un
+pedido gasta un uso (`OrderPromoCodeUse`) de cada código que le ahorró algo; cancelarlo lo
+devuelve. Al pedir, los canjes del cliente se bloquean (después de los productos) antes de contar
+sus usos, así dos pedidos a la vez no pasan `usesPerCustomer`. La cotización los aplica sin
+gastarlos. El catálogo no muestra las promociones de los códigos: se ven en el carrito y en "Mis
+códigos".
+
+El pedido bloquea los productos comprados **y los de regalo** en orden por id antes de cobrar
+(`giftProductIds`), así dos pedidos a la vez no se traban. El top 5 de las estadísticas suma
+`lineTotalCents` (lo cobrado), así un 2x1 no infla las ventas.
 
 ### Fotos de los productos
 
@@ -373,16 +410,19 @@ Reglas de los movimientos de inventario:
 - La fila del producto se bloquea (`FOR UPDATE`) durante la transacción: dos movimientos
   simultáneos no pueden pisarse.
 
-Cada producto trae su categoría y `promotion`: la mejor promoción vigente que puede usar quien
-pregunta (con `title` y `audience`), o `null`. Reglas de las promociones
+Cada producto trae su categoría, `unitPrice` (el precio por unidad para quien pregunta, con el
+precio especial más bajo y los %), `promotions` (las vigentes que puede usar, cada una con su
+`type` y `label`) y `promotion`: el precio especial más bajo (con `title` y `audience`) o `null`,
+para las apps de antes. Reglas de las promociones
 (`lib/src/promotions/promotion_rules.dart`):
 
 - El estado sale de la fecha y del interruptor `active`; no se guarda.
 - `promoPrice` tiene que ser menor al precio normal (400).
-- Dos promociones encendidas del mismo producto y la misma audiencia no pueden cruzarse en el
-  tiempo (409). De audiencias distintas sí (una para todos y otra VIP): cada cliente paga la más
-  barata de las que puede usar. Las de clientes elegidos no se revisan: cada una es para otros
-  clientes, y se cobra igual la más barata.
+- Las promociones de un producto **se acumulan**. Si una que se crea o se edita (encendida) se
+  cruza con otras encendidas del mismo producto (fechas que se pisan, de cualquier audiencia y
+  tipo), responde 409 "Se acumula con otras promociones del producto" con la lista en
+  `overlaps: [{id, type, audience, label, startDate, endDate}]`; con `confirmOverlap: true`
+  se guarda igual. El panel muestra esa lista y deja elegir.
 
 ### Clientes VIP y audiencias de las promociones
 

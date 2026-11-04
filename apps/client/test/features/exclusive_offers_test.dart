@@ -155,6 +155,35 @@ void main() {
     expect(offers.calls, 1);
   });
 
+  testWidgets('una oferta 2x1 lleva su insignia y el precio normal', (
+    tester,
+  ) async {
+    offers = FakeOffersRepository([
+      const Offer(
+        id: 'o-2',
+        productId: 'aceite',
+        productName: 'Aceite vegetal 1 L',
+        priceCents: 1090,
+        endDate: '2026-10-15',
+        vip: true,
+        deal: (
+          type: 'buyXPayY',
+          label: '2x1',
+          title: null,
+          description: '2x1 en este producto',
+        ),
+      ),
+    ]);
+    await pumpApp(tester, at: '/', signedIn: vip);
+
+    final section = find.byType(ExclusiveOffers);
+    Finder inSection(String text) =>
+        find.descendant(of: section, matching: find.text(text));
+    expect(inSection('2x1'), findsOneWidget);
+    expect(inSection(formatSoles(1090)), findsOneWidget);
+    expect(inSection('VIP'), findsOneWidget);
+  });
+
   testWidgets('en un teléfono de 320 px entra sin desbordes', (tester) async {
     await pumpApp(tester, at: '/', signedIn: vip, width: 320);
 

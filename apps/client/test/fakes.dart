@@ -10,6 +10,8 @@ import 'package:neils/admin/orders/admin_orders_repository.dart';
 import 'package:neils/admin/products/admin_products_repository.dart';
 import 'package:neils/admin/products/photo_picker.dart';
 import 'package:neils/admin/products/product_input.dart';
+import 'package:neils/admin/promo_codes/promo_code.dart';
+import 'package:neils/admin/promo_codes/promo_codes_repository.dart';
 import 'package:neils/admin/promotions/promotion.dart';
 import 'package:neils/admin/promotions/promotions_repository.dart';
 import 'package:neils/admin/staff/staff.dart';
@@ -32,6 +34,9 @@ import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/order_status.dart';
+import 'package:neils/orders/quote.dart';
+import 'package:neils/promo_codes/my_promo_code.dart';
+import 'package:neils/promo_codes/my_promo_codes_repository.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/staff_permission.dart';
 import 'package:neils/store/store_repository.dart';
@@ -247,6 +252,30 @@ class FakeAdminOrdersRepository implements AdminOrdersRepository {
 /// Un pedido del panel para los tests: a domicilio (con [hasDeliveryCode],
 /// de los que se entregan con el código del cliente) o, con [pickupCode], de
 /// recojo en tienda. Con los estados siguientes que mandaría el servidor.
+/// Las líneas de un pedido con un 2x1 en el arroz y una sal de regalo:
+/// subtotal S/ 49.80, descuentos S/ 24.90 y total S/ 24.90.
+const promotionOrderLines = [
+  OrderLine(
+    productId: 'arroz',
+    name: 'Arroz extra 5 kg',
+    quantity: 2,
+    listUnitPriceCents: 2490,
+    unitPriceCents: 2490,
+    lineTotalCents: 2490,
+    promotions: [(label: '2x1', savedCents: 2490)],
+  ),
+  OrderLine(
+    productId: 'sal',
+    name: 'Sal 1 kg',
+    quantity: 1,
+    listUnitPriceCents: 150,
+    unitPriceCents: 0,
+    lineTotalCents: 0,
+    isGift: true,
+    promotions: [(label: 'Regalo: Sal 1 kg', savedCents: 150)],
+  ),
+];
+
 AdminOrder adminOrder(
   String id,
   OrderStatus status, {
@@ -256,6 +285,11 @@ AdminOrder adminOrder(
   bool hasDeliveryCode = false,
   DateTime? readyForPickupAt,
   int? number,
+
+  /// Con otras líneas (las de [promotionOrderLines]): el total es lo que
+  /// suman y el subtotal, el total más [discountCents].
+  List<OrderLine>? lines,
+  int discountCents = 0,
 }) => AdminOrder(
   order: Order(
     id: id,
@@ -271,23 +305,34 @@ AdminOrder adminOrder(
     ),
     pickupCode: pickupCode,
     hasDeliveryCode: hasDeliveryCode,
-    totalCents: 3380,
+    totalCents: switch (lines) {
+      final lines? => lines.fold(0, (sum, line) => sum + line.lineTotalCents),
+      null => 3380,
+    },
+    subtotalCents: switch (lines) {
+      final lines? =>
+        lines.fold(0, (sum, line) => sum + line.lineTotalCents) + discountCents,
+      null => null,
+    },
+    discountCents: discountCents,
     deliveryAddress: pickupCode == null ? 'Av. Arequipa 123, Lince' : null,
     createdAt: DateTime.utc(2026, 10, day, 15, 30),
-    lines: const [
-      OrderLine(
-        productId: 'arroz',
-        name: 'Arroz extra 5 kg',
-        quantity: 1,
-        unitPriceCents: 2490,
-      ),
-      OrderLine(
-        productId: 'aceite',
-        name: 'Aceite vegetal 1 L',
-        quantity: 1,
-        unitPriceCents: 890,
-      ),
-    ],
+    lines:
+        lines ??
+        const [
+          OrderLine(
+            productId: 'arroz',
+            name: 'Arroz extra 5 kg',
+            quantity: 1,
+            unitPriceCents: 2490,
+          ),
+          OrderLine(
+            productId: 'aceite',
+            name: 'Aceite vegetal 1 L',
+            quantity: 1,
+            unitPriceCents: 890,
+          ),
+        ],
   ),
   customer: OrderCustomer(
     name: customer,
@@ -593,8 +638,10 @@ class FakePromotionsRepository implements PromotionsRepository {
   final String today;
   final int pageSize;
 
-  /// Lo que se mandó al crear (`null` como id) o editar, en orden.
+  /// Lo que se guardó al crear (`null` como id) o editar, en orden, y si
+  /// se mandó con `confirmOverlap`.
   final sent = <(String?, PromotionInput)>[];
+  final confirmed = <bool>[];
   final deleted = <String>[];
 
   @override
@@ -615,7 +662,10 @@ class FakePromotionsRepository implements PromotionsRepository {
   }
 
   @override
-  Future<Promotion> create(PromotionInput input) async {
+  Future<Promotion> create(
+    PromotionInput input, {
+    bool confirmOverlap = false,
+  }) async {
     final product = products.firstWhere((p) => p.id == input.productId);
     final promotion = _build(
       'promo-${promotions.length + 1}',
@@ -625,14 +675,19 @@ class FakePromotionsRepository implements PromotionsRepository {
       product.priceCents,
       input,
     );
-    _check(promotion, null);
+    _check(promotion, null, confirmOverlap);
     sent.add((null, input));
+    confirmed.add(confirmOverlap);
     promotions.add(promotion);
     return promotion;
   }
 
   @override
-  Future<Promotion> update(String id, PromotionInput input) async {
+  Future<Promotion> update(
+    String id,
+    PromotionInput input, {
+    bool confirmOverlap = false,
+  }) async {
     final i = promotions.indexWhere((p) => p.id == id);
     final current = promotions[i];
     final promotion = _build(
@@ -643,8 +698,9 @@ class FakePromotionsRepository implements PromotionsRepository {
       current.priceCents,
       input,
     );
-    _check(promotion, id);
+    _check(promotion, id, confirmOverlap);
     sent.add((id, input));
+    confirmed.add(confirmOverlap);
     return promotions[i] = promotion;
   }
 
@@ -667,7 +723,19 @@ class FakePromotionsRepository implements PromotionsRepository {
     productName: name,
     sku: sku,
     priceCents: priceCents,
-    promoPriceCents: input.promoPriceCents,
+    type: input.type,
+    promoPriceCents: input.type == PromotionType.specialPrice
+        ? input.promoPriceCents
+        : null,
+    percent: input.percent,
+    buyQuantity: input.buyQuantity,
+    payQuantity: input.payQuantity,
+    giftProductId: input.giftProductId,
+    giftProductName: products
+        .where((p) => p.id == input.giftProductId)
+        .firstOrNull
+        ?.name,
+    giftQuantity: input.giftQuantity,
     startDate: input.startDate,
     endDate: input.endDate,
     active: input.active,
@@ -676,6 +744,9 @@ class FakePromotionsRepository implements PromotionsRepository {
     recipients: input.audience == PromotionAudience.selected
         ? input.recipients
         : const [],
+    promoCodeId: input.audience == PromotionAudience.code
+        ? input.promoCodeId
+        : null,
     status: !input.active
         ? PromotionStatus.disabled
         : today.compareTo(input.startDate) < 0
@@ -685,30 +756,191 @@ class FakePromotionsRepository implements PromotionsRepository {
         : PromotionStatus.active,
   );
 
-  void _check(Promotion promotion, String? id) {
-    if (promotion.promoPriceCents >= promotion.priceCents) {
+  /// Como el servidor: el precio especial, menor que el normal; si se
+  /// cruza con otras encendidas del producto (cualquier audiencia), 409
+  /// con la lista, salvo con [confirmOverlap].
+  void _check(Promotion promotion, String? id, bool confirmOverlap) {
+    if (promotion.type == PromotionType.specialPrice &&
+        promotion.promoPriceCents! >= promotion.priceCents) {
       throw ApiFailure(
         'El precio promocional debe ser menor al precio normal '
         '(${promotion.priceCents / 100})',
         status: 400,
       );
     }
-    if (!promotion.active) return;
-    for (final other in promotions) {
-      if (other.id != id &&
-          other.active &&
-          other.productId == promotion.productId &&
-          other.audience == promotion.audience &&
-          other.startDate.compareTo(promotion.endDate) <= 0 &&
-          other.endDate.compareTo(promotion.startDate) >= 0) {
-        throw ApiFailure(
-          '${promotion.productName} ya tiene una promoción'
-          '${promotion.vipOnly ? ' VIP' : ''} del '
-          '${other.startDate} al ${other.endDate} que se cruza con esas fechas',
-          status: 409,
-        );
-      }
+    if (!promotion.active || confirmOverlap) return;
+    final overlaps = [
+      for (final other in promotions)
+        if (other.id != id &&
+            other.active &&
+            other.productId == promotion.productId &&
+            other.startDate.compareTo(promotion.endDate) <= 0 &&
+            other.endDate.compareTo(promotion.startDate) >= 0)
+          (
+            label: other.label,
+            audience: other.audience,
+            startDate: other.startDate,
+            endDate: other.endDate,
+          ),
+    ];
+    if (overlaps.isNotEmpty) throw PromotionOverlap(overlaps);
+  }
+}
+
+/// Los códigos promocionales en memoria, como el servidor: filtra por estado
+/// y por texto; sus promociones son las de [promotions] con su id; no se
+/// enciende sin promociones.
+class FakePromoCodesRepository implements PromoCodesRepository {
+  FakePromoCodesRepository(List<PromoCode> codes, {this.promotions})
+    : codes = [...codes];
+
+  final List<PromoCode> codes;
+
+  /// De donde salen las promociones de cada código.
+  final FakePromotionsRepository? promotions;
+
+  /// Lo que se mandó al crear (`null` como id) o editar, en orden.
+  final sent = <(String?, PromoCodeInput)>[];
+
+  /// Los filtros de cada página pedida: (estado, búsqueda).
+  final requests = <(PromoCodeStatus?, String)>[];
+
+  /// Si no es null, `delete` falla con esto.
+  ApiFailure? deleteFailure;
+
+  List<Promotion> _promotionsOf(String id) => [
+    for (final promotion in promotions?.promotions ?? const <Promotion>[])
+      if (promotion.promoCodeId == id) promotion,
+  ];
+
+  PromoCode _withPromotions(PromoCode code) => PromoCode(
+    id: code.id,
+    code: code.code,
+    active: code.active,
+    status: code.status,
+    startDate: code.startDate,
+    endDate: code.endDate,
+    benefitDays: code.benefitDays,
+    maxRedemptions: code.maxRedemptions,
+    usesPerCustomer: code.usesPerCustomer,
+    minPurchaseCents: code.minPurchaseCents,
+    newCustomersOnly: code.newCustomersOnly,
+    eligibility: code.eligibility,
+    allowedEmails: code.allowedEmails,
+    promotions: _promotionsOf(code.id),
+    redemptions: code.redemptions,
+    orders: code.orders,
+  );
+
+  @override
+  Future<PageList<PromoCode>> list({
+    int page = 1,
+    PromoCodeStatus? status,
+    String search = '',
+  }) async {
+    requests.add((status, search));
+    final matching = [
+      for (final code in codes)
+        if ((status == null || code.status == status) &&
+            code.code.contains(search.trim().toUpperCase()))
+          _withPromotions(code),
+    ];
+    return PageList(matching, total: matching.length, page: 1, pageSize: 20);
+  }
+
+  @override
+  Future<PromoCode> get(String id) async =>
+      _withPromotions(codes.firstWhere((code) => code.id == id));
+
+  @override
+  Future<PromoCode> create(PromoCodeInput input) async {
+    final code = _build('code-${codes.length + 1}', input, null);
+    sent.add((null, input));
+    codes.insert(0, code);
+    return code;
+  }
+
+  @override
+  Future<PromoCode> update(String id, PromoCodeInput input) async {
+    final i = codes.indexWhere((code) => code.id == id);
+    if (input.active && _promotionsOf(id).isEmpty) {
+      throw const ApiFailure(
+        'Agrega al menos una promoción antes de encender el código',
+        status: 400,
+      );
     }
+    final code = _build(id, input, codes[i]);
+    sent.add((id, input));
+    return codes[i] = code;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    if (deleteFailure case final failure?) throw failure;
+    codes.removeWhere((code) => code.id == id);
+  }
+
+  PromoCode _build(String id, PromoCodeInput input, PromoCode? current) =>
+      PromoCode(
+        id: id,
+        code: input.code,
+        active: input.active,
+        status: input.active ? PromoCodeStatus.active : PromoCodeStatus.paused,
+        startDate: input.startDate,
+        endDate: input.endDate,
+        benefitDays: input.benefitDays,
+        maxRedemptions: input.maxRedemptions,
+        usesPerCustomer: input.usesPerCustomer,
+        minPurchaseCents: input.minPurchaseCents,
+        newCustomersOnly: input.newCustomersOnly,
+        eligibility: input.eligibility,
+        allowedEmails: input.allowedEmails,
+        redemptions: current?.redemptions ?? 0,
+        orders: current?.orders ?? 0,
+      );
+}
+
+/// El código VERANO-10 activado: un 2x1 del arroz, dos usos.
+final summerCode = MyPromoCode(
+  code: 'VERANO-10',
+  expiresAt: DateTime.utc(2026, 12, 1, 5),
+  usesLeft: 2,
+  promotions: const ['2x1 en Arroz extra 5 kg'],
+);
+
+/// Los códigos de la cuenta en memoria: [available] son los que se pueden
+/// activar (por su texto, en mayúsculas); los demás dan el 404 del
+/// servidor.
+class FakeMyPromoCodesRepository implements MyPromoCodesRepository {
+  FakeMyPromoCodesRepository({
+    List<MyPromoCode> mine = const [],
+    this.available = const {},
+  }) : codes = [...mine];
+
+  final List<MyPromoCode> codes;
+  final Map<String, MyPromoCode> available;
+
+  /// Los textos que se mandaron a activar, como se escribieron.
+  final redeemed = <String>[];
+
+  @override
+  Future<List<MyPromoCode>> mine(String idToken) async => [...codes];
+
+  @override
+  Future<MyPromoCode> redeem(String idToken, String code) async {
+    redeemed.add(code);
+    final found = available[code.trim().toUpperCase()];
+    if (found == null) {
+      throw const ApiFailure(
+        'El código no existe o ya no está vigente',
+        status: 404,
+      );
+    }
+    if (codes.any((c) => c.code == found.code)) {
+      throw const ApiFailure('Ya activaste este código', status: 409);
+    }
+    codes.add(found);
+    return found;
   }
 }
 
@@ -872,6 +1104,10 @@ class FakeOrderRepository implements OrderRepository {
   /// Si no es null, `place` falla con esto (p. ej. 409 sin stock).
   ApiFailure? failure;
 
+  /// Los avisos que trae el pedido recién hecho (p. ej. un regalo que se
+  /// agotó al pedir).
+  List<String> placeNotices = const [];
+
   /// Los ID tokens con que se llamó a `place` y `mine`.
   final tokens = <String>[];
 
@@ -883,6 +1119,43 @@ class FakeOrderRepository implements OrderRepository {
 
   /// Los filtros con que se pidió cada página de "Mis pedidos".
   final filters = <MyOrdersFilter>[];
+
+  /// Cada cotización pedida: las líneas y el token (null sin sesión).
+  final quotes = <(List<QuoteLineRequest>, String?)>[];
+
+  /// Lo que devuelve `quote` (p. ej. con un 2x1). Sin esto, cada línea al
+  /// precio de hoy del catálogo, sin promociones ni descuentos.
+  Quote Function(List<QuoteLineRequest> lines)? quoteWith;
+
+  /// Si no es null, `quote` falla con esto.
+  ApiFailure? quoteFailure;
+
+  @override
+  Future<Quote> quote(List<QuoteLineRequest> lines, {String? idToken}) async {
+    quotes.add((lines, idToken));
+    if (quoteFailure case final failure?) throw failure;
+    if (quoteWith case final quoteWith?) {
+      return quoteWith(lines).forRequest(lines);
+    }
+    final priced = [
+      for (final line in lines)
+        if (await catalog.product(line.productId) case final product)
+          OrderLine(
+            productId: product.id,
+            name: product.name,
+            quantity: line.quantity,
+            unitPriceCents: product.finalPriceCents,
+          ),
+    ];
+    final total = priced.fold(0, (sum, line) => sum + line.lineTotalCents);
+    return Quote(
+      lines: priced,
+      subtotalCents: total,
+      discountCents: 0,
+      totalCents: total,
+      requested: lines,
+    );
+  }
 
   @override
   Future<Order> place(
@@ -911,7 +1184,19 @@ class FakeOrderRepository implements OrderRepository {
     // mostraba otro.
     for (final line in lines) {
       final product = await catalog.product(line.productId);
-      if (line.shownUnitPriceCents case final shown?
+      final charged = product.finalPriceCents * line.quantity;
+      if (line.shownLineTotalCents case final shown?) {
+        if (shown != charged) {
+          changes.add(
+            PriceChange(
+              productId: product.id,
+              name: product.name,
+              shownLineTotalCents: shown,
+              lineTotalCents: charged,
+            ),
+          );
+        }
+      } else if (line.shownUnitPriceCents case final shown?
           when shown != product.finalPriceCents) {
         changes.add(
           PriceChange(
@@ -932,11 +1217,12 @@ class FakeOrderRepository implements OrderRepository {
       // Como el servidor: los códigos los genera él, según el tipo.
       pickupCode: pickup ? 'K7M2XQ' : null,
       deliveryCode: pickup ? null : 'P4R9TW',
-      totalCents: orderLines.fold(0, (sum, line) => sum + line.totalCents),
+      totalCents: orderLines.fold(0, (sum, line) => sum + line.lineTotalCents),
       deliveryAddress: pickup ? null : deliveryAddress,
       createdAt: DateTime.utc(2026, 10, 4, 15, 30),
       lines: orderLines,
       priceChanges: changes,
+      notices: placeNotices,
     );
     orders.insert(0, order);
     return order;

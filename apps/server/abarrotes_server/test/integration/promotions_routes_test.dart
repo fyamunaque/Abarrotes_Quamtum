@@ -82,12 +82,20 @@ void main() {
             'sku': 'ARROZ-1',
             'price': '4.5',
           },
+          'type': 'specialPrice',
+          'label': 'Precio especial S/ 3.90',
           'promoPrice': '3.9',
+          'percent': null,
+          'buyQuantity': null,
+          'payQuantity': null,
+          'giftProduct': null,
+          'giftQuantity': null,
           'startDate': '2026-10-01',
           'endDate': '2026-10-07',
           'active': true,
           'status': 'active',
           'audience': 'everyone',
+          'promoCode': null,
           'title': null,
           'recipients': <Object?>[],
         });
@@ -126,6 +134,231 @@ void main() {
       expect(cleared['title'], isNull);
     });
 
+    group('tipos', () {
+      late Product sal;
+
+      setUp(() async {
+        sal = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Sal 1 kg',
+            sku: 'SAL-1',
+            priceCents: 150,
+            categoryId: arroz.categoryId,
+          ),
+        );
+      });
+
+      /// Una promoción de [type] para el arroz, sin precio promocional, en
+      /// los días [from]–[to] (así no se cruzan entre ellas).
+      Future<ApiResult> typed(
+        String type,
+        Map<String, Object?> fields, {
+        int from = 0,
+        int to = 1,
+      }) => client.post('/promotions', {
+        'productId': arroz.id.toString(),
+        'type': type,
+        'startDate': day(from),
+        'endDate': day(to),
+        ...fields,
+      }, as: 'uid-staff');
+
+      test('crea cada tipo con sus campos', () async {
+        final (percentStatus, percent) = await typed('percentOff', {
+          'percent': 20,
+        });
+        expect(percentStatus, 201);
+        expect(
+          (percent['type'], percent['label'], percent['promoPrice']),
+          ('percentOff', '20 % menos', null),
+        );
+        expect(percent['percent'], 20);
+
+        final (_, twoForOne) = await typed(
+          'buyXPayY',
+          {
+            'buyQuantity': 2,
+            'payQuantity': 1,
+          },
+          from: 2,
+          to: 3,
+        );
+        expect(twoForOne['label'], '2x1');
+        expect(
+          (twoForOne['buyQuantity'], twoForOne['payQuantity']),
+          (2, 1),
+        );
+
+        final (_, extra) = await typed(
+          'extraUnit',
+          {
+            'buyQuantity': 2,
+            'percent': 50,
+          },
+          from: 4,
+          to: 5,
+        );
+        expect(extra['label'], '2.ª al 50 %');
+
+        final (giftStatus, gift) = await typed(
+          'gift',
+          {
+            'buyQuantity': 2,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 1,
+          },
+          from: 6,
+          to: 7,
+        );
+        expect(giftStatus, 201);
+        expect(gift['label'], 'Regalo: Sal 1 kg');
+        expect(gift['giftProduct'], {
+          'id': sal.id.toString(),
+          'name': 'Sal 1 kg',
+        });
+        expect(gift['giftQuantity'], 1);
+      });
+
+      test(
+        'si el regalo se dio de baja, la promoción se puede apagar',
+        () async {
+          final (_, gift) = await typed('gift', {
+            'buyQuantity': 2,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 1,
+          });
+          await Product.db.updateRow(session, sal.copyWith(active: false));
+
+          // El panel manda el mismo regalo al guardar.
+          final (status, body) = await client.patch(
+            '/promotions/${gift['id']}',
+            {
+              'active': false,
+              'giftProductId': sal.id.toString(),
+            },
+            as: 'uid-staff',
+          );
+
+          expect((status, body['active']), (200, false));
+        },
+      );
+
+      test('sin type es precio especial, como antes', () async {
+        final (status, body) = await create({});
+
+        expect(status, 201);
+        expect(body['type'], 'specialPrice');
+        expect(body['label'], 'Precio especial S/ 3.90');
+        expect(body['giftProduct'], isNull);
+      });
+
+      test('valida los campos de cada tipo', () async {
+        Future<Object?> error(String type, Map<String, Object?> fields) async {
+          final (status, body) = await typed(type, fields);
+          expect(status, 400, reason: '$type $fields');
+          return body['message'];
+        }
+
+        Matcher says(String message) =>
+            anyOf(equals(message), contains(message));
+
+        expect(
+          await error('percentOff', {'percent': 0}),
+          says('percent debe estar entre 1 y 90'),
+        );
+        expect(
+          await error('percentOff', {'percent': 91}),
+          says('percent debe estar entre 1 y 90'),
+        );
+        expect(
+          await error('extraUnit', {'buyQuantity': 2, 'percent': 101}),
+          says('percent debe estar entre 1 y 100'),
+        );
+        expect(
+          await error('buyXPayY', {'buyQuantity': 2, 'payQuantity': 2}),
+          says('payQuantity debe ser menor que buyQuantity'),
+        );
+        expect(
+          await error('buyXPayY', {'buyQuantity': 11, 'payQuantity': 1}),
+          says('buyQuantity debe estar entre 2 y 10'),
+        );
+        expect(
+          await error('gift', {
+            'buyQuantity': 11,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 1,
+          }),
+          says('buyQuantity debe estar entre 1 y 10'),
+        );
+        expect(
+          await error('gift', {
+            'buyQuantity': 2,
+            'giftProductId': sal.id.toString(),
+            'giftQuantity': 11,
+          }),
+          says('giftQuantity debe estar entre 1 y 10'),
+        );
+        expect(
+          await error('gift', {
+            'buyQuantity': 2,
+            'giftProductId': arroz.id.toString(),
+            'giftQuantity': 1,
+          }),
+          says('El regalo tiene que ser otro producto'),
+        );
+        final apagado = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Azúcar',
+            sku: 'AZU-1',
+            priceCents: 300,
+            categoryId: arroz.categoryId,
+            active: false,
+          ),
+        );
+        for (final id in [
+          apagado.id.toString(),
+          '0199a000-0000-7000-8000-000000000000',
+        ]) {
+          expect(
+            await error('gift', {
+              'buyQuantity': 2,
+              'giftProductId': id,
+              'giftQuantity': 1,
+            }),
+            says('El producto de regalo no existe o está dado de baja'),
+          );
+        }
+        expect(
+          await error('buyXPayY', {
+            'buyQuantity': 2,
+            'payQuantity': 1,
+            'percent': 10,
+          }),
+          says('percent no va en una promoción buyXPayY'),
+        );
+        expect(
+          await error('specialPrice', {}),
+          says('promoPrice es obligatorio en un precio especial'),
+        );
+        expect(await Promotion.db.count(session), 0);
+      });
+
+      test('el tipo no cambia al editar', () async {
+        final (_, created) = await create({});
+
+        final (status, body) = await client.patch(
+          '/promotions/${created['id']}',
+          {'type': 'percentOff'},
+          as: 'uid-staff',
+        );
+
+        expect(status, 400);
+        expect(body['message'], ['La propiedad type no está permitida']);
+      });
+    });
+
     test('valida la audiencia y el título', () async {
       final (status, body) = await create({
         'audience': 'mayoristas',
@@ -134,33 +367,60 @@ void main() {
 
       expect(status, 400);
       expect(body['message'], [
-        'audience debe ser everyone, vip o selected',
+        'audience debe ser everyone, vip, selected o code',
         'title admite como máximo 100 caracteres',
       ]);
     });
 
     test(
-      'una promoción VIP y una para todos del mismo producto pueden cruzarse; '
-      'dos VIP, no',
+      'una que se cruza avisa con la lista; confirmOverlap la crea',
       () async {
         await create({});
 
-        final (vipStatus, _) = await create({'audience': 'vip'});
         final (status, body) = await create({
           'audience': 'vip',
+          'promoPrice': 3.5,
           'startDate': day(3),
-          'endDate': day(10),
+          'endDate': day(9),
         });
 
-        expect(vipStatus, 201);
         expect(status, 409);
         expect(
           body['message'],
-          'Arroz Costeño 1 kg ya tiene una promoción VIP del 2026-10-01 al '
-          '2026-10-07 que se cruza con esas fechas',
+          'Se acumula con otras promociones del producto',
         );
+        expect(body['overlaps'], [
+          {
+            'id': isA<String>(),
+            'type': 'specialPrice',
+            'audience': 'everyone',
+            'label': 'Precio especial S/ 3.90',
+            'startDate': day(0),
+            'endDate': day(6),
+          },
+        ]);
+        expect(await Promotion.db.count(session), 1);
+
+        final (confirmed, _) = await create({
+          'audience': 'vip',
+          'promoPrice': 3.5,
+          'startDate': day(3),
+          'endDate': day(9),
+          'confirmOverlap': true,
+        });
+        expect(confirmed, 201);
       },
     );
+
+    test('editar no se cruza consigo misma', () async {
+      final (_, created) = await create({});
+
+      final (status, _) = await client.patch('/promotions/${created['id']}', {
+        'promoPrice': 3.5,
+      }, as: 'uid-staff');
+
+      expect(status, 200);
+    });
 
     test('el estado sale de la fecha: scheduled, expired y disabled', () async {
       final scheduled = await create({
@@ -176,7 +436,8 @@ void main() {
     });
 
     test(
-      'dos promociones encendidas del mismo producto no se cruzan (409)',
+      'misma audiencia y tipo también se acumula si se confirma; apagadas, '
+      'de otro producto o en otras fechas no avisan',
       () async {
         await create({});
 
@@ -184,17 +445,38 @@ void main() {
           'startDate': day(3),
           'endDate': day(10),
         });
-
         expect(status, 409);
+        expect((body['overlaps'] as List).single['audience'], 'everyone');
         expect(
-          body['message'],
-          'Arroz Costeño 1 kg ya tiene una promoción del 2026-10-01 al '
-          '2026-10-07 que se cruza con esas fechas',
+          (await create({
+            'startDate': day(3),
+            'endDate': day(10),
+            'confirmOverlap': true,
+          })).$1,
+          201,
         );
-        // Apagada sí puede cruzarse, y desde el día siguiente al último, también.
+
+        // Apagada, desde el día siguiente al último o de otro producto: nada
+        // que avisar.
         expect((await create({'active': false})).$1, 201);
         expect(
-          (await create({'startDate': day(7), 'endDate': day(8)})).$1,
+          (await create({'startDate': day(11), 'endDate': day(12)})).$1,
+          201,
+        );
+        final leche = await Product.db.insertRow(
+          session,
+          Product(
+            name: 'Leche',
+            sku: 'LECHE-9',
+            priceCents: 420,
+            categoryId: arroz.categoryId,
+          ),
+        );
+        expect(
+          (await create({
+            'productId': leche.id.toString(),
+            'promoPrice': 4,
+          })).$1,
           201,
         );
       },
@@ -348,7 +630,11 @@ void main() {
         );
         await create({'title': 'Semana del arroz'});
         vipPromo =
-            (await create({'audience': 'vip', 'promoPrice': 3.5})).$2
+            (await create({
+                  'audience': 'vip',
+                  'promoPrice': 3.5,
+                  'confirmOverlap': true,
+                })).$2
                 as Map<String, Object?>;
         await create({'productId': leche.id.toString(), 'promoPrice': 3.6});
         // Ninguna de estas está vigente para nadie.
@@ -377,7 +663,14 @@ void main() {
             'id': isA<String>(),
             'title': 'Semana del arroz',
             'audience': 'everyone',
+            'type': 'specialPrice',
+            'label': 'Precio especial S/ 3.90',
             'promoPrice': '3.9',
+            'percent': null,
+            'buyQuantity': null,
+            'payQuantity': null,
+            'giftProduct': null,
+            'giftQuantity': null,
             'startDate': '2026-10-01',
             'endDate': '2026-10-07',
             'product': {
@@ -442,6 +735,30 @@ void main() {
           );
         },
       );
+
+      test('los otros tipos, solo con types=all (las apps de antes leen '
+          'promoPrice)', () async {
+        final (created, _) = await client.post('/promotions', {
+          'productId': leche.id.toString(),
+          'type': 'buyXPayY',
+          'buyQuantity': 2,
+          'payQuantity': 1,
+          'startDate': day(0),
+          'endDate': day(6),
+          'confirmOverlap': true,
+        }, as: 'uid-staff');
+        expect(created, 201);
+
+        final (_, before) = await client.get('/promotions/active');
+        final (_, all) = await client.get('/promotions/active?types=all');
+
+        List<Object?> types(Object? body) => [
+          for (final p in (body as Map)['data'] as List) (p as Map)['type'],
+        ];
+        expect(types(before), everyElement('specialPrice'));
+        expect(types(all), contains('buyXPayY'));
+        expect((await client.get('/promotions/active?types=x')).$1, 400);
+      });
 
       test('pagina y valida el query', () async {
         final (_, page2) = await client.get(
@@ -511,7 +828,10 @@ void main() {
         ]);
         expect(await PromotionRecipient.db.count(session), 2);
         // Las demás, sin elegidos.
-        final (_, everyone) = await create({'promoPrice': 4});
+        final (_, everyone) = await create({
+          'promoPrice': 4,
+          'confirmOverlap': true,
+        });
         expect(everyone['recipients'], isEmpty);
       });
 
@@ -559,10 +879,20 @@ void main() {
         expect(await Promotion.db.count(session), 0);
       });
 
-      test('no se revisa el cruce con otras: cada una es para otros', () async {
+      test('también avisan del cruce, como las demás', () async {
         expect((await selected([ana])).$1, 201);
-        expect((await selected([ana], {'promoPrice': 3})).$1, 201);
-        expect((await create({'audience': 'vip'})).$1, 201);
+
+        final (status, body) = await selected([ana], {'promoPrice': 3});
+        expect(status, 409);
+        expect((body['overlaps'] as List).single['audience'], 'selected');
+        expect(
+          (await selected([ana], {'promoPrice': 3, 'confirmOverlap': true})).$1,
+          201,
+        );
+        expect(
+          (await create({'audience': 'vip', 'confirmOverlap': true})).$1,
+          201,
+        );
       });
 
       test(

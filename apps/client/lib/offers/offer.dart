@@ -1,14 +1,18 @@
+import '../catalog/product.dart';
 import '../common/money.dart';
 
 /// Una promoción vigente como la ve el cliente (`GET /promotions/active` en
-/// apps/server): el producto con su precio normal y el de la oferta.
+/// apps/server): el producto con su precio normal y el de la oferta (un
+/// precio especial o un %), o lo que da ([deal]: un NxM, una unidad extra o
+/// un regalo).
 class Offer {
   const Offer({
     required this.id,
     required this.productId,
     required this.productName,
     required this.priceCents,
-    required this.promoPriceCents,
+    this.promoPriceCents,
+    this.deal,
     required this.endDate,
     this.title,
     this.vip = false,
@@ -20,7 +24,6 @@ class Offer {
   factory Offer.fromJson(Object? json) => switch (json) {
     {
           'id': final String id,
-          'promoPrice': final String promoPrice,
           'endDate': final String endDate,
           'product':
               {
@@ -36,7 +39,14 @@ class Offer {
         productId: productId,
         productName: productName,
         priceCents: parseCents(price),
-        promoPriceCents: parseCents(promoPrice),
+        // Un % se redondea como en el servidor.
+        promoPriceCents: switch (map) {
+          {'promoPrice': final String promoPrice} => parseCents(promoPrice),
+          {'type': 'percentOff', 'percent': final int percent} =>
+            (parseCents(price) * (100 - percent) / 100).round(),
+          _ => null,
+        },
+        deal: productOfferFromJson(map),
         endDate: endDate,
         title: map['title'] as String?,
         // Para los VIP: todos o algunos elegidos.
@@ -55,9 +65,12 @@ class Offer {
   /// La categoría del producto: el color de su marcador si no tiene foto.
   final String? categoryId;
 
-  /// El precio normal del producto y el de la oferta.
+  /// El precio normal del producto y el de la oferta, si es de precio.
   final int priceCents;
-  final int promoPriceCents;
+  final int? promoPriceCents;
+
+  /// Si no es de precio: el NxM, la unidad extra o el regalo.
+  final ProductOffer? deal;
 
   /// El último día (de la tienda, `AAAA-MM-DD`) en que rige.
   final String endDate;

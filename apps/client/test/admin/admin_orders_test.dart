@@ -4,6 +4,7 @@ import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_providers.dart';
 import 'package:neils/admin/stats/stats_providers.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/common/money.dart';
 import 'package:neils/features/admin/orders/admin_orders_screen.dart';
 import 'package:neils/features/admin/shared/admin_table.dart';
 import 'package:neils/features/admin/shared/status_badge.dart';
@@ -234,6 +235,30 @@ void main() {
     );
     expect(find.widgetWithText(FilledButton, 'Confirmar'), findsOneWidget);
     expect(find.text('Cancelar pedido'), findsOneWidget);
+  });
+
+  testWidgets('el detalle del panel muestra el regalo y los descuentos', (
+    tester,
+  ) async {
+    repository.orders[0] = adminOrder(
+      'o-1',
+      OrderStatus.pendingConfirmation,
+      customer: 'Ana Quispe',
+      number: 1024,
+      lines: promotionOrderLines,
+      discountCents: 2490,
+    );
+    await pumpOrders(tester);
+    await open(tester, 'Ana Quispe');
+
+    expect(find.text('2 × Arroz extra 5 kg'), findsOneWidget);
+    expect(find.text('2x1 −${formatSoles(2490)}'), findsOneWidget);
+    expect(find.text('1 × Sal 1 kg'), findsOneWidget);
+    expect(find.text('Regalo'), findsOneWidget);
+    expect(find.text('Subtotal'), findsOneWidget);
+    expect(find.text(formatSoles(4980)), findsOneWidget);
+    expect(find.text('Descuentos'), findsOneWidget);
+    expect(find.text('−${formatSoles(2490)}'), findsOneWidget);
   });
 
   testWidgets('el stepper avanza el pedido paso a paso', (tester) async {

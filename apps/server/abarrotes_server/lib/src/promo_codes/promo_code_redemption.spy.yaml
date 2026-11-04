@@ -1,0 +1,18 @@
+### Un código activado por un cliente: sus promociones le valen hasta
+### `expiresAt` (exclusivo) y mientras le queden usos. Uno por cliente y
+### código.
+class: PromoCodeRedemption
+table: promo_code_redemptions
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  promoCode: PromoCode?, relation(onDelete=Restrict, onUpdate=Cascade)
+  user: User?, relation(onDelete=Restrict, onUpdate=Cascade)
+  activatedAt: DateTime
+  expiresAt: DateTime
+indexes:
+  promo_code_redemptions_pair_idx:
+    fields: promoCodeId, userId
+    unique: true
+  # Los códigos de un cliente (en cada pedido, cotización y "Mis códigos").
+  promo_code_redemptions_user_idx:
+    fields: userId

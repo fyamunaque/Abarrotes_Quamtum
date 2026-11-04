@@ -281,6 +281,8 @@ void main() {
             productId: rice.id!,
             quantity: 1,
             unitPriceCents: 450,
+            listUnitPriceCents: 450,
+            lineTotalCents: 450,
           ),
         );
       });

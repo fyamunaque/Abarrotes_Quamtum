@@ -9,6 +9,7 @@ import '../../session/session_provider.dart';
 import '../shared/brand.dart';
 import '../shared/error_message.dart';
 import '../shared/info_line.dart';
+import 'my_codes_section.dart';
 import 'pending_profile.dart';
 import 'profile_fields.dart';
 
@@ -17,12 +18,15 @@ import 'profile_fields.dart';
 /// el correo se ven, pero son los de la cuenta de Firebase.
 ///
 /// Si al crear la cuenta no se pudieron guardar estos datos, los propone con
-/// el error ([pendingProfileProvider]). Con [from] (una ruta de la app), al
-/// guardar vuelve ahí, p. ej. al carrito.
+/// el error ([pendingProfileProvider]). Debajo, "Mis códigos" para activar
+/// un código promocional ([codesFirst]: arriba de todo). Con [from] (una
+/// ruta de la app), al guardar o al activar un código vuelve ahí, p. ej.
+/// al carrito.
 class MyAccountScreen extends ConsumerStatefulWidget {
-  const MyAccountScreen({super.key, this.from});
+  const MyAccountScreen({super.key, this.from, this.codesFirst = false});
 
   final String? from;
+  final bool codesFirst;
 
   @override
   ConsumerState<MyAccountScreen> createState() => _MyAccountScreenState();
@@ -135,68 +139,85 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
       SignedIn(:final user) => user,
       _ => null,
     };
+    final codes = MyCodesSection(
+      onRedeemed: switch (_returnTo) {
+        final returnTo? => () => context.go(returnTo),
+        null => null,
+      },
+    );
     return PublicScaffold(
       title: 'Mi cuenta',
       maxWidth: 520,
       child: user == null
           ? const SizedBox.shrink()
-          : Form(
-              key: _formKey,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('Mi cuenta', style: theme.textTheme.headlineMedium),
-                  const SizedBox(height: 4),
-                  Text(user.name, style: theme.textTheme.titleMedium),
-                  Text(user.email, style: muted),
-                  const SizedBox(height: 16),
-                  if (!user.profileComplete) ...[
-                    const _IncompleteNote(),
-                    const SizedBox(height: 16),
-                  ],
-                  PhoneField(controller: _phone),
-                  const SizedBox(height: 16),
-                  DniField(
-                    controller: _dni,
-                    errorText: _dniError,
-                    onChanged: (_) {
-                      if (_dniError != null) setState(() => _dniError = null);
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  if (user.termsVersion == termsVersion &&
-                      user.termsAcceptedAt != null)
-                    _AcceptedTerms(user.termsAcceptedAt!)
-                  else
-                    TermsCheckbox(
-                      value: _acceptedTerms,
-                      onChanged: (accepted) =>
-                          setState(() => _acceptedTerms = accepted),
-                    ),
-                  if (_error case final error?) ...[
-                    const SizedBox(height: 16),
-                    Semantics(
-                      liveRegion: true,
-                      child: Text(
-                        error,
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: theme.colorScheme.error,
-                        ),
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.codesFirst) ...[codes, const Divider(height: 48)],
+                Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text('Mi cuenta', style: theme.textTheme.headlineMedium),
+                      const SizedBox(height: 4),
+                      Text(user.name, style: theme.textTheme.titleMedium),
+                      Text(user.email, style: muted),
+                      const SizedBox(height: 16),
+                      if (!user.profileComplete) ...[
+                        const _IncompleteNote(),
+                        const SizedBox(height: 16),
+                      ],
+                      PhoneField(controller: _phone),
+                      const SizedBox(height: 16),
+                      DniField(
+                        controller: _dni,
+                        errorText: _dniError,
+                        onChanged: (_) {
+                          if (_dniError != null) {
+                            setState(() => _dniError = null);
+                          }
+                        },
                       ),
-                    ),
-                  ],
-                  const SizedBox(height: 24),
-                  FilledButton(
-                    onPressed: _busy ? null : () => _save(user),
-                    child: _busy
-                        ? const SizedBox.square(
-                            dimension: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Guardar'),
+                      const SizedBox(height: 16),
+                      if (user.termsVersion == termsVersion &&
+                          user.termsAcceptedAt != null)
+                        _AcceptedTerms(user.termsAcceptedAt!)
+                      else
+                        TermsCheckbox(
+                          value: _acceptedTerms,
+                          onChanged: (accepted) =>
+                              setState(() => _acceptedTerms = accepted),
+                        ),
+                      if (_error case final error?) ...[
+                        const SizedBox(height: 16),
+                        Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            error,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      FilledButton(
+                        onPressed: _busy ? null : () => _save(user),
+                        child: _busy
+                            ? const SizedBox.square(
+                                dimension: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text('Guardar'),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+                if (!widget.codesFirst) ...[const Divider(height: 48), codes],
+              ],
             ),
     );
   }

@@ -9,6 +9,8 @@ import 'package:abarrotes_server/src/orders/orders_routes.dart';
 import 'package:abarrotes_server/src/orders/orders_service.dart';
 import 'package:abarrotes_server/src/products/products_routes.dart';
 import 'package:abarrotes_server/src/products/products_service.dart';
+import 'package:abarrotes_server/src/promo_codes/promo_codes_routes.dart';
+import 'package:abarrotes_server/src/promo_codes/promo_codes_service.dart';
 import 'package:abarrotes_server/src/promotions/promotions_routes.dart';
 import 'package:abarrotes_server/src/staff/audit_log_repository.dart';
 import 'package:abarrotes_server/src/staff/permissions.dart';
@@ -65,6 +67,11 @@ void main() {
         shoppers: testShoppers,
       ),
       ...promotionsRoutes(testPromotions(), guards, shoppers: testShoppers),
+      ...promoCodesRoutes(
+        PromoCodesService(),
+        guards,
+        shoppers: testShoppers,
+      ),
       ...inventoryRoutes(const InventoryService(), stockAlerts, guards),
       ...ordersRoutes(
         OrdersService(pricing: testPromotions()),
@@ -127,11 +134,20 @@ void main() {
       'POST /promotions': 'promotions.manage',
       'PATCH /promotions/:id': 'promotions.manage',
       'DELETE /promotions/:id': 'promotions.manage',
+      'POST /promo-codes/redeem': 'cuenta',
+      'GET /promo-codes/mine': 'cuenta',
+      'GET /promo-codes': 'promotions.manage',
+      'GET /promo-codes/:id': 'promotions.manage',
+      'POST /promo-codes': 'promotions.manage',
+      'PATCH /promo-codes/:id': 'promotions.manage',
+      'DELETE /promo-codes/:id': 'promotions.manage',
       'GET /inventory/movements': 'inventory.view',
       'POST /inventory/movements': 'inventory.adjust',
       'GET /inventory/alerts/low-stock': 'inventory.view',
       'GET /inventory/alerts/expiring': 'inventory.view',
       'POST /orders': 'cuenta',
+      // La cotización del carrito: pública, con token si lo hay.
+      'POST /orders/quote': 'pública',
       'GET /orders/mine': 'cuenta',
       'GET /orders': 'orders.view',
       'PATCH /orders/:id/status': 'orders.updateStatus',

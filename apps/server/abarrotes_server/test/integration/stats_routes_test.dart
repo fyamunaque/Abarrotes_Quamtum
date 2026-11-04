@@ -63,6 +63,8 @@ void main() {
             productId: product.id!,
             quantity: quantity,
             unitPriceCents: unitCents,
+            listUnitPriceCents: unitCents,
+            lineTotalCents: quantity * unitCents,
           ),
       ]);
     }
@@ -209,6 +211,64 @@ void main() {
         expect([for (final p in top1['data']) p['name']], ['Leche']);
       },
     );
+
+    test('los regalos no cuentan como vendidos', () async {
+      await OrderItem.db.deleteWhere(
+        session,
+        where: (_) => Constant.bool(true),
+      );
+      final placed = await Order.db.findFirstRow(
+        session,
+        where: (o) => o.status.equals(OrderStatus.delivered),
+      );
+      await OrderItem.db.insertRow(
+        session,
+        OrderItem(
+          orderId: placed!.id!,
+          productId: leche.id!,
+          quantity: 5,
+          unitPriceCents: 0,
+          listUnitPriceCents: 450,
+          lineTotalCents: 0,
+          isGift: true,
+        ),
+      );
+
+      final body = await get(
+        '/stats/top-products?from=2026-09-01&to=2026-10-01',
+      );
+
+      expect(body['data'], isEmpty);
+    });
+
+    test('el top 5 suma lo cobrado por línea (un 2x1 no infla)', () async {
+      await OrderItem.db.deleteWhere(
+        session,
+        where: (_) => Constant.bool(true),
+      );
+      final placed = await Order.db.findFirstRow(
+        session,
+        where: (o) => o.status.equals(OrderStatus.delivered),
+      );
+      await OrderItem.db.insertRow(
+        session,
+        OrderItem(
+          orderId: placed!.id!,
+          productId: leche.id!,
+          quantity: 2,
+          unitPriceCents: 450,
+          listUnitPriceCents: 450,
+          lineTotalCents: 450,
+        ),
+      );
+
+      final body = await get(
+        '/stats/top-products?from=2026-09-01&to=2026-10-01',
+      );
+
+      final top = (body['data'] as List).single;
+      expect((top['quantity'], top['revenue']), (2, '4.5'));
+    });
 
     test(
       'GET /stats/overview: hoy, semana desde el lunes, mes y pedidos por estado',

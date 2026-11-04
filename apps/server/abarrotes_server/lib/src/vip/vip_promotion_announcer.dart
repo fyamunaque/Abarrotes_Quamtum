@@ -5,6 +5,7 @@ import 'package:serverpod/serverpod.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_announcer.dart';
+import '../promotions/promotion_labels.dart';
 import '../push/device_push.dart';
 import '../push/push_sender.dart';
 import 'vip_service.dart';
@@ -25,11 +26,19 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
   final SessionRunner _run;
   final VipService _vips;
 
+  /// Solo se anuncian las promociones VIP (todos los VIP o los elegidos):
+  /// las de todos no son VIP, y las de un código son solo para quien lo
+  /// activa.
+  static bool _isVip(Promotion promotion) => switch (promotion.audience) {
+    PromotionAudience.vip || PromotionAudience.selected => true,
+    PromotionAudience.everyone || PromotionAudience.code => false,
+  };
+
   /// En segundo plano, con su propia sesión: la promoción ya se creó y la
   /// respuesta no espera. Si algo falla, queda en el log de esa sesión.
   @override
   void announce(Promotion promotion) {
-    if (promotion.audience case PromotionAudience.everyone) return;
+    if (!_isVip(promotion)) return;
     unawaited(
       _run(
         (session) => announceNow(session, promotion),
@@ -46,6 +55,7 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
     Session session,
     Promotion promotion,
   ) async {
+    if (!_isVip(promotion)) return (sent: 0, invalid: 0, failed: 0);
     if (!_sender.enabled) {
       session.log(
         'Aviso push de la promoción ${promotion.id}: el envío push no está '
@@ -89,7 +99,9 @@ class VipPromotionAnnouncer implements PromotionAnnouncer {
 
 /// El aviso de una promoción VIP (con su producto): "Nueva oferta
 /// exclusiva" y, p. ej., "Semana VIP: Arroz extra 5 kg a S/ 17.90 (antes
-/// S/ 24.90), hasta el 15 oct." Los datos dicen a la app qué abrir.
+/// S/ 24.90), hasta el 15 oct." Las que no son de precio dicen la promoción:
+/// "2x1 en Arroz extra 5 kg, hasta el 15 oct." Los datos dicen a la app qué
+/// abrir.
 PushMessage vipPromotionMessage(Promotion promotion) {
   final product = promotion.product!;
   // endDate es el límite exclusivo: el último día es el anterior.
@@ -98,9 +110,12 @@ PushMessage vipPromotionMessage(Promotion promotion) {
   return PushMessage(
     title: 'Nueva oferta exclusiva',
     body:
-        '${title == null ? '' : '$title: '}${product.name} a '
-        '${_soles(promotion.promoPriceCents)} '
-        '(antes ${_soles(product.priceCents)}), hasta el ${_day(lastDay)}.',
+        '${title == null ? '' : '$title: '}'
+        '${switch (promotion.promoPriceCents) {
+          final price? => '${product.name} a ${_soles(price)} '
+              '(antes ${_soles(product.priceCents)})',
+          null => '${promotionLabel(promotion)} en ${product.name}',
+        }}, hasta el ${_day(lastDay)}.',
     data: {
       'type': 'vip_promotion',
       'promotionId': promotion.id.toString(),

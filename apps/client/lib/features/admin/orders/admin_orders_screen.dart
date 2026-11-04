@@ -12,6 +12,7 @@ import '../../../orders/order_status.dart';
 import '../../../router/routes.dart';
 import '../../../session/session_provider.dart';
 import '../../../session/staff_permission.dart';
+import '../../orders/order_lines.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
@@ -463,27 +464,7 @@ class _AdminOrderDetailState extends ConsumerState<AdminOrderDetail> {
             Text('Entregado sin código: $reason', style: muted),
         ],
         const Divider(height: 32),
-        for (final line in order.order.lines)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: Text('${line.quantity} × ${line.name}')),
-                Text(formatSoles(line.totalCents)),
-              ],
-            ),
-          ),
-        const SizedBox(height: 6),
-        Row(
-          children: [
-            Expanded(child: Text('Total', style: theme.textTheme.titleSmall)),
-            Text(
-              formatSoles(order.order.totalCents),
-              style: theme.textTheme.titleMedium,
-            ),
-          ],
-        ),
+        OrderLines(order: order.order),
       ],
     );
   }

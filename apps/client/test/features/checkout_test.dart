@@ -16,6 +16,8 @@ import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_filter.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/orders/orders_providers.dart';
+import 'package:neils/orders/quote.dart';
+import 'package:neils/promo_codes/my_promo_codes_providers.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/store/store_providers.dart';
 import 'package:neils/store/store_settings.dart';
@@ -32,6 +34,7 @@ void main() {
   late FakeCatalogRepository catalog;
   late FakeOrderRepository orders;
   late FakeStoreRepository store;
+  late FakeMyPromoCodesRepository codes;
   late ProviderContainer container;
 
   setUp(() {
@@ -40,6 +43,7 @@ void main() {
     catalog = FakeCatalogRepository();
     orders = FakeOrderRepository(catalog);
     store = FakeStoreRepository();
+    codes = FakeMyPromoCodesRepository(available: {'VERANO-10': summerCode});
   });
 
   Future<GoRouter> pumpApp(
@@ -61,6 +65,7 @@ void main() {
           catalogRepositoryProvider.overrideWithValue(catalog),
           orderRepositoryProvider.overrideWithValue(orders),
           storeRepositoryProvider.overrideWithValue(store),
+          myPromoCodesRepositoryProvider.overrideWithValue(codes),
         ],
         child: const NeilsApp(),
       ),
@@ -128,7 +133,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Pedido N.º 1001'), findsOneWidget);
-    expect(find.text('S/ 58.70'), findsOneWidget);
+    // Arriba de la tarjeta y al final del detalle del cobro.
+    expect(find.text('S/ 58.70'), findsNWidgets(2));
     expect(find.text('2 × Arroz extra 5 kg'), findsOneWidget);
     expect(
       tester.widget<OrderTracker>(find.byType(OrderTracker)).status,
@@ -143,6 +149,8 @@ void main() {
     (tester) async {
       auth = FakeAuthRepository()
         ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+      // Sin la cotización, el carrito estima con el precio que tenía.
+      orders.quoteFailure = const ApiFailure('No se pudo');
       await pumpApp(tester, '/carrito');
       // Se agregó cuando el arroz tenía una promoción que ya terminó.
       container
@@ -181,6 +189,81 @@ void main() {
       );
     },
   );
+
+  testWidgets('el pedido manda lineTotal de la cotización', (tester) async {
+    orders.quoteWith = (lines) => Quote(
+      lines: [
+        OrderLine(
+          productId: 'arroz',
+          name: 'Arroz extra 5 kg',
+          quantity: lines.single.quantity,
+          listUnitPriceCents: 2490,
+          unitPriceCents: 2490,
+          lineTotalCents: 2490,
+          promotions: const [(label: '2x1', savedCents: 2490)],
+        ),
+      ],
+      subtotalCents: 4980,
+      discountCents: 2490,
+      totalCents: 2490,
+    );
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    await pumpApp(tester, '/carrito');
+    container.read(cartProvider.notifier).add(rice, 2);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    await confirm(tester, 'Av. Arequipa 123, Lince');
+
+    final line = orders.placed.single.single;
+    expect((line.shownUnitPriceCents, line.shownLineTotalCents), (2490, 2490));
+    // Con sesión, la cotización va con su token.
+    expect(orders.quotes.last.$2, isNotNull);
+  });
+
+  testWidgets('el carrito lleva a activar un código y vuelve', (tester) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    final router = await pumpApp(tester, '/carrito');
+    container.read(cartProvider.notifier).add(rice, 2);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    final quotes = orders.quotes.length;
+
+    await tester.ensureVisible(find.text('¿Tienes un código?'));
+    await tester.tap(find.text('¿Tienes un código?'));
+    await tester.pumpAndSettle();
+    expect(location(router), '/mi-cuenta?from=%2Fcarrito&seccion=codigos');
+
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Escribe tu código'),
+      'VERANO-10',
+    );
+    await tester.tap(find.text('Activar'));
+    await tester.pumpAndSettle();
+
+    expect(location(router), '/carrito');
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    // Con el código activado, vuelve a cotizar.
+    expect(orders.quotes.length, greaterThan(quotes));
+  });
+
+  testWidgets('el aviso del pedido nuevo trae los avisos del cobro', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    orders.placeNotices = ['Solo quedaba 1 de Sal 1 kg para regalo'];
+    await pumpApp(tester, '/carrito');
+    container.read(cartProvider.notifier).add(rice, 2);
+    await tester.pumpAndSettle();
+
+    await confirm(tester, 'Av. Arequipa 123');
+
+    expect(find.text('Solo quedaba 1 de Sal 1 kg para regalo'), findsOneWidget);
+  });
 
   testWidgets('propone la dirección del perfil', (tester) async {
     auth = FakeAuthRepository();
@@ -437,6 +520,52 @@ void main() {
     expect(find.text('Entrega en Av. Brasil 450, Jesús María'), findsOneWidget);
   });
 
+  testWidgets('Mis pedidos muestra las promociones y el regalo', (
+    tester,
+  ) async {
+    auth = FakeAuthRepository()
+      ..addAccount('ana@tienda.pe', 'secreta', signedIn: true);
+    orders.orders.addAll([
+      Order(
+        id: 'con-promociones',
+        status: OrderStatus.confirmed,
+        deliveryAddress: 'Av. Brasil 450',
+        subtotalCents: 4980,
+        discountCents: 2490,
+        totalCents: 2490,
+        createdAt: DateTime.utc(2026, 10, 14, 15),
+        lines: promotionOrderLines,
+      ),
+      // Sin descuentos: solo el total.
+      Order(
+        id: 'sin-promociones',
+        status: OrderStatus.delivered,
+        deliveryAddress: 'Av. Brasil 450',
+        totalCents: 890,
+        createdAt: DateTime.utc(2026, 10, 12, 15),
+        lines: const [
+          OrderLine(
+            productId: 'aceite',
+            name: 'Aceite vegetal 1 L',
+            quantity: 1,
+            unitPriceCents: 890,
+          ),
+        ],
+      ),
+    ]);
+
+    await pumpApp(tester, '/mis-pedidos');
+
+    expect(find.text('2 × Arroz extra 5 kg'), findsOneWidget);
+    expect(find.text('2x1 −${formatSoles(2490)}'), findsOneWidget);
+    expect(find.text('1 × Sal 1 kg'), findsOneWidget);
+    expect(find.text('Regalo'), findsOneWidget);
+    expect(find.text('Subtotal'), findsOneWidget);
+    expect(find.text(formatSoles(4980)), findsOneWidget);
+    expect(find.text('Descuentos'), findsOneWidget);
+    expect(find.text('−${formatSoles(2490)}'), findsOneWidget);
+  });
+
   testWidgets('a domicilio, en curso: el código para el repartidor', (
     tester,
   ) async {
@@ -596,7 +725,14 @@ void main() {
     await orders.place(
       't',
       deliveryAddress: 'Av. Arequipa 123',
-      lines: [(productId: 'arroz', quantity: 1, shownUnitPriceCents: null)],
+      lines: [
+        (
+          productId: 'arroz',
+          quantity: 1,
+          shownUnitPriceCents: null,
+          shownLineTotalCents: null,
+        ),
+      ],
     );
     await pumpApp(tester, '/mis-pedidos');
     OrderTracker tracker() =>

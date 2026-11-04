@@ -158,12 +158,42 @@ void main() {
       },
     );
 
+    test('un 2x1: el aviso dice la promoción en vez del precio', () {
+      final message = vipPromotionMessage(
+        promotion.copyWith(
+          type: PromotionType.buyXPayY,
+          promoPriceCents: null,
+          buyQuantity: 2,
+          payQuantity: 1,
+        ),
+      );
+
+      expect(
+        message.body,
+        'Semana VIP: 2x1 en Arroz extra 5 kg, hasta el 15 oct.',
+      );
+    });
+
     test('sin push configurado no manda nada', () async {
       push = FakePushSender(enabled: false);
 
       final summary = await announcer().announceNow(session, promotion);
 
       expect(summary, (sent: 0, invalid: 0, failed: 0));
+      expect(push.sent, isEmpty);
+    });
+
+    test('announceNow tampoco avisa una de código ni una para todos', () async {
+      for (final audience in [
+        PromotionAudience.code,
+        PromotionAudience.everyone,
+      ]) {
+        final summary = await announcer().announceNow(
+          session,
+          promotion.copyWith(audience: audience),
+        );
+        expect(summary, (sent: 0, invalid: 0, failed: 0), reason: '$audience');
+      }
       expect(push.sent, isEmpty);
     });
 
@@ -204,6 +234,10 @@ void main() {
 
       vipAnnouncer.announce(
         promotion.copyWith(audience: PromotionAudience.everyone),
+      );
+      // La de un código es solo para quien lo activa: no se anuncia.
+      vipAnnouncer.announce(
+        promotion.copyWith(audience: PromotionAudience.code),
       );
       await Future<void>.delayed(Duration.zero);
       expect(runs, 0);

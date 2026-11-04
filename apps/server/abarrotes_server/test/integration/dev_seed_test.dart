@@ -251,6 +251,23 @@ void main() {
             orders.map((o) => o.status).toSet(),
             OrderStatus.values.toSet(),
           );
+          // El detalle del cobro, como un pedido de verdad: el subtotal a
+          // precio normal y el descuento hasta el total.
+          final items = await OrderItem.db.find(session);
+          for (final order in orders) {
+            final lines = items.where((item) => item.orderId == order.id);
+            final subtotal = lines.fold(
+              0,
+              (sum, item) => sum + item.listUnitPriceCents * item.quantity,
+            );
+            expect(order.subtotalCents, subtotal, reason: '${order.number}');
+            expect(order.subtotalCents, greaterThan(0));
+            expect(order.discountCents, subtotal - order.totalCents);
+            expect(
+              order.totalCents,
+              lines.fold(0, (sum, item) => sum + item.lineTotalCents),
+            );
+          }
           final newest = [...orders]
             ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
           expect(
@@ -319,6 +336,8 @@ void main() {
           OrderItem(
             quantity: 1,
             unitPriceCents: 2490,
+            listUnitPriceCents: 2490,
+            lineTotalCents: 2490,
             orderId: order.id!,
             productId: rice.id!,
           ),

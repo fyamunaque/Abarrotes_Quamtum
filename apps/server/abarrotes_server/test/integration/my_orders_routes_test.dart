@@ -57,6 +57,8 @@ void main() {
             productId: product.id!,
             quantity: 1,
             unitPriceCents: 450,
+            listUnitPriceCents: 450,
+            lineTotalCents: 450,
           ),
       ]);
       return created;

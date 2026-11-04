@@ -1,0 +1,16 @@
+### Un pedido que usó un código activado (le ahorró algo una de sus
+### promociones). Los usos de un cliente son sus pedidos no cancelados:
+### cancelar un pedido devuelve el uso.
+class: OrderPromoCodeUse
+table: order_promo_code_uses
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  order: Order?, relation(onDelete=Restrict, onUpdate=Cascade)
+  redemption: PromoCodeRedemption?, relation(onDelete=Restrict, onUpdate=Cascade)
+indexes:
+  order_promo_code_uses_pair_idx:
+    fields: orderId, redemptionId
+    unique: true
+  # Los usos de un canje (se cuentan en cada pedido y cotización).
+  order_promo_code_uses_redemption_idx:
+    fields: redemptionId

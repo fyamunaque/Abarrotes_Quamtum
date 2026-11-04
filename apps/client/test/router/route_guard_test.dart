@@ -115,6 +115,12 @@ void main() {
           redirect(cashier, '/admin/promociones'),
           '/admin/sin-acceso?seccion=%2Fadmin%2Fpromociones',
         );
+        // Los códigos van con el mismo permiso que las promociones.
+        expect(Routes.adminPromoCodes, '/admin/promociones/codigos');
+        expect(
+          redirect(cashier, Routes.adminPromoCodes),
+          '/admin/sin-acceso?seccion=%2Fadmin%2Fpromociones%2Fcodigos',
+        );
         expect(redirect(storekeeper, '/admin/inventario'), isNull);
         expect(
           redirect(storekeeper, '/admin/pedidos'),

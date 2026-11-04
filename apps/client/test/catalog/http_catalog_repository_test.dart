@@ -137,6 +137,120 @@ void main() {
     expect(oil.finalPriceCents, 790);
   });
 
+  /// Una de `promotions`, como la manda el servidor (`_offerJson`).
+  Map<String, Object?> offer(
+    String type,
+    String label, {
+    String audience = 'everyone',
+    String? title,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    Map<String, Object?>? giftProduct,
+    int? giftQuantity,
+  }) => {
+    'id': 'pr-$type',
+    'type': type,
+    'label': label,
+    'audience': audience,
+    'title': title,
+    'startDate': '2026-10-01',
+    'endDate': '2026-10-31',
+    'promoPrice': null,
+    'percent': percent,
+    'buyQuantity': buyQuantity,
+    'payQuantity': payQuantity,
+    'giftProduct': giftProduct,
+    'giftQuantity': giftQuantity,
+  };
+
+  test('lee unitPrice y las ofertas', () async {
+    final page = await repository(
+      (_) async => json(200, {
+        'data': [
+          {
+            ...product(),
+            'price': '4.5',
+            'unitPrice': '3.6',
+            'promotions': [
+              offer('percentOff', '20 % menos', percent: 20),
+              offer(
+                'buyXPayY',
+                '2x1',
+                title: 'Semana del aceite',
+                buyQuantity: 2,
+                payQuantity: 1,
+              ),
+              offer('extraUnit', '2.ª al 30 %', buyQuantity: 2, percent: 30),
+              offer(
+                'gift',
+                'Regalo: Sal 1 kg',
+                buyQuantity: 2,
+                giftProduct: {'id': 'sal', 'name': 'Sal 1 kg'},
+                giftQuantity: 1,
+              ),
+            ],
+          },
+          // Solo un 2x1: el precio es el normal.
+          {
+            ...product(),
+            'id': 'p-2',
+            'unitPrice': '10.9',
+            'promotions': [
+              offer('buyXPayY', '3x2', buyQuantity: 3, payQuantity: 2),
+            ],
+          },
+        ],
+        'meta': {'total': 2},
+      }),
+    ).products();
+
+    final [percent, onlyDeal] = page.items;
+    expect((percent.finalPriceCents, percent.onSale), (360, true));
+    expect(percent.vipPrice, isFalse);
+    // El % va en el precio; las demás, como ofertas.
+    expect(
+      [for (final o in percent.offers) (o.type, o.label, o.title)],
+      [
+        ('buyXPayY', '2x1', 'Semana del aceite'),
+        ('extraUnit', '2.ª al 30 %', null),
+        ('gift', 'Regalo: Sal 1 kg', null),
+      ],
+    );
+    expect(
+      [for (final o in percent.offers) o.description],
+      [
+        '2x1 en este producto',
+        'La 2.ª unidad con 30 % menos',
+        'Regalo: Sal 1 kg por cada 2',
+      ],
+    );
+
+    expect((onlyDeal.finalPriceCents, onlyDeal.onSale), (1090, false));
+    expect([for (final o in onlyDeal.offers) o.label], ['3x2']);
+  });
+
+  test('un % solo para clientes VIP es precio VIP', () async {
+    final page = await repository(
+      (_) async => json(200, {
+        'data': [
+          {
+            ...product(),
+            'unitPrice': '9.81',
+            'promotions': [
+              offer('percentOff', '10 % menos', audience: 'vip', percent: 10),
+            ],
+          },
+        ],
+        'meta': {'total': 1},
+      }),
+    ).products();
+
+    final vip = page.items.single;
+    expect((vip.finalPriceCents, vip.vipPrice), (981, true));
+    expect(vip.offers, isEmpty);
+  });
+
   test('una promoción para todos no es VIP', () async {
     final page = await repository(
       (_) async => json(200, {

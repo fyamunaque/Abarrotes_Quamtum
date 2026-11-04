@@ -124,7 +124,18 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
    - editar un precio o crear un producto.
 7. **Inventario:** registrar una entrada para el producto agotado. El formulario muestra cómo
    queda el stock antes de guardar, y en la tienda deja de estar agotado.
-8. **Promociones:** crear una que empiece hoy. En la tienda aparece el precio rebajado.
+8. **Promociones:**
+   - crear una que empiece hoy: en la tienda aparece el precio rebajado;
+   - crear un **2x1** ("Tipo de promoción": NxM, lleva 2, paga 1) en otro producto: el catálogo
+     lo muestra con la insignia "2x1" y, con dos unidades en el carrito, la línea dice
+     "2x1 −S/ …" y abajo aparecen "Subtotal" y "Descuentos". Si se cruza con otra promoción del
+     producto, el aviso "Se cruza con otras promociones" deja crearla igual (se acumulan).
+   - **Códigos:** en la pestaña **Códigos**, "Nuevo código" (p. ej. `DEMO-10`, vigente hoy,
+     "Usos por cliente": 1), guardar, abrirlo y "Agregar promoción" (un 2x1 o un % de un
+     producto); después encenderlo y guardar. En la tienda, en el carrito, "¿Tienes un código?"
+     lleva a "Mis códigos": escribir `demo-10` (vale en minúsculas), "Activar", y de vuelta en
+     el carrito la línea dice "Código DEMO-10: …". Al hacer el pedido se gasta el uso: el código
+     ya no aparece en "Mis códigos" (si se cancela el pedido, vuelve).
 9. **Clientes VIP:**
    - pegar varios correos de una vez y mostrar el resumen (agregados, ya estaban, no válidos);
    - en **Promociones**, crear una "Solo clientes VIP": lleva la insignia VIP en la lista.

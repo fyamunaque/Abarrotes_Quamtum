@@ -5,6 +5,7 @@ import '../report_provider.dart';
 import '../reports.dart';
 
 /// Productos más vendidos por unidades en los pedidos aceptados del rango.
+/// Los regalos no cuentan: no se vendieron.
 class TopProductsReportProvider
     extends ReportProvider<TopProductsRange, TopProductsReport> {
   const TopProductsReportProvider();
@@ -22,16 +23,17 @@ class TopProductsReportProvider
              p.name,
              p.sku,
              SUM(oi.quantity)::bigint AS quantity,
-             SUM(oi.quantity * oi."unitPriceCents")::bigint AS revenue
+             SUM(oi."lineTotalCents")::bigint AS revenue
       FROM order_items oi
       JOIN orders o ON o.id = oi."orderId"
       JOIN products p ON p.id = oi."productId"
       WHERE o.status = ANY(@statuses::text[])
         AND o."createdAt" >= @start::timestamp
         AND o."createdAt" < @end::timestamp
+        AND NOT oi."isGift"
       GROUP BY p.id, p.name, p.sku
       ORDER BY SUM(oi.quantity) DESC,
-               SUM(oi.quantity * oi."unitPriceCents") DESC,
+               SUM(oi."lineTotalCents") DESC,
                p.name
       LIMIT @limit
       ''',

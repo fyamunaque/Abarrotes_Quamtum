@@ -19,7 +19,10 @@ enum PromotionAudience implements _is.SerializableModel {
   vip,
 
   /// Solo los clientes VIP elegidos (sus PromotionRecipient).
-  selected;
+  selected,
+
+  /// Solo quien activó su código promocional (`Promotion.promoCode`).
+  code;
 
   static PromotionAudience fromJson(String name) {
     switch (name) {
@@ -29,6 +32,8 @@ enum PromotionAudience implements _is.SerializableModel {
         return PromotionAudience.vip;
       case 'selected':
         return PromotionAudience.selected;
+      case 'code':
+        return PromotionAudience.code;
       default:
         throw ArgumentError(
           'Value "$name" cannot be converted to "PromotionAudience"',

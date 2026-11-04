@@ -1,0 +1,12 @@
+### Un correo (en minúsculas y sin espacios) que puede activar un código con
+### `eligibility` en `listed`.
+class: PromoCodeAllowedEmail
+table: promo_code_allowed_emails
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  promoCode: PromoCode?, relation(name=promo_code_allowed_emails, onDelete=Cascade, onUpdate=Cascade)
+  email: String
+indexes:
+  promo_code_allowed_emails_pair_idx:
+    fields: promoCodeId, email
+    unique: true

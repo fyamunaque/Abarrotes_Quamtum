@@ -8,6 +8,7 @@ import '../common/shopper.dart';
 import '../common/store_time.dart';
 import '../generated/protocol.dart' hide AuditLogRepository;
 import '../inventory/inventory_service.dart';
+import '../promotions/promotion_engine.dart';
 import '../promotions/promotion_pricing.dart';
 import '../staff/audit_log_repository.dart';
 import 'order_number.dart';
@@ -22,18 +23,28 @@ typedef OrderLineInput = ({
   UuidValue productId,
   int quantity,
   int? shownUnitPriceCents,
+  int? shownLineTotalCents,
 });
 
-/// Un producto que se cobra distinto de lo que mostraba el carrito.
+/// Un producto que se cobra distinto de lo que mostraba el carrito: por el
+/// total de su línea (si el carrito lo mandó) o por el precio unitario
+/// (las apps de antes).
 typedef PriceChange = ({
   UuidValue productId,
   String name,
-  int shownUnitPriceCents,
-  int unitPriceCents,
+  int? shownUnitPriceCents,
+  int? unitPriceCents,
+  int? shownLineTotalCents,
+  int? lineTotalCents,
 });
 
-/// El pedido creado y los precios que cambiaron respecto del carrito.
-typedef PlacedOrder = ({Order order, List<PriceChange> priceChanges});
+/// El pedido creado, los precios que cambiaron respecto del carrito y los
+/// avisos del cobro (p. ej. un regalo sin stock).
+typedef PlacedOrder = ({
+  Order order,
+  List<PriceChange> priceChanges,
+  List<String> notices,
+});
 
 /// En qué va un pedido, para que el cliente filtre los suyos: en curso (ni
 /// entregado ni cancelado), entregado (o recogido) o cancelado.
@@ -75,13 +86,15 @@ class OrdersService {
   /// A domicilio lleva [deliveryAddress] (las rutas la exigen); con recojo en
   /// tienda no lleva dirección y se le genera su código, único en la tabla.
   ///
-  /// Cobra por producto la mejor promoción vigente que [shopper] puede usar
-  /// (la más barata) o, si no hay, el precio normal. Si el carrito mostraba
-  /// otro precio, va en `priceChanges`. Las líneas del mismo producto se
-  /// juntan. Cada salida queda en el historial de inventario a nombre del
-  /// cliente.
+  /// Cobra con las promociones vigentes que [shopper] puede usar
+  /// (`PromotionPricing.price`: se acumulan, con regalos a S/ 0). Si el
+  /// carrito mostraba otro total de línea (u otro precio unitario, en las
+  /// apps de antes), va en `priceChanges`. Las líneas del mismo producto se
+  /// juntan. Cada salida, regalos incluidos, queda en el historial de
+  /// inventario a nombre del cliente.
   ///
-  /// Los productos se bloquean (FOR UPDATE) al leerlos, en orden por id y
+  /// Los productos (los comprados y los de regalo) se bloquean (FOR UPDATE)
+  /// al leerlos, en orden por id y
   /// antes de escribir nada: dos pedidos a la vez se ordenan ahí. Si se
   /// bloquearan recién al descontar el stock, cada uno ya tendría la fila
   /// tomada por la clave foránea de sus líneas y se trabarían (deadlock).
@@ -99,6 +112,7 @@ class OrdersService {
     }
     final quantities = <UuidValue, int>{};
     final shownPrices = <UuidValue, int>{};
+    final shownLineTotals = <UuidValue, int>{};
     for (final line in lines) {
       quantities.update(
         line.productId,
@@ -107,6 +121,9 @@ class OrdersService {
       );
       if (line.shownUnitPriceCents case final shown?) {
         shownPrices.putIfAbsent(line.productId, () => shown);
+      }
+      if (line.shownLineTotalCents case final shown?) {
+        shownLineTotals.putIfAbsent(line.productId, () => shown);
       }
     }
     try {
@@ -118,6 +135,7 @@ class OrdersService {
         deliveryAddress: pickup ? null : deliveryAddress,
         quantities: quantities,
         shownPrices: shownPrices,
+        shownLineTotals: shownLineTotals,
       );
     } on DatabaseUniqueViolationException {
       // Dos pedidos de recojo sacaron el mismo código a la vez: el índice
@@ -136,20 +154,26 @@ class OrdersService {
     required String? deliveryAddress,
     required Map<UuidValue, int> quantities,
     required Map<UuidValue, int> shownPrices,
+    required Map<UuidValue, int> shownLineTotals,
   }) {
     final productIds = quantities.keys.toList()
       ..sort((a, b) => a.toString().compareTo(b.toString()));
 
     return session.db.transaction((transaction) async {
       final now = _now().toUtc();
+      final giftIds = await _pricing.giftProductIds(
+        session,
+        productIds.toSet(),
+        shopper,
+        transaction: transaction,
+        customerId: customer.id,
+      );
       final products = {
         for (final product in await Product.db.find(
           session,
-          where: (product) => product.id.inSet(productIds.toSet()),
+          where: (product) =>
+              product.id.inSet(<UuidValue>{...productIds, ...giftIds}),
           orderBy: (product) => product.id,
-          include: Product.include(
-            promotions: _pricing.bestFor(now, shopper),
-          ),
           lockMode: LockMode.forUpdate,
           transaction: transaction,
         ))
@@ -167,23 +191,51 @@ class OrdersService {
         );
       }
 
-      int unitPrice(Product product) =>
-          product.promotions?.firstOrNull?.promoPriceCents ??
-          product.priceCents;
-      final total = productIds.fold<int>(
-        0,
-        (sum, id) => sum + unitPrice(products[id]!) * quantities[id]!,
-      );
-      final priceChanges = [
-        for (final id in productIds)
-          if (shownPrices[id] case final shown?
-              when shown != unitPrice(products[id]!))
+      final cart = await _pricing.price(
+        session,
+        [
+          for (final id in productIds)
             (
               productId: id,
               name: products[id]!.name,
-              shownUnitPriceCents: shown,
-              unitPriceCents: unitPrice(products[id]!),
+              listUnitPriceCents: products[id]!.priceCents,
+              quantity: quantities[id]!,
             ),
+        ],
+        shopper,
+        transaction: transaction,
+        // Los canjes de sus códigos quedan bloqueados hasta el final: dos
+        // pedidos a la vez no pasan los usos.
+        customerId: customer.id,
+        lockCodes: true,
+      );
+      final bought = {
+        for (final line in cart.lines)
+          if (!line.isGift) line.productId: line,
+      };
+      final priceChanges = <PriceChange>[
+        for (final id in productIds)
+          if (shownLineTotals[id] case final shown?
+              when shown != bought[id]!.lineTotalCents)
+            (
+              productId: id,
+              name: products[id]!.name,
+              shownUnitPriceCents: null,
+              unitPriceCents: null,
+              shownLineTotalCents: shown,
+              lineTotalCents: bought[id]!.lineTotalCents,
+            )
+          else if (shownLineTotals[id] == null)
+            if (shownPrices[id] case final shown?
+                when shown != bought[id]!.unitPriceCents)
+              (
+                productId: id,
+                name: products[id]!.name,
+                shownUnitPriceCents: shown,
+                unitPriceCents: bought[id]!.unitPriceCents,
+                shownLineTotalCents: null,
+                lineTotalCents: null,
+              ),
       ];
 
       final order = await Order.db.insertRow(
@@ -192,7 +244,9 @@ class OrdersService {
           number: await nextOrderNumber(session, transaction),
           status: OrderStatus.pendingConfirmation,
           fulfillmentType: fulfillmentType,
-          totalCents: total,
+          totalCents: cart.totalCents,
+          subtotalCents: cart.subtotalCents,
+          discountCents: cart.discountCents,
           deliveryAddress: deliveryAddress,
           pickupCode: fulfillmentType == FulfillmentType.pickup
               ? await _freeCode(session, transaction, (o) => o.pickupCode)
@@ -207,24 +261,35 @@ class OrdersService {
         transaction: transaction,
       );
       await OrderItem.db.insert(session, [
-        for (final id in productIds)
+        for (final line in cart.lines)
           OrderItem(
-            quantity: quantities[id]!,
-            unitPriceCents: unitPrice(products[id]!),
+            quantity: line.quantity,
+            unitPriceCents: line.unitPriceCents,
+            listUnitPriceCents: line.listUnitPriceCents,
+            lineTotalCents: line.lineTotalCents,
+            isGift: line.isGift,
+            promotions: line.promotions,
             orderId: order.id!,
-            productId: id,
+            productId: line.productId,
           ),
       ], transaction: transaction);
+      // Un uso de cada código que le ahorró algo.
+      if (cart.usedRedemptionIds.isNotEmpty) {
+        await OrderPromoCodeUse.db.insert(session, [
+          for (final redemptionId in cart.usedRedemptionIds)
+            OrderPromoCodeUse(orderId: order.id!, redemptionId: redemptionId),
+        ], transaction: transaction);
+      }
 
       // Si un producto no alcanza, inventory responde 409 y la transacción
-      // deshace también el pedido.
-      for (final id in productIds) {
+      // deshace también el pedido. Los regalos ya vienen limitados al stock.
+      for (final line in cart.lines) {
         await _inventory.record(
           session,
           (
-            productId: id,
+            productId: line.productId,
             type: MovementType.outgoing,
-            quantity: quantities[id]!,
+            quantity: line.quantity,
             reason: 'Pedido ${order.id}',
           ),
           by: customer,
@@ -239,8 +304,84 @@ class OrdersService {
         include: _customerInclude,
         transaction: transaction,
       );
-      return (order: placed!, priceChanges: priceChanges);
+      return (
+        order: placed!,
+        priceChanges: priceChanges,
+        notices: cart.notices,
+      );
     });
+  }
+
+  /// Cómo se cobraría el carrito [lines] para [shopper] (con los códigos
+  /// que activó [customerId], si tiene cuenta), sin guardar nada, sin tocar
+  /// el stock ni gastar usos: lo que muestra el carrito antes de pedir. Los
+  /// productos que no existen o están de baja no entran y van en los
+  /// avisos. Devuelve también los productos (comprados y de regalo), para
+  /// mostrarlos.
+  Future<({PricedCart cart, Map<UuidValue, Product> products})> quote(
+    Session session, {
+    required Shopper shopper,
+    UuidValue? customerId,
+    required List<({UuidValue productId, int quantity})> lines,
+  }) async {
+    final quantities = <UuidValue, int>{};
+    for (final line in lines) {
+      quantities.update(
+        line.productId,
+        (quantity) => quantity + line.quantity,
+        ifAbsent: () => line.quantity,
+      );
+    }
+    final found = {
+      for (final product in await Product.db.find(
+        session,
+        where: (product) => product.id.inSet(quantities.keys.toSet()),
+      ))
+        product.id!: product,
+    };
+    final notices = [
+      for (final id in quantities.keys)
+        if (found[id] case final product? when !product.active)
+          'Ya no está disponible: ${product.name}'
+        else if (found[id] == null)
+          'Uno de los productos ya no existe',
+    ];
+    final available = [
+      for (final MapEntry(key: id, value: quantity) in quantities.entries)
+        if (found[id] case final product? when product.active)
+          (
+            productId: id,
+            name: product.name,
+            listUnitPriceCents: product.priceCents,
+            quantity: quantity,
+          ),
+    ];
+    final priced = await _pricing.price(
+      session,
+      available,
+      shopper,
+      customerId: customerId,
+    );
+    final giftIds = {
+      for (final line in priced.lines)
+        if (line.isGift && !found.containsKey(line.productId)) line.productId,
+    };
+    final products = {
+      ...found,
+      if (giftIds.isNotEmpty)
+        for (final gift in await Product.db.find(
+          session,
+          where: (product) => product.id.inSet(giftIds),
+        ))
+          gift.id!: gift,
+    };
+    return (
+      cart: PricedCart(
+        lines: priced.lines,
+        notices: [...notices, ...priced.notices],
+      ),
+      products: products,
+    );
   }
 
   /// Un código (de recojo o de entrega, según [column]) que ningún pedido

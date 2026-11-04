@@ -1,0 +1,38 @@
+### Un código promocional con el texto que eligió el administrador
+### ("VERANO-10"). Quien lo activa en su cuenta usa sus promociones (las de
+### audiencia `code`) por un tiempo y unos pedidos. Las fechas son los días
+### de la tienda (America/Lima) en que se puede activar: [inicio 00:00, día
+### siguiente al fin 00:00).
+class: PromoCode
+table: promo_codes
+fields:
+  id: UuidValue?, defaultPersist=random_v7
+  ### En mayúsculas: de 3 a 20 letras, números o guiones.
+  code: String
+  ### El interruptor: apagado no se activa y sus promociones dejan de valer.
+  active: bool, default=true
+  startDate: DateTime
+  endDate: DateTime
+  ### Cuántos días dura el beneficio desde que cada cliente lo activa. Sin
+  ### valor, hasta el fin de la vigencia.
+  benefitDays: int?
+  ### Cuántos clientes pueden activarlo. Sin valor, sin límite.
+  maxRedemptions: int?
+  ### En cuántos pedidos puede usarlo cada cliente. Sin valor, sin límite.
+  usesPerCustomer: int?
+  ### La compra mínima, en céntimos: el total sin las promociones del código.
+  minPurchaseCents: int?
+  ### Solo para quien todavía no hizo ningún pedido.
+  newCustomersOnly: bool, default=false
+  ### Quién puede activarlo: todos, los VIP o los correos de [allowedEmails].
+  eligibility: PromoCodeEligibility, default=everyone
+  createdAt: DateTime, default=now
+  ### Las promociones que da (con audiencia `code`): al menos una para
+  ### encenderlo.
+  promotions: List<Promotion>?, relation(name=promo_code_promotions)
+  ### Con `eligibility` en `listed`: los correos que pueden activarlo.
+  allowedEmails: List<PromoCodeAllowedEmail>?, relation(name=promo_code_allowed_emails)
+indexes:
+  promo_codes_code_idx:
+    fields: code
+    unique: true

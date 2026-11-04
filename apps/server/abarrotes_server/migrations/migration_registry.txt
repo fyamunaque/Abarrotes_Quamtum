@@ -15,3 +15,7 @@
 20261030032219408-codigo-de-entrega
 20261030153440774-filtros-de-inventario
 20261030164443356-clientes-elegidos
+20261102200832995-tipos-de-promocion
+20261102203106445-detalle-del-cobro
+20261102232249740-codigos-promocionales
+20261104012650884-indices-de-codigos

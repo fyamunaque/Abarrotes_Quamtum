@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
 import '../shared/press_scale.dart';
+import 'offer_badges.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
 
 /// Un producto en una grilla: foto, nombre, precio subrayado con el swoosh de
-/// la marca y "Agregar". Toma el ancho que le dé la grilla.
+/// la marca y "Agregar". Las promociones por cantidad y de regalo van en
+/// insignias sobre la foto, así todas las tarjetas tienen el mismo alto.
+/// Toma el ancho que le dé la grilla.
 class ProductCard extends StatelessWidget {
   const ProductCard({
     super.key,
@@ -52,10 +55,22 @@ class ProductCard extends StatelessWidget {
       children: [
         AspectRatio(
           aspectRatio: 4 / 3,
-          child: ProductPhoto(
-            product.imageUrl,
-            name: product.name,
-            colorKey: product.category?.id,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ProductPhoto(
+                product.imageUrl,
+                name: product.name,
+                colorKey: product.category?.id,
+              ),
+              if (product.offers.isNotEmpty)
+                PositionedDirectional(
+                  top: 8,
+                  start: 8,
+                  end: 8,
+                  child: OfferBadges(product.offers),
+                ),
+            ],
           ),
         ),
         Padding(

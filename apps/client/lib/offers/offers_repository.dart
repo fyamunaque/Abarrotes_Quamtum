@@ -26,7 +26,9 @@ class HttpOffersRepository implements OffersRepository {
   Future<List<Offer>> exclusive() async {
     final json = await _api.get(
       '/promotions/active',
-      query: {'limit': '$limit'},
+      // También los NxM, las unidades extra y los regalos (sin esto, el
+      // servidor manda solo los precios especiales, para las apps de antes).
+      query: {'limit': '$limit', 'types': 'all'},
       idToken: await _idToken(),
       fallback: 'No se pudieron cargar las ofertas.',
     );

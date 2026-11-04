@@ -1,0 +1,418 @@
+import 'package:abarrotes_server/src/common/money.dart';
+import 'package:abarrotes_server/src/generated/protocol.dart';
+import 'package:abarrotes_server/src/promotions/promotion_engine.dart';
+import 'package:serverpod/serverpod.dart' show UuidValue;
+import 'package:test/test.dart';
+
+void main() {
+  UuidValue id(int n) => UuidValue.fromString(
+    '0190a1b2-0000-7000-8000-${n.toString().padLeft(12, '0')}',
+  );
+  final arroz = id(1);
+  final sal = id(2);
+  final day = DateTime.utc(2026, 10, 1);
+  var next = 100;
+
+  Promotion promo(
+    UuidValue productId,
+    PromotionType type, {
+    int? price,
+    int? percent,
+    int? buy,
+    int? pay,
+    int? giftQuantity,
+  }) => Promotion(
+    id: id(next++),
+    productId: productId,
+    type: type,
+    promoPriceCents: price,
+    percent: percent,
+    buyQuantity: buy,
+    payQuantity: pay,
+    giftProductId: type == PromotionType.gift ? sal : null,
+    giftProduct: type == PromotionType.gift
+        ? Product(
+            id: sal,
+            name: 'Sal 1 kg',
+            sku: 'SAL',
+            priceCents: 150,
+            categoryId: id(9),
+          )
+        : null,
+    giftQuantity: giftQuantity,
+    startDate: day,
+    endDate: day,
+  );
+
+  PricingLine line(UuidValue productId, int price, int quantity) => (
+    productId: productId,
+    name: productId == arroz ? 'Arroz' : 'Aceite',
+    listUnitPriceCents: price,
+    quantity: quantity,
+  );
+
+  GiftProduct salGift({int stock = 10, bool active = true}) => (
+    id: sal,
+    name: 'Sal 1 kg',
+    priceCents: 150,
+    active: active,
+    stock: stock,
+  );
+
+  PricedLine only(PricedCart cart) => cart.lines.where((l) => !l.isGift).single;
+
+  List<String> labels(PricedLine line) => [
+    for (final p in line.promotions) p.label,
+  ];
+
+  test('el ejemplo de la spec', () {
+    final cart = priceCart(
+      [line(arroz, 2490, 5)],
+      {
+        arroz: [
+          promo(arroz, PromotionType.specialPrice, price: 2290),
+          promo(arroz, PromotionType.percentOff, percent: 10),
+          promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1),
+        ],
+      },
+      {},
+    );
+
+    final arrozLine = only(cart);
+    expect(arrozLine.unitPriceCents, 2061);
+    expect(arrozLine.lineTotalCents, 6183);
+    expect(cart.subtotalCents, 12450);
+    expect(cart.discountCents, 6267);
+    expect(cart.totalCents, 6183);
+    expect(labels(arrozLine), [
+      'Precio especial S/ 22.90',
+      '10 % menos',
+      '2x1',
+    ]);
+    // Lo que ahorró cada una suma el descuento.
+    expect(
+      arrozLine.promotions.fold<int>(0, (sum, p) => sum + p.savedCents),
+      6267,
+    );
+  });
+
+  test('dos precios especiales: el más bajo', () {
+    final cart = priceCart(
+      [line(arroz, 2490, 1)],
+      {
+        arroz: [
+          promo(arroz, PromotionType.specialPrice, price: 2290),
+          promo(arroz, PromotionType.specialPrice, price: 1990),
+        ],
+      },
+      {},
+    );
+
+    expect(only(cart).unitPriceCents, 1990);
+    expect(labels(only(cart)), ['Precio especial S/ 19.90']);
+  });
+
+  test('porcentajes en cadena, redondeo por paso', () {
+    final cart = priceCart(
+      [line(arroz, 999, 1)],
+      {
+        arroz: [
+          promo(arroz, PromotionType.percentOff, percent: 20),
+          promo(arroz, PromotionType.percentOff, percent: 10),
+        ],
+      },
+      {},
+    );
+
+    expect(only(cart).unitPriceCents, 719);
+  });
+
+  test('cantidad que no completa un grupo', () {
+    final single = priceCart(
+      [line(arroz, 1000, 1)],
+      {
+        arroz: [promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1)],
+      },
+      {},
+    );
+    expect(only(single).lineTotalCents, 1000);
+    expect(only(single).promotions, isEmpty);
+
+    final three = priceCart(
+      [line(arroz, 1000, 3)],
+      {
+        arroz: [promo(arroz, PromotionType.extraUnit, buy: 2, percent: 50)],
+      },
+      {},
+    );
+    expect(only(three).lineTotalCents, 2500);
+  });
+
+  test('NxM antes que la unidad extra y cada unidad una vez', () {
+    final cart = priceCart(
+      [line(arroz, 1000, 4)],
+      {
+        arroz: [
+          promo(arroz, PromotionType.extraUnit, buy: 2, percent: 50),
+          promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1),
+        ],
+      },
+      {},
+    );
+
+    expect(only(cart).lineTotalCents, 2000);
+    expect(labels(only(cart)), ['2x1']);
+  });
+
+  test('entre dos NxM gana el que más ahorra', () {
+    Map<UuidValue, List<Promotion>> both() => {
+      arroz: [
+        promo(arroz, PromotionType.buyXPayY, buy: 3, pay: 2),
+        promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1),
+      ],
+    };
+
+    expect(
+      only(priceCart([line(arroz, 1000, 6)], both(), {})).lineTotalCents,
+      3000,
+    );
+    expect(
+      only(priceCart([line(arroz, 1000, 5)], both(), {})).lineTotalCents,
+      3000,
+    );
+  });
+
+  test('unidad extra', () {
+    final cart = priceCart(
+      [line(arroz, 1000, 5)],
+      {
+        arroz: [promo(arroz, PromotionType.extraUnit, buy: 2, percent: 50)],
+      },
+      {},
+    );
+
+    expect(only(cart).lineTotalCents, 4000);
+    expect(labels(only(cart)), ['2.ª al 50 %']);
+  });
+
+  test('regalo', () {
+    final cart = priceCart(
+      [line(arroz, 1000, 5)],
+      {
+        arroz: [
+          promo(arroz, PromotionType.gift, buy: 2, giftQuantity: 1),
+        ],
+      },
+      {sal: salGift()},
+    );
+
+    final gift = cart.lines.singleWhere((l) => l.isGift);
+    expect(gift.productId, sal);
+    expect(gift.quantity, 2);
+    expect(gift.unitPriceCents, 0);
+    expect(gift.lineTotalCents, 0);
+    expect(gift.listUnitPriceCents, 150);
+    expect(labels(gift), ['Regalo: Sal 1 kg']);
+    expect(gift.promotions.single.savedCents, 300);
+    expect(cart.totalCents, 5000);
+    expect(cart.notices, isEmpty);
+  });
+
+  test('regalo sin stock suficiente', () {
+    Map<UuidValue, List<Promotion>> gift() => {
+      arroz: [promo(arroz, PromotionType.gift, buy: 2, giftQuantity: 1)],
+    };
+
+    final short = priceCart(
+      [line(arroz, 1000, 5)],
+      gift(),
+      {
+        sal: salGift(stock: 1),
+      },
+    );
+    expect(short.lines.singleWhere((l) => l.isGift).quantity, 1);
+    expect(short.notices, ['Solo quedaba 1 de Sal 1 kg para regalo']);
+
+    for (final unavailable in [
+      {sal: salGift(stock: 0)},
+      {sal: salGift(active: false)},
+      <UuidValue, GiftProduct>{},
+    ]) {
+      final cart = priceCart([line(arroz, 1000, 5)], gift(), unavailable);
+      expect(cart.lines.where((l) => l.isGift), isEmpty);
+      expect(cart.notices, ['Sal 1 kg ya no está disponible para regalo']);
+    }
+  });
+
+  test('el regalo cuenta lo que ya se compra del mismo producto', () {
+    final cart = priceCart(
+      [line(arroz, 1000, 2), line(sal, 150, 3)],
+      {
+        arroz: [promo(arroz, PromotionType.gift, buy: 2, giftQuantity: 1)],
+      },
+      {sal: salGift(stock: 3)},
+    );
+
+    expect(cart.lines.where((l) => l.isGift), isEmpty);
+    expect(cart.notices, ['Sal 1 kg ya no está disponible para regalo']);
+  });
+
+  test('los regalos no entran en otras promociones', () {
+    final cart = priceCart(
+      [line(arroz, 1000, 4)],
+      {
+        arroz: [promo(arroz, PromotionType.gift, buy: 2, giftQuantity: 1)],
+        sal: [promo(sal, PromotionType.buyXPayY, buy: 2, pay: 1)],
+      },
+      {sal: salGift()},
+    );
+
+    final gift = cart.lines.singleWhere((l) => l.isGift);
+    expect(gift.quantity, 2);
+    expect(labels(gift), ['Regalo: Sal 1 kg']);
+  });
+
+  test('sin promociones', () {
+    final cart = priceCart([line(arroz, 450, 3)], {}, {});
+
+    expect(cart.totalCents, 1350);
+    expect(cart.subtotalCents, 1350);
+    expect(cart.discountCents, 0);
+    expect(only(cart).promotions, isEmpty);
+    expect(cart.appliedPromotionIds, isEmpty);
+  });
+
+  group('con códigos', () {
+    PricingCode code(Promotion promotion, {int? min}) => (
+      redemptionId: id(50),
+      code: 'VERANO-10',
+      minPurchaseCents: min,
+      promotions: [promotion],
+    );
+
+    test('segunda pasada con la compra mínima', () {
+      final twoForOne = promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+      PricedCart cart(int quantity) => priceCartWithCodes(
+        [line(arroz, 1000, quantity)],
+        {},
+        {},
+        [code(twoForOne, min: 3000)],
+      );
+
+      // 2 × S/ 10 = S/ 20: sin el código no llega a S/ 30.
+      final short = cart(2);
+      expect(short.totalCents, 2000);
+      expect(short.notices, [
+        'Con ${formatSoles(1000)} más se aplica tu código VERANO-10',
+      ]);
+      expect(short.usedRedemptionIds, isEmpty);
+
+      // 4 × S/ 10 = S/ 40 sin el código: llega, y el 2x1 se aplica.
+      final enough = cart(4);
+      expect(enough.totalCents, 2000);
+      expect(labels(only(enough)), ['Código VERANO-10: 2x1']);
+      expect(enough.usedRedemptionIds, {id(50)});
+      expect(enough.notices, isEmpty);
+    });
+
+    test('se acumula con las demás; sin mínimo, se aplica siempre', () {
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 2)],
+        {
+          arroz: [promo(arroz, PromotionType.percentOff, percent: 10)],
+        },
+        {},
+        [code(promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1))],
+      );
+
+      // 10 % menos (S/ 9 cada uno) y el 2x1 sobre ese precio.
+      expect(cart.totalCents, 900);
+      expect(labels(only(cart)), ['10 % menos', 'Código VERANO-10: 2x1']);
+      expect(cart.usedRedemptionIds, {id(50)});
+    });
+
+    test('un código que no ahorra nada no gasta el uso', () {
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 1)],
+        {},
+        {},
+        [code(promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1))],
+      );
+
+      // Con una unidad, el 2x1 no se completa.
+      expect(cart.totalCents, 1000);
+      expect(only(cart).promotions, isEmpty);
+      expect(cart.usedRedemptionIds, isEmpty);
+    });
+
+    test('empatado con una para todos: no gasta el uso', () {
+      // El 2x1 del código es más viejo (id menor) que el de todos.
+      final codeTwoForOne = promo(
+        arroz,
+        PromotionType.buyXPayY,
+        buy: 2,
+        pay: 1,
+      );
+      final everyone = promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1);
+
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 2)],
+        {
+          arroz: [everyone],
+        },
+        {},
+        [code(codeTwoForOne)],
+      );
+
+      expect(cart.totalCents, 1000);
+      expect(labels(only(cart)), ['2x1']);
+      expect(cart.usedRedemptionIds, isEmpty);
+    });
+
+    test('si subiría el total, el código no se aplica', () {
+      // Sin el código: la 2.ª gratis, dos veces (S/ 20). Con su 3x2, que va
+      // primero, quedaría en S/ 30.
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 4)],
+        {
+          arroz: [promo(arroz, PromotionType.extraUnit, buy: 2, percent: 100)],
+        },
+        {},
+        [code(promo(arroz, PromotionType.buyXPayY, buy: 3, pay: 2))],
+      );
+
+      expect(cart.totalCents, 2000);
+      expect(cart.usedRedemptionIds, isEmpty);
+      expect(labels(only(cart)), ['2.ª al 100 %']);
+    });
+
+    test('sin promociones del código en el carrito, no avisa del mínimo', () {
+      final aceite = id(3);
+      final cart = priceCartWithCodes(
+        [line(arroz, 1000, 1)],
+        {},
+        {},
+        [
+          code(
+            promo(aceite, PromotionType.buyXPayY, buy: 2, pay: 1),
+            min: 5000,
+          ),
+        ],
+      );
+
+      expect(cart.notices, isEmpty);
+    });
+  });
+
+  test('unitPriceFor: solo los pasos 1 y 2', () {
+    expect(
+      unitPriceFor(2490, [
+        promo(arroz, PromotionType.specialPrice, price: 2290),
+        promo(arroz, PromotionType.percentOff, percent: 10),
+        promo(arroz, PromotionType.buyXPayY, buy: 2, pay: 1),
+      ]),
+      2061,
+    );
+    expect(unitPriceFor(2490, []), 2490);
+  });
+}

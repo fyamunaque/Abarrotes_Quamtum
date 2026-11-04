@@ -20,6 +20,7 @@ import '../shared/error_message.dart';
 import '../shared/filter_chips.dart';
 import '../shared/info_line.dart';
 import '../shared/store_details.dart';
+import 'order_lines.dart';
 import 'order_tracker.dart';
 
 /// Los pedidos de la cuenta, cada uno con su seguimiento, con la búsqueda
@@ -359,14 +360,27 @@ class _ReceivedNotice extends StatelessWidget {
                         'Algunos precios cambiaron desde que los agregaste:',
                         style: muted,
                       ),
+                      // El total de la línea si el carrito tenía la
+                      // cotización; si no, el precio por unidad.
                       for (final change in order.priceChanges)
-                        Text(
-                          '${change.name}: '
-                          '${formatSoles(change.shownUnitPriceCents)} → '
-                          '${formatSoles(change.unitPriceCents)}',
-                          style: muted,
-                        ),
+                        Text(switch (change) {
+                          PriceChange(
+                            shownLineTotalCents: final shown?,
+                            lineTotalCents: final charged?,
+                          ) =>
+                            '${change.name}: ${formatSoles(shown)} → '
+                                '${formatSoles(charged)}',
+                          _ =>
+                            '${change.name}: '
+                                '${formatSoles(change.shownUnitPriceCents ?? 0)} → '
+                                '${formatSoles(change.unitPriceCents ?? 0)}',
+                        }, style: muted),
                     ],
+                    if (order != null)
+                      for (final notice in order.notices) ...[
+                        const SizedBox(height: 4),
+                        Text(notice, style: muted),
+                      ],
                   ],
                 ),
               ),
@@ -440,17 +454,7 @@ class _OrderCard extends StatelessWidget {
               FulfillmentType.delivery => _DeliveryDetails(order),
             },
             const SizedBox(height: 16),
-            for (final line in order.lines)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: Text('${line.quantity} × ${line.name}')),
-                    Text(formatSoles(line.totalCents)),
-                  ],
-                ),
-              ),
+            OrderLines(order: order),
           ],
         ),
       ),

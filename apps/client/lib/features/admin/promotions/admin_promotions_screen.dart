@@ -6,15 +6,18 @@ import '../../../admin/promotions/promotions_providers.dart';
 import '../../../admin/vip/vip_providers.dart';
 import '../../../common/days.dart';
 import '../../../common/money.dart';
+import '../../../router/routes.dart';
 import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
 import '../../shared/filter_chips.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
+import '../shared/panel_tabs.dart';
 import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import '../shared/vip_badge.dart';
 import 'promotion_form.dart';
+import 'promotions_tabs.dart';
 
 /// Las promociones, filtradas por estado: crear, editar (precio, fechas,
 /// encendida, título y audiencia) y eliminar. Las exclusivas de los clientes
@@ -37,9 +40,17 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
       title: promotion == null ? 'Nueva promoción' : 'Editar promoción',
       builder: (_) => PromotionForm(
         promotion: promotion,
-        onSubmit: promotion == null
-            ? notifier.create
-            : (input) => notifier.save(promotion.id, input),
+        // La de un código se edita con su código fijo.
+        promoCodeId: promotion?.audience == PromotionAudience.code
+            ? promotion?.promoCodeId
+            : null,
+        onSubmit: (input, {required confirmOverlap}) => promotion == null
+            ? notifier.create(input, confirmOverlap: confirmOverlap)
+            : notifier.save(
+                promotion.id,
+                input,
+                confirmOverlap: confirmOverlap,
+              ),
         searchVips: ref.read(vipSearchProvider),
         onDelete: promotion == null
             ? null
@@ -68,6 +79,8 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
         ),
       ],
       children: [
+        const PanelTabs(tabs: promotionsTabs, current: Routes.adminPromotions),
+        const SizedBox(height: 16),
         FilterChips<PromotionStatus?>(
           options: [
             (null, 'Todas'),
@@ -82,7 +95,12 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
           value: ref.watch(provider),
           columns: [
             AdminColumn('Producto', (p) => _ProductCell(p), flex: 4),
-            AdminColumn('Precio', (p) => _PriceCell(p), flex: 3, numeric: true),
+            AdminColumn(
+              'Promoción',
+              (p) => _PriceCell(p),
+              flex: 3,
+              numeric: true,
+            ),
             AdminColumn('Vigencia', (p) => Text(period(p)), flex: 3),
             AdminColumn(
               'Estado',
@@ -99,8 +117,14 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
             if (p.audience == PromotionAudience.vip) 'solo clientes VIP',
             if (p.audience == PromotionAudience.selected)
               'para ${p.recipients.length} clientes VIP elegidos',
-            'de ${formatSoles(p.priceCents)} a ${formatSoles(p.promoPriceCents)}',
-            '${p.discountPercent} % menos',
+            if (p.promoCode case final code?) 'del código $code',
+            ...switch (_promoCents(p)) {
+              final cents? => [
+                'de ${formatSoles(p.priceCents)} a ${formatSoles(cents)}',
+                '${p.discountPercent} % menos',
+              ],
+              null => [p.label],
+            },
             period(p),
             p.status.label,
           ].join(', '),
@@ -149,6 +173,8 @@ class _ProductCell extends StatelessWidget {
                 'Elegidos (${promotion.recipients.length})',
                 style: theme.textTheme.labelMedium,
               ),
+            if (promotion.promoCode case final code?)
+              Text('Código $code', style: theme.textTheme.labelMedium),
           ],
         ),
         Text(
@@ -162,7 +188,17 @@ class _ProductCell extends StatelessWidget {
   }
 }
 
-/// "S/ 24.90 → S/ 19.90" y debajo el descuento.
+/// El precio con la promoción de un precio especial o un %; null en los
+/// demás tipos.
+int? _promoCents(Promotion promotion) => switch (promotion.type) {
+  PromotionType.specialPrice => promotion.promoPriceCents,
+  PromotionType.percentOff =>
+    (promotion.priceCents * (100 - promotion.percent!) / 100).round(),
+  _ => null,
+};
+
+/// "S/ 24.90 → S/ 19.90" y debajo el descuento; en un NxM, una unidad
+/// extra o un regalo, cómo se nombra ("2x1") y debajo el precio normal.
 class _PriceCell extends StatelessWidget {
   const _PriceCell(this.promotion);
 
@@ -174,6 +210,16 @@ class _PriceCell extends StatelessWidget {
     final muted = theme.textTheme.bodySmall?.copyWith(
       color: theme.colorScheme.onSurfaceVariant,
     );
+    final promoCents = _promoCents(promotion);
+    if (promoCents == null) {
+      return Column(
+        crossAxisAlignment: AdminCellAlignment.of(context),
+        children: [
+          Text(promotion.label),
+          Text('Precio ${formatSoles(promotion.priceCents)}', style: muted),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: AdminCellAlignment.of(context),
       children: [
@@ -184,7 +230,7 @@ class _PriceCell extends StatelessWidget {
                 text: '${formatSoles(promotion.priceCents)} → ',
                 style: TextStyle(color: theme.colorScheme.onSurfaceVariant),
               ),
-              TextSpan(text: formatSoles(promotion.promoPriceCents)),
+              TextSpan(text: formatSoles(promoCents)),
             ],
           ),
         ),

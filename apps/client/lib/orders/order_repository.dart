@@ -2,15 +2,21 @@ import '../common/page_list.dart';
 import 'fulfillment.dart';
 import 'order.dart';
 import 'order_filter.dart';
+import 'quote.dart';
 
 /// Lo que se pide de un producto. [shownUnitPriceCents] es el precio que
-/// mostraba el carrito: el servidor nunca lo cobra, solo lo compara y avisa
-/// si cambió (`Order.priceChanges`).
+/// mostraba el carrito y [shownLineTotalCents], el total de la línea de la
+/// cotización (con sus promociones), si la había: el servidor nunca los
+/// cobra, solo los compara y avisa si cambiaron (`Order.priceChanges`).
 typedef OrderLineRequest = ({
   String productId,
   int quantity,
   int? shownUnitPriceCents,
+  int? shownLineTotalCents,
 });
+
+/// Un producto del carrito para cotizar.
+typedef QuoteLineRequest = ({String productId, int quantity});
 
 /// Los pedidos de la cuenta. Las rutas piden el ID token de Firebase. Los
 /// errores salen como `ApiFailure` (p. ej. 409 si un producto ya no tiene
@@ -25,6 +31,11 @@ abstract interface class OrderRepository {
     String? deliveryAddress,
     required List<OrderLineRequest> lines,
   });
+
+  /// Cómo se cobraría [lines] hoy (`POST /orders/quote`), sin guardar
+  /// nada. Con [idToken], con las promociones de esa cuenta (p. ej. las
+  /// VIP); sin él, las de todos.
+  Future<Quote> quote(List<QuoteLineRequest> lines, {String? idToken});
 
   /// Una página de los pedidos propios, los más recientes primero, con la
   /// búsqueda y los filtros de [filter].

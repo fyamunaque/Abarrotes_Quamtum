@@ -226,6 +226,7 @@ void main() {
     expect(id, isNull);
     expect(input.toJson(), {
       'productId': 'leche',
+      'type': 'specialPrice',
       'promoPrice': 3.5,
       'startDate': '2026-10-07',
       'endDate': '2026-10-14',
@@ -242,7 +243,167 @@ void main() {
     expect(statuses(tester), hasLength(4));
   });
 
-  testWidgets('una promoción que se cruza con otra no se crea', (tester) async {
+  group('tipos', () {
+    Future<void> newFor(WidgetTester tester, String product) async {
+      await pumpPromotions(tester);
+      await tapAndSettle(tester, find.text('Nueva promoción'));
+      await tester.enterText(field('Producto'), product);
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tapAndSettle(
+        tester,
+        find.widgetWithText(ListTile, 'Arroz extra 5 kg'),
+      );
+    }
+
+    Future<void> chooseType(WidgetTester tester, String label) async {
+      await tapAndSettle(
+        tester,
+        find.byType(DropdownButtonFormField<PromotionType>),
+      );
+      await tapAndSettle(tester, find.text(label).last);
+    }
+
+    testWidgets('el tipo muestra solo sus campos', (tester) async {
+      await newFor(tester, 'arroz');
+      expect(field('Precio de la promoción'), findsOneWidget);
+
+      await chooseType(tester, 'NxM');
+      expect(field('Precio de la promoción'), findsNothing);
+      await tester.enterText(field('Lleva'), '3');
+      await tester.enterText(field('Paga'), '2');
+      await tester.pump();
+      expect(
+        find.text('Lleva 3, paga 2: una de cada 3 gratis'),
+        findsOneWidget,
+      );
+
+      await chooseType(tester, '% de descuento');
+      await tester.enterText(field('% menos'), '20');
+      await tester.pump();
+      expect(
+        find.text(
+          'Precio normal ${formatSoles(2490)} · queda en '
+          '${formatSoles(1992)}',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('unidad extra y regalo', (tester) async {
+      await newFor(tester, 'arroz');
+
+      await chooseType(tester, 'Unidad extra');
+      await tester.enterText(field('Cada'), '2');
+      await tester.enterText(field('% menos'), '50');
+      await tester.pump();
+      expect(find.text('La 2.ª unidad al 50 %'), findsOneWidget);
+
+      await chooseType(tester, 'Regalo');
+      await tester.enterText(field('Cada'), '2');
+      await tester.enterText(field('Producto de regalo'), 'leche');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      await tapAndSettle(
+        tester,
+        find.widgetWithText(ListTile, 'Leche evaporada 400 g'),
+      );
+      await tester.enterText(field('Cuántos de regalo'), '1');
+      await tester.pump();
+      expect(find.text('Cada 2 lleva 1 de regalo'), findsOneWidget);
+      await pickRange(tester, DateTime(2026, 10, 20), DateTime(2026, 10, 25));
+      await tapAndSettle(tester, find.text('Crear promoción'));
+
+      final (_, input) = repository.sent.single;
+      expect(input.toJson(), {
+        'productId': 'arroz',
+        'type': 'gift',
+        'buyQuantity': 2,
+        'giftProductId': 'leche',
+        'giftQuantity': 1,
+        'startDate': '2026-10-20',
+        'endDate': '2026-10-25',
+        'active': true,
+        'audience': 'everyone',
+        'title': null,
+      });
+      expect(inTable('Regalo: Leche evaporada 400 g'), findsOneWidget);
+    });
+
+    testWidgets('valida como el servidor', (tester) async {
+      await newFor(tester, 'arroz');
+
+      await chooseType(tester, 'NxM');
+      await tester.enterText(field('Lleva'), '2');
+      await tester.enterText(field('Paga'), '2');
+      await tapAndSettle(tester, find.text('Crear promoción'));
+      expect(
+        find.text('Tiene que ser menor que lo que lleva.'),
+        findsOneWidget,
+      );
+
+      await chooseType(tester, '% de descuento');
+      await tester.enterText(field('% menos'), '95');
+      await tapAndSettle(tester, find.text('Crear promoción'));
+      expect(find.text('Entre 1 y 90.'), findsOneWidget);
+
+      await chooseType(tester, 'Regalo');
+      await tester.enterText(field('Cada'), '2');
+      await tester.enterText(field('Cuántos de regalo'), '1');
+      await tapAndSettle(tester, find.text('Crear promoción'));
+      expect(find.text('Elige el producto de regalo.'), findsOneWidget);
+      expect(repository.sent, isEmpty);
+    });
+
+    testWidgets('la tabla muestra el tipo', (tester) async {
+      repository.promotions.addAll([
+        Promotion(
+          id: 'p5',
+          productId: 'arroz',
+          productName: 'Arroz extra 5 kg',
+          sku: 'ARR-T1',
+          priceCents: 2490,
+          startDate: '2026-10-01',
+          endDate: '2026-10-15',
+          active: true,
+          status: PromotionStatus.active,
+          type: PromotionType.percentOff,
+          percent: 15,
+        ),
+        Promotion(
+          id: 'p6',
+          productId: 'arroz',
+          productName: 'Arroz extra 5 kg',
+          sku: 'ARR-T2',
+          priceCents: 2490,
+          startDate: '2026-10-01',
+          endDate: '2026-10-15',
+          active: true,
+          status: PromotionStatus.active,
+          type: PromotionType.buyXPayY,
+          buyQuantity: 2,
+          payQuantity: 1,
+        ),
+      ]);
+      await pumpPromotions(tester);
+
+      expect(inTable('15 % menos'), findsOneWidget);
+      expect(inTable('2x1'), findsOneWidget);
+    });
+
+    testWidgets('en el teléfono, cada tipo entra', (tester) async {
+      await pumpPromotions(tester, width: 320);
+      await tapAndSettle(tester, find.text('Nueva promoción'));
+      for (final type in ['NxM', 'Unidad extra', 'Regalo', '% de descuento']) {
+        await chooseType(tester, type);
+        expect(tester.takeException(), isNull, reason: type);
+      }
+    });
+  });
+
+  testWidgets('el cruce pregunta: "Volver" no la crea y "Crear igual" sí', (
+    tester,
+  ) async {
     await pumpPromotions(tester);
     await tapAndSettle(tester, find.text('Nueva promoción'));
     await tester.enterText(field('Producto'), 'arroz');
@@ -256,16 +417,25 @@ void main() {
     await pickRange(tester, DateTime(2026, 10, 10), DateTime(2026, 10, 12));
 
     await tapAndSettle(tester, find.text('Crear promoción'));
-
+    expect(find.text('Se cruza con otras promociones'), findsOneWidget);
     expect(
       find.text(
-        'Arroz extra 5 kg ya tiene una promoción del 2026-10-01 al '
-        '2026-10-15 que se cruza con esas fechas',
+        'Precio especial ${formatSoles(1990)} · Todos · '
+        '1 – 15 oct 2026',
       ),
       findsOneWidget,
     );
-    expect(find.byType(Dialog), findsWidgets);
+    expect(find.text('Se acumulan: el cliente recibe todas.'), findsOneWidget);
+    await tapAndSettle(tester, find.text('Volver'));
     expect(repository.sent, isEmpty);
+    expect(find.byType(PromotionForm), findsOneWidget);
+
+    await tapAndSettle(tester, find.text('Crear promoción'));
+    await tapAndSettle(tester, find.text('Crear igual'));
+
+    expect(repository.confirmed, [true]);
+    expect(repository.sent, hasLength(1));
+    expect(find.byType(PromotionForm), findsNothing);
   });
 
   testWidgets(
@@ -301,10 +471,13 @@ void main() {
         findsOneWidget,
       );
       await tapAndSettle(tester, find.text('Crear promoción'));
+      // Se cruza con la de todos del arroz: se acumulan.
+      await tapAndSettle(tester, find.text('Crear igual'));
 
       final (_, input) = repository.sent.single;
       expect(input.toJson(), {
         'productId': 'arroz',
+        'type': 'specialPrice',
         'promoPrice': 18.0,
         'startDate': '2026-10-10',
         'endDate': '2026-10-12',
@@ -318,7 +491,7 @@ void main() {
     },
   );
 
-  testWidgets('dos promociones VIP del mismo producto no se cruzan', (
+  testWidgets('el aviso de cruce lista cada una con su audiencia', (
     tester,
   ) async {
     repository.promotions.add(
@@ -361,9 +534,13 @@ void main() {
 
     expect(
       find.text(
-        'Arroz extra 5 kg ya tiene una promoción VIP del 2026-10-01 al '
-        '2026-10-15 que se cruza con esas fechas',
+        'Precio especial ${formatSoles(1790)} · Solo clientes VIP · '
+        '1 – 15 oct 2026',
       ),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Precio especial ${formatSoles(1990)} · Todos'),
       findsOneWidget,
     );
     expect(repository.sent, isEmpty);

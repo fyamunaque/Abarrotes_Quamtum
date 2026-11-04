@@ -1,0 +1,8 @@
+### Una promoción que se aplicó en una línea del pedido, como foto: su
+### nombre y cuánto ahorró. Se guarda con la línea, así sigue igual aunque
+### después cambien o borren la promoción.
+class: AppliedPromotion
+fields:
+  promotionId: UuidValue
+  label: String
+  savedCents: int

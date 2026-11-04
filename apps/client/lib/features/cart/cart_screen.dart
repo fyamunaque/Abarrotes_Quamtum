@@ -4,13 +4,17 @@ import 'package:go_router/go_router.dart';
 
 import '../../cart/cart.dart';
 import '../../cart/cart_provider.dart';
+import '../../cart/cart_quote_provider.dart';
 import '../../cart/checkout_provider.dart';
 import '../../common/money.dart';
 import '../../orders/fulfillment.dart';
+import '../../orders/order.dart';
+import '../../orders/quote.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import '../../store/store_providers.dart';
+import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
 import '../catalog/product_photo.dart';
@@ -23,9 +27,12 @@ import '../shared/store_details.dart';
 import '../shared/verify_email_notice.dart';
 import '../shared/vip_tag.dart';
 
-/// El carrito: cambiar cantidades, quitar productos, ver el total estimado
-/// (con los precios de la cuenta, p. ej. los VIP) y hacer el pedido. El
-/// precio final lo pone el servidor.
+/// El carrito: cambiar cantidades, quitar productos, ver el total y hacer el
+/// pedido. El total sale de la cotización del servidor ([cartQuoteProvider],
+/// con las promociones de la cuenta: cada línea con lo que ahorra, los
+/// regalos y los descuentos); mientras llega, o si falla (con un aviso),
+/// es la estimación con los precios del catálogo. El precio final lo pone
+/// el servidor al hacer el pedido.
 ///
 /// En un teléfono (menos de [checkoutBarBelow]), el total y "Confirmar
 /// pedido" van en una barra fija abajo: no hace falta bajar hasta el final.
@@ -93,6 +100,10 @@ class _CartScreenState extends ConsumerState<CartScreen> {
   Widget build(BuildContext context) {
     ref.listen(sessionProvider, (_, session) => _prefill(session));
     final cart = ref.watch(cartProvider);
+    final quoted = ref.watch(cartQuoteProvider);
+    final quote = shownQuote(cart, quoted, ref.watch(sessionProvider));
+    final quoteFailed = quoted.hasError && !quoted.isLoading;
+    final totalCents = quote?.totalCents ?? cart.totalCents;
     final withBar =
         !cart.isEmpty &&
         MediaQuery.sizeOf(context).width < CartScreen.checkoutBarBelow;
@@ -102,7 +113,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       // El aviso del correo va en el checkout, donde hace falta.
       showVerifyEmail: false,
       bottomBar: withBar
-          ? _CheckoutBar(totalCents: cart.totalCents, onConfirm: _confirm)
+          ? _CheckoutBar(totalCents: totalCents, onConfirm: _confirm)
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -113,9 +124,31 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             const _EmptyCart()
           else ...[
             for (final line in cart.lines)
-              _CartLineTile(line, key: ValueKey(line.product.id)),
+              _CartLineTile(
+                line,
+                quoted: quote?.lineOf(line.product.id),
+                key: ValueKey(line.product.id),
+              ),
+            for (final gift in quote?.gifts ?? const <OrderLine>[])
+              _GiftLine(gift),
+            if (quoteFailed)
+              const _QuoteNotice(
+                'No pudimos calcular las promociones. El total final se '
+                'confirma al pedir.',
+              )
+            else
+              for (final notice in quote?.notices ?? const <String>[])
+                _QuoteNotice(notice),
+            Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: TextButton.icon(
+                onPressed: () => context.go(Routes.myCodesFrom(Routes.cart)),
+                icon: const Icon(Icons.confirmation_number_outlined),
+                label: const Text('¿Tienes un código?'),
+              ),
+            ),
             const Divider(height: 32),
-            _Total(cart),
+            _Total(cart, quote: quote),
             const SizedBox(height: 24),
             _Checkout(
               formKey: _formKey,
@@ -136,10 +169,13 @@ void _signInForCart(BuildContext context) => context.go(
   Uri(path: Routes.login, queryParameters: {'from': Routes.cart}).toString(),
 );
 
+/// Una línea del carrito. Con [quoted] (la de la cotización), su precio, su
+/// total y lo que ahorra cada promoción ("2x1 −S/ 24.90").
 class _CartLineTile extends ConsumerWidget {
-  const _CartLineTile(this.line, {super.key});
+  const _CartLineTile(this.line, {this.quoted, super.key});
 
   final CartLine line;
+  final OrderLine? quoted;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -176,7 +212,7 @@ class _CartLineTile extends ConsumerWidget {
                       crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Text(
-                          '${formatSoles(product.finalPriceCents)} c/u',
+                          '${formatSoles(quoted?.unitPriceCents ?? product.finalPriceCents)} c/u',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -205,10 +241,61 @@ class _CartLineTile extends ConsumerWidget {
               ),
               const Spacer(),
               Text(
-                formatSoles(line.totalCents),
+                formatSoles(quoted?.lineTotalCents ?? line.totalCents),
                 style: theme.textTheme.titleMedium,
               ),
             ],
+          ),
+          for (final promotion in quoted?.promotions ?? const [])
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Text(
+                '${promotion.label} −${formatSoles(promotion.savedCents)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: StateColors.positive,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Un regalo de la cotización: "1 × Sal 1 kg" y "Regalo".
+class _GiftLine extends StatelessWidget {
+  const _GiftLine(this.gift);
+
+  final OrderLine gift;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          const SizedBox.square(
+            dimension: 64,
+            child: Icon(
+              Icons.card_giftcard_outlined,
+              size: 28,
+              color: StateColors.positive,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${gift.quantity} × ${gift.name}',
+              style: theme.textTheme.titleMedium,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            'Regalo',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: StateColors.positive,
+            ),
           ),
         ],
       ),
@@ -216,17 +303,52 @@ class _CartLineTile extends ConsumerWidget {
   }
 }
 
+/// Un aviso de la cotización ("Solo quedaba 1 de Sal 1 kg para regalo") o
+/// de que no se pudo cotizar.
+class _QuoteNotice extends StatelessWidget {
+  const _QuoteNotice(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) =>
+      InfoLine(icon: Icons.info_outline, text: text);
+}
+
+/// El total: el de la cotización ([quote]), con el subtotal y los
+/// descuentos si los hay, o la estimación del carrito.
 class _Total extends StatelessWidget {
-  const _Total(this.cart);
+  const _Total(this.cart, {this.quote});
 
   final Cart cart;
+  final Quote? quote;
 
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
+    final quote = this.quote;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        if (quote != null && quote.discountCents > 0) ...[
+          Row(
+            children: [
+              Expanded(child: Text('Subtotal', style: text.bodyLarge)),
+              Text(formatSoles(quote.subtotalCents), style: text.bodyLarge),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              Expanded(child: Text('Descuentos', style: text.bodyLarge)),
+              Text(
+                '−${formatSoles(quote.discountCents)}',
+                style: text.bodyLarge?.copyWith(color: StateColors.positive),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
         Row(
           children: [
             // Con el texto agrandado, "Total estimado" baja de línea antes
@@ -234,7 +356,7 @@ class _Total extends StatelessWidget {
             Expanded(child: Text('Total estimado', style: text.titleLarge)),
             const SizedBox(width: 12),
             Text(
-              formatSoles(cart.totalCents),
+              formatSoles(quote?.totalCents ?? cart.totalCents),
               style: NeilsText.price(fontSize: 26),
             ),
           ],

@@ -15,6 +15,7 @@ import 'package:abarrotes_server/src/generated/protocol.dart' as _i1p9jj0z;
 import 'package:serverpod/serverpod.dart' as _is;
 import '../orders/order.dart' as _ij3i88ow;
 import '../products/product.dart' as _iubf72bi;
+import '../promotions/applied_promotion.dart' as _iey7x119;
 
 abstract class OrderItem
     implements _is.TableRow<_is.UuidValue?>, _is.ProtocolSerialization {
@@ -22,16 +23,26 @@ abstract class OrderItem
     this.id,
     required this.quantity,
     required this.unitPriceCents,
+    int? listUnitPriceCents,
+    int? lineTotalCents,
+    bool? isGift,
+    this.promotions,
     required this.orderId,
     this.order,
     required this.productId,
     this.product,
-  });
+  }) : listUnitPriceCents = listUnitPriceCents ?? 0,
+       lineTotalCents = lineTotalCents ?? 0,
+       isGift = isGift ?? false;
 
   factory OrderItem({
     _is.UuidValue? id,
     required int quantity,
     required int unitPriceCents,
+    int? listUnitPriceCents,
+    int? lineTotalCents,
+    bool? isGift,
+    List<_iey7x119.AppliedPromotion>? promotions,
     required _is.UuidValue orderId,
     _ij3i88ow.Order? order,
     required _is.UuidValue productId,
@@ -45,6 +56,16 @@ abstract class OrderItem
           : _is.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
       quantity: jsonSerialization['quantity'] as int,
       unitPriceCents: jsonSerialization['unitPriceCents'] as int,
+      listUnitPriceCents: jsonSerialization['listUnitPriceCents'] as int?,
+      lineTotalCents: jsonSerialization['lineTotalCents'] as int?,
+      isGift: jsonSerialization['isGift'] == null
+          ? null
+          : _is.BoolJsonExtension.fromJson(jsonSerialization['isGift']),
+      promotions: jsonSerialization['promotions'] == null
+          ? null
+          : _i1p9jj0z.Protocol().deserialize<List<_iey7x119.AppliedPromotion>>(
+              jsonSerialization['promotions'],
+            ),
       orderId: _is.UuidValueJsonExtension.fromJson(
         jsonSerialization['orderId'],
       ),
@@ -73,8 +94,23 @@ abstract class OrderItem
 
   int quantity;
 
-  /// Precio unitario cobrado, en céntimos (el promocional si había promoción).
+  /// Precio unitario después del precio especial y los porcentajes, en
+  /// céntimos (0 en un regalo).
   int unitPriceCents;
+
+  /// El precio normal del producto al hacer el pedido.
+  /// (default 0 solo para agregar la columna: la migración la completa y el
+  /// servidor siempre la pone).
+  int listUnitPriceCents;
+
+  /// Lo que se cobró por la línea, con las promociones por cantidad (2x1…).
+  int lineTotalCents;
+
+  /// Una línea de regalo (a S/ 0) de una promoción de regalo.
+  bool isGift;
+
+  /// Las promociones que se aplicaron, como foto (nombre y ahorro).
+  List<_iey7x119.AppliedPromotion>? promotions;
 
   _is.UuidValue orderId;
 
@@ -94,6 +130,10 @@ abstract class OrderItem
     _is.UuidValue? id,
     int? quantity,
     int? unitPriceCents,
+    int? listUnitPriceCents,
+    int? lineTotalCents,
+    bool? isGift,
+    List<_iey7x119.AppliedPromotion>? promotions,
     _is.UuidValue? orderId,
     _ij3i88ow.Order? order,
     _is.UuidValue? productId,
@@ -106,6 +146,11 @@ abstract class OrderItem
       if (id != null) 'id': id?.toJson(),
       'quantity': quantity,
       'unitPriceCents': unitPriceCents,
+      'listUnitPriceCents': listUnitPriceCents,
+      'lineTotalCents': lineTotalCents,
+      'isGift': isGift,
+      if (promotions != null)
+        'promotions': promotions?.toJson(valueToJson: (v) => v.toJson()),
       'orderId': orderId.toJson(),
       if (order != null) 'order': order?.toJson(),
       'productId': productId.toJson(),
@@ -120,6 +165,13 @@ abstract class OrderItem
       if (id != null) 'id': id?.toJson(),
       'quantity': quantity,
       'unitPriceCents': unitPriceCents,
+      'listUnitPriceCents': listUnitPriceCents,
+      'lineTotalCents': lineTotalCents,
+      'isGift': isGift,
+      if (promotions != null)
+        'promotions': promotions?.toJson(
+          valueToJson: (v) => v.toJsonForProtocol(),
+        ),
       'orderId': orderId.toJson(),
       if (order != null) 'order': order?.toJsonForProtocol(),
       'productId': productId.toJson(),
@@ -168,6 +220,10 @@ class _OrderItemImpl extends OrderItem {
     _is.UuidValue? id,
     required int quantity,
     required int unitPriceCents,
+    int? listUnitPriceCents,
+    int? lineTotalCents,
+    bool? isGift,
+    List<_iey7x119.AppliedPromotion>? promotions,
     required _is.UuidValue orderId,
     _ij3i88ow.Order? order,
     required _is.UuidValue productId,
@@ -176,6 +232,10 @@ class _OrderItemImpl extends OrderItem {
          id: id,
          quantity: quantity,
          unitPriceCents: unitPriceCents,
+         listUnitPriceCents: listUnitPriceCents,
+         lineTotalCents: lineTotalCents,
+         isGift: isGift,
+         promotions: promotions,
          orderId: orderId,
          order: order,
          productId: productId,
@@ -190,6 +250,10 @@ class _OrderItemImpl extends OrderItem {
     Object? id = _Undefined,
     int? quantity,
     int? unitPriceCents,
+    int? listUnitPriceCents,
+    int? lineTotalCents,
+    bool? isGift,
+    Object? promotions = _Undefined,
     _is.UuidValue? orderId,
     Object? order = _Undefined,
     _is.UuidValue? productId,
@@ -199,6 +263,12 @@ class _OrderItemImpl extends OrderItem {
       id: id is _is.UuidValue? ? id : this.id,
       quantity: quantity ?? this.quantity,
       unitPriceCents: unitPriceCents ?? this.unitPriceCents,
+      listUnitPriceCents: listUnitPriceCents ?? this.listUnitPriceCents,
+      lineTotalCents: lineTotalCents ?? this.lineTotalCents,
+      isGift: isGift ?? this.isGift,
+      promotions: promotions is List<_iey7x119.AppliedPromotion>?
+          ? promotions
+          : this.promotions?.map((e0) => e0.copyWith()).toList(),
       orderId: orderId ?? this.orderId,
       order: order is _ij3i88ow.Order? ? order : this.order?.copyWith(),
       productId: productId ?? this.productId,
@@ -219,6 +289,30 @@ class OrderItemUpdateTable extends _is.UpdateTable<OrderItemTable> {
 
   _is.ColumnValue<int, int> unitPriceCents(int value) => _is.ColumnValue(
     table.unitPriceCents,
+    value,
+  );
+
+  _is.ColumnValue<int, int> listUnitPriceCents(int value) => _is.ColumnValue(
+    table.listUnitPriceCents,
+    value,
+  );
+
+  _is.ColumnValue<int, int> lineTotalCents(int value) => _is.ColumnValue(
+    table.lineTotalCents,
+    value,
+  );
+
+  _is.ColumnValue<bool, bool> isGift(bool value) => _is.ColumnValue(
+    table.isGift,
+    value,
+  );
+
+  _is.ColumnValue<
+    List<_iey7x119.AppliedPromotion>,
+    List<_iey7x119.AppliedPromotion>
+  >
+  promotions(List<_iey7x119.AppliedPromotion>? value) => _is.ColumnValue(
+    table.promotions,
     value,
   );
 
@@ -247,6 +341,25 @@ class OrderItemTable extends _is.Table<_is.UuidValue?> {
       'unitPriceCents',
       this,
     );
+    listUnitPriceCents = _is.ColumnInt(
+      'listUnitPriceCents',
+      this,
+      hasDefault: true,
+    );
+    lineTotalCents = _is.ColumnInt(
+      'lineTotalCents',
+      this,
+      hasDefault: true,
+    );
+    isGift = _is.ColumnBool(
+      'isGift',
+      this,
+      hasDefault: true,
+    );
+    promotions = _is.ColumnSerializable<List<_iey7x119.AppliedPromotion>>(
+      'promotions',
+      this,
+    );
     orderId = _is.ColumnUuid(
       'orderId',
       this,
@@ -261,8 +374,24 @@ class OrderItemTable extends _is.Table<_is.UuidValue?> {
 
   late final _is.ColumnInt quantity;
 
-  /// Precio unitario cobrado, en céntimos (el promocional si había promoción).
+  /// Precio unitario después del precio especial y los porcentajes, en
+  /// céntimos (0 en un regalo).
   late final _is.ColumnInt unitPriceCents;
+
+  /// El precio normal del producto al hacer el pedido.
+  /// (default 0 solo para agregar la columna: la migración la completa y el
+  /// servidor siempre la pone).
+  late final _is.ColumnInt listUnitPriceCents;
+
+  /// Lo que se cobró por la línea, con las promociones por cantidad (2x1…).
+  late final _is.ColumnInt lineTotalCents;
+
+  /// Una línea de regalo (a S/ 0) de una promoción de regalo.
+  late final _is.ColumnBool isGift;
+
+  /// Las promociones que se aplicaron, como foto (nombre y ahorro).
+  late final _is.ColumnSerializable<List<_iey7x119.AppliedPromotion>>
+  promotions;
 
   late final _is.ColumnUuid orderId;
 
@@ -303,6 +432,10 @@ class OrderItemTable extends _is.Table<_is.UuidValue?> {
     id,
     quantity,
     unitPriceCents,
+    listUnitPriceCents,
+    lineTotalCents,
+    isGift,
+    promotions,
     orderId,
     productId,
   ];

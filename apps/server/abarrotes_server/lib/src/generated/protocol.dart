@@ -21,9 +21,16 @@ import 'orders/order.dart' as _ia2sbmwd;
 import 'orders/order_item.dart' as _is46w9g4;
 import 'orders/order_status.dart' as _ishke5og;
 import 'products/product.dart' as _io8c7sps;
+import 'promo_codes/order_promo_code_use.dart' as _ilzi4lsq;
+import 'promo_codes/promo_code.dart' as _irp1jeb1;
+import 'promo_codes/promo_code_allowed_email.dart' as _ibrrb5eh;
+import 'promo_codes/promo_code_eligibility.dart' as _i7mkv7li;
+import 'promo_codes/promo_code_redemption.dart' as _ij8s76rv;
+import 'promotions/applied_promotion.dart' as _isxjjxbc;
 import 'promotions/promotion.dart' as _i8z66r5b;
 import 'promotions/promotion_audience.dart' as _ik9fivqg;
 import 'promotions/promotion_recipient.dart' as _iyra33mk;
+import 'promotions/promotion_type.dart' as _i09c7in8;
 import 'staff/audit_action.dart' as _i6v8ft9w;
 import 'staff/audit_log.dart' as _ias3z63p;
 import 'staff/permission.dart' as _iwx11llg;
@@ -42,9 +49,16 @@ export 'orders/order.dart';
 export 'orders/order_item.dart';
 export 'orders/order_status.dart';
 export 'products/product.dart';
+export 'promo_codes/order_promo_code_use.dart';
+export 'promo_codes/promo_code.dart';
+export 'promo_codes/promo_code_allowed_email.dart';
+export 'promo_codes/promo_code_eligibility.dart';
+export 'promo_codes/promo_code_redemption.dart';
+export 'promotions/applied_promotion.dart';
 export 'promotions/promotion.dart';
 export 'promotions/promotion_audience.dart';
 export 'promotions/promotion_recipient.dart';
+export 'promotions/promotion_type.dart';
 export 'staff/audit_action.dart';
 export 'staff/audit_log.dart';
 export 'staff/permission.dart';
@@ -396,6 +410,33 @@ class Protocol extends _is.DatabaseSerializationManager {
           dartType: 'int',
         ),
         _isp.ColumnDefinition(
+          name: 'listUnitPriceCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
+        ),
+        _isp.ColumnDefinition(
+          name: 'lineTotalCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
+        ),
+        _isp.ColumnDefinition(
+          name: 'isGift',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'false',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promotions',
+          columnType: _isp.ColumnType.json,
+          isNullable: true,
+          dartType: 'List<protocol:AppliedPromotion>?',
+        ),
+        _isp.ColumnDefinition(
           name: 'orderId',
           columnType: _isp.ColumnType.uuid,
           isNullable: false,
@@ -431,6 +472,88 @@ class Protocol extends _is.DatabaseSerializationManager {
         ),
       ],
       indexes: [],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'order_promo_code_uses',
+      dartName: 'OrderPromoCodeUse',
+      schema: 'public',
+      module: 'abarrotes',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue?',
+          columnDefault: 'random_v7',
+        ),
+        _isp.ColumnDefinition(
+          name: 'orderId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+        _isp.ColumnDefinition(
+          name: 'redemptionId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'order_promo_code_uses_fk_0',
+          columns: ['orderId'],
+          referenceTable: 'orders',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'order_promo_code_uses_fk_1',
+          columns: ['redemptionId'],
+          referenceTable: 'promo_code_redemptions',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'order_promo_code_uses_pair_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'orderId',
+            ),
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'redemptionId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+        _isp.IndexDefinition(
+          indexName: 'order_promo_code_uses_redemption_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'redemptionId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+      ],
       managed: true,
     ),
     _isp.TableDefinition(
@@ -471,6 +594,20 @@ class Protocol extends _is.DatabaseSerializationManager {
           columnType: _isp.ColumnType.bigint,
           isNullable: false,
           dartType: 'int',
+        ),
+        _isp.ColumnDefinition(
+          name: 'subtotalCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
+        ),
+        _isp.ColumnDefinition(
+          name: 'discountCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: false,
+          dartType: 'int',
+          columnDefault: '0',
         ),
         _isp.ColumnDefinition(
           name: 'deliveryAddress',
@@ -692,6 +829,261 @@ class Protocol extends _is.DatabaseSerializationManager {
       managed: true,
     ),
     _isp.TableDefinition(
+      name: 'promo_code_allowed_emails',
+      dartName: 'PromoCodeAllowedEmail',
+      schema: 'public',
+      module: 'abarrotes',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue?',
+          columnDefault: 'random_v7',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promoCodeId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+        _isp.ColumnDefinition(
+          name: 'email',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promo_code_allowed_emails_fk_0',
+          columns: ['promoCodeId'],
+          referenceTable: 'promo_codes',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.cascade,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promo_code_allowed_emails_pair_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promoCodeId',
+            ),
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'email',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'promo_code_redemptions',
+      dartName: 'PromoCodeRedemption',
+      schema: 'public',
+      module: 'abarrotes',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue?',
+          columnDefault: 'random_v7',
+        ),
+        _isp.ColumnDefinition(
+          name: 'promoCodeId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+        _isp.ColumnDefinition(
+          name: 'userId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue',
+        ),
+        _isp.ColumnDefinition(
+          name: 'activatedAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'expiresAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+      ],
+      foreignKeys: [
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promo_code_redemptions_fk_0',
+          columns: ['promoCodeId'],
+          referenceTable: 'promo_codes',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promo_code_redemptions_fk_1',
+          columns: ['userId'],
+          referenceTable: 'users',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+      ],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promo_code_redemptions_pair_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promoCodeId',
+            ),
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'userId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+        _isp.IndexDefinition(
+          indexName: 'promo_code_redemptions_user_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'userId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
+      name: 'promo_codes',
+      dartName: 'PromoCode',
+      schema: 'public',
+      module: 'abarrotes',
+      columns: [
+        _isp.ColumnDefinition(
+          name: 'id',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: false,
+          dartType: 'UuidValue?',
+          columnDefault: 'random_v7',
+        ),
+        _isp.ColumnDefinition(
+          name: 'code',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'String',
+        ),
+        _isp.ColumnDefinition(
+          name: 'active',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'true',
+        ),
+        _isp.ColumnDefinition(
+          name: 'startDate',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'endDate',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+        ),
+        _isp.ColumnDefinition(
+          name: 'benefitDays',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'maxRedemptions',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'usesPerCustomer',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'minPurchaseCents',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'newCustomersOnly',
+          columnType: _isp.ColumnType.boolean,
+          isNullable: false,
+          dartType: 'bool',
+          columnDefault: 'false',
+        ),
+        _isp.ColumnDefinition(
+          name: 'eligibility',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'protocol:PromoCodeEligibility',
+          columnDefault: '\'everyone\'',
+        ),
+        _isp.ColumnDefinition(
+          name: 'createdAt',
+          columnType: _isp.ColumnType.timestampWithoutTimeZone,
+          isNullable: false,
+          dartType: 'DateTime',
+          columnDefault: 'now',
+        ),
+      ],
+      foreignKeys: [],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promo_codes_code_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'code',
+            ),
+          ],
+          type: 'btree',
+          isUnique: true,
+          isPrimary: false,
+        ),
+      ],
+      managed: true,
+    ),
+    _isp.TableDefinition(
       name: 'promotion_recipients',
       dartName: 'PromotionRecipient',
       schema: 'public',
@@ -774,10 +1166,47 @@ class Protocol extends _is.DatabaseSerializationManager {
           columnDefault: 'random_v7',
         ),
         _isp.ColumnDefinition(
+          name: 'type',
+          columnType: _isp.ColumnType.text,
+          isNullable: false,
+          dartType: 'protocol:PromotionType',
+          columnDefault: '\'specialPrice\'',
+        ),
+        _isp.ColumnDefinition(
           name: 'promoPriceCents',
           columnType: _isp.ColumnType.bigint,
-          isNullable: false,
-          dartType: 'int',
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'percent',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'buyQuantity',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'payQuantity',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'giftProductId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: true,
+          dartType: 'UuidValue?',
+        ),
+        _isp.ColumnDefinition(
+          name: 'giftQuantity',
+          columnType: _isp.ColumnType.bigint,
+          isNullable: true,
+          dartType: 'int?',
         ),
         _isp.ColumnDefinition(
           name: 'startDate',
@@ -812,6 +1241,12 @@ class Protocol extends _is.DatabaseSerializationManager {
           columnDefault: '\'everyone\'',
         ),
         _isp.ColumnDefinition(
+          name: 'promoCodeId',
+          columnType: _isp.ColumnType.uuid,
+          isNullable: true,
+          dartType: 'UuidValue?',
+        ),
+        _isp.ColumnDefinition(
           name: 'title',
           columnType: _isp.ColumnType.text,
           isNullable: true,
@@ -821,6 +1256,16 @@ class Protocol extends _is.DatabaseSerializationManager {
       foreignKeys: [
         _isp.ForeignKeyDefinition(
           constraintName: 'promotions_fk_0',
+          columns: ['giftProductId'],
+          referenceTable: 'products',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promotions_fk_1',
           columns: ['productId'],
           referenceTable: 'products',
           referenceTableSchema: 'public',
@@ -829,8 +1274,32 @@ class Protocol extends _is.DatabaseSerializationManager {
           onDelete: _isp.ForeignKeyAction.restrict,
           matchType: null,
         ),
+        _isp.ForeignKeyDefinition(
+          constraintName: 'promotions_fk_2',
+          columns: ['promoCodeId'],
+          referenceTable: 'promo_codes',
+          referenceTableSchema: 'public',
+          referenceColumns: ['id'],
+          onUpdate: _isp.ForeignKeyAction.cascade,
+          onDelete: _isp.ForeignKeyAction.restrict,
+          matchType: null,
+        ),
       ],
-      indexes: [],
+      indexes: [
+        _isp.IndexDefinition(
+          indexName: 'promotions_promo_code_idx',
+          tableSpace: null,
+          elements: [
+            _isp.IndexElementDefinition(
+              type: _isp.IndexElementDefinitionType.column,
+              definition: 'promoCodeId',
+            ),
+          ],
+          type: 'btree',
+          isUnique: false,
+          isPrimary: false,
+        ),
+      ],
       managed: true,
     ),
     _isp.TableDefinition(
@@ -1389,6 +1858,24 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _io8c7sps.Product) {
       return _io8c7sps.Product.fromJson(data) as T;
     }
+    if (t == _ilzi4lsq.OrderPromoCodeUse) {
+      return _ilzi4lsq.OrderPromoCodeUse.fromJson(data) as T;
+    }
+    if (t == _irp1jeb1.PromoCode) {
+      return _irp1jeb1.PromoCode.fromJson(data) as T;
+    }
+    if (t == _ibrrb5eh.PromoCodeAllowedEmail) {
+      return _ibrrb5eh.PromoCodeAllowedEmail.fromJson(data) as T;
+    }
+    if (t == _i7mkv7li.PromoCodeEligibility) {
+      return _i7mkv7li.PromoCodeEligibility.fromJson(data) as T;
+    }
+    if (t == _ij8s76rv.PromoCodeRedemption) {
+      return _ij8s76rv.PromoCodeRedemption.fromJson(data) as T;
+    }
+    if (t == _isxjjxbc.AppliedPromotion) {
+      return _isxjjxbc.AppliedPromotion.fromJson(data) as T;
+    }
     if (t == _i8z66r5b.Promotion) {
       return _i8z66r5b.Promotion.fromJson(data) as T;
     }
@@ -1397,6 +1884,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _iyra33mk.PromotionRecipient) {
       return _iyra33mk.PromotionRecipient.fromJson(data) as T;
+    }
+    if (t == _i09c7in8.PromotionType) {
+      return _i09c7in8.PromotionType.fromJson(data) as T;
     }
     if (t == _i6v8ft9w.AuditAction) {
       return _i6v8ft9w.AuditAction.fromJson(data) as T;
@@ -1454,6 +1944,35 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (t == _is.getType<_io8c7sps.Product?>()) {
       return (data != null ? _io8c7sps.Product.fromJson(data) : null) as T;
     }
+    if (t == _is.getType<_ilzi4lsq.OrderPromoCodeUse?>()) {
+      return (data != null ? _ilzi4lsq.OrderPromoCodeUse.fromJson(data) : null)
+          as T;
+    }
+    if (t == _is.getType<_irp1jeb1.PromoCode?>()) {
+      return (data != null ? _irp1jeb1.PromoCode.fromJson(data) : null) as T;
+    }
+    if (t == _is.getType<_ibrrb5eh.PromoCodeAllowedEmail?>()) {
+      return (data != null
+              ? _ibrrb5eh.PromoCodeAllowedEmail.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _is.getType<_i7mkv7li.PromoCodeEligibility?>()) {
+      return (data != null
+              ? _i7mkv7li.PromoCodeEligibility.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _is.getType<_ij8s76rv.PromoCodeRedemption?>()) {
+      return (data != null
+              ? _ij8s76rv.PromoCodeRedemption.fromJson(data)
+              : null)
+          as T;
+    }
+    if (t == _is.getType<_isxjjxbc.AppliedPromotion?>()) {
+      return (data != null ? _isxjjxbc.AppliedPromotion.fromJson(data) : null)
+          as T;
+    }
     if (t == _is.getType<_i8z66r5b.Promotion?>()) {
       return (data != null ? _i8z66r5b.Promotion.fromJson(data) : null) as T;
     }
@@ -1463,6 +1982,10 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (t == _is.getType<_iyra33mk.PromotionRecipient?>()) {
       return (data != null ? _iyra33mk.PromotionRecipient.fromJson(data) : null)
+          as T;
+    }
+    if (t == _is.getType<_i09c7in8.PromotionType?>()) {
+      return (data != null ? _i09c7in8.PromotionType.fromJson(data) : null)
           as T;
     }
     if (t == _is.getType<_i6v8ft9w.AuditAction?>()) {
@@ -1524,6 +2047,20 @@ class Protocol extends _is.DatabaseSerializationManager {
               : null)
           as T;
     }
+    if (t == List<_isxjjxbc.AppliedPromotion>) {
+      return (data as List)
+              .map((e) => deserialize<_isxjjxbc.AppliedPromotion>(e))
+              .toList()
+          as T;
+    }
+    if (t == _is.getType<List<_isxjjxbc.AppliedPromotion>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_isxjjxbc.AppliedPromotion>(e))
+                    .toList()
+              : null)
+          as T;
+    }
     if (t == List<_i976ojya.InventoryMovement>) {
       return (data as List)
               .map((e) => deserialize<_i976ojya.InventoryMovement>(e))
@@ -1548,6 +2085,20 @@ class Protocol extends _is.DatabaseSerializationManager {
       return (data != null
               ? (data as List)
                     .map((e) => deserialize<_i8z66r5b.Promotion>(e))
+                    .toList()
+              : null)
+          as T;
+    }
+    if (t == List<_ibrrb5eh.PromoCodeAllowedEmail>) {
+      return (data as List)
+              .map((e) => deserialize<_ibrrb5eh.PromoCodeAllowedEmail>(e))
+              .toList()
+          as T;
+    }
+    if (t == _is.getType<List<_ibrrb5eh.PromoCodeAllowedEmail>?>()) {
+      return (data != null
+              ? (data as List)
+                    .map((e) => deserialize<_ibrrb5eh.PromoCodeAllowedEmail>(e))
                     .toList()
               : null)
           as T;
@@ -1670,9 +2221,16 @@ class Protocol extends _is.DatabaseSerializationManager {
       _is46w9g4.OrderItem => 'OrderItem',
       _ishke5og.OrderStatus => 'OrderStatus',
       _io8c7sps.Product => 'Product',
+      _ilzi4lsq.OrderPromoCodeUse => 'OrderPromoCodeUse',
+      _irp1jeb1.PromoCode => 'PromoCode',
+      _ibrrb5eh.PromoCodeAllowedEmail => 'PromoCodeAllowedEmail',
+      _i7mkv7li.PromoCodeEligibility => 'PromoCodeEligibility',
+      _ij8s76rv.PromoCodeRedemption => 'PromoCodeRedemption',
+      _isxjjxbc.AppliedPromotion => 'AppliedPromotion',
       _i8z66r5b.Promotion => 'Promotion',
       _ik9fivqg.PromotionAudience => 'PromotionAudience',
       _iyra33mk.PromotionRecipient => 'PromotionRecipient',
+      _i09c7in8.PromotionType => 'PromotionType',
       _i6v8ft9w.AuditAction => 'AuditAction',
       _ias3z63p.AuditLog => 'AuditLog',
       _iwx11llg.Permission => 'Permission',
@@ -1713,12 +2271,26 @@ class Protocol extends _is.DatabaseSerializationManager {
         return 'OrderStatus';
       case _io8c7sps.Product():
         return 'Product';
+      case _ilzi4lsq.OrderPromoCodeUse():
+        return 'OrderPromoCodeUse';
+      case _irp1jeb1.PromoCode():
+        return 'PromoCode';
+      case _ibrrb5eh.PromoCodeAllowedEmail():
+        return 'PromoCodeAllowedEmail';
+      case _i7mkv7li.PromoCodeEligibility():
+        return 'PromoCodeEligibility';
+      case _ij8s76rv.PromoCodeRedemption():
+        return 'PromoCodeRedemption';
+      case _isxjjxbc.AppliedPromotion():
+        return 'AppliedPromotion';
       case _i8z66r5b.Promotion():
         return 'Promotion';
       case _ik9fivqg.PromotionAudience():
         return 'PromotionAudience';
       case _iyra33mk.PromotionRecipient():
         return 'PromotionRecipient';
+      case _i09c7in8.PromotionType():
+        return 'PromotionType';
       case _i6v8ft9w.AuditAction():
         return 'AuditAction';
       case _ias3z63p.AuditLog():
@@ -1777,6 +2349,24 @@ class Protocol extends _is.DatabaseSerializationManager {
     if (dataClassName == 'Product') {
       return deserialize<_io8c7sps.Product>(data['data']);
     }
+    if (dataClassName == 'OrderPromoCodeUse') {
+      return deserialize<_ilzi4lsq.OrderPromoCodeUse>(data['data']);
+    }
+    if (dataClassName == 'PromoCode') {
+      return deserialize<_irp1jeb1.PromoCode>(data['data']);
+    }
+    if (dataClassName == 'PromoCodeAllowedEmail') {
+      return deserialize<_ibrrb5eh.PromoCodeAllowedEmail>(data['data']);
+    }
+    if (dataClassName == 'PromoCodeEligibility') {
+      return deserialize<_i7mkv7li.PromoCodeEligibility>(data['data']);
+    }
+    if (dataClassName == 'PromoCodeRedemption') {
+      return deserialize<_ij8s76rv.PromoCodeRedemption>(data['data']);
+    }
+    if (dataClassName == 'AppliedPromotion') {
+      return deserialize<_isxjjxbc.AppliedPromotion>(data['data']);
+    }
     if (dataClassName == 'Promotion') {
       return deserialize<_i8z66r5b.Promotion>(data['data']);
     }
@@ -1785,6 +2375,9 @@ class Protocol extends _is.DatabaseSerializationManager {
     }
     if (dataClassName == 'PromotionRecipient') {
       return deserialize<_iyra33mk.PromotionRecipient>(data['data']);
+    }
+    if (dataClassName == 'PromotionType') {
+      return deserialize<_i09c7in8.PromotionType>(data['data']);
     }
     if (dataClassName == 'AuditAction') {
       return deserialize<_i6v8ft9w.AuditAction>(data['data']);
@@ -1842,6 +2435,14 @@ class Protocol extends _is.DatabaseSerializationManager {
         return _is46w9g4.OrderItem.t;
       case _io8c7sps.Product:
         return _io8c7sps.Product.t;
+      case _ilzi4lsq.OrderPromoCodeUse:
+        return _ilzi4lsq.OrderPromoCodeUse.t;
+      case _irp1jeb1.PromoCode:
+        return _irp1jeb1.PromoCode.t;
+      case _ibrrb5eh.PromoCodeAllowedEmail:
+        return _ibrrb5eh.PromoCodeAllowedEmail.t;
+      case _ij8s76rv.PromoCodeRedemption:
+        return _ij8s76rv.PromoCodeRedemption.t;
       case _i8z66r5b.Promotion:
         return _i8z66r5b.Promotion.t;
       case _iyra33mk.PromotionRecipient:

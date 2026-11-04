@@ -16,6 +16,8 @@ class ProductPicker extends ConsumerStatefulWidget {
     required this.selected,
     required this.onChanged,
     this.enabled = true,
+    this.label = 'Producto',
+    this.validator,
   });
 
   final Product? selected;
@@ -24,6 +26,13 @@ class ProductPicker extends ConsumerStatefulWidget {
   final ValueChanged<Product?> onChanged;
 
   final bool enabled;
+
+  /// El nombre del campo (p. ej. "Producto de regalo").
+  final String label;
+
+  /// Qué decir del producto elegido (o de ninguno); sin él, solo que hay que
+  /// elegir uno de la lista.
+  final String? Function(Product? selected)? validator;
 
   @override
   ConsumerState<ProductPicker> createState() => _ProductPickerState();
@@ -80,7 +89,7 @@ class _ProductPickerState extends ConsumerState<ProductPicker> {
               focusNode: focusNode,
               enabled: widget.enabled,
               decoration: InputDecoration(
-                labelText: 'Producto',
+                labelText: widget.label,
                 hintText: 'Nombre o SKU',
                 prefixIcon: const Icon(Icons.search),
                 helperText: switch (widget.selected) {
@@ -98,9 +107,12 @@ class _ProductPickerState extends ConsumerState<ProductPicker> {
                   widget.onChanged(null);
                 }
               },
-              validator: (_) => widget.selected == null
-                  ? 'Elige un producto de la lista.'
-                  : null,
+              validator: (_) => switch (widget.validator) {
+                final validate? => validate(widget.selected),
+                null when widget.selected == null =>
+                  'Elige un producto de la lista.',
+                null => null,
+              },
             ),
         optionsViewBuilder: (context, onSelected, options) => _Options(
           width: constraints.maxWidth,

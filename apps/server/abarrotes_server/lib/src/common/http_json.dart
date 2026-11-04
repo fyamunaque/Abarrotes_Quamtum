@@ -14,16 +14,23 @@ const _reasonPhrases = {
 
 /// Error que una ruta convierte en respuesta con [jsonError].
 class ApiException implements Exception {
-  const ApiException(this.statusCode, this.message);
+  const ApiException(this.statusCode, this.message, {this.details});
 
   const ApiException.badRequest(Object message) : this(400, message);
   const ApiException.forbidden(String message) : this(403, message);
-  const ApiException.conflict(String message) : this(409, message);
+  const ApiException.conflict(
+    String message, {
+    Map<String, Object?>? details,
+  }) : this(409, message, details: details);
 
   final int statusCode;
 
   /// Un texto, o una lista de textos si falló la validación.
   final Object message;
+
+  /// Datos para que la app arme su respuesta (p. ej. las promociones con
+  /// las que se cruza una nueva). Van en el JSON junto a `message`.
+  final Map<String, Object?>? details;
 
   @override
   String toString() => 'ApiException($statusCode): $message';
@@ -36,11 +43,17 @@ Response jsonResponse(int statusCode, Object? body) => Response(
 );
 
 /// Error con una forma fija, la que lee la app:
-/// `{statusCode, message, error}`. [message] es un texto o una lista de textos.
-Response jsonError(int statusCode, Object message) => jsonResponse(statusCode, {
+/// `{statusCode, message, error}`. [message] es un texto o una lista de textos;
+/// [details] suma sus claves.
+Response jsonError(
+  int statusCode,
+  Object message, {
+  Map<String, Object?>? details,
+}) => jsonResponse(statusCode, {
   'statusCode': statusCode,
   'message': message,
   'error': ?_reasonPhrases[statusCode],
+  ...?details,
 });
 
 /// Ejecuta [action] y convierte un [ApiException] en su respuesta JSON.
@@ -48,7 +61,7 @@ Future<Response> withApiErrors(Future<Response> Function() action) async {
   try {
     return await action();
   } on ApiException catch (e) {
-    return jsonError(e.statusCode, e.message);
+    return jsonError(e.statusCode, e.message, details: e.details);
   }
 }
 

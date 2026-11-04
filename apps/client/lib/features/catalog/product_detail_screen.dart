@@ -12,6 +12,7 @@ import '../cart/add_to_cart.dart';
 import '../shared/brand.dart';
 import '../shared/press_scale.dart';
 import '../shared/quantity_stepper.dart';
+import 'offer_badges.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
 import 'product_strip.dart';
@@ -151,6 +152,10 @@ class _InfoState extends ConsumerState<_Info> {
         Text(product.name, style: theme.textTheme.headlineMedium),
         const SizedBox(height: 8),
         PriceTag(product, fontSize: 30),
+        if (product.offers.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          OfferDescriptions(product.offers),
+        ],
         const SizedBox(height: 8),
         Text(_stockText(product), style: theme.textTheme.bodyMedium),
         if (product.description case final description?) ...[

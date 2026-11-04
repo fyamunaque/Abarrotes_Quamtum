@@ -2,7 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../orders/fulfillment.dart';
 import '../orders/order.dart';
+import '../session/session_provider.dart';
 import 'cart_provider.dart';
+import 'cart_quote_provider.dart';
 
 /// Cómo se confirma el pedido del carrito: el tipo de entrega elegido, si se
 /// está enviando y el error del último intento.
@@ -54,6 +56,12 @@ class CheckoutNotifier extends Notifier<Checkout> {
             deliveryAddress: type == FulfillmentType.delivery
                 ? deliveryAddress
                 : null,
+            // La que muestra el carrito, si es la de cómo está ahora.
+            quote: shownQuote(
+              ref.read(cartProvider),
+              ref.read(cartQuoteProvider),
+              ref.read(sessionProvider),
+            ),
           );
       if (ref.mounted) state = Checkout(fulfillmentType: type);
       return order;

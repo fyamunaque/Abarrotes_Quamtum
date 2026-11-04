@@ -11,6 +11,7 @@ import '../common/money.dart';
 import '../common/pagination.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
+import '../promotions/promotion_engine.dart';
 import 'orders_service.dart';
 import 'states/order_states.dart';
 
@@ -77,7 +78,7 @@ List<RouteEntry> ordersRoutes(
         }
         final items = body.objects(
           'items',
-          allowed: const {'productId', 'quantity', 'unitPrice'},
+          allowed: const {'productId', 'quantity', 'unitPrice', 'lineTotal'},
           min: 1,
           max: 100,
         );
@@ -88,6 +89,11 @@ List<RouteEntry> ordersRoutes(
               quantity: item.integer('quantity', min: 1, max: 999),
               shownUnitPrice: item.cents(
                 'unitPrice',
+                minCents: 0,
+                required: false,
+              ),
+              shownLineTotal: item.cents(
+                'lineTotal',
                 minCents: 0,
                 required: false,
               ),
@@ -107,12 +113,67 @@ List<RouteEntry> ordersRoutes(
                 productId: line.productId!,
                 quantity: line.quantity!,
                 shownUnitPriceCents: line.shownUnitPrice,
+                shownLineTotalCents: line.shownLineTotal,
               ),
           ],
         );
         return jsonResponse(201, {
           ...orderJson(placed.order, withCodes: true),
           'priceChanges': placed.priceChanges.map(priceChangeJson).toList(),
+          'notices': placed.notices,
+        });
+      }),
+    ),
+    (
+      '/orders/quote',
+      // Pública: sin token (o con uno que no sirve), con las promociones de
+      // todos. Cómo se cobraría el carrito, sin guardar nada.
+      ApiRoute(Method.post, (session, request) async {
+        final body = InputReader.body(
+          await readJsonBody(request),
+          allowed: const {'items'},
+        );
+        final items = body.objects(
+          'items',
+          allowed: const {'productId', 'quantity'},
+          min: 1,
+          max: 100,
+        );
+        final lines = [
+          for (final item in items ?? const <InputReader>[])
+            (
+              productId: item.uuid('productId'),
+              quantity: item.integer('quantity', min: 1, max: 999),
+            ),
+        ];
+        body.check();
+
+        final identity = await optionalIdentity(guards.verifier, request);
+        // Con cuenta, también las promociones de los códigos que activó.
+        final customer = identity == null
+            ? null
+            : await User.db.findFirstRow(
+                session,
+                where: (user) => user.firebaseUid.equals(identity.uid),
+              );
+        final (:cart, :products) = await orders.quote(
+          session,
+          shopper: await shoppers.resolve(session, identity),
+          customerId: customer?.id,
+          lines: [
+            for (final line in lines)
+              (productId: line.productId!, quantity: line.quantity!),
+          ],
+        );
+        return jsonResponse(200, {
+          'lines': [
+            for (final line in cart.lines)
+              pricedLineJson(line, products[line.productId]!),
+          ],
+          'subtotal': formatMoney(cart.subtotalCents),
+          'discount': formatMoney(cart.discountCents),
+          'total': formatMoney(cart.totalCents),
+          'notices': cart.notices,
         });
       }),
     ),
@@ -299,6 +360,9 @@ Map<String, Object?> orderJson(
     'allowedNextStatuses': [
       for (final status in orderStateOfOrder(order).nextStatuses) status.name,
     ],
+    // A precio normal, lo que ahorraron las promociones y lo cobrado.
+    'subtotal': formatMoney(order.subtotalCents),
+    'discount': formatMoney(order.discountCents),
     'total': formatMoney(order.totalCents),
     'deliveryAddress': order.deliveryAddress,
     'pickupCode': withCodes || withPickupCode ? order.pickupCode : null,
@@ -316,7 +380,17 @@ Map<String, Object?> orderJson(
         {
           'id': item.id.toString(),
           'quantity': item.quantity,
+          'listUnitPrice': formatMoney(item.listUnitPriceCents),
           'unitPrice': formatMoney(item.unitPriceCents),
+          'lineTotal': formatMoney(item.lineTotalCents),
+          'isGift': item.isGift,
+          'promotions': [
+            for (final applied in item.promotions ?? const <AppliedPromotion>[])
+              {
+                'label': applied.label,
+                'saved': formatMoney(applied.savedCents),
+              },
+          ],
           'orderId': item.orderId.toString(),
           'productId': item.productId.toString(),
           'product': {
@@ -329,12 +403,38 @@ Map<String, Object?> orderJson(
   };
 }
 
-/// Un precio que cambió entre el carrito y el cobro, para avisarle al cliente.
+/// Una línea cotizada, como las del pedido (sin ids de pedido ni de línea).
+Map<String, Object?> pricedLineJson(PricedLine line, Product product) => {
+  'productId': line.productId.toString(),
+  'product': {
+    'id': product.id.toString(),
+    'name': product.name,
+    'imageUrl': product.imageUrl,
+  },
+  'quantity': line.quantity,
+  'listUnitPrice': formatMoney(line.listUnitPriceCents),
+  'unitPrice': formatMoney(line.unitPriceCents),
+  'lineTotal': formatMoney(line.lineTotalCents),
+  'isGift': line.isGift,
+  'promotions': [
+    for (final applied in line.promotions)
+      {'label': applied.label, 'saved': formatMoney(applied.savedCents)},
+  ],
+};
+
+/// Un precio que cambió entre el carrito y el cobro, para avisarle al
+/// cliente: el total de la línea o, si el carrito mandó el precio
+/// unitario (apps de antes), ese.
 Map<String, Object?> priceChangeJson(PriceChange change) => {
   'productId': change.productId.toString(),
   'name': change.name,
-  'shownUnitPrice': formatMoney(change.shownUnitPriceCents),
-  'unitPrice': formatMoney(change.unitPriceCents),
+  if (change.shownLineTotalCents case final shown?) ...{
+    'shownLineTotal': formatMoney(shown),
+    'lineTotal': formatMoney(change.lineTotalCents!),
+  } else ...{
+    'shownUnitPrice': formatMoney(change.shownUnitPriceCents!),
+    'unitPrice': formatMoney(change.unitPriceCents!),
+  },
 };
 
 /// Como [orderJson] y, para el panel, quién lo hizo: sus datos de contacto

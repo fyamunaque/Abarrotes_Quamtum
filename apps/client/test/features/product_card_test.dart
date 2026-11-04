@@ -102,6 +102,74 @@ void main() {
     expect(before.semanticsLabel, 'Antes S/ 10.90');
   });
 
+  testWidgets('la tarjeta muestra la insignia 2x1 y la del regalo', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pumpCard(
+      tester,
+      const Product(
+        id: 'aceite',
+        name: 'Aceite vegetal 1 L',
+        priceCents: 1090,
+        stock: 30,
+        offers: [
+          (
+            type: 'buyXPayY',
+            label: '2x1',
+            title: null,
+            description: '2x1 en este producto',
+          ),
+          (
+            type: 'gift',
+            label: 'Regalo: Sal 1 kg',
+            title: null,
+            description: 'Regalo: Sal 1 kg por cada 2',
+          ),
+        ],
+      ),
+    );
+
+    expect(find.text('2x1'), findsOneWidget);
+    expect(find.text('+ regalo'), findsOneWidget);
+    // El lector de pantalla dice qué da.
+    expect(
+      find.bySemanticsLabel(RegExp('Regalo: Sal 1 kg por cada 2')),
+      findsOneWidget,
+    );
+    // Sin precio tachado: el 2x1 no cambia el precio por unidad.
+    expect(find.text(formatSoles(1090)), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    semantics.dispose();
+  });
+
+  testWidgets('con 20 % menos: el precio tachado y S/ 3.60', (tester) async {
+    await pumpCard(
+      tester,
+      Product.fromJson({
+        'id': 'fideos',
+        'name': 'Fideos 500 g',
+        'price': '4.5',
+        'unitPrice': '3.6',
+        'currentStock': 20,
+        'promotion': null,
+        'promotions': [
+          {
+            'id': 'pr-1',
+            'type': 'percentOff',
+            'label': '20 % menos',
+            'audience': 'everyone',
+            'percent': 20,
+          },
+        ],
+      }),
+    );
+
+    expect(find.text(formatSoles(360)), findsOneWidget);
+    final before = tester.widget<Text>(find.text(formatSoles(450)));
+    expect(before.style?.decoration, TextDecoration.lineThrough);
+  });
+
   group('precio VIP', () {
     const vipOil = Product(
       id: 'aceite',

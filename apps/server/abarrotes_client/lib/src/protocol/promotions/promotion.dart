@@ -13,16 +13,27 @@
 import 'package:abarrotes_client/src/protocol/protocol.dart' as _iv4mbvnl;
 import 'package:serverpod_client/serverpod_client.dart' as _isc;
 import '../products/product.dart' as _iubf72bi;
+import '../promo_codes/promo_code.dart' as _ijnkkha9;
 import '../promotions/promotion_audience.dart' as _ifhe3ya9;
 import '../promotions/promotion_recipient.dart' as _i7eleph1;
+import '../promotions/promotion_type.dart' as _i4iqhu0d;
 
-/// Precio especial de un producto por un periodo. Las fechas son días de la
-/// tienda (America/Lima): [inicio 00:00, día siguiente al fin 00:00).
+/// Una promoción de un producto por un periodo: un precio especial, un
+/// porcentaje, un NxM, una unidad extra con descuento o un regalo (`type`).
+/// Las fechas son días de la tienda (America/Lima): [inicio 00:00, día
+/// siguiente al fin 00:00).
 abstract class Promotion
     implements _isc.SerializableModel, _isc.ProtocolSerialization {
   Promotion._({
     this.id,
-    required this.promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    this.promoPriceCents,
+    this.percent,
+    this.buyQuantity,
+    this.payQuantity,
+    this.giftProductId,
+    this.giftProduct,
+    this.giftQuantity,
     required this.startDate,
     required this.endDate,
     bool? active,
@@ -30,13 +41,23 @@ abstract class Promotion
     this.product,
     _ifhe3ya9.PromotionAudience? audience,
     this.recipients,
+    this.promoCodeId,
+    this.promoCode,
     this.title,
-  }) : active = active ?? true,
+  }) : type = type ?? _i4iqhu0d.PromotionType.specialPrice,
+       active = active ?? true,
        audience = audience ?? _ifhe3ya9.PromotionAudience.everyone;
 
   factory Promotion({
     _isc.UuidValue? id,
-    required int promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    int? promoPriceCents,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    _isc.UuidValue? giftProductId,
+    _iubf72bi.Product? giftProduct,
+    int? giftQuantity,
     required DateTime startDate,
     required DateTime endDate,
     bool? active,
@@ -44,6 +65,8 @@ abstract class Promotion
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _isc.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   }) = _PromotionImpl;
 
@@ -52,7 +75,26 @@ abstract class Promotion
       id: jsonSerialization['id'] == null
           ? null
           : _isc.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
-      promoPriceCents: jsonSerialization['promoPriceCents'] as int,
+      type: jsonSerialization['type'] == null
+          ? null
+          : _i4iqhu0d.PromotionType.fromJson(
+              (jsonSerialization['type'] as String),
+            ),
+      promoPriceCents: jsonSerialization['promoPriceCents'] as int?,
+      percent: jsonSerialization['percent'] as int?,
+      buyQuantity: jsonSerialization['buyQuantity'] as int?,
+      payQuantity: jsonSerialization['payQuantity'] as int?,
+      giftProductId: jsonSerialization['giftProductId'] == null
+          ? null
+          : _isc.UuidValueJsonExtension.fromJson(
+              jsonSerialization['giftProductId'],
+            ),
+      giftProduct: jsonSerialization['giftProduct'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<_iubf72bi.Product>(
+              jsonSerialization['giftProduct'],
+            ),
+      giftQuantity: jsonSerialization['giftQuantity'] as int?,
       startDate: _isc.DateTimeJsonExtension.fromJson(
         jsonSerialization['startDate'],
       ),
@@ -81,6 +123,16 @@ abstract class Promotion
                 .deserialize<List<_i7eleph1.PromotionRecipient>>(
                   jsonSerialization['recipients'],
                 ),
+      promoCodeId: jsonSerialization['promoCodeId'] == null
+          ? null
+          : _isc.UuidValueJsonExtension.fromJson(
+              jsonSerialization['promoCodeId'],
+            ),
+      promoCode: jsonSerialization['promoCode'] == null
+          ? null
+          : _iv4mbvnl.Protocol().deserialize<_ijnkkha9.PromoCode>(
+              jsonSerialization['promoCode'],
+            ),
       title: jsonSerialization['title'] as String?,
     );
   }
@@ -90,7 +142,27 @@ abstract class Promotion
   /// the id will be null.
   _isc.UuidValue? id;
 
-  int promoPriceCents;
+  _i4iqhu0d.PromotionType type;
+
+  /// Solo en `specialPrice`: el precio de la promoción, en céntimos.
+  int? promoPriceCents;
+
+  /// En `percentOff` y `extraUnit`: cuánto menos, en %.
+  int? percent;
+
+  /// En `buyXPayY`, la N que se lleva; en `extraUnit`, cada cuántas
+  /// unidades; en `gift`, cada cuántas unidades hay regalo.
+  int? buyQuantity;
+
+  /// En `buyXPayY`: la M que se paga.
+  int? payQuantity;
+
+  _isc.UuidValue? giftProductId;
+
+  /// En `gift`: el producto que se regala y cuántos por cada `buyQuantity`.
+  _iubf72bi.Product? giftProduct;
+
+  int? giftQuantity;
 
   DateTime startDate;
 
@@ -109,6 +181,11 @@ abstract class Promotion
   /// Con la audiencia `selected`: los clientes VIP elegidos.
   List<_i7eleph1.PromotionRecipient>? recipients;
 
+  _isc.UuidValue? promoCodeId;
+
+  /// Con la audiencia `code`: el código que la da.
+  _ijnkkha9.PromoCode? promoCode;
+
   /// Para mostrar la oferta (p. ej. "Semana del arroz"). Opcional.
   String? title;
 
@@ -117,7 +194,14 @@ abstract class Promotion
   @_isc.useResult
   Promotion copyWith({
     _isc.UuidValue? id,
+    _i4iqhu0d.PromotionType? type,
     int? promoPriceCents,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    _isc.UuidValue? giftProductId,
+    _iubf72bi.Product? giftProduct,
+    int? giftQuantity,
     DateTime? startDate,
     DateTime? endDate,
     bool? active,
@@ -125,6 +209,8 @@ abstract class Promotion
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _isc.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   });
   @override
@@ -132,7 +218,14 @@ abstract class Promotion
     return {
       '__className__': 'Promotion',
       if (id != null) 'id': id?.toJson(),
-      'promoPriceCents': promoPriceCents,
+      'type': type.toJson(),
+      if (promoPriceCents != null) 'promoPriceCents': promoPriceCents,
+      if (percent != null) 'percent': percent,
+      if (buyQuantity != null) 'buyQuantity': buyQuantity,
+      if (payQuantity != null) 'payQuantity': payQuantity,
+      if (giftProductId != null) 'giftProductId': giftProductId?.toJson(),
+      if (giftProduct != null) 'giftProduct': giftProduct?.toJson(),
+      if (giftQuantity != null) 'giftQuantity': giftQuantity,
       'startDate': startDate.toJson(),
       'endDate': endDate.toJson(),
       'active': active,
@@ -141,6 +234,8 @@ abstract class Promotion
       'audience': audience.toJson(),
       if (recipients != null)
         'recipients': recipients?.toJson(valueToJson: (v) => v.toJson()),
+      if (promoCodeId != null) 'promoCodeId': promoCodeId?.toJson(),
+      if (promoCode != null) 'promoCode': promoCode?.toJson(),
       if (title != null) 'title': title,
     };
   }
@@ -150,7 +245,14 @@ abstract class Promotion
     return {
       '__className__': 'Promotion',
       if (id != null) 'id': id?.toJson(),
-      'promoPriceCents': promoPriceCents,
+      'type': type.toJson(),
+      if (promoPriceCents != null) 'promoPriceCents': promoPriceCents,
+      if (percent != null) 'percent': percent,
+      if (buyQuantity != null) 'buyQuantity': buyQuantity,
+      if (payQuantity != null) 'payQuantity': payQuantity,
+      if (giftProductId != null) 'giftProductId': giftProductId?.toJson(),
+      if (giftProduct != null) 'giftProduct': giftProduct?.toJsonForProtocol(),
+      if (giftQuantity != null) 'giftQuantity': giftQuantity,
       'startDate': startDate.toJson(),
       'endDate': endDate.toJson(),
       'active': active,
@@ -161,6 +263,8 @@ abstract class Promotion
         'recipients': recipients?.toJson(
           valueToJson: (v) => v.toJsonForProtocol(),
         ),
+      if (promoCodeId != null) 'promoCodeId': promoCodeId?.toJson(),
+      if (promoCode != null) 'promoCode': promoCode?.toJsonForProtocol(),
       if (title != null) 'title': title,
     };
   }
@@ -176,7 +280,14 @@ class _Undefined {}
 class _PromotionImpl extends Promotion {
   _PromotionImpl({
     _isc.UuidValue? id,
-    required int promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    int? promoPriceCents,
+    int? percent,
+    int? buyQuantity,
+    int? payQuantity,
+    _isc.UuidValue? giftProductId,
+    _iubf72bi.Product? giftProduct,
+    int? giftQuantity,
     required DateTime startDate,
     required DateTime endDate,
     bool? active,
@@ -184,10 +295,19 @@ class _PromotionImpl extends Promotion {
     _iubf72bi.Product? product,
     _ifhe3ya9.PromotionAudience? audience,
     List<_i7eleph1.PromotionRecipient>? recipients,
+    _isc.UuidValue? promoCodeId,
+    _ijnkkha9.PromoCode? promoCode,
     String? title,
   }) : super._(
          id: id,
+         type: type,
          promoPriceCents: promoPriceCents,
+         percent: percent,
+         buyQuantity: buyQuantity,
+         payQuantity: payQuantity,
+         giftProductId: giftProductId,
+         giftProduct: giftProduct,
+         giftQuantity: giftQuantity,
          startDate: startDate,
          endDate: endDate,
          active: active,
@@ -195,6 +315,8 @@ class _PromotionImpl extends Promotion {
          product: product,
          audience: audience,
          recipients: recipients,
+         promoCodeId: promoCodeId,
+         promoCode: promoCode,
          title: title,
        );
 
@@ -204,7 +326,14 @@ class _PromotionImpl extends Promotion {
   @override
   Promotion copyWith({
     Object? id = _Undefined,
-    int? promoPriceCents,
+    _i4iqhu0d.PromotionType? type,
+    Object? promoPriceCents = _Undefined,
+    Object? percent = _Undefined,
+    Object? buyQuantity = _Undefined,
+    Object? payQuantity = _Undefined,
+    Object? giftProductId = _Undefined,
+    Object? giftProduct = _Undefined,
+    Object? giftQuantity = _Undefined,
     DateTime? startDate,
     DateTime? endDate,
     bool? active,
@@ -212,11 +341,26 @@ class _PromotionImpl extends Promotion {
     Object? product = _Undefined,
     _ifhe3ya9.PromotionAudience? audience,
     Object? recipients = _Undefined,
+    Object? promoCodeId = _Undefined,
+    Object? promoCode = _Undefined,
     Object? title = _Undefined,
   }) {
     return Promotion(
       id: id is _isc.UuidValue? ? id : this.id,
-      promoPriceCents: promoPriceCents ?? this.promoPriceCents,
+      type: type ?? this.type,
+      promoPriceCents: promoPriceCents is int?
+          ? promoPriceCents
+          : this.promoPriceCents,
+      percent: percent is int? ? percent : this.percent,
+      buyQuantity: buyQuantity is int? ? buyQuantity : this.buyQuantity,
+      payQuantity: payQuantity is int? ? payQuantity : this.payQuantity,
+      giftProductId: giftProductId is _isc.UuidValue?
+          ? giftProductId
+          : this.giftProductId,
+      giftProduct: giftProduct is _iubf72bi.Product?
+          ? giftProduct
+          : this.giftProduct?.copyWith(),
+      giftQuantity: giftQuantity is int? ? giftQuantity : this.giftQuantity,
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       active: active ?? this.active,
@@ -228,6 +372,12 @@ class _PromotionImpl extends Promotion {
       recipients: recipients is List<_i7eleph1.PromotionRecipient>?
           ? recipients
           : this.recipients?.map((e0) => e0.copyWith()).toList(),
+      promoCodeId: promoCodeId is _isc.UuidValue?
+          ? promoCodeId
+          : this.promoCodeId,
+      promoCode: promoCode is _ijnkkha9.PromoCode?
+          ? promoCode
+          : this.promoCode?.copyWith(),
       title: title is String? ? title : this.title,
     );
   }

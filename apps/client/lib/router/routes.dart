@@ -38,6 +38,12 @@ abstract final class Routes {
   static String myAccountFrom(String from) =>
       Uri(path: myAccount, queryParameters: {'from': from}).toString();
 
+  /// "Mis códigos" primero en Mi cuenta: al activar uno, vuelve a [from].
+  static String myCodesFrom(String from) => Uri(
+    path: myAccount,
+    queryParameters: {'from': from, 'seccion': 'codigos'},
+  ).toString();
+
   /// Si [path] pide una cuenta (cualquier rol).
   static bool needsAccount(String path) =>
       path == myOrders || path == myAccount;
@@ -52,6 +58,9 @@ abstract final class Routes {
   static const adminProducts = '/admin/productos';
   static const adminInventory = '/admin/inventario';
   static const adminPromotions = '/admin/promociones';
+
+  /// Los códigos promocionales: con el permiso de las promociones.
+  static const adminPromoCodes = '/admin/promociones/codigos';
   static const adminVip = '/admin/clientes-vip';
 
   /// Los datos de la tienda: solo con `store.manage`.
