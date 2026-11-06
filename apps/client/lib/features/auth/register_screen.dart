@@ -82,7 +82,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       fields: (submit) => [
         TextFormField(
           controller: _name,
-          decoration: const InputDecoration(labelText: 'Nombre'),
+          decoration: const InputDecoration(
+            labelText: 'Nombre',
+            prefixIcon: Icon(Icons.person_outline),
+          ),
           textCapitalization: TextCapitalization.words,
           textInputAction: TextInputAction.next,
           autofillHints: const [AutofillHints.name],

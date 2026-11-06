@@ -78,6 +78,24 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('los campos llevan su ícono', (tester) async {
+    await pumpApp(tester);
+
+    for (final (label, icon) in [
+      ('Nombre', Icons.person_outline),
+      ('Correo', Icons.mail_outline),
+      ('Contraseña', Icons.lock_outline),
+      ('Celular', Icons.phone_outlined),
+      ('DNI (opcional)', Icons.badge_outlined),
+    ]) {
+      expect(
+        find.descendant(of: field(label), matching: find.byIcon(icon)),
+        findsOneWidget,
+        reason: label,
+      );
+    }
+  });
+
   testWidgets('crea la cuenta, guarda el celular, el DNI y los términos', (
     tester,
   ) async {

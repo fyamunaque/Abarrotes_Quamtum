@@ -263,8 +263,10 @@ servidor devolvió su perfil.
   un correo sin cuenta, el mensaje es el mismo ("Si hay una cuenta con ese correo, te enviamos
   un enlace…"): no revela qué correos tienen cuenta.
 - En escritorio (desde 900 px), Ingresar y Crear una cuenta van a dos columnas: a la izquierda,
-  un panel de la marca (el logo, el titular y qué ofrece la tienda), y el formulario a la
-  derecha. En el teléfono, solo el formulario.
+  el panel rojo de la marca (el logo en blanco, "Tu abastecimiento gastronómico, más fácil." y
+  tres beneficios), y el formulario a la derecha. En el teléfono, una franja roja con el logo
+  en blanco y debajo el formulario. Los campos llevan su ícono (persona, correo, candado,
+  teléfono, documento).
 - Registrarse crea la cuenta en Firebase con su nombre. Después, `GET /users/me` la crea en la
   tienda, siempre como `customer`, y `PATCH /users/me` le guarda el celular, el DNI y los
   términos (`SessionNotifier.updateProfile`). El perfil trae `phone`, `dni`, `termsVersion`,

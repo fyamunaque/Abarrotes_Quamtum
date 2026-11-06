@@ -146,7 +146,7 @@ void main() {
   });
 
   group('en escritorio', () {
-    Finder brandPanel() => find.text('Sigue tu pedido');
+    Finder brandPanel() => find.text('Sigue tus pedidos');
 
     testWidgets('Ingresar y Crear una cuenta, con el panel de la marca', (
       tester,
