@@ -128,6 +128,11 @@ la web (favicon, normales y `maskable`) y en Android (los PNG de siempre y el í
 `mipmap-anydpi-v26`). Cuando llegue el original en SVG o PNG, se reemplaza `brand/logo.jpg` y
 se vuelve a correr.
 
+**Las fotos grandes** (la portada, la banda de promociones) son del cliente, con derecho de uso.
+Mientras no lleguen, cada una es `null` en `BrandImages` (`theme/brand_images.dart`) y se ve el
+bloque rojo con la franja diagonal y el logo en blanco. Para activar una: agregar el archivo a
+`assets/images/` y poner su ruta en `BrandImages`.
+
 La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/google_fonts`, así
 que la app no descarga nada:
 - **Poppins** (600/700/800) para títulos, botones y precios (`NeilsText.price`).
@@ -222,8 +227,8 @@ flutter run -d chrome   # y abrir /vitrina
 
 **La barra** (`PublicScaffold`, en `features/shared/brand.dart`): en escritorio (desde 840 px),
 el logo, "Inicio", "Catálogo" y "Promociones" (la sección actual en rojo y subrayada), el buscador
-(`StoreSearchField`, desde 1100 px y salvo en el catálogo, que tiene el suyo), la cuenta y el
-carrito. En el teléfono, el menú a la izquierda (`StoreMenu`, en `features/shared/store_menu.dart`:
+(`StoreSearchField`, desde 1100 px y salvo en el catálogo, que tiene el suyo), la cuenta (hasta
+1100 px, en su menú: con las secciones no entra entera) y el carrito. En el teléfono, el menú a la izquierda (`StoreMenu`, en `features/shared/store_menu.dart`:
 el saludo, las secciones, Mis pedidos, Mi cuenta, el panel para el personal, e Ingresar o Salir),
 el logo al centro y el carrito.
 

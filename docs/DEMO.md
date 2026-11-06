@@ -101,8 +101,11 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 **El recorrido:**
 
 1. **La tienda** (incógnito):
-   - la portada con el logo animado;
-   - el catálogo con el filtro por categoría;
+   - la portada para negocios: el titular, los sellos, "Nuestras categorías" y la banda de
+     promociones (en el teléfono, el saludo, el buscador y las promociones en lista);
+   - el catálogo con el filtro por categoría (y su encabezado) y "Promociones";
+   - un producto con su cinta ("3x2"), la cantidad y el total en la pastilla verde, y la barra
+     roja del carrito en el teléfono;
    - un producto en promoción, con el precio anterior tachado, y uno agotado;
    - el detalle de un producto.
 2. **Comprar:** agregar al carrito, ingresar con la cuenta de prueba, confirmar el pedido. Termina
