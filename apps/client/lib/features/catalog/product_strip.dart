@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../../catalog/product.dart';
 import '../../router/routes.dart';
-import '../cart/add_to_cart.dart';
 import '../shared/card_strip.dart';
 import 'product_card.dart';
 
@@ -30,7 +29,6 @@ class ProductStrip extends ConsumerWidget {
             key: ValueKey(product.id),
             product: product,
             onTap: () => context.go(Routes.product(product.id)),
-            onAdd: () => addToCart(context, ref, product),
           ),
       ],
     );

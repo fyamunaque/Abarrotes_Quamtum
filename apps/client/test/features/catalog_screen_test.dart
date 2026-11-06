@@ -304,7 +304,8 @@ void main() {
       await pumpApp(tester, at: '/producto/aceite');
       expect(find.text('Quedan 3'), findsOneWidget);
 
-      await tester.tap(find.byTooltip('Agregar uno'));
+      // El + del detalle (las tarjetas de "Más de" también tienen uno).
+      await tester.tap(find.byTooltip('Agregar uno').first);
       await tester.pump();
       await tester.tap(find.text('Agregar al carrito'));
       await tester.pumpAndSettle();
@@ -313,7 +314,8 @@ void main() {
       expect(find.text('Tienes 2 en el carrito.'), findsOneWidget);
 
       // Queda 1 por agregar: el + ya no sube.
-      await tester.tap(find.byTooltip('Agregar uno'));
+      // El + del detalle (las tarjetas de "Más de" también tienen uno).
+      await tester.tap(find.byTooltip('Agregar uno').first);
       await tester.pump();
       expect(find.text('Cantidad: 1'), findsNothing);
       await tester.tap(find.text('Agregar al carrito'));
@@ -351,7 +353,9 @@ void main() {
         expect(find.text('Más de Abarrotes'), findsOneWidget);
         expect(shownProducts(tester), ['aceite']);
 
-        await tester.tap(find.widgetWithText(FilledButton, 'Agregar'));
+        final add = find.widgetWithText(FilledButton, 'Agregar');
+        await tester.ensureVisible(add);
+        await tester.tap(add);
         await tester.pumpAndSettle();
         expect(container.read(cartProvider).quantityOf('aceite'), 1);
         expect(container.read(cartProvider).quantityOf('arroz'), 0);

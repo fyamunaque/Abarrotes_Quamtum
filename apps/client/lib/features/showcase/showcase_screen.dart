@@ -60,14 +60,7 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
           ProductGrid(
             children: [
               for (final product in _products)
-                ProductCard(
-                  product: product,
-                  onAdd: () => ScaffoldMessenger.of(context)
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(content: Text('Agregaste ${product.name}')),
-                    ),
-                ),
+                ProductCard(product: product),
             ],
           ),
           const SizedBox(height: 40),

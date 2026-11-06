@@ -9,7 +9,6 @@ import '../../common/page_list.dart';
 import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
-import '../cart/add_to_cart.dart';
 import '../offers/exclusive_offers.dart';
 import '../shared/brand.dart';
 import 'product_card.dart';
@@ -240,7 +239,6 @@ class _Products extends ConsumerWidget {
                   key: ValueKey(product.id),
                   product: product,
                   onTap: () => context.go(Routes.product(product.id)),
-                  onAdd: () => addToCart(context, ref, product),
                 ),
             ],
           ),

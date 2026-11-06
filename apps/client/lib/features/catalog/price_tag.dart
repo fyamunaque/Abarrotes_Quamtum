@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
 import '../../common/money.dart';
+import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/vip_tag.dart';
@@ -45,7 +46,13 @@ class PriceTag extends StatelessWidget {
       children: [
         Text(
           formatSoles(promoPriceCents ?? priceCents),
-          style: NeilsText.price(fontSize: fontSize),
+          // En oferta, en el rojo de la marca; si no, en tinta.
+          style: NeilsText.price(
+            fontSize: fontSize,
+            color: promoPriceCents == null
+                ? NeilsColors.ink
+                : NeilsColors.primary,
+          ),
         ),
         if (promoPriceCents != null)
           Text(

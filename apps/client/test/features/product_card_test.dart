@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neils/cart/cart.dart';
+import 'package:neils/cart/cart_provider.dart';
+import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
+import 'package:neils/features/catalog/promo_ribbon.dart';
+import 'package:neils/session/session.dart';
+import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
@@ -20,27 +27,49 @@ void main() {
     stock: 12,
   );
 
+  late ProviderContainer container;
+
   Future<void> pumpCard(
     WidgetTester tester,
     Product product, {
-    VoidCallback? onAdd,
+    int inCart = 0,
     bool reduceMotion = false,
-  }) => tester.pumpWidget(
-    MaterialApp(
-      theme: neilsTheme(),
-      home: MediaQuery(
-        data: MediaQueryData(disableAnimations: reduceMotion),
-        child: Scaffold(
-          body: Center(
-            child: SizedBox(
-              width: 220,
-              child: ProductCard(product: product, onAdd: onAdd ?? () {}),
+  }) {
+    container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+        cartStorageProvider.overrideWithValue(
+          MemoryCartStorage(
+            inCart == 0 ? const Cart() : Cart([CartLine(product, inCart)]),
+          ),
+        ),
+      ],
+    );
+    addTearDown(container.dispose);
+    return tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: neilsTheme(),
+          home: MediaQuery(
+            data: MediaQueryData(disableAnimations: reduceMotion),
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 240,
+                  child: ProductCard(product: product),
+                ),
+              ),
             ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
+
+  // El precio, no el total de la pastilla (que con 1 unidad dice lo mismo).
+  Finder priceText(String text) =>
+      find.descendant(of: find.byType(PriceTag), matching: find.text(text));
 
   double addScale(WidgetTester tester) => tester
       .widget<AnimatedScale>(
@@ -55,7 +84,7 @@ void main() {
     await pumpCard(tester, rice);
 
     expect(find.text('Arroz extra 5 kg'), findsOneWidget);
-    expect(find.text('S/ 24.90'), findsOneWidget);
+    expect(priceText('S/ 24.90'), findsOneWidget);
   });
 
   testWidgets('un nombre corto y uno largo dan tarjetas de igual alto', (
@@ -89,13 +118,13 @@ void main() {
       ),
     );
 
-    expect(find.text('S/ 8.90'), findsOneWidget);
+    expect(priceText('S/ 8.90'), findsOneWidget);
     final before = tester.widget<Text>(find.text('S/ 10.90'));
     expect(before.style?.decoration, TextDecoration.lineThrough);
     expect(before.semanticsLabel, 'Antes S/ 10.90');
   });
 
-  testWidgets('la tarjeta muestra la insignia 2x1 y la del regalo', (
+  testWidgets('la cinta muestra la primera promoción y el lector dice todas', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -123,15 +152,21 @@ void main() {
       ),
     );
 
-    expect(find.text('2x1'), findsOneWidget);
-    expect(find.text('+ regalo'), findsOneWidget);
-    // El lector de pantalla dice qué da.
+    expect(
+      find.descendant(of: find.byType(PromoRibbon), matching: find.text('2x1')),
+      findsOneWidget,
+    );
+    // El lector de pantalla dice qué da cada una.
+    expect(
+      find.bySemanticsLabel(RegExp('2x1 en este producto')),
+      findsOneWidget,
+    );
     expect(
       find.bySemanticsLabel(RegExp('Regalo: Sal 1 kg por cada 2')),
       findsOneWidget,
     );
     // Sin precio tachado: el 2x1 no cambia el precio por unidad.
-    expect(find.text(formatSoles(1090)), findsOneWidget);
+    expect(priceText(formatSoles(1090)), findsOneWidget);
     expect(tester.takeException(), isNull);
     semantics.dispose();
   });
@@ -158,7 +193,7 @@ void main() {
       }),
     );
 
-    expect(find.text(formatSoles(360)), findsOneWidget);
+    expect(priceText(formatSoles(360)), findsOneWidget);
     final before = tester.widget<Text>(find.text(formatSoles(450)));
     expect(before.style?.decoration, TextDecoration.lineThrough);
   });
@@ -188,7 +223,7 @@ void main() {
         await pumpCard(tester, vipOil);
         await tester.pumpAndSettle();
 
-        expect(find.text(formatSoles(790)), findsOneWidget);
+        expect(priceText(formatSoles(790)), findsOneWidget);
         final before = tester.widget<Text>(find.text(formatSoles(1090)));
         expect(before.style?.decoration, TextDecoration.lineThrough);
         final tag = tester.widget<Text>(find.text('VIP'));
@@ -249,14 +284,25 @@ void main() {
     });
   });
 
-  testWidgets('"Agregar" llama a onAdd', (tester) async {
-    var added = 0;
-    await pumpCard(tester, rice, onAdd: () => added++);
+  testWidgets('"Agregar" suma al carrito y pasa a "Editar"', (tester) async {
+    await pumpCard(tester, rice);
 
     await tester.tap(find.widgetWithText(FilledButton, 'Agregar'));
     await tester.pumpAndSettle();
 
-    expect(added, 1);
+    expect(container.read(cartProvider).quantityOf('arroz'), 1);
+    expect(find.text('Editar'), findsOneWidget);
+  });
+
+  testWidgets('con el producto en el carrito muestra su cantidad', (
+    tester,
+  ) async {
+    await pumpCard(tester, rice, inCart: 3);
+
+    expect(find.text('Editar'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
+    // El total de la pastilla: 3 × S/ 24.90.
+    expect(find.text(formatSoles(7470)), findsOneWidget);
   });
 
   testWidgets('"Agregar" se achica mientras se presiona y vuelve al soltar', (
@@ -273,7 +319,8 @@ void main() {
     await tester.pump(NeilsMotion.press);
     final pressed = tester.getSize(find.byType(FilledButton));
 
-    await gesture.up();
+    // Se cancela en vez de soltar: soltar es un toque, que agregaría.
+    await gesture.cancel();
     await tester.pumpAndSettle();
     expect(addScale(tester), 1);
     // AnimatedScale no cambia el layout: lo achica al pintarlo.
@@ -292,7 +339,6 @@ void main() {
   });
 
   testWidgets('sin stock dice "Agotado" y no deja agregar', (tester) async {
-    var added = 0;
     await pumpCard(
       tester,
       const Product(
@@ -301,7 +347,6 @@ void main() {
         priceCents: 450,
         stock: 0,
       ),
-      onAdd: () => added++,
     );
 
     expect(find.text('Agregar'), findsNothing);
@@ -312,6 +357,6 @@ void main() {
     await tester.pump();
     expect(addScale(tester), 1);
     await gesture.up();
-    expect(added, 0);
+    expect(container.read(cartProvider).quantityOf('azucar'), 0);
   });
 }
