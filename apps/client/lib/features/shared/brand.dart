@@ -10,21 +10,26 @@ import 'cart_button.dart';
 import 'page_title.dart';
 import 'verify_email_notice.dart';
 
-/// El logo de Neil's (naranja con letras crema).
+/// El logo de Neil's completo (el tenedor, NEIL'S y FOOD SERVICE'S), en el
+/// rojo de la marca y sin fondo. [NeilsLogo.white] es el mismo en blanco,
+/// para los fondos rojos. Los dos salen de `brand/logo.jpg` con
+/// `tool/brand_assets_test.dart`.
 class NeilsLogo extends StatelessWidget {
-  const NeilsLogo({super.key, this.height = 40});
+  const NeilsLogo({super.key, this.height = 40})
+    : _asset = 'assets/images/neils_logo.png';
+
+  const NeilsLogo.white({super.key, this.height = 40})
+    : _asset = 'assets/images/neils_logo_white.png';
 
   final double height;
+  final String _asset;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(height * 0.15),
-      child: Image.asset(
-        'assets/images/neils_logo.png',
-        height: height,
-        semanticLabel: "Neil's Food Services",
-      ),
+    return Image.asset(
+      _asset,
+      height: height,
+      semanticLabel: "Neil's Food Services",
     );
   }
 }

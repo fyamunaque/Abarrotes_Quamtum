@@ -103,21 +103,30 @@ insuficiente: Aceite tiene 2 unidades").
 
 ## Tema
 
-Los tokens de la marca:
+Los tokens de la marca (`NeilsColors`, en `theme/brand_colors.dart`):
 
-| Token | Color |
-|---|---|
-| primary | `#E8652F` |
-| primaryDark | `#B54F25` |
-| accent | `#A1241B` |
-| cream | `#F9F3E7` |
-| ink | `#1D0605` |
+| Token | Color | Uso |
+|---|---|---|
+| primary | `#C8281E` | El rojo del logo: botones, enlaces, lo activo, precios en oferta |
+| primaryDark | `#9E1B14` | Botón presionado y texto sobre `primaryTint` |
+| primaryTint | `#FBE3E0` | Fondo de lo seleccionado (menú, chips, pestañas) |
+| background | `#FBF7F2` | Hueso: el fondo de la app |
+| surface | `#FFFFFF` | Tarjetas, con una sombra cálida suave (`neilsCardShadow`) |
+| ink | `#1F1A17` | Texto |
+| money / moneyTint | `#276B43` / `#E3F2E7` | La pastilla del total de una línea |
 
-El naranja sobre crema da 3,0:1 de contraste. Por eso el `primary` de Material (botones, textos
-de acción) es **primaryDark**, y el naranja va en `secondaryContainer` (botones tonales).
-El botón para agregar al carrito es siempre tonal, en el catálogo, el detalle y las filas de
-productos. El `primaryDark` con texto blanco queda para la acción final: Confirmar pedido,
-Ingresar, Crear cuenta.
+El rojo alcanza el contraste de un texto sobre el fondo (5,2:1) y con texto blanco encima
+(5,6:1), así que `primary` sirve para botones y para textos. Los contrastes los vigila
+`test/theme/theme_test.dart`.
+
+**El logo y los íconos** salen del logo original del cliente (`brand/logo.jpg`, fuera de
+`assets/`) con `flutter test tool/brand_assets_test.dart`, sin paquetes: el blanco pasa a
+transparencia según el verde de cada píxel, así los bordes quedan suaves. Escribe el logo completo
+en rojo y en blanco (`assets/images/neils_logo.png` y `neils_logo_white.png`, para
+`NeilsLogo` y `NeilsLogo.white`) y los íconos: el tenedor y NEIL'S en blanco sobre el rojo, en
+la web (favicon, normales y `maskable`) y en Android (los PNG de siempre y el ícono adaptable de
+`mipmap-anydpi-v26`). Cuando llegue el original en SVG o PNG, se reemplaza `brand/logo.jpg` y
+se vuelve a correr.
 
 La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/google_fonts`, así
 que la app no descarga nada:
@@ -136,10 +145,10 @@ que la app no descarga nada:
 | Entregado | `#3C7A5F` |
 | Cancelado | `#8C3B33` |
 
-Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre crema
-no alcanza el contraste de un texto. El rojo de cancelado sí (6,8:1). Como paleta para
+Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre el
+fondo no alcanza el contraste de un texto. El rojo de cancelado sí. Como paleta para
 distinguir categorías tampoco alcanzan: el índigo de confirmado y el azul de en camino se
-parecen, y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el color (ver
+parecen, y el ámbar queda por debajo de 3:1 sobre el fondo. Por eso el panel nunca usa solo el color (ver
 `StatusBadge`).
 
 Lo que está bien y no es un pedido (las insignias "Activo", "Activa" y "Registrado", y el aviso
@@ -157,10 +166,10 @@ de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado
 
 **El panel** (`neilsAdminTheme`, en `theme/neils_theme.dart`) usa una variante calmada del tema,
 solo bajo `/admin`:
-- fondo crema y texto en tinta;
-- tarjetas planas con un borde suave, sin sombra;
-- lo elegido (la sección en la navegación, los chips, el segmento) en el naranja muy claro
-  (`primaryTint`), no en naranja;
+- fondo hueso y texto en tinta;
+- tarjetas blancas con la sombra suave, sin borde;
+- lo elegido (la sección en la navegación, los chips, el segmento) en el rojo muy claro
+  (`primaryTint`), no en rojo;
 - el `primary` solo en la acción principal de cada pantalla, en la sección activa y en la línea
   del gráfico de ventas.
 
