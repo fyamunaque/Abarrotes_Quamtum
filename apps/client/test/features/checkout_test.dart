@@ -11,6 +11,7 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/features/shared/cart_bar.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_filter.dart';
@@ -824,7 +825,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Para pedir, confirma tu correo.'), findsOneWidget);
-      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNull);
+      // La barra entera es el botón, apagada.
+      expect(tester.widget<CartBar>(find.byType(CartBar)).onPressed, isNull);
       expect(tester.takeException(), isNull);
     });
   });

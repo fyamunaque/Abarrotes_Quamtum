@@ -6,6 +6,7 @@ import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import 'account.dart';
+import 'cart_bar.dart';
 import 'cart_button.dart';
 import 'page_title.dart';
 import 'verify_email_notice.dart';
@@ -46,7 +47,10 @@ class NeilsLogo extends StatelessWidget {
 ///
 /// Sin [showLogo], la barra no lleva el logo: para la portada, que ya lo
 /// muestra en grande. [bottomBar] queda fija abajo, fuera del scroll (p. ej.
-/// el total y "Confirmar pedido" del carrito en el teléfono).
+/// el total y "Confirmar pedido" del carrito en el teléfono). Sin ella, en el
+/// teléfono va la barra roja del carrito ([StoreCartBar]) mientras el
+/// carrito tenga algo, salvo con [showCartBar] en false (el ingreso, el
+/// registro, Mi cuenta y el carrito mismo).
 class PublicScaffold extends ConsumerWidget {
   const PublicScaffold({
     super.key,
@@ -57,6 +61,7 @@ class PublicScaffold extends ConsumerWidget {
     this.showLogo = true,
     this.bottomBar,
     this.showVerifyEmail = true,
+    this.showCartBar = true,
   });
 
   final Widget child;
@@ -74,6 +79,8 @@ class PublicScaffold extends ConsumerWidget {
   /// Sin esto, no va el aviso para confirmar el correo: para el carrito, que
   /// lo muestra donde se confirma el pedido.
   final bool showVerifyEmail;
+
+  final bool showCartBar;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -118,7 +125,9 @@ class PublicScaffold extends ConsumerWidget {
             const SizedBox(width: 8),
           ],
         ),
-        bottomNavigationBar: bottomBar,
+        bottomNavigationBar:
+            bottomBar ??
+            (showCartBar && compact ? const StoreCartBar() : null),
         body: SafeArea(
           child: _refreshable(
             SingleChildScrollView(

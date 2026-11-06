@@ -136,6 +136,7 @@ class _AuthFormState extends State<AuthForm> {
     return PublicScaffold(
       title: widget.title,
       maxWidth: wide ? 960 : 420,
+      showCartBar: false,
       child: wide
           ? Row(
               children: [

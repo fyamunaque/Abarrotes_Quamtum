@@ -19,6 +19,7 @@ import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
 import '../catalog/product_photo.dart';
 import '../shared/brand.dart';
+import '../shared/cart_bar.dart';
 import '../shared/error_message.dart';
 import '../shared/info_line.dart';
 import '../shared/press_scale.dart';
@@ -112,6 +113,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
       maxWidth: 720,
       // El aviso del correo va en el checkout, donde hace falta.
       showVerifyEmail: false,
+      showCartBar: false,
       bottomBar: withBar
           ? _CheckoutBar(totalCents: totalCents, onConfirm: _confirm)
           : null,
@@ -502,6 +504,7 @@ class _CheckoutBar extends ConsumerWidget {
     final theme = Theme.of(context);
     final checkout = ref.watch(checkoutProvider);
     final session = ref.watch(sessionProvider);
+    final count = ref.watch(cartProvider.select((cart) => cart.count));
     return Material(
       color: theme.colorScheme.surfaceContainerLowest,
       shape: Border(top: BorderSide(color: theme.colorScheme.outlineVariant)),
@@ -528,48 +531,28 @@ class _CheckoutBar extends ConsumerWidget {
                   padding: const EdgeInsets.only(bottom: 8),
                   child: _CheckoutError(error),
                 ),
-              // El total a la izquierda y el botón a la derecha; si no entran
-              // en una línea (p. ej. con el texto agrandado), el botón va
-              // debajo.
-              OverflowBar(
-                alignment: MainAxisAlignment.spaceBetween,
-                overflowAlignment: OverflowBarAlignment.start,
-                spacing: 12,
-                overflowSpacing: 8,
-                children: [
-                  MergeSemantics(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Total estimado',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        Text(
-                          formatSoles(totalCents),
-                          style: NeilsText.price(fontSize: 22),
-                        ),
-                      ],
-                    ),
-                  ),
-                  switch (session) {
-                    SessionLoading() => const SizedBox.shrink(),
-                    SignedOut() => FilledButton(
-                      onPressed: () => _signInForCart(context),
-                      child: const Text('Ingresar para confirmar'),
-                    ),
-                    SignedIn(:final user) => _ConfirmButton(
-                      busy: checkout.busy,
-                      onPressed: _missingToOrder(user) == null
-                          ? onConfirm
-                          : null,
-                    ),
-                  },
-                ],
-              ),
+              // Toda la barra es el botón, con el total y la cantidad.
+              switch (session) {
+                SessionLoading() => CartBar(
+                  label: 'Confirmar pedido',
+                  count: count,
+                  totalCents: totalCents,
+                  onPressed: null,
+                ),
+                SignedOut() => CartBar(
+                  label: 'Ingresar para confirmar',
+                  count: count,
+                  totalCents: totalCents,
+                  onPressed: () => _signInForCart(context),
+                ),
+                SignedIn(:final user) => CartBar(
+                  label: 'Confirmar pedido',
+                  count: count,
+                  totalCents: totalCents,
+                  busy: checkout.busy,
+                  onPressed: _missingToOrder(user) == null ? onConfirm : null,
+                ),
+              },
             ],
           ),
         ),
