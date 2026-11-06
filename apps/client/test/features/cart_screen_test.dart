@@ -8,6 +8,7 @@ import 'package:neils/cart/cart_quote_provider.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
+import 'package:neils/features/catalog/line_total_pill.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
 import 'package:neils/orders/orders_providers.dart';
@@ -149,6 +150,28 @@ void main() {
 
       expect(find.text('1 × Sal 1 kg'), findsOneWidget);
       expect(find.text('Regalo'), findsOneWidget);
+    });
+
+    testWidgets('el regalo va con su cinta y S/ 0.00', (tester) async {
+      orders.quoteWith = (lines) => riceTwoForOne(lines, gift: true);
+      await pumpCart(tester, [(rice, 2)]);
+      await waitForQuote(tester);
+
+      final gift = find.ancestor(
+        of: find.text('1 × Sal 1 kg'),
+        matching: find.byType(Card),
+      );
+      expect(
+        find.descendant(of: gift, matching: find.text('Regalo')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: find.descendant(of: gift, matching: find.byType(LineTotalPill)),
+          matching: find.text(formatSoles(0)),
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('el aviso de regalo sin stock', (tester) async {
@@ -320,6 +343,33 @@ void main() {
     expect(find.text('S/ 49.80'), findsOneWidget);
     expect(find.text('S/ 58.70'), findsOneWidget);
     expect(find.byTooltip('Carrito: 3'), findsOneWidget);
+  });
+
+  testWidgets('cada línea muestra el código, la pastilla con su total y Quitar', (
+    tester,
+  ) async {
+    const ham = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial',
+      priceCents: 440,
+      stock: 20,
+    );
+    await pumpCart(tester, [(ham, 3)]);
+
+    final line = lineOf('3580 – Jamonada especial');
+    expect(line, findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.descendant(of: line, matching: find.byType(LineTotalPill)),
+        matching: find.text(formatSoles(1320)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: line, matching: find.byTooltip('Quitar del carrito')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('− y + cambian la cantidad dentro de los límites', (

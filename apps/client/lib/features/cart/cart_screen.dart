@@ -17,7 +17,9 @@ import '../../store/store_providers.dart';
 import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
+import '../catalog/line_total_pill.dart';
 import '../catalog/product_photo.dart';
+import '../catalog/product_tile.dart';
 import '../shared/brand.dart';
 import '../shared/cart_bar.dart';
 import '../shared/error_message.dart';
@@ -185,80 +187,88 @@ class _CartLineTile extends ConsumerWidget {
     final product = line.product;
     final cart = ref.read(cartProvider.notifier);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
             children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SizedBox.square(
-                  dimension: 64,
-                  child: ProductPhoto(
-                    product.imageUrl,
-                    name: product.name,
-                    colorKey: product.category?.id,
-                    initialSize: 28,
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: SizedBox.square(
+                      dimension: 72,
+                      child: ProductPhoto(
+                        product.imageUrl,
+                        name: product.name,
+                        colorKey: product.category?.id,
+                        initialSize: 28,
+                      ),
+                    ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(product.name, style: theme.textTheme.titleMedium),
-                    Wrap(
-                      spacing: 6,
-                      crossAxisAlignment: WrapCrossAlignment.center,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '${formatSoles(quoted?.unitPriceCents ?? product.finalPriceCents)} c/u',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
+                          productTitle(product),
+                          style: theme.textTheme.titleSmall,
                         ),
-                        if (product.vipPrice && ref.watch(isVipProvider))
-                          const VipTag(),
+                        Wrap(
+                          spacing: 6,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            Text(
+                              '${formatSoles(quoted?.unitPriceCents ?? product.finalPriceCents)} c/u',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            if (product.vipPrice && ref.watch(isVipProvider))
+                              const VipTag(),
+                          ],
+                        ),
                       ],
                     ),
-                  ],
+                  ),
+                  IconButton(
+                    tooltip: 'Quitar del carrito',
+                    icon: const Icon(Icons.delete_outline),
+                    onPressed: () => cart.remove(product.id),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  QuantityStepper(
+                    quantity: line.quantity,
+                    max: product.maxQuantity,
+                    dense: true,
+                    onChanged: (quantity) =>
+                        cart.setQuantity(product.id, quantity),
+                  ),
+                  const Spacer(),
+                  LineTotalPill(quoted?.lineTotalCents ?? line.totalCents),
+                ],
+              ),
+              for (final promotion in quoted?.promotions ?? const [])
+                Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: Text(
+                    '${promotion.label} −${formatSoles(promotion.savedCents)}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: StateColors.positive,
+                    ),
+                  ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Quitar del carrito',
-                icon: const Icon(Icons.delete_outline),
-                onPressed: () => cart.remove(product.id),
-              ),
             ],
           ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              QuantityStepper(
-                quantity: line.quantity,
-                max: product.maxQuantity,
-                onChanged: (quantity) => cart.setQuantity(product.id, quantity),
-              ),
-              const Spacer(),
-              Text(
-                formatSoles(quoted?.lineTotalCents ?? line.totalCents),
-                style: theme.textTheme.titleMedium,
-              ),
-            ],
-          ),
-          for (final promotion in quoted?.promotions ?? const [])
-            Align(
-              alignment: AlignmentDirectional.centerEnd,
-              child: Text(
-                '${promotion.label} −${formatSoles(promotion.savedCents)}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: StateColors.positive,
-                ),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -274,32 +284,52 @@ class _GiftLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          const SizedBox.square(
-            dimension: 64,
-            child: Icon(
-              Icons.card_giftcard_outlined,
-              size: 28,
-              color: StateColors.positive,
-            ),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Card(
+        margin: EdgeInsets.zero,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const SizedBox.square(
+                dimension: 72,
+                child: Icon(
+                  Icons.card_giftcard_outlined,
+                  size: 32,
+                  color: NeilsColors.primary,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  '${gift.quantity} × ${gift.name}',
+                  style: theme.textTheme.titleSmall,
+                ),
+              ),
+              const SizedBox(width: 8),
+              // La cinta de los regalos, como la de las promociones.
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: NeilsColors.primary,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: Text(
+                  'Regalo',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              const LineTotalPill(0),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              '${gift.quantity} × ${gift.name}',
-              style: theme.textTheme.titleMedium,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            'Regalo',
-            style: theme.textTheme.titleMedium?.copyWith(
-              color: StateColors.positive,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
