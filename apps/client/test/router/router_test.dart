@@ -12,6 +12,7 @@ import 'package:neils/features/orders/order_tracker.dart';
 import 'package:neils/features/shared/not_found_screen.dart';
 import 'package:neils/features/showcase/showcase_screen.dart';
 import 'package:neils/router/router.dart';
+import 'package:neils/router/routes.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
 
@@ -57,6 +58,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CatalogScreen), findsOneWidget);
     expect(currentPath(router), '/catalogo');
+  });
+
+  testWidgets('/catalogo?promos=1 abre el catálogo en promoción', (
+    tester,
+  ) async {
+    final router = await pumpApp(tester, const SignedOut());
+
+    await goTo(tester, router, '/catalogo?promos=1');
+
+    expect(
+      tester.widget<CatalogScreen>(find.byType(CatalogScreen)).onSale,
+      isTrue,
+    );
+    expect(Routes.catalogOf(null, onSale: true), '/catalogo?promos=1');
+    expect(Routes.promotions, '/catalogo?promos=1');
   });
 
   testWidgets('/admin sin sesión lleva al ingreso', (tester) async {

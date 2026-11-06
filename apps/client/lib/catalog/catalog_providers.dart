@@ -61,9 +61,9 @@ final relatedProductsProvider = FutureProvider.autoDispose
       ].take(relatedLimit).toList();
     });
 
-/// Qué muestra el catálogo: una categoría (null: todas) y lo buscado (null:
-/// nada).
-typedef CatalogQuery = ({String? categoryId, String? search});
+/// Qué muestra el catálogo: una categoría (null: todas), lo buscado (null:
+/// nada) y si solo lo que está en promoción.
+typedef CatalogQuery = ({String? categoryId, String? search, bool onSale});
 
 /// Los productos cargados de [CatalogQuery], página a página.
 final productListProvider =
@@ -87,7 +87,11 @@ class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
     ref.watch(isVipProvider);
     return ref
         .watch(catalogRepositoryProvider)
-        .products(categoryId: query.categoryId, search: query.search);
+        .products(
+          categoryId: query.categoryId,
+          search: query.search,
+          onSale: query.onSale,
+        );
   }
 
   /// Agrega la página siguiente al final. Si falla, la lista queda como
@@ -102,6 +106,7 @@ class ProductListNotifier extends AsyncNotifier<PageList<Product>> {
           .products(
             categoryId: query.categoryId,
             search: query.search,
+            onSale: query.onSale,
             page: _page + 1,
           );
       _page++;

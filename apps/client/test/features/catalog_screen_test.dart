@@ -133,6 +133,32 @@ void main() {
       expect(shownProducts(tester), hasLength(3));
     });
 
+    testWidgets('el chip En promoción pide solo los productos en promoción', (
+      tester,
+    ) async {
+      final router = await pumpApp(tester);
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'En promoción'));
+      await tester.pumpAndSettle();
+
+      expect(location(router), '/catalogo?promos=1');
+      expect(catalog.onSaleRequests.last, isTrue);
+      bool selected(String chip) =>
+          tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, chip)).selected;
+      expect(selected('En promoción'), isTrue);
+      expect(selected('Todas'), isFalse);
+    });
+
+    testWidgets('elegir una categoría quita En promoción', (tester) async {
+      final router = await pumpApp(tester, at: '/catalogo?promos=1');
+
+      await tester.tap(find.widgetWithText(ChoiceChip, 'Lácteos'));
+      await tester.pumpAndSettle();
+
+      expect(location(router), '/catalogo?categoria=cat-lacteos');
+      expect(catalog.onSaleRequests.last, isFalse);
+    });
+
     testWidgets('un enlace con la categoría abre el catálogo filtrado', (
       tester,
     ) async {

@@ -22,13 +22,21 @@ import 'product_grid.dart';
 /// el perfil: si un admin hizo VIP a la cuenta, los precios cambian sin
 /// cerrar la sesión.
 class CatalogScreen extends ConsumerStatefulWidget {
-  const CatalogScreen({super.key, this.categoryId, this.search});
+  const CatalogScreen({
+    super.key,
+    this.categoryId,
+    this.search,
+    this.onSale = false,
+  });
 
   /// null: todas las categorías.
   final String? categoryId;
 
   /// null: sin buscar.
   final String? search;
+
+  /// Solo lo que está en promoción ("Promociones").
+  final bool onSale;
 
   @override
   ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
@@ -48,6 +56,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     return (
       categoryId: widget.categoryId,
       search: text == null || text.isEmpty ? null : text,
+      onSale: widget.onSale && widget.categoryId == null,
     );
   }
 
@@ -84,7 +93,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           const SizedBox(height: 20),
           // Las de la cuenta VIP, arriba del catálogo completo (no de una
           // búsqueda o una categoría). Sin nada que mostrar, no aparece.
-          if (query == (categoryId: null, search: null))
+          if (query == (categoryId: null, search: null, onSale: false))
             const ExclusiveOffers(),
           _Products(query),
         ],
@@ -133,12 +142,18 @@ class _SearchFieldState extends State<_SearchField> {
   void _onTextChanged() => setState(() {});
 
   void _search() => context.go(
-    Routes.catalogOf(widget.query.categoryId, search: _controller.text),
+    Routes.catalogOf(
+      widget.query.categoryId,
+      search: _controller.text,
+      onSale: widget.query.onSale,
+    ),
   );
 
   void _clear() {
     _controller.clear();
-    context.go(Routes.catalogOf(widget.query.categoryId));
+    context.go(
+      Routes.catalogOf(widget.query.categoryId, onSale: widget.query.onSale),
+    );
   }
 
   @override
@@ -172,9 +187,9 @@ class _SearchFieldState extends State<_SearchField> {
   }
 }
 
-/// "Todas" y una opción por categoría. Cambiar de categoría mantiene lo
-/// buscado. Si las categorías no cargan, no se muestra: los productos se
-/// pueden ver igual.
+/// "Todas", "En promoción" y una opción por categoría. Cambiar de categoría
+/// mantiene lo buscado y quita "En promoción". Si las categorías no cargan,
+/// no se muestra: los productos se pueden ver igual.
 class _CategoryFilter extends ConsumerWidget {
   const _CategoryFilter(this.query);
 
@@ -190,9 +205,16 @@ class _CategoryFilter extends ConsumerWidget {
       children: [
         ChoiceChip(
           label: const Text('Todas'),
-          selected: query.categoryId == null,
+          selected: query.categoryId == null && !query.onSale,
           onSelected: (_) =>
               context.go(Routes.catalogOf(null, search: query.search)),
+        ),
+        ChoiceChip(
+          label: const Text('En promoción'),
+          selected: query.onSale,
+          onSelected: (_) => context.go(
+            Routes.catalogOf(null, search: query.search, onSale: true),
+          ),
         ),
         for (final category in categories)
           ChoiceChip(
@@ -217,12 +239,16 @@ class _Products extends ConsumerWidget {
     return switch (ref.watch(provider)) {
       AsyncData(value: final list) when list.items.isEmpty => _Message(
         switch (query) {
-          (search: final search?, categoryId: _) =>
+          (search: final search?, categoryId: _, onSale: _) =>
             'No encontramos productos para “$search”.',
-          (categoryId: null, search: null) => 'Todavía no hay productos.',
+          (categoryId: null, search: null, onSale: false) =>
+            'Todavía no hay productos.',
+          (categoryId: _, search: _, onSale: true) =>
+            'Hoy no hay productos en promoción.',
           _ => 'No hay productos en esta categoría.',
         },
-        action: query.search == null && query.categoryId == null
+        action:
+            query.search == null && query.categoryId == null && !query.onSale
             ? null
             : TextButton(
                 onPressed: () => context.go(Routes.catalog),

@@ -8,17 +8,26 @@ abstract final class Routes {
   static const catalog = '/catalogo';
   static const cart = '/carrito';
 
-  /// El catálogo filtrado por una categoría (`?categoria=<id>`) y lo buscado
-  /// (`?q=<texto>`). Sin ninguno de los dos, el catálogo completo.
-  static String catalogOf(String? categoryId, {String? search}) {
+  /// El catálogo filtrado por una categoría (`?categoria=<id>`), lo buscado
+  /// (`?q=<texto>`) y, con [onSale], solo lo que está en promoción
+  /// (`?promos=1`). Sin nada, el catálogo completo.
+  static String catalogOf(
+    String? categoryId, {
+    String? search,
+    bool onSale = false,
+  }) {
     final query = {
       'categoria': ?categoryId,
       if (search?.trim() case final text? when text.isNotEmpty) 'q': text,
+      if (onSale) 'promos': '1',
     };
     return query.isEmpty
         ? catalog
         : Uri(path: catalog, queryParameters: query).toString();
   }
+
+  /// "Promociones": el catálogo con los productos en promoción.
+  static const promotions = '/catalogo?promos=1';
 
   /// El detalle de un producto.
   static String product(String id) => '/producto/${Uri.encodeComponent(id)}';
