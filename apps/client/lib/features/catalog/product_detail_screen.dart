@@ -8,14 +8,14 @@ import '../../catalog/category.dart';
 import '../../catalog/product.dart';
 import '../../common/api_client.dart';
 import '../../router/routes.dart';
-import '../cart/add_to_cart.dart';
 import '../shared/brand.dart';
-import '../shared/press_scale.dart';
-import '../shared/quantity_stepper.dart';
 import 'offer_badges.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
 import 'product_strip.dart';
+import 'product_tile.dart';
+import 'promo_ribbon.dart';
+import 'stock_note.dart';
 
 /// El detalle de un producto: foto, precio, descripción y agregar al carrito
 /// eligiendo la cantidad. Debajo, "Más de" su categoría: otros productos de
@@ -90,11 +90,21 @@ class _Detail extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: AspectRatio(
         aspectRatio: 4 / 3,
-        child: ProductPhoto(
-          product.imageUrl,
-          name: product.name,
-          colorKey: product.category?.id,
-          initialSize: 72,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            ProductPhoto(
+              product.imageUrl,
+              name: product.name,
+              colorKey: product.category?.id,
+              initialSize: 72,
+            ),
+            PositionedDirectional(
+              top: 0,
+              end: 16,
+              child: PromoRibbon(product.offers),
+            ),
+          ],
         ),
       ),
     );
@@ -116,29 +126,20 @@ class _Detail extends StatelessWidget {
   }
 }
 
-class _Info extends ConsumerStatefulWidget {
+/// El código y el nombre, el precio, el stock, las promociones, la
+/// descripción y la fila para agregar ("Agregar", o "Editar" si ya está en el
+/// carrito).
+class _Info extends ConsumerWidget {
   const _Info(this.product);
 
   final Product product;
 
   @override
-  ConsumerState<_Info> createState() => _InfoState();
-}
-
-class _InfoState extends ConsumerState<_Info> {
-  int _quantity = 1;
-
-  @override
-  Widget build(BuildContext context) {
-    final product = widget.product;
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final inCart = ref.watch(
       cartProvider.select((cart) => cart.quantityOf(product.id)),
     );
-    // Lo que todavía se puede sumar sin pasar del stock.
-    final available = product.maxQuantity - inCart;
-    final quantity = _quantity.clamp(1, available < 1 ? 1 : available);
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -149,53 +150,27 @@ class _InfoState extends ConsumerState<_Info> {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-        Text(product.name, style: theme.textTheme.headlineMedium),
+        Text(productTitle(product), style: theme.textTheme.headlineMedium),
         const SizedBox(height: 8),
         PriceTag(product, fontSize: 30),
+        const SizedBox(height: 4),
+        StockNote(product),
         if (product.offers.isNotEmpty) ...[
           const SizedBox(height: 12),
           OfferDescriptions(product.offers),
         ],
-        const SizedBox(height: 8),
-        Text(_stockText(product), style: theme.textTheme.bodyMedium),
         if (product.description case final description?) ...[
           const SizedBox(height: 16),
           Text(description, style: theme.textTheme.bodyLarge),
         ],
         const SizedBox(height: 24),
-        if (available > 0)
-          Wrap(
-            spacing: 16,
-            runSpacing: 12,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              QuantityStepper(
-                quantity: quantity,
-                max: available,
-                onChanged: (value) => setState(() => _quantity = value),
-              ),
-              PressScale(
-                child: FilledButton.tonalIcon(
-                  onPressed: () {
-                    addToCart(context, ref, product, quantity);
-                    setState(() => _quantity = 1);
-                  },
-                  icon: const Icon(Icons.add_shopping_cart),
-                  label: const Text('Agregar al carrito'),
-                ),
-              ),
-            ],
-          ),
+        ProductQuantityActions(product: product),
         if (inCart > 0) ...[
           const SizedBox(height: 12),
           Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Text(
-                available > 0
-                    ? 'Tienes $inCart en el carrito.'
-                    : 'Ya tienes en el carrito todo el stock ($inCart).',
-              ),
+              Text('Tienes $inCart en el carrito.'),
               TextButton(
                 onPressed: () => context.go(Routes.cart),
                 child: const Text('Ver carrito'),
@@ -206,13 +181,6 @@ class _InfoState extends ConsumerState<_Info> {
       ],
     );
   }
-
-  static String _stockText(Product product) => switch (product.stock) {
-    0 => 'Agotado',
-    1 => 'Queda 1',
-    <= 5 => 'Quedan ${product.stock}',
-    _ => 'Disponible',
-  };
 }
 
 /// "Más de Lácteos": otros productos de la categoría. Mientras cargan, si

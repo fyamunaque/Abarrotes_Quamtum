@@ -7,8 +7,12 @@ import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
+import 'package:neils/common/money.dart';
+import 'package:neils/features/catalog/category_header.dart';
+import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
 import 'package:neils/features/catalog/product_detail_screen.dart';
+import 'package:neils/features/catalog/product_tile.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
@@ -131,6 +135,45 @@ void main() {
       await tester.pumpAndSettle();
       expect(location(router), '/catalogo');
       expect(shownProducts(tester), hasLength(3));
+    });
+
+    testWidgets('con una categoría elegida muestra su encabezado', (
+      tester,
+    ) async {
+      await pumpApp(tester, at: '/catalogo?categoria=cat-lacteos');
+
+      expect(
+        find.descendant(
+          of: find.byType(CategoryHeader),
+          matching: find.text('Lácteos'),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('sin categoría no hay encabezado', (tester) async {
+      await pumpApp(tester);
+
+      expect(find.byType(CategoryHeader), findsNothing);
+    });
+
+    testWidgets('en escritorio los productos van en cuadrícula', (
+      tester,
+    ) async {
+      await pumpApp(tester);
+
+      expect(find.byType(ProductCard), findsNWidgets(3));
+      expect(find.byType(ProductTile), findsNothing);
+    });
+
+    testWidgets('en el teléfono los productos van en lista', (tester) async {
+      await pumpApp(tester);
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(ProductTile), findsWidgets);
+      expect(find.byType(ProductCard), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('el chip En promoción pide solo los productos en promoción', (
@@ -317,59 +360,49 @@ void main() {
     ) async {
       await pumpApp(tester, at: '/producto/arroz');
 
-      expect(find.text('Abarrotes'), findsOneWidget);
+      expect(find.text('Abarrotes'), findsWidgets);
       expect(find.text('Arroz extra 5 kg'), findsOneWidget);
-      expect(find.text('S/ 24.90'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byType(PriceTag),
+          matching: find.text(formatSoles(2490)),
+        ),
+        findsOneWidget,
+      );
       expect(find.text('Disponible'), findsOneWidget);
       expect(find.text('Grano largo, bolsa de 5 kg.'), findsOneWidget);
     });
 
-    testWidgets('agrega la cantidad elegida, sin pasar del stock', (
+    testWidgets('agrega la cantidad elegida y después la edita', (
       tester,
     ) async {
       await pumpApp(tester, at: '/producto/aceite');
-      expect(find.text('Quedan 3'), findsOneWidget);
+      expect(find.text('Últimas 3'), findsOneWidget);
 
       // El + del detalle (las tarjetas de "Más de" también tienen uno).
       await tester.tap(find.byTooltip('Agregar uno').first);
       await tester.pump();
-      await tester.tap(find.text('Agregar al carrito'));
+      await tester.tap(find.widgetWithText(FilledButton, 'Agregar').first);
       await tester.pumpAndSettle();
 
       expect(container.read(cartProvider).quantityOf('aceite'), 2);
       expect(find.text('Tienes 2 en el carrito.'), findsOneWidget);
 
-      // Queda 1 por agregar: el + ya no sube.
-      // El + del detalle (las tarjetas de "Más de" también tienen uno).
+      // Ya está en el carrito: la cantidad es la del carrito y "Editar" la
+      // cambia, sin pasar del stock.
       await tester.tap(find.byTooltip('Agregar uno').first);
       await tester.pump();
-      expect(find.text('Cantidad: 1'), findsNothing);
-      await tester.tap(find.text('Agregar al carrito'));
+      await tester.tap(find.text('Editar').first);
       await tester.pumpAndSettle();
 
       expect(container.read(cartProvider).quantityOf('aceite'), 3);
-      expect(find.text('Agregar al carrito'), findsNothing);
       expect(
-        find.text('Ya tienes en el carrito todo el stock (3).'),
-        findsOneWidget,
+        tester.widget<IconButton>(
+          find.widgetWithIcon(IconButton, Icons.add).first,
+        ).onPressed,
+        isNull,
       );
     });
-
-    testWidgets(
-      '"Agregar al carrito" en el naranja de marca, como en el catálogo',
-      (tester) async {
-        await pumpApp(tester, at: '/producto/arroz');
-
-        final button = find.widgetWithText(FilledButton, 'Agregar al carrito');
-        final surface = tester.widget<Material>(
-          find.descendant(of: button, matching: find.byType(Material)).first,
-        );
-        expect(
-          surface.color,
-          Theme.of(tester.element(button)).colorScheme.secondaryContainer,
-        );
-      },
-    );
 
     testWidgets(
       '"Más de" la categoría: los otros productos, sin el que se ve',
@@ -379,7 +412,8 @@ void main() {
         expect(find.text('Más de Abarrotes'), findsOneWidget);
         expect(shownProducts(tester), ['aceite']);
 
-        final add = find.widgetWithText(FilledButton, 'Agregar');
+        // El de la tarjeta de "Más de" (el detalle también tiene uno).
+        final add = find.widgetWithText(FilledButton, 'Agregar').last;
         await tester.ensureVisible(add);
         await tester.tap(add);
         await tester.pumpAndSettle();
@@ -448,8 +482,9 @@ void main() {
       );
       await pumpApp(tester, at: '/producto/azucar');
 
-      expect(find.text('Agotado'), findsOneWidget);
-      expect(find.text('Agregar al carrito'), findsNothing);
+      // El aviso del stock y el botón, apagado.
+      expect(find.text('Agotado'), findsNWidgets(2));
+      expect(find.widgetWithText(FilledButton, 'Agregar'), findsNothing);
     });
   });
 }

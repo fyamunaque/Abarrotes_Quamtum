@@ -10,9 +10,12 @@ import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
 import '../offers/exclusive_offers.dart';
+import '../shared/account.dart';
 import '../shared/brand.dart';
+import 'category_header.dart';
 import 'product_card.dart';
 import 'product_grid.dart';
+import 'product_tile.dart';
 
 /// Catálogo: buscar, filtrar por categoría y los productos, página a página.
 /// La categoría y lo buscado van en la URL (`?categoria=<id>&q=<texto>`), así
@@ -91,6 +94,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           const SizedBox(height: 12),
           _CategoryFilter(query),
           const SizedBox(height: 20),
+          if (query.categoryId case final id?) _Header(id),
           // Las de la cuenta VIP, arriba del catálogo completo (no de una
           // búsqueda o una categoría). Sin nada que mostrar, no aparece.
           if (query == (categoryId: null, search: null, onSale: false))
@@ -258,16 +262,27 @@ class _Products extends ConsumerWidget {
       AsyncData(value: final list) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ProductGrid(
-            children: [
-              for (final product in list.items)
-                ProductCard(
-                  key: ValueKey(product.id),
-                  product: product,
-                  onTap: () => context.go(Routes.product(product.id)),
-                ),
-            ],
-          ),
+          // En el teléfono en lista; en escritorio en cuadrícula.
+          if (MediaQuery.sizeOf(context).width < AccountActions.wideFrom)
+            for (final (i, product) in list.items.indexed) ...[
+              if (i > 0) const SizedBox(height: 12),
+              ProductTile(
+                key: ValueKey(product.id),
+                product: product,
+                onTap: () => context.go(Routes.product(product.id)),
+              ),
+            ]
+          else
+            ProductGrid(
+              children: [
+                for (final product in list.items)
+                  ProductCard(
+                    key: ValueKey(product.id),
+                    product: product,
+                    onTap: () => context.go(Routes.product(product.id)),
+                  ),
+              ],
+            ),
           if (list.hasMore) ...[
             const SizedBox(height: 20),
             Center(
@@ -332,6 +347,26 @@ class _Message extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// El encabezado de la categoría elegida, cuando las categorías ya cargaron.
+class _Header extends ConsumerWidget {
+  const _Header(this.categoryId);
+
+  final String categoryId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider).value ?? const [];
+    final category = categories
+        .where((category) => category.id == categoryId)
+        .firstOrNull;
+    if (category == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: CategoryHeader(category: category),
     );
   }
 }
