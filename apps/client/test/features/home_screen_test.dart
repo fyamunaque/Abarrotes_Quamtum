@@ -5,9 +5,13 @@ import 'package:go_router/go_router.dart';
 import 'package:neils/app.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/cart/cart_provider.dart';
+import 'package:neils/features/catalog/category_card.dart';
 import 'package:neils/features/catalog/product_card.dart';
+import 'package:neils/features/catalog/product_tile.dart';
 import 'package:neils/features/home/home_screen.dart';
 import 'package:neils/features/shared/brand.dart';
+import 'package:neils/features/shared/brand_hero.dart';
+import 'package:neils/features/shared/store_search_field.dart';
 import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_providers.dart';
 import 'package:neils/router/router.dart';
@@ -101,26 +105,66 @@ void main() {
       card.product.id,
   ];
 
-  testWidgets('sin el logo en la barra: la portada ya lo muestra en grande', (
-    tester,
-  ) async {
+  testWidgets('el logo va en la barra', (tester) async {
     await pumpHome(tester);
 
-    expect(find.byType(NeilsLogo), findsOneWidget);
     expect(
       find.descendant(
         of: find.byType(AppBar),
         matching: find.byType(NeilsLogo),
       ),
-      findsNothing,
+      findsOneWidget,
     );
   });
 
-  testWidgets('las categorías llevan al catálogo filtrado', (tester) async {
+  testWidgets('escritorio: el titular para negocios y sus botones', (
+    tester,
+  ) async {
     final (router, _) = await pumpApp(tester);
 
-    expect(find.text('Categorías'), findsOneWidget);
-    expect(find.text('Abarrotes'), findsOneWidget);
+    expect(
+      find.textContaining('Tu negocio siempre abastecido'),
+      findsOneWidget,
+    );
+    expect(
+      find.text(
+        'Insumos gastronómicos de calidad, con precios competitivos y '
+        'entrega confiable.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.widgetWithText(FilledButton, 'Ver catálogo'), findsOneWidget);
+    // El mensaje ya no es para hogares.
+    expect(find.textContaining('abarrotes'), findsNothing);
+    expect(find.textContaining('tu casa'), findsNothing);
+
+    await tester.tap(
+      find.widgetWithText(OutlinedButton, 'Ver promociones').first,
+    );
+    await tester.pumpAndSettle();
+    expect(location(router), '/catalogo?promos=1');
+  });
+
+  testWidgets('los tres sellos y la banda de promociones', (tester) async {
+    await pumpApp(tester);
+
+    expect(find.byType(TrustBadges), findsOneWidget);
+    expect(find.text('Promociones para tu negocio'), findsOneWidget);
+    expect(
+      find.text(
+        'Soluciones prácticas para restaurantes, fast foods y dark kitchens.',
+      ),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Nuestras categorías lleva al catálogo de la categoría', (
+    tester,
+  ) async {
+    final (router, _) = await pumpApp(tester);
+
+    expect(find.text('Nuestras categorías'), findsOneWidget);
+    expect(find.byType(CategoryCard), findsNWidgets(2));
     await tester.ensureVisible(find.text('Lácteos'));
     await tester.tap(find.text('Lácteos'));
     await tester.pumpAndSettle();
@@ -132,17 +176,25 @@ void main() {
     await pumpApp(tester);
 
     Color colorOf(String name) => tester
-        .widget<Material>(
+        .widget<ColoredBox>(
           find
-              .ancestor(of: find.text(name), matching: find.byType(Material))
+              .descendant(
+                of: find.ancestor(
+                  of: find.text(name),
+                  matching: find.byType(CategoryCard),
+                ),
+                matching: find.byType(ColoredBox),
+              )
               .first,
         )
-        .color!;
+        .color;
     expect(colorOf('Abarrotes'), PlaceholderColors.pairs[0].$1);
     expect(colorOf('Lácteos'), PlaceholderColors.pairs[1].$1);
   });
 
-  testWidgets('en el teléfono, las categorías van de a dos', (tester) async {
+  testWidgets('en el teléfono, las categorías van en una fila', (
+    tester,
+  ) async {
     await pumpApp(tester, width: 375);
 
     expect(
@@ -152,7 +204,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('"Promociones de hoy": los productos en oferta, con Agregar', (
+  testWidgets('teléfono: saluda con el nombre de la cuenta', (tester) async {
+    await pumpApp(
+      tester,
+      width: 375,
+      signedIn: signedInAs(UserRole.customer),
+    );
+
+    expect(find.text('¡Hola, Ana!'), findsOneWidget);
+    expect(
+      find.text('Abastece tu negocio con los mejores productos.'),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('teléfono, sin cuenta: ¡Hola! y el buscador', (tester) async {
+    await pumpApp(tester, width: 375);
+
+    expect(find.text('¡Hola!'), findsOneWidget);
+    expect(find.byType(StoreSearchField), findsOneWidget);
+  });
+
+  testWidgets('"Promociones de hoy": tarjetas en escritorio, con Agregar', (
     tester,
   ) async {
     final (_, container) = await pumpApp(tester);
@@ -161,10 +235,18 @@ void main() {
     expect(shownProducts(tester), ['aceite']);
     expect(catalog.onSaleRequests, contains(true));
 
-    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Agregar'));
-    await tester.tap(find.widgetWithText(FilledButton, 'Agregar'));
+    final add = find.widgetWithText(FilledButton, 'Agregar');
+    await tester.ensureVisible(add);
+    await tester.tap(add);
     await tester.pumpAndSettle();
     expect(container.read(cartProvider).quantityOf('aceite'), 1);
+  });
+
+  testWidgets('"Promociones de hoy" en lista en el teléfono', (tester) async {
+    await pumpApp(tester, width: 375);
+
+    expect(find.byType(ProductTile), findsOneWidget);
+    expect(find.byType(ProductCard), findsNothing);
   });
 
   testWidgets('sin promociones, no hay "Promociones de hoy"', (tester) async {
@@ -199,14 +281,14 @@ void main() {
     expect(find.text('Promociones de hoy'), findsNothing);
   });
 
-  testWidgets('el titular se lee como un solo encabezado', (tester) async {
+  testWidgets('el titular se lee como un encabezado', (tester) async {
     final semantics = tester.ensureSemantics();
-    await pumpHome(tester);
+    await pumpApp(tester);
 
     expect(
-      tester.getSemantics(find.text('Tus abarrotes,')),
+      tester.getSemantics(find.textContaining('Tu negocio siempre abastecido')),
       matchesSemantics(
-        label: 'Tus abarrotes,\na la puerta de tu casa',
+        label: "Tu negocio siempre abastecido con Neil's.",
         isHeader: true,
       ),
     );

@@ -35,18 +35,24 @@ class BrandHero extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(text: titleStart),
+        // Un solo encabezado para el lector de pantalla.
+        MergeSemantics(
+          child: Semantics(
+            header: true,
+            child: Text.rich(
               TextSpan(
-                text: titleAccent,
-                style: const TextStyle(color: NeilsColors.primary),
+                children: [
+                  TextSpan(text: titleStart),
+                  TextSpan(
+                    text: titleAccent,
+                    style: const TextStyle(color: NeilsColors.primary),
+                  ),
+                ],
               ),
-            ],
-          ),
-          style: (wide ? text.displaySmall : text.headlineMedium)?.copyWith(
-            height: 1.1,
+              style: (wide ? text.displaySmall : text.headlineMedium)?.copyWith(
+                height: 1.1,
+              ),
+            ),
           ),
         ),
         const SizedBox(height: 12),

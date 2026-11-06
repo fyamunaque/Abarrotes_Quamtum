@@ -20,10 +20,8 @@ class LineTotalPill extends StatelessWidget {
       ),
       child: Text(
         formatSoles(cents),
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-          color: NeilsColors.money,
-          fontWeight: FontWeight.w700,
-        ),
+        style: Theme.of(context).textTheme.labelLarge
+            ?.copyWith(color: NeilsColors.money, fontWeight: FontWeight.w700),
       ),
     );
   }

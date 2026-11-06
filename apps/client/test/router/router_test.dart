@@ -54,7 +54,7 @@ void main() {
     final router = await pumpApp(tester, const SignedOut());
     expect(find.byType(HomeScreen), findsOneWidget);
 
-    await tester.tap(find.text('Ver el catálogo'));
+    await tester.tap(find.text('Ver catálogo'));
     await tester.pumpAndSettle();
     expect(find.byType(CatalogScreen), findsOneWidget);
     expect(currentPath(router), '/catalogo');

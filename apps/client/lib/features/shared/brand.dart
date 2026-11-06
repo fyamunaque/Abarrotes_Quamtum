@@ -50,8 +50,7 @@ class NeilsLogo extends StatelessWidget {
 /// Con una cuenta que no confirmó su correo, arriba del contenido va el
 /// aviso para verificarlo ([VerifyEmailNotice]).
 ///
-/// Sin [showLogo], la barra no lleva el logo: para la portada, que ya lo
-/// muestra en grande. [bottomBar] queda fija abajo, fuera del scroll (p. ej.
+/// [bottomBar] queda fija abajo, fuera del scroll (p. ej.
 /// el total y "Confirmar pedido" del carrito en el teléfono). Sin ella, en el
 /// teléfono va la barra roja del carrito ([StoreCartBar]) mientras el
 /// carrito tenga algo, salvo con [showCartBar] en false (el ingreso, el
@@ -63,7 +62,6 @@ class PublicScaffold extends ConsumerWidget {
     this.title,
     this.maxWidth = 960,
     this.onRefresh,
-    this.showLogo = true,
     this.bottomBar,
     this.showVerifyEmail = true,
     this.showCartBar = true,
@@ -92,7 +90,6 @@ class PublicScaffold extends ConsumerWidget {
   final String? title;
 
   final double maxWidth;
-  final bool showLogo;
   final Widget? bottomBar;
 
   /// Sin esto, no va el aviso para confirmar el correo: para el carrito, que
@@ -119,14 +116,14 @@ class PublicScaffold extends ConsumerWidget {
                     onPressed: () => Scaffold.of(context).openDrawer(),
                   ),
                 ),
-                title: _HomeLink(height: 32, show: showLogo),
+                title: const _HomeLink(height: 32),
                 actions: const [CartButton(), SizedBox(width: 4)],
               )
             : AppBar(
                 toolbarHeight: 72,
                 title: Row(
                   children: [
-                    _HomeLink(height: 40, show: showLogo),
+                    const _HomeLink(height: 40),
                     const SizedBox(width: 24),
                     const _SectionLink(
                       'Inicio',
@@ -213,16 +210,14 @@ class PublicScaffold extends ConsumerWidget {
   };
 }
 
-/// El logo, que lleva a la portada. Sin [show], nada.
+/// El logo, que lleva a la portada.
 class _HomeLink extends StatelessWidget {
-  const _HomeLink({required this.height, required this.show});
+  const _HomeLink({required this.height});
 
   final double height;
-  final bool show;
 
   @override
   Widget build(BuildContext context) {
-    if (!show) return const SizedBox.shrink();
     return InkWell(
       borderRadius: BorderRadius.circular(8),
       onTap: () => context.go(Routes.home),
