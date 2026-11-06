@@ -124,6 +124,8 @@ void main() {
       'GET /images/categories/:categoryId/:file': 'pública',
       'GET /products': 'pública',
       'GET /products/:id': 'pública',
+      'GET /products/frequent': 'cuenta',
+      'GET /products/suggested': 'pública',
       'POST /products': 'products.manage',
       'PATCH /products/:id': 'products.manage',
       'DELETE /products/:id': 'products.manage',

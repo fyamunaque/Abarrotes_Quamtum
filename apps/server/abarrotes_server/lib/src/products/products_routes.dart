@@ -76,6 +76,41 @@ List<RouteEntry> productsRoutes(
       }),
     ),
     (
+      '/products/frequent',
+      // Frecuentes: lo que más pide quien mira (la pestaña de la portada).
+      guards.signedIn(
+        ApiRoute(Method.get, (session, request) async {
+          InputReader.query(request, allowed: const {}).check();
+          final list = await products.frequent(
+            session,
+            customerId: request.currentUser.id!,
+            shopper: await shopperOf(session, request),
+          );
+          return jsonResponse(200, {'items': list.map(productJson).toList()});
+        }),
+      ),
+    ),
+    (
+      '/products/suggested',
+      // Sugeridos: lo más vendido. Con cuenta, sin sus Frecuentes.
+      ApiRoute(Method.get, (session, request) async {
+        InputReader.query(request, allowed: const {}).check();
+        final identity = await optionalIdentity(guards.verifier, request);
+        final customer = identity == null
+            ? null
+            : await User.db.findFirstRow(
+                session,
+                where: (user) => user.firebaseUid.equals(identity.uid),
+              );
+        final list = await products.suggested(
+          session,
+          customerId: customer?.id,
+          shopper: await shoppers.resolve(session, identity),
+        );
+        return jsonResponse(200, {'items': list.map(productJson).toList()});
+      }),
+    ),
+    (
       '/products/:id',
       ApiRoute(Method.get, (session, request) async {
         final id = idParam(request);

@@ -68,6 +68,115 @@ class ProductsService {
     return (products, total);
   }
 
+  /// Lo que más pide [customerId]: los productos de sus pedidos no
+  /// cancelados de los últimos 180 días, sin los regalos ni los dados de
+  /// baja. Primero el que está en más pedidos; si empatan, el pedido más
+  /// reciente, y después el nombre. Con el precio de [shopper].
+  Future<List<Product>> frequent(
+    Session session, {
+    required UuidValue customerId,
+    Shopper shopper = Shopper.anonymous,
+    int limit = 20,
+  }) async {
+    final now = _now().toUtc();
+    final ids = await _frequentIds(session, customerId, now, limit);
+    return _inOrder(session, ids, now, shopper);
+  }
+
+  /// Lo más vendido de la tienda en unidades en los últimos 30 días, en
+  /// pedidos no cancelados: sin los regalos, los dados de baja ni los
+  /// agotados. Con [customerId], sin los que ya salen en sus Frecuentes.
+  Future<List<Product>> suggested(
+    Session session, {
+    UuidValue? customerId,
+    Shopper shopper = Shopper.anonymous,
+    int limit = 20,
+  }) async {
+    final now = _now().toUtc();
+    final exclude = customerId == null
+        ? const <String>[]
+        : await _frequentIds(session, customerId, now, limit);
+    final rows = await session.db.unsafeQuery(
+      '''
+      SELECT oi."productId"::text AS id
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      JOIN products p ON p.id = oi."productId"
+      WHERE o.status <> 'cancelled'
+        AND o."createdAt" >= @since::timestamp
+        AND NOT oi."isGift"
+        AND p.active
+        AND p."currentStock" > 0
+        AND NOT (oi."productId" = ANY(@exclude::uuid[]))
+      GROUP BY oi."productId", p.name
+      ORDER BY SUM(oi.quantity) DESC, p.name
+      LIMIT @limit
+      ''',
+      parameters: QueryParameters.named({
+        'since': now.subtract(const Duration(days: 30)),
+        'exclude': exclude,
+        'limit': limit,
+      }),
+    );
+    return _inOrder(
+      session,
+      [
+        for (final row in rows) row.toColumnMap()['id'] as String,
+      ],
+      now,
+      shopper,
+    );
+  }
+
+  Future<List<String>> _frequentIds(
+    Session session,
+    UuidValue customerId,
+    DateTime now,
+    int limit,
+  ) async {
+    final rows = await session.db.unsafeQuery(
+      '''
+      SELECT oi."productId"::text AS id
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      JOIN products p ON p.id = oi."productId"
+      WHERE o."customerId" = @customer::uuid
+        AND o.status <> 'cancelled'
+        AND o."createdAt" >= @since::timestamp
+        AND NOT oi."isGift"
+        AND p.active
+      GROUP BY oi."productId", p.name
+      ORDER BY COUNT(DISTINCT o.id) DESC, MAX(o."createdAt") DESC, p.name
+      LIMIT @limit
+      ''',
+      parameters: QueryParameters.named({
+        'customer': customerId.toString(),
+        'since': now.subtract(const Duration(days: 180)),
+        'limit': limit,
+      }),
+    );
+    return [for (final row in rows) row.toColumnMap()['id'] as String];
+  }
+
+  /// Los productos de [ids], en ese orden, con el precio de [shopper].
+  Future<List<Product>> _inOrder(
+    Session session,
+    List<String> ids,
+    DateTime now,
+    Shopper shopper,
+  ) async {
+    if (ids.isEmpty) return const [];
+    final found = await Product.db.find(
+      session,
+      where: (product) => product.id.inSet(<UuidValue>{
+        for (final id in ids) UuidValue.fromString(id),
+      }),
+      include: _include(now, shopper),
+    );
+    final byId = {for (final product in found) product.id.toString(): product};
+    return [for (final id in ids) ?byId[id]];
+  }
+
   /// Un producto inactivo solo lo ven admin y staff ([includeInactive]).
   Future<Product> get(
     Session session,
