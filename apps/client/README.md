@@ -121,8 +121,8 @@ Ingresar, Crear cuenta.
 
 La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/google_fonts`, así
 que la app no descarga nada:
-- **Baloo 2** (600/700/800) para títulos y precios (`NeilsText.price`).
-- **Inter** (400/500/600) para el resto.
+- **Poppins** (600/700/800) para títulos, botones y precios (`NeilsText.price`).
+- **Inter** (400/500) para textos, etiquetas y tablas.
 
 **Estados de pedido** (`OrderStatusColors`):
 
@@ -149,7 +149,7 @@ de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado
 - **Las fotos subidas:** llegan del servidor como ruta relativa (`/images/products/…`) y se
   completan con `apiBaseUrl`. Una URL externa se pide tal cual.
 - **Mientras carga, o si no hay foto o no carga:** se ve un marcador, la inicial del producto en
-  Baloo 2 sobre un fondo suave. La foto entra con un fundido de 200 ms, que no se anima si está
+  Poppins sobre un fondo suave. La foto entra con un fundido de 200 ms, que no se anima si está
   activado "reducir animaciones".
 - **El color del marcador** sale de la categoría (`PlaceholderColors.of(id)`, 8 pares
   fondo/texto con contraste de al menos 4.5:1). Una misma categoría tiene siempre el mismo
@@ -494,9 +494,7 @@ animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándo
 terminada una animación en el frame siguiente a su duración: por eso avanzan un milisegundo más.
 
 Los tests que usan el tema llaman a `useBundledFonts()` (`test/support.dart`): fuentes desde los
-assets, sin red. Ese helper también esquiva un fallo del motor de pruebas de Windows: cargar
-Baloo2-SemiBold y Baloo2-Bold en el mismo proceso lo cierra sin error. Por eso, en los tests, la
-SemiBold se reemplaza por la ExtraBold. La app no cambia.
+assets, sin red.
 
 En Windows, además, `flutter_tester` a veces se cae solo: el archivo de tests termina con "did
 not complete" y sin ningún assert fallido. En el registro de eventos de Windows figura como

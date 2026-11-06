@@ -89,22 +89,27 @@ void main() {
     }
   });
 
-  test('Baloo 2 para títulos y precios; Inter para el resto', () {
+  test('los títulos van en Poppins y el texto en Inter', () {
     final text = neilsTheme().textTheme;
     void expectFont(TextStyle? style, String family, FontWeight weight) {
       expect(style?.fontFamily, startsWith(family));
       expect(style?.fontWeight, weight);
     }
 
-    expectFont(text.displayLarge, 'Baloo2', FontWeight.w800);
-    expectFont(text.headlineMedium, 'Baloo2', FontWeight.w700);
-    expectFont(text.titleLarge, 'Baloo2', FontWeight.w700);
-    expectFont(text.titleSmall, 'Baloo2', FontWeight.w600);
+    expectFont(text.displayLarge, 'Poppins', FontWeight.w800);
+    expectFont(text.headlineMedium, 'Poppins', FontWeight.w700);
+    expectFont(text.titleLarge, 'Poppins', FontWeight.w700);
+    expectFont(text.titleSmall, 'Poppins', FontWeight.w600);
+    expectFont(text.labelLarge, 'Poppins', FontWeight.w600);
     expectFont(text.bodyLarge, 'Inter', FontWeight.w400);
+    expectFont(text.bodyMedium, 'Inter', FontWeight.w400);
     expectFont(text.labelMedium, 'Inter', FontWeight.w500);
-    expectFont(text.labelLarge, 'Inter', FontWeight.w600);
-    expectFont(NeilsText.price(), 'Baloo2', FontWeight.w800);
-    expect(NeilsText.price().color, NeilsColors.primaryDark);
+    expectFont(NeilsText.price(), 'Poppins', FontWeight.w700);
+    expect(NeilsText.price().color, NeilsColors.ink);
+    expect(
+      NeilsText.price(color: NeilsColors.primary).color,
+      NeilsColors.primary,
+    );
     expect(text.bodyLarge?.color, NeilsColors.ink);
   });
 }

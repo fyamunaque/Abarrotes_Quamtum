@@ -38,10 +38,10 @@ Future<void> main() async {
   );
 }
 
-/// Licencias OFL de Baloo 2 e Inter, para la pantalla de licencias.
+/// Licencias OFL de Poppins e Inter, para la pantalla de licencias.
 Stream<LicenseEntry> _fontLicenses() async* {
   for (final (font, file) in [
-    ('Baloo 2', 'OFL-Baloo2.txt'),
+    ('Poppins', 'OFL-Poppins.txt'),
     ('Inter', 'OFL-Inter.txt'),
   ]) {
     final license = await rootBundle.loadString('assets/google_fonts/$file');

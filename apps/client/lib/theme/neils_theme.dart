@@ -163,28 +163,29 @@ ThemeData neilsAdminTheme(ThemeData base) {
   );
 }
 
-/// Baloo 2 (600/700/800) para títulos; Inter (400/500/600) para el resto.
+/// Poppins (600/700/800) para títulos y botones; Inter (400/500) para el
+/// resto, que en textos largos y tablas se lee mejor.
 TextTheme neilsTextTheme() {
   final base = Typography.material2021().black;
-  TextStyle baloo(TextStyle? style, FontWeight weight) =>
-      GoogleFonts.baloo2(textStyle: style, fontWeight: weight);
+  TextStyle poppins(TextStyle? style, FontWeight weight) =>
+      GoogleFonts.poppins(textStyle: style, fontWeight: weight);
   TextStyle inter(TextStyle? style, FontWeight weight) =>
       GoogleFonts.inter(textStyle: style, fontWeight: weight);
 
   return TextTheme(
-    displayLarge: baloo(base.displayLarge, FontWeight.w800),
-    displayMedium: baloo(base.displayMedium, FontWeight.w800),
-    displaySmall: baloo(base.displaySmall, FontWeight.w800),
-    headlineLarge: baloo(base.headlineLarge, FontWeight.w700),
-    headlineMedium: baloo(base.headlineMedium, FontWeight.w700),
-    headlineSmall: baloo(base.headlineSmall, FontWeight.w700),
-    titleLarge: baloo(base.titleLarge, FontWeight.w700),
-    titleMedium: baloo(base.titleMedium, FontWeight.w600),
-    titleSmall: baloo(base.titleSmall, FontWeight.w600),
+    displayLarge: poppins(base.displayLarge, FontWeight.w800),
+    displayMedium: poppins(base.displayMedium, FontWeight.w800),
+    displaySmall: poppins(base.displaySmall, FontWeight.w800),
+    headlineLarge: poppins(base.headlineLarge, FontWeight.w700),
+    headlineMedium: poppins(base.headlineMedium, FontWeight.w700),
+    headlineSmall: poppins(base.headlineSmall, FontWeight.w700),
+    titleLarge: poppins(base.titleLarge, FontWeight.w700),
+    titleMedium: poppins(base.titleMedium, FontWeight.w600),
+    titleSmall: poppins(base.titleSmall, FontWeight.w600),
     bodyLarge: inter(base.bodyLarge, FontWeight.w400),
     bodyMedium: inter(base.bodyMedium, FontWeight.w400),
     bodySmall: inter(base.bodySmall, FontWeight.w400),
-    labelLarge: inter(base.labelLarge, FontWeight.w600),
+    labelLarge: poppins(base.labelLarge, FontWeight.w600),
     labelMedium: inter(base.labelMedium, FontWeight.w500),
     labelSmall: inter(base.labelSmall, FontWeight.w500),
   ).apply(bodyColor: NeilsColors.ink, displayColor: NeilsColors.ink);
@@ -192,11 +193,14 @@ TextTheme neilsTextTheme() {
 
 /// Estilos de la marca que no son parte del TextTheme de Material.
 abstract final class NeilsText {
-  /// Precios: Baloo 2 ExtraBold en primaryDark, que sobre crema tiene buen
-  /// contraste.
-  static TextStyle price({double fontSize = 22}) => GoogleFonts.baloo2(
+  /// Precios: Poppins Bold, en tinta. Un precio en oferta va en [color]
+  /// `NeilsColors.primary`, que sobre el fondo también se lee (5,2:1).
+  static TextStyle price({
+    double fontSize = 22,
+    Color color = NeilsColors.ink,
+  }) => GoogleFonts.poppins(
     fontSize: fontSize,
-    fontWeight: FontWeight.w800,
-    color: NeilsColors.primaryDark,
+    fontWeight: FontWeight.w700,
+    color: color,
   );
 }
