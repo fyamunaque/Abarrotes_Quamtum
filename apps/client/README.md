@@ -91,7 +91,7 @@ router/                rutas, guard y GoRouter
 theme/                 tokens de marca y de estados (brand_colors.dart), ThemeData
                        (neils_theme.dart) y movimiento (motion.dart)
 features/<sección>/    pantallas y componentes: home, auth, catalog, cart, orders, offers,
-                       admin, showcase (la vitrina) y shared (logo, barra, swoosh,
+                       admin, showcase (la vitrina) y shared (logo, barra, franja diagonal,
                        PressScale, VipTag, el aviso de verificación, RefreshOnResume)
 ```
 
@@ -179,12 +179,7 @@ Poco, y con un motivo. Las duraciones están en `theme/motion.dart`. Todo respet
 animaciones" del sistema (Android: "Quitar animaciones"; web: `prefers-reduced-motion`): con eso
 activo, cada animación salta a su estado final.
 
-- **El swoosh de la portada** (`AnimatedSwoosh`, en `features/shared/swoosh.dart`): el trazo de
-  pincel del logo, en `accent`, se dibuja bajo "a la puerta de tu casa" al abrir la pantalla.
-  Dura 700 ms, una sola vez: no se repite aunque la pantalla se reconstruya. Es el único momento
-  animado que no responde a una acción.
 - **"Agregar"** en la tarjeta de producto (`PressScale`): se achica un poco mientras se presiona.
-  El precio va subrayado con el mismo swoosh, quieto (`Swoosh`).
 - **El carrito de la barra** (`CartButton`): cuando sube el contador, el ícono da un rebote de
   300 ms. Al quitar no se mueve.
 - **El seguimiento de pedido** (`OrderTracker`): los pasos del tipo de entrega del pedido
@@ -291,8 +286,7 @@ servidor devolvió su perfil.
   tarjeta (`OfferBadges`: "2x1", "2.ª al 50 %", "+ regalo", en `accent`; el lector de pantalla
   dice lo que da cada una), así las tarjetas de una fila siguen del mismo alto. El detalle explica
   cada una (`OfferDescriptions`: "2x1 en este producto", "Regalo: Sal 1 kg por cada 2").
-- Un precio VIP va con el normal tachado, el swoosh y la insignia `VipTag` (`accent` sobre
-  crema). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
+- Un precio VIP va con el normal tachado y la insignia `VipTag` (`primary` sobre blanco). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
   animaciones".
 - "Ofertas exclusivas" (`features/offers/`), en el inicio y arriba del catálogo completo: las
   promociones VIP de `/promotions/active` (también las de clientes elegidos, para ellos; un %
@@ -460,8 +454,8 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
 - `test/auth/auth_error_message_test.dart`: los mensajes de cada error de Firebase.
 - `test/features/account_bar_test.dart`: la barra con sesión entra en un teléfono de 320 y 375
   px (la cuenta va en un menú).
-- `test/features/swoosh_test.dart` y `home_screen_test.dart`: la forma del trazo, que se dibuja
-  una vez y en menos de un segundo, y que con "reducir animaciones" aparece completo.
+- `test/features/brand_hero_test.dart`: el titular con su parte en rojo, la franja diagonal (con
+  el logo en blanco mientras no haya foto, arriba en el teléfono) y los tres sellos.
 - `test/features/product_card_test.dart`: precio, promoción, el precio VIP (insignia, entrada
   de 300 ms una sola vez), "Agotado", tarjetas de igual alto y el achique de "Agregar" (que no
   ocurre con "reducir animaciones").

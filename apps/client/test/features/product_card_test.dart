@@ -4,7 +4,6 @@ import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
-import 'package:neils/features/shared/swoosh.dart';
 import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
@@ -52,17 +51,11 @@ void main() {
       )
       .scale;
 
-  testWidgets('muestra el nombre y el precio subrayado con el swoosh', (
-    tester,
-  ) async {
+  testWidgets('muestra el nombre y el precio', (tester) async {
     await pumpCard(tester, rice);
 
     expect(find.text('Arroz extra 5 kg'), findsOneWidget);
     expect(find.text('S/ 24.90'), findsOneWidget);
-    final price = tester.getRect(find.text('S/ 24.90'));
-    final underline = tester.getRect(find.byType(Swoosh));
-    expect(underline.width, closeTo(price.width, 1));
-    expect(underline.top, greaterThan(price.center.dy));
   });
 
   testWidgets('un nombre corto y uno largo dan tarjetas de igual alto', (
@@ -190,7 +183,7 @@ void main() {
         .opacity;
 
     testWidgets(
-      'el precio VIP subrayado con el swoosh, el normal tachado y la insignia',
+      'el precio VIP, el normal tachado y la insignia',
       (tester) async {
         await pumpCard(tester, vipOil);
         await tester.pumpAndSettle();
@@ -212,9 +205,6 @@ void main() {
                     .decoration!
                 as BoxDecoration;
         expect(box.color, NeilsColors.surface);
-        final price = tester.getRect(find.text(formatSoles(790)));
-        final underline = tester.getRect(find.byType(Swoosh));
-        expect(underline.top, greaterThan(price.center.dy));
       },
     );
 

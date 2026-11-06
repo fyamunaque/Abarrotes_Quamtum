@@ -13,7 +13,6 @@ import '../../theme/brand_colors.dart';
 import '../catalog/product_strip.dart';
 import '../offers/exclusive_offers.dart';
 import '../shared/brand.dart';
-import '../shared/swoosh.dart';
 
 /// Inicio: presentación de la tienda, accesos al catálogo y al registro, las
 /// categorías y las promociones de hoy. Para una cuenta VIP, además sus
@@ -74,8 +73,7 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// El titular, con el swoosh del logo dibujándose bajo la segunda línea: el
-/// único momento animado de la portada.
+/// El titular.
 class _Headline extends StatelessWidget {
   const _Headline();
 
@@ -91,20 +89,7 @@ class _Headline extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Tus abarrotes,', style: style),
-            // El swoosh mide lo mismo que la línea que subraya.
-            IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('a la puerta de tu casa', style: style),
-                  // Sube un poco para pegarse a las letras, como en el logo.
-                  Transform.translate(
-                    offset: const Offset(0, -8),
-                    child: const AnimatedSwoosh(),
-                  ),
-                ],
-              ),
-            ),
+            Text('a la puerta de tu casa', style: style),
           ],
         ),
       ),

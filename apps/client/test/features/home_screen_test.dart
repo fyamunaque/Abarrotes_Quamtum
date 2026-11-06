@@ -11,7 +11,6 @@ import 'package:neils/features/shared/brand.dart';
 import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_providers.dart';
 import 'package:neils/router/router.dart';
-import 'package:neils/features/shared/swoosh.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/brand_colors.dart';
@@ -49,16 +48,6 @@ void main() {
     );
     await tester.pumpAndSettle();
   }
-
-  testWidgets('el swoosh subraya la segunda línea del titular', (tester) async {
-    await pumpHome(tester);
-
-    expect(find.byType(AnimatedSwoosh), findsOneWidget);
-    final line = tester.getRect(find.text('a la puerta de tu casa'));
-    final swoosh = tester.getRect(find.byType(AnimatedSwoosh));
-    expect(swoosh.width, closeTo(line.width, 1));
-    expect(swoosh.center.dy, greaterThan(line.center.dy));
-  });
 
   testWidgets('deslizar hacia abajo vuelve a pedir el perfil', (tester) async {
     await pumpHome(tester, signedIn: signedInAs(UserRole.customer));

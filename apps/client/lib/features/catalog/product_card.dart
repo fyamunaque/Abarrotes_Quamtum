@@ -6,8 +6,7 @@ import 'offer_badges.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
 
-/// Un producto en una grilla: foto, nombre, precio subrayado con el swoosh de
-/// la marca y "Agregar". Las promociones por cantidad y de regalo van en
+/// Un producto en una grilla: foto, nombre, precio y "Agregar". Las promociones por cantidad y de regalo van en
 /// insignias sobre la foto, así todas las tarjetas tienen el mismo alto.
 /// Toma el ancho que le dé la grilla.
 class ProductCard extends StatelessWidget {
