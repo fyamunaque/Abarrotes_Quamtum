@@ -8,6 +8,7 @@ import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/brand_colors.dart';
+import 'package:neils/theme/neils_theme.dart';
 
 import '../support.dart';
 
@@ -115,7 +116,7 @@ void main() {
     );
   });
 
-  testWidgets('el panel usa la paleta calmada: lo elegido en naranja claro', (
+  testWidgets('el panel usa la paleta calmada: lo elegido en rojo claro', (
     tester,
   ) async {
     await pumpPanel(tester);
@@ -123,7 +124,10 @@ void main() {
     final theme = Theme.of(tester.element(find.byType(NavigationRail)));
     expect(theme.navigationRailTheme.indicatorColor, NeilsColors.primaryTint);
     expect(theme.chipTheme.selectedColor, NeilsColors.primaryTint);
-    expect(theme.cardTheme.elevation, 0);
+    // Tarjetas blancas con una sombra cálida y suave, sin borde.
+    expect(theme.cardTheme.color, Colors.white);
+    expect(theme.cardTheme.elevation, 1);
+    expect(theme.cardTheme.shadowColor, neilsCardShadow);
   });
 
   for (final width in [320.0, 375.0, 840.0, 1280.0]) {
