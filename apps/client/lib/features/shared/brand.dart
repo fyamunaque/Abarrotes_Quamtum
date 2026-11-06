@@ -162,7 +162,11 @@ class PublicScaffold extends ConsumerWidget {
                         child: const Text('Ingresar'),
                       ),
                     ],
-                    SignedIn(:final user) => [AccountActions(user)],
+                    // Hasta searchFrom, con las secciones no entra entera: va
+                    // en su menú.
+                    SignedIn(:final user) => [
+                      AccountActions(user, inlineFrom: searchFrom),
+                    ],
                   },
                   const CartButton(),
                   const SizedBox(width: 8),

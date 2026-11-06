@@ -102,25 +102,44 @@ void main() {
     });
   }
 
-  for (final width in [840.0, 1024.0, 1280.0]) {
-    testWidgets('a $width px, las secciones, el nombre y los botones', (
+  for (final width in [840.0, 1024.0]) {
+    testWidgets('a $width px, las secciones y la cuenta en su menú', (
       tester,
     ) async {
       await pumpAt(tester, width, const PublicScaffold(child: Text('x')));
 
       expect(tester.takeException(), isNull);
       expect(find.byTooltip('Menú'), findsNothing);
-      expect(find.byTooltip('Tu cuenta'), findsNothing);
       for (final section in ['Inicio', 'Catálogo', 'Promociones']) {
         expect(find.text(section), findsOneWidget);
       }
       expect(find.byTooltip('Carrito'), findsOneWidget);
-      expect(find.text('Mis pedidos'), findsOneWidget);
-      expect(find.text('Alejandra'), findsOneWidget);
+      expect(find.text('Salir'), findsNothing);
+
+      await tester.tap(find.byTooltip('Tu cuenta'));
+      await tester.pumpAndSettle();
       expect(find.text('Panel'), findsOneWidget);
       expect(find.text('Salir'), findsOneWidget);
     });
   }
+
+  testWidgets('a 1280 px, las secciones, el nombre y los botones', (
+    tester,
+  ) async {
+    await pumpAt(tester, 1280, const PublicScaffold(child: Text('x')));
+
+    expect(tester.takeException(), isNull);
+    expect(find.byTooltip('Menú'), findsNothing);
+    expect(find.byTooltip('Tu cuenta'), findsNothing);
+    for (final section in ['Inicio', 'Catálogo', 'Promociones']) {
+      expect(find.text(section), findsOneWidget);
+    }
+    expect(find.byTooltip('Carrito'), findsOneWidget);
+    expect(find.text('Mis pedidos'), findsOneWidget);
+    expect(find.text('Alejandra'), findsOneWidget);
+    expect(find.text('Panel'), findsOneWidget);
+    expect(find.text('Salir'), findsOneWidget);
+  });
 
   testWidgets('en la portada, Inicio va en rojo', (tester) async {
     await pumpStore(tester);

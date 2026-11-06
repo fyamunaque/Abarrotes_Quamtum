@@ -95,8 +95,9 @@ class BrandHero extends StatelessWidget {
   }
 }
 
-/// Los tres sellos de la portada, con su ícono: en fila con divisores desde
-/// [AccountActions.wideFrom], y en columna en el teléfono.
+/// Los tres sellos de la portada, con su ícono: en fila desde
+/// [AccountActions.wideFrom] (y en dos líneas si no entran), y en columna en
+/// el teléfono.
 class TrustBadges extends StatelessWidget {
   const TrustBadges({super.key});
 
@@ -130,19 +131,11 @@ class TrustBadges extends StatelessWidget {
         ],
       );
     }
-    return IntrinsicHeight(
-      child: Row(
-        children: [
-          for (final (i, item) in _badges.indexed) ...[
-            if (i > 0)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: VerticalDivider(width: 1),
-              ),
-            badge(item),
-          ],
-        ],
-      ),
+    // Si no entran en una línea, siguen en la de abajo.
+    return Wrap(
+      spacing: 40,
+      runSpacing: 12,
+      children: [for (final item in _badges) badge(item)],
     );
   }
 }
