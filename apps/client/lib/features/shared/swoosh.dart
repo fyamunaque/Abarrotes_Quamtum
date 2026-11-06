@@ -13,7 +13,7 @@ import '../../theme/motion.dart';
 class SwooshPainter extends CustomPainter {
   const SwooshPainter({
     this.progress = const AlwaysStoppedAnimation(1),
-    this.color = NeilsColors.accent,
+    this.color = NeilsColors.primary,
   }) : super(repaint: progress);
 
   final Animation<double> progress;
@@ -94,7 +94,7 @@ class SwooshPainter extends CustomPainter {
 /// El swoosh quieto, p. ej. como subrayado del precio. Ocupa el ancho que le
 /// den. Es decoración: los lectores de pantalla lo saltan.
 class Swoosh extends StatelessWidget {
-  const Swoosh({super.key, this.height = 8, this.color = NeilsColors.accent});
+  const Swoosh({super.key, this.height = 8, this.color = NeilsColors.primary});
 
   final double height;
   final Color color;
@@ -118,7 +118,7 @@ class AnimatedSwoosh extends StatefulWidget {
   const AnimatedSwoosh({
     super.key,
     this.height = 18,
-    this.color = NeilsColors.accent,
+    this.color = NeilsColors.primary,
   });
 
   final double height;

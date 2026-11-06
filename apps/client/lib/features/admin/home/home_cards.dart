@@ -580,7 +580,7 @@ class TopProductsCard extends ConsumerWidget {
   }
 }
 
-/// Una barra fina: el riel en naranja muy claro y lo lleno en `primary`.
+/// Una barra fina: el riel en rojo muy claro y lo lleno en `primary`.
 class _Meter extends StatelessWidget {
   const _Meter(this.fraction);
 

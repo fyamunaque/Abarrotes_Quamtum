@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../../theme/brand_colors.dart';
 
-/// "VIP" en una píldora naranja claro: marca lo que es solo para clientes
-/// VIP (p. ej. una promoción). El texto va en tinta, que sobre el naranja
-/// claro se lee bien; el ícono, en el naranja oscuro de la marca.
+/// "VIP" en una píldora rojo claro: marca lo que es solo para clientes
+/// VIP (p. ej. una promoción). El texto va en tinta, que sobre el rojo
+/// claro se lee bien; el ícono, en el rojo oscuro de la marca.
 class VipBadge extends StatelessWidget {
   const VipBadge({super.key});
 

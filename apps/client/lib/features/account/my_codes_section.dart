@@ -174,7 +174,7 @@ class _CodeCard extends StatelessWidget {
               children: [
                 const Icon(
                   Icons.confirmation_number_outlined,
-                  color: NeilsColors.accent,
+                  color: NeilsColors.primary,
                   size: 20,
                 ),
                 const SizedBox(width: 8),

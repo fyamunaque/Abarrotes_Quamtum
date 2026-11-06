@@ -199,7 +199,7 @@ void main() {
         final before = tester.widget<Text>(find.text(formatSoles(1090)));
         expect(before.style?.decoration, TextDecoration.lineThrough);
         final tag = tester.widget<Text>(find.text('VIP'));
-        expect(tag.style?.color, NeilsColors.accent);
+        expect(tag.style?.color, NeilsColors.primary);
         expect(tag.semanticsLabel, 'Precio VIP');
         final box =
             tester
@@ -211,7 +211,7 @@ void main() {
                     )
                     .decoration!
                 as BoxDecoration;
-        expect(box.color, NeilsColors.cream);
+        expect(box.color, NeilsColors.surface);
         final price = tester.getRect(find.text(formatSoles(790)));
         final underline = tester.getRect(find.byType(Swoosh));
         expect(underline.top, greaterThan(price.center.dy));
