@@ -19,12 +19,16 @@ abstract class Category
   Category._({
     this.id,
     required this.name,
+    this.description,
+    this.imageUrl,
     this.products,
   });
 
   factory Category({
     _isc.UuidValue? id,
     required String name,
+    String? description,
+    String? imageUrl,
     List<_iubf72bi.Product>? products,
   }) = _CategoryImpl;
 
@@ -34,6 +38,8 @@ abstract class Category
           ? null
           : _isc.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
       name: jsonSerialization['name'] as String,
+      description: jsonSerialization['description'] as String?,
+      imageUrl: jsonSerialization['imageUrl'] as String?,
       products: jsonSerialization['products'] == null
           ? null
           : _iv4mbvnl.Protocol().deserialize<List<_iubf72bi.Product>>(
@@ -49,6 +55,14 @@ abstract class Category
 
   String name;
 
+  /// Una línea para el encabezado de la categoría en la tienda ("Hot dogs,
+  /// jamonadas y más"), de hasta 80 caracteres.
+  String? description;
+
+  /// La foto, subida con `PUT /categories/:id/image`
+  /// (`/images/categories/<id>/<archivo>.jpg`).
+  String? imageUrl;
+
   List<_iubf72bi.Product>? products;
 
   /// Returns a shallow copy of this [Category]
@@ -57,6 +71,8 @@ abstract class Category
   Category copyWith({
     _isc.UuidValue? id,
     String? name,
+    String? description,
+    String? imageUrl,
     List<_iubf72bi.Product>? products,
   });
   @override
@@ -65,6 +81,8 @@ abstract class Category
       '__className__': 'Category',
       if (id != null) 'id': id?.toJson(),
       'name': name,
+      if (description != null) 'description': description,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (products != null)
         'products': products?.toJson(valueToJson: (v) => v.toJson()),
     };
@@ -76,6 +94,8 @@ abstract class Category
       '__className__': 'Category',
       if (id != null) 'id': id?.toJson(),
       'name': name,
+      if (description != null) 'description': description,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (products != null)
         'products': products?.toJson(valueToJson: (v) => v.toJsonForProtocol()),
     };
@@ -93,10 +113,14 @@ class _CategoryImpl extends Category {
   _CategoryImpl({
     _isc.UuidValue? id,
     required String name,
+    String? description,
+    String? imageUrl,
     List<_iubf72bi.Product>? products,
   }) : super._(
          id: id,
          name: name,
+         description: description,
+         imageUrl: imageUrl,
          products: products,
        );
 
@@ -107,11 +131,15 @@ class _CategoryImpl extends Category {
   Category copyWith({
     Object? id = _Undefined,
     String? name,
+    Object? description = _Undefined,
+    Object? imageUrl = _Undefined,
     Object? products = _Undefined,
   }) {
     return Category(
       id: id is _isc.UuidValue? ? id : this.id,
       name: name ?? this.name,
+      description: description is String? ? description : this.description,
+      imageUrl: imageUrl is String? ? imageUrl : this.imageUrl,
       products: products is List<_iubf72bi.Product>?
           ? products
           : this.products?.map((e0) => e0.copyWith()).toList(),

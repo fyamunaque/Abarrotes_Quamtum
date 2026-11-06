@@ -59,7 +59,7 @@ void main() {
     const sales = SalesReportProvider();
     final routes = <RouteEntry>[
       ...usersRoutes(const UsersService(), guards, shoppers: testShoppers),
-      ...categoriesRoutes(const CategoriesService(), guards),
+      ...categoriesRoutes(CategoriesService(), guards),
       ...storeRoutes(const StoreSettingsService(), guards),
       ...productsRoutes(
         ProductsService(pricing: testPromotions()),
@@ -120,6 +120,8 @@ void main() {
       'POST /categories': 'categories.manage',
       'PATCH /categories/:id': 'categories.manage',
       'DELETE /categories/:id': 'categories.manage',
+      'PUT /categories/:id/image': 'categories.manage',
+      'GET /images/categories/:categoryId/:file': 'pública',
       'GET /products': 'pública',
       'GET /products/:id': 'pública',
       'POST /products': 'products.manage',

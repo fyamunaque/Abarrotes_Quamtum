@@ -229,8 +229,10 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /customers` | `customers.view` | El listado de clientes del panel: las cuentas de la tienda, paginadas, por nombre, con `{id, name, email, phone, address, emailVerified, createdAt}`. Filtro: `search` (en el nombre o el correo). |
 | `GET /store` | público | Los datos de la tienda que ve el cliente (p. ej. al elegir recojo): `{name, address, reference, phone, openingHours, pickupInstructions, updatedAt}`. Mientras nadie los cargó, el nombre de la tienda y lo demás vacío (`updatedAt` en null). |
 | `PATCH /store` | `store.manage` | Campos parciales; `null` borra los opcionales. Nombre (hasta 100) y dirección (hasta 255) no pueden quedar vacíos: la primera vez, la dirección es obligatoria. Hay un solo registro (tabla `store_settings`, con un índice único que no deja crear otro). |
-| `GET /categories`, `GET /categories/:id` | público | Categorías por nombre. |
-| `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name}`. El nombre no se repite, sin distinguir mayúsculas (409). |
+| `GET /categories`, `GET /categories/:id` | público | Categorías por nombre: `{id, name, description, imageUrl}`. |
+| `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name, description}`. El nombre no se repite, sin distinguir mayúsculas (409). La descripción tiene hasta 80 caracteres; vacía o `null` en un PATCH la borra. |
+| `PUT /categories/:id/image` | `categories.manage` | La foto tal cual (JPEG, PNG o WebP, hasta 8 MB): se guarda en JPEG de hasta 1200 px por lado y reemplaza a la anterior, que se borra. Devuelve la categoría. |
+| `GET /images/categories/:categoryId/:file` | público | La foto subida, con caché para siempre (cada una tiene un nombre nuevo); 404 si no existe. |
 | `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
 | `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto con `products.view`). Cada producto trae `unitPrice` (con el precio especial y los porcentajes que puede usar quien mira), `promotions` (las vigentes que puede usar, cada una con `type`, `label` y sus campos, para las insignias "2x1" o "+ regalo") y `promotion` (el precio especial más bajo, o null: lo leen las apps de antes). |
 | `GET /products/:id` | público | Un inactivo es 404, salvo con `products.view`. |
@@ -313,17 +315,19 @@ El pedido bloquea los productos comprados **y los de regalo** en orden por id an
 (`giftProductIds`), así dos pedidos a la vez no se traban. El top 5 de las estadísticas suma
 `lineTotalCents` (lo cobrado), así un 2x1 no infla las ventas.
 
-### Fotos de los productos
+### Fotos de los productos y de las categorías
 
-Las fotos se suben desde el panel (`PUT /products/:id/image`). `ProductImages`
-(`lib/src/products/product_images.dart`) las procesa con el paquete `image`:
+Las fotos se suben desde el panel (`PUT /products/:id/image`, `PUT /categories/:id/image`). Lo
+común está en `Photos` (`lib/src/common/photos.dart`): cada dominio fija su carpeta y su tamaño
+(`ProductImages`, 800 px; `CategoryImages`, 1200 px, porque se ven anchas), así ninguno importa
+la lógica del otro. `Photos` las procesa con el paquete `image`:
 - **Formato:** acepta JPEG, PNG y WebP, que reconoce por su contenido y no por el
   `Content-Type`.
 - **Tamaño:** antes de decodificar lee el tamaño de la cabecera y rechaza las de más de
   40 megapíxeles, porque una imagen chica en bytes puede pedir cientos de MB al abrirse.
 - **El resultado:**
   - derecha según su EXIF;
-  - de hasta 800 px por lado;
+  - de hasta 800 px por lado (1200 las de categoría);
   - lo transparente queda blanco;
   - **sin metadatos** (ni la ubicación ni la cámara);
   - en JPEG de calidad 82, unos 60–90 KB.

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:serverpod/serverpod.dart';
 
 import '../auth/firebase_auth_middleware.dart';
@@ -9,6 +7,7 @@ import '../common/http_json.dart';
 import '../common/input_reader.dart';
 import '../common/money.dart';
 import '../common/pagination.dart';
+import '../common/photos.dart';
 import '../common/shopper.dart';
 import '../generated/protocol.dart';
 import '../promotions/promotion_engine.dart';
@@ -200,7 +199,7 @@ List<RouteEntry> productsRoutes(
       // y reemplaza a la que tenía.
       staffOnly(Method.put, (session, request) async {
         final id = idParam(request);
-        final photo = ProductImages.process(await _readPhoto(request));
+        final photo = ProductImages.process(await readPhotoBody(request));
         final product = await products.setImage(session, id, photo);
         return jsonResponse(200, productJson(product));
       }),
@@ -227,24 +226,6 @@ List<RouteEntry> productsRoutes(
       }),
     ),
   ];
-}
-
-/// El body de la subida de una foto, de hasta [ProductImages.maxUploadBytes].
-Future<Uint8List> _readPhoto(Request request) async {
-  final bytes = BytesBuilder(copy: false);
-  try {
-    await for (final chunk in request.read(
-      maxLength: ProductImages.maxUploadBytes,
-    )) {
-      bytes.add(chunk);
-    }
-  } on MaxBodySizeExceeded {
-    throw const ApiException(413, 'La foto pesa más de 8 MB');
-  }
-  if (bytes.isEmpty) {
-    throw const ApiException.badRequest('Falta la foto en el body');
-  }
-  return bytes.takeBytes();
 }
 
 const _editableFields = {

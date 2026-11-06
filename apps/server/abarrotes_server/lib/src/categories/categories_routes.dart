@@ -4,11 +4,13 @@ import '../auth/guards.dart';
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../common/input_reader.dart';
+import '../common/photos.dart';
 import '../generated/protocol.dart';
 import 'categories_service.dart';
+import 'category_images.dart';
 
-/// Rutas de categorías: lectura pública (el marketplace y la app la usan) y
-/// escritura con `categories.manage`.
+/// Rutas de categorías: lectura pública (el marketplace y la app la usan),
+/// la foto pública, y escritura con `categories.manage`.
 List<RouteEntry> categoriesRoutes(
   CategoriesService categories,
   Guards guards,
@@ -36,8 +38,15 @@ List<RouteEntry> categoriesRoutes(
       '/categories',
       manage(
         ApiRoute(Method.post, (session, request) async {
-          final name = _readName(await readJsonBody(request), required: true);
-          final category = await categories.create(session, name!);
+          final (:name, :description, clear: _) = _readBody(
+            await readJsonBody(request),
+            nameRequired: true,
+          );
+          final category = await categories.create(
+            session,
+            name!,
+            description: description,
+          );
           return jsonResponse(201, categoryJson(category));
         }),
       ),
@@ -47,11 +56,54 @@ List<RouteEntry> categoriesRoutes(
       manage(
         ApiRoute(Method.patch, (session, request) async {
           final id = idParam(request);
-          final name = _readName(await readJsonBody(request), required: false);
-          final category = await categories.update(session, id, name);
+          final (:name, :description, :clear) = _readBody(
+            await readJsonBody(request),
+            nameRequired: false,
+          );
+          final category = await categories.update(
+            session,
+            id,
+            name,
+            description: description,
+            clearDescription: clear,
+          );
           return jsonResponse(200, categoryJson(category));
         }),
       ),
+    ),
+    (
+      '/categories/:id/image',
+      // La foto, tal cual (sin JSON): JPEG, PNG o WebP. Se guarda procesada
+      // y reemplaza a la que tenía.
+      manage(
+        ApiRoute(Method.put, (session, request) async {
+          final id = idParam(request);
+          final photo = categories.processImage(await readPhotoBody(request));
+          final category = await categories.setImage(session, id, photo);
+          return jsonResponse(200, categoryJson(category));
+        }),
+      ),
+    ),
+    (
+      '${CategoryImages.prefix}:categoryId/:file',
+      // Pública, como el catálogo. Cada foto subida tiene un nombre nuevo:
+      // el navegador la guarda en caché para siempre.
+      ApiRoute(Method.get, (session, request) async {
+        final photo = await categories.image(
+          session,
+          request.rawPathParameters[#categoryId] ?? '',
+          request.rawPathParameters[#file] ?? '',
+        );
+        if (photo == null) throw const ApiException(404, 'Foto no encontrada');
+        return Response.ok(
+          body: Body.fromData(photo, mimeType: MimeType.parse('image/jpeg')),
+          headers: Headers.build((headers) {
+            headers['Cache-Control'] = const [
+              'public, max-age=31536000, immutable',
+            ];
+          }),
+        );
+      }),
     ),
     (
       '/categories/:id',
@@ -65,15 +117,30 @@ List<RouteEntry> categoriesRoutes(
   ];
 }
 
-/// Body de POST y PATCH: `{name}`, sin espacios alrededor.
-String? _readName(Object? json, {required bool required}) {
-  final body = InputReader.body(json, allowed: const {'name'});
-  final name = body.text('name', maxLength: 60, required: required);
+/// Body de POST y PATCH: `{name, description}`, sin espacios alrededor. La
+/// descripción tiene hasta 80 caracteres; vacía o `null` en un PATCH
+/// ([clear]) la borra.
+({String? name, String? description, bool clear}) _readBody(
+  Object? json, {
+  required bool nameRequired,
+}) {
+  final body = InputReader.body(json, allowed: const {'name', 'description'});
+  final name = body.text('name', maxLength: 60, required: nameRequired);
+  final hasDescription =
+      json is Map<String, Object?> && json.containsKey('description');
+  final raw = hasDescription ? json['description'] : null;
+  final blank =
+      hasDescription && (raw == null || (raw is String && raw.trim().isEmpty));
+  final description = blank
+      ? null
+      : body.text('description', maxLength: 80, required: false);
   body.check();
-  return name;
+  return (name: name, description: description, clear: blank);
 }
 
 Map<String, Object?> categoryJson(Category category) => {
   'id': category.id.toString(),
   'name': category.name,
+  'description': category.description,
+  'imageUrl': category.imageUrl,
 };

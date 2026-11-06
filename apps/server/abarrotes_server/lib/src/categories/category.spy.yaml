@@ -3,6 +3,12 @@ table: categories
 fields:
   id: UuidValue?, defaultPersist=random_v7
   name: String
+  ### Una línea para el encabezado de la categoría en la tienda ("Hot dogs,
+  ### jamonadas y más"), de hasta 80 caracteres.
+  description: String?
+  ### La foto, subida con `PUT /categories/:id/image`
+  ### (`/images/categories/<id>/<archivo>.jpg`).
+  imageUrl: String?
   products: List<Product>?, relation(name=category_products)
 indexes:
   categories_name_idx:

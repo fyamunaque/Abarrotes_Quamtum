@@ -78,6 +78,22 @@ void main() {
       expect(promotions.single.promoPriceCents, 890);
     });
 
+    test('cada categoría de ejemplo tiene su descripción', () async {
+      final session = sessionBuilder.build();
+      await seedDevData(session, now: () => testNow);
+
+      final categories = await Category.db.find(session);
+      expect(categories, hasLength(9));
+      for (final category in categories) {
+        expect(category.description, isNotNull, reason: category.name);
+        expect(category.description!.length, lessThanOrEqualTo(80));
+      }
+      final dairy = categories.singleWhere(
+        (category) => category.name == 'Lácteos y huevos',
+      );
+      expect(dairy.description, 'Leches, yogures, quesos y huevos');
+    });
+
     test('correrlo de nuevo no duplica nada', () async {
       final session = sessionBuilder.build();
       await seedDevData(session, now: () => testNow);

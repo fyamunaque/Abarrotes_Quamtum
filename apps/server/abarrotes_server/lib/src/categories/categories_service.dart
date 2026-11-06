@@ -1,12 +1,18 @@
+import 'dart:typed_data';
+
 import 'package:serverpod/serverpod.dart';
 
 import '../common/api_route.dart';
 import '../common/http_json.dart';
 import '../generated/protocol.dart';
+import 'category_images.dart';
 
-/// Categorías del catálogo.
+/// Categorías del catálogo, con su descripción y su foto.
 class CategoriesService {
-  const CategoriesService();
+  CategoriesService({CategoryImages? images})
+    : _images = images ?? CategoryImages();
+
+  final CategoryImages _images;
 
   Future<List<Category>> list(Session session) =>
       Category.db.find(session, orderBy: (category) => category.name);
@@ -17,24 +23,46 @@ class CategoriesService {
     return category;
   }
 
-  Future<Category> create(Session session, String name) async {
+  Future<Category> create(
+    Session session,
+    String name, {
+    String? description,
+  }) async {
     await _assertNameIsFree(session, name);
     try {
-      return await Category.db.insertRow(session, Category(name: name));
+      return await Category.db.insertRow(
+        session,
+        Category(name: name, description: description),
+      );
     } on DatabaseUniqueViolationException {
       throw ApiException.conflict('Ya existe la categoría "$name"');
     }
   }
 
-  /// Renombra la categoría; sin [name] la deja como está.
-  Future<Category> update(Session session, UuidValue id, String? name) async {
+  /// Renombra la categoría y cambia su descripción: sin [name] el nombre
+  /// queda como está; sin [description], la descripción también, salvo con
+  /// [clearDescription], que la borra.
+  Future<Category> update(
+    Session session,
+    UuidValue id,
+    String? name, {
+    String? description,
+    bool clearDescription = false,
+  }) async {
     final category = await get(session, id);
-    if (name == null) return category;
-    await _assertNameIsFree(session, name, exceptId: id);
+    if (name == null && description == null && !clearDescription) {
+      return category;
+    }
+    if (name != null) await _assertNameIsFree(session, name, exceptId: id);
     try {
       return await Category.db.updateRow(
         session,
-        category.copyWith(name: name),
+        category.copyWith(
+          name: name ?? category.name,
+          description: clearDescription
+              ? null
+              : description ?? category.description,
+        ),
       );
     } on DatabaseUniqueViolationException {
       throw ApiException.conflict('Ya existe la categoría "$name"');
@@ -65,6 +93,39 @@ class CategoriesService {
       );
     }
   }
+
+  /// Le pone a la categoría [id] la foto [jpeg], ya procesada con
+  /// [CategoryImages.process]; la que tenía se borra si era una subida.
+  Future<Category> setImage(
+    Session session,
+    UuidValue id,
+    Uint8List jpeg,
+  ) async {
+    final category = await get(session, id);
+    final url = await _images.store(session, id, jpeg);
+    try {
+      final updated = await Category.db.updateRow(
+        session,
+        category.copyWith(imageUrl: url),
+      );
+      await _images.delete(session, category.imageUrl);
+      return updated;
+    } catch (_) {
+      await _images.delete(session, url);
+      rethrow;
+    }
+  }
+
+  /// La foto subida [file] de la categoría [categoryId] (JPEG), o null si no
+  /// existe.
+  Future<Uint8List?> image(
+    Session session,
+    String categoryId,
+    String file,
+  ) => _images.read(session, categoryId, file);
+
+  /// La foto lista para guardar: JPEG de hasta 1200 px.
+  Uint8List processImage(Uint8List bytes) => _images.process(bytes);
 
   /// El índice único de la base distingue mayúsculas: "Bebidas" y "bebidas"
   /// pasarían. Para la tienda son la misma categoría, así que se compara sin
