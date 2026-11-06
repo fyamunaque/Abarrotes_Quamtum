@@ -13,6 +13,7 @@ import '../../../session/session_provider.dart';
 import '../../../theme/brand_colors.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/error_message.dart';
+import 'kpi_card.dart';
 import 'sales_chart.dart';
 
 /// Una tarjeta del inicio con su propio reporte: si ese reporte falla, solo
@@ -114,10 +115,27 @@ class KpiSection extends ConsumerWidget {
             minWidth: 160,
             maxColumns: 4,
             children: [
-              _StatTile('Ventas de hoy', overview.today),
-              _StatTile('Ventas de la semana', overview.week),
-              _StatTile('Ventas del mes', overview.month),
-              _StatTile.averageTicket(overview.month),
+              _salesCard(
+                Icons.point_of_sale_outlined,
+                'Ventas de hoy',
+                overview.today,
+              ),
+              _salesCard(
+                Icons.date_range_outlined,
+                'Ventas de la semana',
+                overview.week,
+              ),
+              _salesCard(
+                Icons.calendar_month_outlined,
+                'Ventas del mes',
+                overview.month,
+              ),
+              KpiCard(
+                icon: Icons.receipt_long_outlined,
+                title: 'Ticket promedio del mes',
+                value: formatSoles(overview.month.averageTicketCents),
+                detail: 'en ${_orders(overview.month.orders)}',
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -148,44 +166,13 @@ class KpiSection extends ConsumerWidget {
   }
 }
 
-class _StatTile extends StatelessWidget {
-  _StatTile(this.label, SalesSummary summary)
-    : value = formatSoles(summary.totalCents),
-      detail = _orders(summary.orders);
-
-  _StatTile.averageTicket(SalesSummary month)
-    : label = 'Ticket promedio del mes',
-      value = formatSoles(month.averageTicketCents),
-      detail = 'en ${_orders(month.orders)}';
-
-  final String label;
-  final String value;
-  final String detail;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final muted = theme.textTheme.bodySmall?.copyWith(
-      color: theme.colorScheme.onSurfaceVariant,
+KpiCard _salesCard(IconData icon, String title, SalesSummary summary) =>
+    KpiCard(
+      icon: icon,
+      title: title,
+      value: formatSoles(summary.totalCents),
+      detail: _orders(summary.orders),
     );
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: MergeSemantics(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: theme.textTheme.bodyMedium),
-              const SizedBox(height: 6),
-              Text(value, style: theme.textTheme.headlineSmall),
-              Text(detail, style: muted),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 String _orders(int count) => count == 1 ? '1 pedido' : '$count pedidos';
 

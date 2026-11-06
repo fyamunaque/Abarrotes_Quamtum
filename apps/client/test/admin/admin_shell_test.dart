@@ -130,6 +130,23 @@ void main() {
     expect(theme.cardTheme.shadowColor, neilsCardShadow);
   });
 
+  testWidgets('desde 1200 px el menú lleva los textos al lado', (tester) async {
+    await pumpPanel(tester, width: 1280);
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.extended, isTrue);
+  });
+
+  testWidgets('entre 840 y 1200 px, el menú angosto con los textos abajo', (
+    tester,
+  ) async {
+    await pumpPanel(tester, width: 1000);
+
+    final rail = tester.widget<NavigationRail>(find.byType(NavigationRail));
+    expect(rail.extended, isFalse);
+    expect(rail.labelType, NavigationRailLabelType.all);
+  });
+
   for (final width in [320.0, 375.0, 840.0, 1280.0]) {
     testWidgets('a $width px entra sin desbordarse', (tester) async {
       for (final section in AdminSection.values) {

@@ -80,10 +80,7 @@ ThemeData neilsTheme() {
       ),
     ),
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(
-        shape: buttonShape,
-        minimumSize: buttonSize,
-      ),
+      style: TextButton.styleFrom(shape: buttonShape, minimumSize: buttonSize),
     ),
     inputDecorationTheme: const InputDecorationTheme(
       border: OutlineInputBorder(
@@ -108,6 +105,14 @@ ThemeData neilsAdminTheme(ThemeData base) {
   final text = base.textTheme;
   final muted = scheme.onSurfaceVariant;
   return base.copyWith(
+    // La barra, blanca y con una sombra fina abajo.
+    appBarTheme: base.appBarTheme.copyWith(
+      backgroundColor: scheme.surfaceContainerLowest,
+      elevation: 1,
+      scrolledUnderElevation: 1,
+      shadowColor: neilsCardShadow,
+      surfaceTintColor: Colors.transparent,
+    ),
     cardTheme: CardThemeData(
       color: scheme.surfaceContainerLowest,
       elevation: 1,
@@ -120,9 +125,11 @@ ThemeData neilsAdminTheme(ThemeData base) {
     navigationRailTheme: NavigationRailThemeData(
       backgroundColor: NeilsColors.background,
       indicatorColor: NeilsColors.primaryTint,
-      selectedIconTheme: IconThemeData(color: scheme.primary),
+      selectedIconTheme: const IconThemeData(color: NeilsColors.primaryDark),
       unselectedIconTheme: IconThemeData(color: muted),
-      selectedLabelTextStyle: text.labelLarge?.copyWith(color: scheme.primary),
+      selectedLabelTextStyle: text.labelLarge?.copyWith(
+        color: NeilsColors.primaryDark,
+      ),
       unselectedLabelTextStyle: text.labelLarge?.copyWith(
         color: muted,
         fontWeight: FontWeight.w500,
