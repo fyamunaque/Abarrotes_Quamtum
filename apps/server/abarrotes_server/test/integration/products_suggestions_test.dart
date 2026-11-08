@@ -286,6 +286,51 @@ void main() {
         },
       );
 
+      test('lo más vendido se recalcula cada 5 minutos', () async {
+        var clock = testNow;
+        final service = ProductsService(
+          pricing: testPromotions(),
+          now: () => clock,
+        );
+        Future<List<String>> suggested() async => [
+          for (final product in await service.suggested(session)) product.name,
+        ];
+        final arroz = await product('Arroz');
+        final leche = await product('Leche');
+        await order(luis, [(arroz, 5, false)]);
+        expect(await suggested(), ['Arroz']);
+
+        await order(luis, [(leche, 50, false)]);
+        clock = testNow.add(const Duration(minutes: 4));
+        expect(await suggested(), ['Arroz'], reason: 'todavía guardado');
+
+        clock = testNow.add(const Duration(minutes: 6));
+        expect(await suggested(), ['Leche', 'Arroz']);
+      });
+
+      test('lo guardado no trae un producto que se agotó', () async {
+        var clock = testNow;
+        final service = ProductsService(
+          pricing: testPromotions(),
+          now: () => clock,
+        );
+        final arroz = await product('Arroz');
+        final leche = await product('Leche');
+        await order(luis, [(arroz, 5, false), (leche, 2, false)]);
+        expect(
+          [for (final p in await service.suggested(session)) p.name],
+          ['Arroz', 'Leche'],
+        );
+
+        await Product.db.updateRow(session, arroz.copyWith(currentStock: 0));
+        clock = testNow.add(const Duration(minutes: 1));
+
+        expect(
+          [for (final p in await service.suggested(session)) p.name],
+          ['Leche'],
+        );
+      });
+
       test('con cuenta, no repite sus Frecuentes', () async {
         final arroz = await product('Arroz');
         final leche = await product('Leche');

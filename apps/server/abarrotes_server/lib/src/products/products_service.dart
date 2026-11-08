@@ -28,6 +28,17 @@ class ProductsService {
   final ProductImages _images;
   final DateTime Function() _now;
 
+  /// Cuánto se guarda lo más vendido para Sugeridos (la ruta es pública y
+  /// el cálculo recorre los pedidos de 30 días).
+  static const suggestedTtl = Duration(minutes: 5);
+
+  /// Cuántos de lo más vendido se guardan: los que muestra Sugeridos más
+  /// los que puede sacar cada cuenta por ser sus Frecuentes.
+  static const _rankingSize = 60;
+
+  /// Lo más vendido (ids, en orden) y cuándo se calculó.
+  ({DateTime at, List<String> ids})? _bestSellers;
+
   /// Por nombre. [includeInactive] es solo para admin y staff: decide la ruta.
   /// [onSale] deja los que tienen una promoción que [shopper] puede usar.
   Future<(List<Product>, int)> list(
@@ -88,6 +99,9 @@ class ProductsService {
   /// agotados. Con [customerId], sin los que ya salen en sus Frecuentes. Si
   /// así no queda ninguno (una tienda sin ventas recientes), lo más nuevo
   /// con stock, para que la pestaña no quede vacía.
+  ///
+  /// Lo más vendido se recalcula cada [suggestedTtl]; el stock, si sigue
+  /// activo y los Frecuentes de la cuenta se miran en cada pedido.
   Future<List<Product>> suggested(
     Session session, {
     UuidValue? customerId,
@@ -98,30 +112,16 @@ class ProductsService {
     final exclude = customerId == null
         ? const <String>[]
         : await _frequentIds(session, customerId, now, limit);
-    final rows = await session.db.unsafeQuery(
-      '''
-      SELECT oi."productId"::text AS id
-      FROM order_items oi
-      JOIN orders o ON o.id = oi."orderId"
-      JOIN products p ON p.id = oi."productId"
-      WHERE o.status <> 'cancelled'
-        AND o."createdAt" >= @since::timestamp
-        AND NOT oi."isGift"
-        AND p.active
-        AND p."currentStock" > 0
-        AND NOT (oi."productId" = ANY(@exclude::uuid[]))
-      GROUP BY oi."productId", p.name
-      ORDER BY SUM(oi.quantity) DESC, p.name
-      LIMIT @limit
-      ''',
-      parameters: QueryParameters.named({
-        'since': now.subtract(const Duration(days: 30)),
-        'exclude': exclude,
-        'limit': limit,
-      }),
-    );
-    final ids = [for (final row in rows) row.toColumnMap()['id'] as String];
-    if (ids.isNotEmpty) return _inOrder(session, ids, now, shopper);
+    final excludedIds = exclude.toSet();
+    final ranked = [
+      for (final id in await _bestSellerIds(session, now))
+        if (!excludedIds.contains(id)) id,
+    ];
+    final available = [
+      for (final product in await _inOrder(session, ranked, now, shopper))
+        if (product.active && product.currentStock > 0) product,
+    ];
+    if (available.isNotEmpty) return available.take(limit).toList();
     final excluded = <UuidValue>{
       for (final id in exclude) UuidValue.fromString(id),
     };
@@ -136,6 +136,40 @@ class ProductsService {
       limit: limit,
       include: _include(now, shopper),
     );
+  }
+
+  /// Lo más vendido en unidades en 30 días (sin cancelados, regalos, dados
+  /// de baja ni agotados al calcularlo), guardado por [suggestedTtl].
+  Future<List<String>> _bestSellerIds(Session session, DateTime now) async {
+    if (_bestSellers case (
+      :final at,
+      :final ids,
+    ) when now.difference(at) < suggestedTtl && !now.isBefore(at)) {
+      return ids;
+    }
+    final rows = await session.db.unsafeQuery(
+      '''
+      SELECT oi."productId"::text AS id
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      JOIN products p ON p.id = oi."productId"
+      WHERE o.status <> 'cancelled'
+        AND o."createdAt" >= @since::timestamp
+        AND NOT oi."isGift"
+        AND p.active
+        AND p."currentStock" > 0
+      GROUP BY oi."productId", p.name
+      ORDER BY SUM(oi.quantity) DESC, p.name
+      LIMIT @limit
+      ''',
+      parameters: QueryParameters.named({
+        'since': now.subtract(const Duration(days: 30)),
+        'limit': _rankingSize,
+      }),
+    );
+    final ids = [for (final row in rows) row.toColumnMap()['id'] as String];
+    _bestSellers = (at: now, ids: ids);
+    return ids;
   }
 
   Future<List<String>> _frequentIds(
