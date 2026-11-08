@@ -11,9 +11,10 @@ import '../../theme/brand_colors.dart';
 import '../../theme/neils_theme.dart';
 
 /// La barra roja fija de abajo, en el teléfono: el ícono del carrito con
-/// [count] productos, [label] ("Continuar", "Confirmar pedido") y el total.
-/// Toda la barra es el botón; sin [onPressed], se ve apagada. [busy] cambia
-/// el texto por un indicador mientras se envía.
+/// [count] unidades, [label] ("Continuar", "Confirmar pedido") y el total,
+/// con [totalLabel] encima si lo hay ("Total estimado"). Toda la barra es el
+/// botón; sin [onPressed], se ve apagada. [busy] cambia el texto por un
+/// indicador mientras se envía.
 class CartBar extends StatelessWidget {
   const CartBar({
     super.key,
@@ -21,6 +22,7 @@ class CartBar extends StatelessWidget {
     required this.totalCents,
     required this.onPressed,
     this.count,
+    this.totalLabel,
     this.busy = false,
   });
 
@@ -28,6 +30,7 @@ class CartBar extends StatelessWidget {
   final int totalCents;
   final VoidCallback? onPressed;
   final int? count;
+  final String? totalLabel;
   final bool busy;
 
   @override
@@ -87,12 +90,25 @@ class CartBar extends StatelessWidget {
                         margin: const EdgeInsets.symmetric(horizontal: 14),
                         color: NeilsColors.onPrimaryDivider,
                       ),
-                      Text(
-                        formatSoles(totalCents),
-                        style: NeilsText.price(
-                          fontSize: 20,
-                          color: NeilsColors.onPrimary,
-                        ),
+                      Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          if (totalLabel case final totalLabel?)
+                            Text(
+                              totalLabel,
+                              style: text.labelSmall?.copyWith(
+                                color: NeilsColors.onPrimary,
+                              ),
+                            ),
+                          Text(
+                            formatSoles(totalCents),
+                            style: NeilsText.price(
+                              fontSize: 20,
+                              color: NeilsColors.onPrimary,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

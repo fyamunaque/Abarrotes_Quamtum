@@ -859,6 +859,17 @@ void main() {
     Finder inBar(WidgetTester tester, Finder finder) =>
         find.descendant(of: bar(tester), matching: finder);
 
+    testWidgets('dice que el total es estimado', (tester) async {
+      await pumpPhone(tester);
+
+      expect(inBar(tester, find.text('Total estimado')), findsOneWidget);
+      final label = tester.getSemantics(
+        inBar(tester, find.text('Confirmar pedido')),
+      );
+      expect(label.label, contains('Total estimado'));
+      expect(tester.takeException(), isNull);
+    });
+
     testWidgets('muestra el total y confirma el pedido', (tester) async {
       final router = await pumpPhone(tester);
 
