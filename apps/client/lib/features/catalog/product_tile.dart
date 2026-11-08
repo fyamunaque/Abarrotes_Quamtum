@@ -19,8 +19,8 @@ String productTitle(Product product) =>
 
 /// Un producto en una lista (el teléfono): la foto, el código y el nombre,
 /// el precio y el stock, y debajo la cantidad, lo que costaría y "Agregar"
-/// (o "Editar", si ya está en el carrito). La cinta de su promoción va en la
-/// esquina.
+/// (o "Editar", si ya está en el carrito). La cinta de su promoción cuelga
+/// del borde de arriba, al lado del nombre, sin taparlo.
 class ProductTile extends StatelessWidget {
   const ProductTile({super.key, required this.product, this.onTap});
 
@@ -37,65 +37,67 @@ class ProductTile extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
-        child: Stack(
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: SizedBox.square(
-                          dimension: 88,
-                          child: ProductPhoto(
-                            product.imageUrl,
-                            name: product.name,
-                            colorKey: product.category?.id,
-                            initialSize: 32,
-                          ),
-                        ),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: SizedBox.square(
+                      dimension: 88,
+                      child: ProductPhoto(
+                        product.imageUrl,
+                        name: product.name,
+                        colorKey: product.category?.id,
+                        initialSize: 32,
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Padding(
-                          // Que el nombre no quede debajo de la cinta.
-                          padding: EdgeInsetsDirectional.only(
-                            end: product.offers.isEmpty ? 0 : 56,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Text(
                                 productTitle(product),
                                 style: text.titleSmall,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
                               ),
-                              const SizedBox(height: 4),
-                              PriceTag(product, fontSize: 18),
-                              const SizedBox(height: 2),
-                              StockNote(product),
+                            ),
+                            if (product.offers.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              // Ocupa su ancho en la fila (el nombre no
+                              // pasa por debajo) y se dibuja subida hasta
+                              // el borde de la tarjeta.
+                              Transform.translate(
+                                offset: const Offset(0, -12),
+                                child: PromoRibbon(product.offers),
+                              ),
                             ],
-                          ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 4),
+                        PriceTag(product, fontSize: 18),
+                        const SizedBox(height: 2),
+                        StockNote(product),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 12),
-                  ProductQuantityActions(product: product),
                 ],
               ),
-            ),
-            PositionedDirectional(
-              top: 0,
-              end: 12,
-              child: PromoRibbon(product.offers),
-            ),
-          ],
+              const SizedBox(height: 12),
+              ProductQuantityActions(product: product),
+            ],
+          ),
         ),
       ),
     );

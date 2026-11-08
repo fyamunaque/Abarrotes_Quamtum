@@ -225,6 +225,32 @@ void main() {
     );
   });
 
+  testWidgets('una cinta larga no tapa el nombre, con texto al 130 %', (
+    tester,
+  ) async {
+    const withLongOffer = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial de pavo ahumado en paquete familiar',
+      priceCents: 440,
+      stock: 40,
+      offers: [
+        (
+          type: 'extraUnit',
+          label: '2.ª al 50 %',
+          title: null,
+          description: 'La 2.ª unidad al 50 %',
+        ),
+      ],
+    );
+    await pumpTile(tester, withLongOffer, textScale: 1.3);
+
+    final title = tester.getRect(find.text(productTitle(withLongOffer)));
+    final ribbon = tester.getRect(find.byType(PromoRibbon));
+    expect(title.overlaps(ribbon), isFalse, reason: '$title y $ribbon');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('un nombre largo no se desborda en 360 px con texto al 130 %', (
     tester,
   ) async {
@@ -235,7 +261,12 @@ void main() {
       priceCents: 1990,
       stock: 40,
     );
-    await pumpTile(tester, longName, size: const Size(360, 800), textScale: 1.3);
+    await pumpTile(
+      tester,
+      longName,
+      size: const Size(360, 800),
+      textScale: 1.3,
+    );
 
     expect(tester.takeException(), isNull);
     expect(find.text('Agregar').hitTestable(), findsOneWidget);
