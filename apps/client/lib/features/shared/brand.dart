@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
-import '../../theme/brand_colors.dart';
 import 'account.dart';
 import 'appearance_controls.dart';
 import 'cart_bar.dart';
@@ -14,6 +13,7 @@ import 'page_title.dart';
 import 'store_menu.dart';
 import 'store_search_field.dart';
 import 'verify_email_notice.dart';
+import '../../theme/palette.dart';
 
 /// El logo de Neil's completo (el tenedor, NEIL'S y FOOD SERVICE'S), en el
 /// rojo de la marca y sin fondo. [NeilsLogo.white] es el mismo en blanco,
@@ -258,7 +258,9 @@ class _SectionLink extends StatelessWidget {
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(
-                  color: active ? NeilsColors.primary : Colors.transparent,
+                  color: active
+                      ? context.palette.brandText
+                      : Colors.transparent,
                   width: 2,
                 ),
               ),
@@ -268,7 +270,9 @@ class _SectionLink extends StatelessWidget {
               child: Text(
                 label,
                 style: style?.copyWith(
-                  color: active ? NeilsColors.primary : NeilsColors.ink,
+                  color: active
+                      ? context.palette.brandText
+                      : context.palette.ink,
                 ),
               ),
             ),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../catalog/category.dart';
-import '../../theme/brand_colors.dart';
 import '../shared/account.dart';
 import '../shared/diagonal_band.dart';
 import 'category_photo.dart';
+import '../../theme/palette.dart';
 
 /// El encabezado del catálogo filtrado por una categoría: su nombre y su
 /// descripción, y a la derecha la franja diagonal con su foto (o su color y
@@ -24,7 +24,7 @@ class CategoryHeader extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: ColoredBox(
-        color: NeilsColors.surface,
+        color: context.palette.surface,
         child: LayoutBuilder(
           builder: (context, constraints) {
             // La foto, el 40 % de la derecha.

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../../catalog/category.dart';
-import '../../theme/brand_colors.dart';
 import 'product_photo.dart';
+import '../../theme/palette.dart';
 
 /// La foto de una categoría, cubriendo su lugar. Sin foto, o si no carga, el
 /// color de la categoría con su inicial ([colors], o el de
-/// [PlaceholderColors.of]).
+/// [NeilsPalette.placeholderFor]).
 class CategoryPhoto extends StatelessWidget {
   const CategoryPhoto({
     super.key,
@@ -24,7 +24,7 @@ class CategoryPhoto extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (background, foreground) =
-        colors ?? PlaceholderColors.of(category.id);
+        colors ?? context.palette.placeholderFor(category.id);
     final placeholder = ColoredBox(
       color: background,
       child: Center(

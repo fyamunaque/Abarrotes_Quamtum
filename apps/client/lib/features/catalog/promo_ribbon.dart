@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
-import '../../theme/brand_colors.dart';
 import 'offer_badges.dart';
+import '../../theme/palette.dart';
 
 /// La cinta roja de la esquina de un producto, con el borde de abajo en V:
 /// la primera de sus promociones por cantidad o de regalo ("2x1", "16 + 2",
@@ -17,7 +17,7 @@ class PromoRibbon extends StatelessWidget {
   Widget build(BuildContext context) {
     if (offers.isEmpty) return const SizedBox.shrink();
     final style = Theme.of(context).textTheme.labelLarge?.copyWith(
-      color: NeilsColors.onPrimary,
+      color: context.palette.onBrand,
       fontWeight: FontWeight.w700,
       height: 1.1,
     );
@@ -28,7 +28,7 @@ class PromoRibbon extends StatelessWidget {
         child: ClipPath(
           clipper: const _RibbonClipper(),
           child: ColoredBox(
-            color: NeilsColors.primary,
+            color: context.palette.brandFill,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(10, 6, 10, 14),
               child: Text(OfferBadges.badgeText(offers.first), style: style),

@@ -15,6 +15,7 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
     required this.ink,
     required this.inkMuted,
     required this.brandFill,
+    required this.brandFillDeep,
     required this.onBrand,
     required this.brandText,
     required this.brandTint,
@@ -55,6 +56,10 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
   /// El rojo de los botones y las barras, con [onBrand] encima.
   final Color brandFill;
   final Color onBrand;
+
+  /// Un rojo más hondo, para el fondo de una franja junto a [brandFill]
+  /// (la de promociones), con [onBrand] encima.
+  final Color brandFillDeep;
 
   /// El rojo de los textos, enlaces y precios en oferta: en oscuro, más claro
   /// que [brandFill], que sobre el carbón no llega al contraste de un texto.
@@ -114,6 +119,7 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
     ink: NeilsColors.ink,
     inkMuted: Color(0xFF5E534D),
     brandFill: NeilsColors.primary,
+    brandFillDeep: NeilsColors.primaryDark,
     onBrand: NeilsColors.onPrimary,
     brandText: NeilsColors.primary,
     brandTint: NeilsColors.primaryTint,
@@ -142,6 +148,7 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
     ink: Color(0xFFF4EEE7),
     inkMuted: Color(0xFFB9ADA3),
     brandFill: NeilsColors.primary,
+    brandFillDeep: NeilsColors.primaryDark,
     onBrand: NeilsColors.onPrimary,
     brandText: Color(0xFFFF9A8F),
     brandTint: Color(0xFF4A1E1A),
@@ -179,6 +186,7 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
     Color? ink,
     Color? inkMuted,
     Color? brandFill,
+    Color? brandFillDeep,
     Color? onBrand,
     Color? brandText,
     Color? brandTint,
@@ -204,6 +212,7 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
     ink: ink ?? this.ink,
     inkMuted: inkMuted ?? this.inkMuted,
     brandFill: brandFill ?? this.brandFill,
+    brandFillDeep: brandFillDeep ?? this.brandFillDeep,
     onBrand: onBrand ?? this.onBrand,
     brandText: brandText ?? this.brandText,
     brandTint: brandTint ?? this.brandTint,
@@ -237,6 +246,7 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
       ink: mix(ink, other.ink),
       inkMuted: mix(inkMuted, other.inkMuted),
       brandFill: mix(brandFill, other.brandFill),
+      brandFillDeep: mix(brandFillDeep, other.brandFillDeep),
       onBrand: mix(onBrand, other.onBrand),
       brandText: mix(brandText, other.brandText),
       brandTint: mix(brandTint, other.brandTint),

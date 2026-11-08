@@ -2,28 +2,75 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// "Colores y tipografía solo desde lib/theme/" (CLAUDE.md): fuera de esa
-/// carpeta no hay colores sueltos, ni de Material (`Colors.white`) ni
-/// escritos a mano (`Color(0x…)`). `Colors.transparent` no es un color.
+/// "Colores y tipografía solo desde lib/theme/" (CLAUDE.md).
 void main() {
-  test('no hay colores sueltos fuera de lib/theme', () {
-    final loose = RegExp(
-      r'(^|[^A-Za-z])Colors\.(?!transparent\b)[a-zA-Z0-9]+'
-      r'|Color\(0x|Color\.fromARGB|Color\.fromRGBO',
-    );
+  /// Las líneas de lib/ fuera de lib/theme que cumplen [pattern], salvo los
+  /// archivos de [except].
+  List<String> linesOutsideTheme(
+    RegExp pattern, {
+    Set<String> except = const {},
+  }) {
     final found = <String>[];
     for (final file in Directory('lib').listSync(recursive: true)) {
       final path = file.path.replaceAll(r'\', '/');
       if (file is! File ||
           !path.endsWith('.dart') ||
-          path.startsWith('lib/theme/')) {
+          path.startsWith('lib/theme/') ||
+          except.contains(path)) {
         continue;
       }
-      final lines = file.readAsLinesSync();
-      for (final (i, line) in lines.indexed) {
-        if (loose.hasMatch(line)) found.add('$path:${i + 1}: ${line.trim()}');
+      for (final (i, line) in file.readAsLinesSync().indexed) {
+        if (pattern.hasMatch(line)) found.add('$path:${i + 1}: ${line.trim()}');
       }
     }
+    return found;
+  }
+
+  // Ni de Material (`Colors.white`) ni escritos a mano (`Color(0x…)`).
+  // `Colors.transparent` no es un color.
+  test('no hay colores sueltos fuera de lib/theme', () {
+    final found = linesOutsideTheme(
+      RegExp(
+        r'(^|[^A-Za-z])Colors\.(?!transparent\b)[a-zA-Z0-9]+'
+        r'|Color\(0x|Color\.fromARGB|Color\.fromRGBO',
+      ),
+    );
+    expect(found, isEmpty, reason: found.join('\n'));
+  });
+
+  /// Los que todavía leen las constantes de la marca en lugar de la paleta
+  /// del tema. Cada tanda de la migración al modo oscuro la achica hasta
+  /// dejarla vacía.
+  const pendientes = {
+    'lib/features/account/my_codes_section.dart',
+    'lib/features/admin/home/home_cards.dart',
+    'lib/features/admin/home/kpi_card.dart',
+    'lib/features/admin/inventory/movement_form.dart',
+    'lib/features/admin/products/admin_products_screen.dart',
+    'lib/features/admin/promotions/admin_promo_codes_screen.dart',
+    'lib/features/admin/promotions/admin_promotions_screen.dart',
+    'lib/features/admin/shared/emails_add_form.dart',
+    'lib/features/admin/shared/vip_badge.dart',
+    'lib/features/admin/team/admin_roles_screen.dart',
+    'lib/features/admin/team/team_widgets.dart',
+    'lib/features/admin/vip/admin_vip_screen.dart',
+    'lib/features/auth/auth_form.dart',
+    'lib/features/cart/cart_screen.dart',
+    'lib/features/orders/my_orders_screen.dart',
+    'lib/features/orders/order_lines.dart',
+    'lib/features/orders/order_tracker.dart',
+  };
+
+  // Las constantes de la marca y de los estados son para armar las paletas
+  // en lib/theme; las pantallas leen la paleta del tema (claro u oscuro).
+  test('los colores de la marca solo desde la paleta del tema', () {
+    final found = linesOutsideTheme(
+      RegExp(
+        r'NeilsColors\.|OrderStatusColors\.|StateColors\.'
+        r'|PlaceholderColors\.|neilsCardShadow',
+      ),
+      except: pendientes,
+    );
     expect(found, isEmpty, reason: found.join('\n'));
   });
 }

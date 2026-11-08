@@ -9,12 +9,12 @@ import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
-import '../../theme/brand_colors.dart';
 import '../catalog/product_card.dart';
 import '../catalog/product_grid.dart';
 import '../catalog/product_tile.dart';
 import '../shared/account.dart';
 import '../shared/error_message.dart';
+import '../../theme/palette.dart';
 
 enum _Tab {
   frequent('Frecuentes', Icons.shopping_cart_outlined),
@@ -88,8 +88,8 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
                     tab.icon,
                     size: 18,
                     color: tab == current
-                        ? NeilsColors.onPrimary
-                        : NeilsColors.primary,
+                        ? context.palette.onBrand
+                        : context.palette.brandText,
                   ),
                   label: Text(tab.label),
                   // Más ajustadas que las de Material: las tres entran en una
@@ -104,11 +104,11 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
                   ),
                   showCheckmark: false,
                   selected: tab == current,
-                  selectedColor: NeilsColors.primary,
+                  selectedColor: context.palette.brandFill,
                   labelStyle: TextStyle(
                     color: tab == current
-                        ? NeilsColors.onPrimary
-                        : NeilsColors.ink,
+                        ? context.palette.onBrand
+                        : context.palette.ink,
                     fontWeight: FontWeight.w600,
                   ),
                   onSelected: (_) => setState(() {

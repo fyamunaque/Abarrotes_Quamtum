@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../config/api_config.dart';
-import '../../theme/brand_colors.dart';
+import '../../theme/palette.dart';
 
 /// La foto del producto. Sin foto (o mientras carga, o si no carga), un
 /// marcador con la inicial de [name] sobre el color de su categoría
@@ -86,7 +86,7 @@ class _Placeholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (background, foreground) = PlaceholderColors.of(colorKey);
+    final (background, foreground) = context.palette.placeholderFor(colorKey);
     final trimmed = name.trim();
     final initial = trimmed.isEmpty
         ? '?'

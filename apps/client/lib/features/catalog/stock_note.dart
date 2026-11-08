@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
-import '../../theme/brand_colors.dart';
+import '../../theme/palette.dart';
 
 /// Lo que la tienda dice del stock: solo lo necesario, nunca cuántas
 /// unidades hay en total.
@@ -25,7 +25,7 @@ class StockNote extends StatelessWidget {
       stockText(product.stock),
       style: theme.textTheme.labelMedium?.copyWith(
         color: product.stock <= 5
-            ? NeilsColors.primary
+            ? context.palette.brandText
             : theme.colorScheme.onSurfaceVariant,
       ),
     );

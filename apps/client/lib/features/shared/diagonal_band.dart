@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/brand_colors.dart';
+import '../../theme/palette.dart';
 
 /// La franja de la marca: una foto o un bloque de color cortado en diagonal
 /// por la izquierda (el borde va del 18 % del ancho arriba al 0 % abajo),
@@ -9,15 +9,12 @@ import '../../theme/brand_colors.dart';
 /// Con [image] (la ruta de un asset), la foto cubre todo. Sin ella, el bloque
 /// [color] con [child] al centro (en la portada, el logo en blanco).
 class DiagonalBand extends StatelessWidget {
-  const DiagonalBand({
-    super.key,
-    this.image,
-    this.color = NeilsColors.primary,
-    this.child,
-  });
+  const DiagonalBand({super.key, this.image, this.color, this.child});
 
   final String? image;
-  final Color color;
+
+  /// Sin él, el rojo de la marca del tema.
+  final Color? color;
   final Widget? child;
 
   @override
@@ -34,7 +31,7 @@ class DiagonalBand extends StatelessWidget {
           excludeFromSemantics: true,
         ),
         null => ColoredBox(
-          color: color,
+          color: color ?? context.palette.brandFill,
           child: SizedBox.expand(
             child: Padding(
               // El contenido queda a la derecha del corte.

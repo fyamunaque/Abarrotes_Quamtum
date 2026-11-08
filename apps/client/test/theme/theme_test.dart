@@ -216,6 +216,7 @@ void main() {
       expect(p.surface, NeilsColors.surface);
       expect(p.ink, NeilsColors.ink);
       expect(p.brandFill, NeilsColors.primary);
+      expect(p.brandFillDeep, NeilsColors.primaryDark);
       expect(p.brandText, NeilsColors.primary);
       expect(p.brandTint, NeilsColors.primaryTint);
       expect(p.money, NeilsColors.money);

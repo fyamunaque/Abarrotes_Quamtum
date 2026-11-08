@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-import '../../theme/brand_colors.dart';
+import '../../theme/palette.dart';
 
 /// El título de la pantalla en la pestaña del navegador (y en el selector de
 /// apps de Android): "Carrito · Neil's Food Services". Sin [title], solo la
@@ -19,6 +19,10 @@ class PageTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Title(title: full(title), color: NeilsColors.primary, child: child);
+    return Title(
+      title: full(title),
+      color: context.palette.brandFill,
+      child: child,
+    );
   }
 }
