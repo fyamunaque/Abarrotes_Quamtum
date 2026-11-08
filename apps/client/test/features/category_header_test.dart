@@ -67,4 +67,31 @@ void main() {
       greaterThanOrEqualTo(120),
     );
   });
+
+  testWidgets('si la foto no carga, se ven el color y la inicial', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: neilsTheme(),
+        home: const Scaffold(
+          body: SingleChildScrollView(
+            child: CategoryHeader(
+              category: Category(
+                id: 'cat-embutidos',
+                name: 'Embutidos',
+                imageUrl:
+                    '/images/categories/cat-embutidos/0123456789abcdef.jpg',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    // En los tests, toda descarga falla (HTTP 400).
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('E'), findsOneWidget);
+  });
 }
