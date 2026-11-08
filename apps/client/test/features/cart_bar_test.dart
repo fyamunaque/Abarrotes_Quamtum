@@ -134,6 +134,31 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('el número son las unidades y así se anuncia', (tester) async {
+    final semantics = tester.ensureSemantics();
+    Future<String> labelFor(int count) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: neilsTheme(),
+          home: Scaffold(
+            body: CartBar(
+              label: 'Continuar',
+              count: count,
+              totalCents: 1320,
+              onPressed: () {},
+            ),
+          ),
+        ),
+      );
+      return tester.getSemantics(find.text('Continuar')).label;
+    }
+
+    expect(await labelFor(3), contains('3 unidades'));
+    expect(await labelFor(1), contains('1 unidad'));
+    expect(await labelFor(3), isNot(contains('productos')));
+    semantics.dispose();
+  });
+
   testWidgets('en escritorio no hay barra', (tester) async {
     await pumpStore(
       tester,

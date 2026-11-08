@@ -135,7 +135,7 @@ class _CartCount extends StatelessWidget {
             child: Text(
               '$count',
               textAlign: TextAlign.center,
-              semanticsLabel: count == 1 ? '1 producto' : '$count productos',
+              semanticsLabel: count == 1 ? '1 unidad' : '$count unidades',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: NeilsColors.primary,
                 fontWeight: FontWeight.w700,
