@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../admin/stats/stats_providers.dart';
+import 'home/greeting.dart';
 import 'home/home_cards.dart';
 import 'shared/admin_page.dart';
 
@@ -28,6 +29,8 @@ class AdminHomeScreen extends ConsumerWidget {
         ),
       ],
       children: const [
+        PanelGreeting(),
+        SizedBox(height: 20),
         KpiSection(),
         SizedBox(height: 12),
         SalesCard(),

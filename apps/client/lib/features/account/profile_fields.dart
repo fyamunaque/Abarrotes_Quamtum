@@ -49,6 +49,7 @@ class PhoneField extends StatelessWidget {
       controller: controller,
       decoration: const InputDecoration(
         labelText: 'Celular',
+        prefixIcon: Icon(Icons.phone_outlined),
         prefixText: '+51 ',
         hintText: '987 654 321',
         helperText: 'Para coordinar la entrega de tus pedidos.',
@@ -84,6 +85,7 @@ class DniField extends StatelessWidget {
       controller: controller,
       decoration: InputDecoration(
         labelText: 'DNI (opcional)',
+        prefixIcon: const Icon(Icons.badge_outlined),
         helperText: dniHelp,
         helperMaxLines: 3,
         errorText: errorText,

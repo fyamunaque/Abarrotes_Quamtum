@@ -9,11 +9,13 @@ import '../../common/page_list.dart';
 import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
-import '../cart/add_to_cart.dart';
 import '../offers/exclusive_offers.dart';
+import '../shared/account.dart';
 import '../shared/brand.dart';
+import 'category_header.dart';
 import 'product_card.dart';
 import 'product_grid.dart';
+import 'product_tile.dart';
 
 /// Catálogo: buscar, filtrar por categoría y los productos, página a página.
 /// La categoría y lo buscado van en la URL (`?categoria=<id>&q=<texto>`), así
@@ -23,13 +25,21 @@ import 'product_grid.dart';
 /// el perfil: si un admin hizo VIP a la cuenta, los precios cambian sin
 /// cerrar la sesión.
 class CatalogScreen extends ConsumerStatefulWidget {
-  const CatalogScreen({super.key, this.categoryId, this.search});
+  const CatalogScreen({
+    super.key,
+    this.categoryId,
+    this.search,
+    this.onSale = false,
+  });
 
   /// null: todas las categorías.
   final String? categoryId;
 
   /// null: sin buscar.
   final String? search;
+
+  /// Solo lo que está en promoción ("Promociones").
+  final bool onSale;
 
   @override
   ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
@@ -49,6 +59,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     return (
       categoryId: widget.categoryId,
       search: text == null || text.isEmpty ? null : text,
+      onSale: widget.onSale && widget.categoryId == null,
     );
   }
 
@@ -83,9 +94,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           const SizedBox(height: 12),
           _CategoryFilter(query),
           const SizedBox(height: 20),
+          if (query.categoryId case final id?) _Header(id),
           // Las de la cuenta VIP, arriba del catálogo completo (no de una
           // búsqueda o una categoría). Sin nada que mostrar, no aparece.
-          if (query == (categoryId: null, search: null))
+          if (query == (categoryId: null, search: null, onSale: false))
             const ExclusiveOffers(),
           _Products(query),
         ],
@@ -134,12 +146,18 @@ class _SearchFieldState extends State<_SearchField> {
   void _onTextChanged() => setState(() {});
 
   void _search() => context.go(
-    Routes.catalogOf(widget.query.categoryId, search: _controller.text),
+    Routes.catalogOf(
+      widget.query.categoryId,
+      search: _controller.text,
+      onSale: widget.query.onSale,
+    ),
   );
 
   void _clear() {
     _controller.clear();
-    context.go(Routes.catalogOf(widget.query.categoryId));
+    context.go(
+      Routes.catalogOf(widget.query.categoryId, onSale: widget.query.onSale),
+    );
   }
 
   @override
@@ -173,9 +191,9 @@ class _SearchFieldState extends State<_SearchField> {
   }
 }
 
-/// "Todas" y una opción por categoría. Cambiar de categoría mantiene lo
-/// buscado. Si las categorías no cargan, no se muestra: los productos se
-/// pueden ver igual.
+/// "Todas", "En promoción" y una opción por categoría. Cambiar de categoría
+/// mantiene lo buscado y quita "En promoción". Si las categorías no cargan,
+/// no se muestra: los productos se pueden ver igual.
 class _CategoryFilter extends ConsumerWidget {
   const _CategoryFilter(this.query);
 
@@ -191,9 +209,16 @@ class _CategoryFilter extends ConsumerWidget {
       children: [
         ChoiceChip(
           label: const Text('Todas'),
-          selected: query.categoryId == null,
+          selected: query.categoryId == null && !query.onSale,
           onSelected: (_) =>
               context.go(Routes.catalogOf(null, search: query.search)),
+        ),
+        ChoiceChip(
+          label: const Text('En promoción'),
+          selected: query.onSale,
+          onSelected: (_) => context.go(
+            Routes.catalogOf(null, search: query.search, onSale: true),
+          ),
         ),
         for (final category in categories)
           ChoiceChip(
@@ -218,12 +243,16 @@ class _Products extends ConsumerWidget {
     return switch (ref.watch(provider)) {
       AsyncData(value: final list) when list.items.isEmpty => _Message(
         switch (query) {
-          (search: final search?, categoryId: _) =>
+          (search: final search?, categoryId: _, onSale: _) =>
             'No encontramos productos para “$search”.',
-          (categoryId: null, search: null) => 'Todavía no hay productos.',
+          (categoryId: null, search: null, onSale: false) =>
+            'Todavía no hay productos.',
+          (categoryId: _, search: _, onSale: true) =>
+            'Hoy no hay productos en promoción.',
           _ => 'No hay productos en esta categoría.',
         },
-        action: query.search == null && query.categoryId == null
+        action:
+            query.search == null && query.categoryId == null && !query.onSale
             ? null
             : TextButton(
                 onPressed: () => context.go(Routes.catalog),
@@ -233,17 +262,27 @@ class _Products extends ConsumerWidget {
       AsyncData(value: final list) => Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ProductGrid(
-            children: [
-              for (final product in list.items)
-                ProductCard(
-                  key: ValueKey(product.id),
-                  product: product,
-                  onTap: () => context.go(Routes.product(product.id)),
-                  onAdd: () => addToCart(context, ref, product),
-                ),
-            ],
-          ),
+          // En el teléfono en lista; en escritorio en cuadrícula.
+          if (MediaQuery.sizeOf(context).width < AccountActions.wideFrom)
+            for (final (i, product) in list.items.indexed) ...[
+              if (i > 0) const SizedBox(height: 12),
+              ProductTile(
+                key: ValueKey(product.id),
+                product: product,
+                onTap: () => context.go(Routes.product(product.id)),
+              ),
+            ]
+          else
+            ProductGrid(
+              children: [
+                for (final product in list.items)
+                  ProductCard(
+                    key: ValueKey(product.id),
+                    product: product,
+                    onTap: () => context.go(Routes.product(product.id)),
+                  ),
+              ],
+            ),
           if (list.hasMore) ...[
             const SizedBox(height: 20),
             Center(
@@ -308,6 +347,26 @@ class _Message extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+/// El encabezado de la categoría elegida, cuando las categorías ya cargaron.
+class _Header extends ConsumerWidget {
+  const _Header(this.categoryId);
+
+  final String categoryId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider).value ?? const [];
+    final category = categories
+        .where((category) => category.id == categoryId)
+        .firstOrNull;
+    if (category == null) return const SizedBox.shrink();
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: CategoryHeader(category: category),
     );
   }
 }

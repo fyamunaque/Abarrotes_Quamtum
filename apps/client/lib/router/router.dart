@@ -52,6 +52,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (_, state) => CatalogScreen(
           categoryId: state.uri.queryParameters['categoria'],
           search: state.uri.queryParameters['q'],
+          onSale: state.uri.queryParameters['promos'] == '1',
         ),
       ),
       GoRoute(

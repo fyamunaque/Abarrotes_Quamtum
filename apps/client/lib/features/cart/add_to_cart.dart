@@ -32,3 +32,26 @@ void addToCart(
       ),
     );
 }
+
+/// Deja [quantity] de [product], que ya está en el carrito ("Editar"), y lo
+/// confirma con un aviso que lleva al carrito.
+void updateCartQuantity(
+  BuildContext context,
+  WidgetRef ref,
+  Product product,
+  int quantity,
+) {
+  ref.read(cartProvider.notifier).setQuantity(product.id, quantity);
+  final now = ref.read(cartProvider).quantityOf(product.id);
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text('Ahora llevas $now de ${product.name}'),
+        action: SnackBarAction(
+          label: 'Ver carrito',
+          onPressed: () => context.go(Routes.cart),
+        ),
+      ),
+    );
+}

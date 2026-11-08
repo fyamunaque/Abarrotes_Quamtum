@@ -2,19 +2,39 @@ import 'package:flutter/painting.dart';
 
 /// Tokens de marca de Neil's Food Services.
 abstract final class NeilsColors {
-  static const primary = Color(0xFFE8652F);
-  static const primaryDark = Color(0xFFB54F25);
-  static const accent = Color(0xFFA1241B);
-  static const cream = Color(0xFFF9F3E7);
-  static const ink = Color(0xFF1D0605);
+  /// El rojo del logo. Con texto blanco encima da 5,6:1 y sobre el fondo
+  /// 5,2:1: sirve para botones y para textos.
+  static const primary = Color(0xFFC8281E);
 
-  /// Naranja muy claro, para fondos de contenedores y chips.
-  static const primaryTint = Color(0xFFF6D9C6);
+  /// Botón presionado y texto sobre [primaryTint] (6,5:1).
+  static const primaryDark = Color(0xFF9E1B14);
+
+  /// Rojo muy claro: fondo de lo seleccionado (menú, chips, pestañas).
+  static const primaryTint = Color(0xFFFBE3E0);
+
+  /// Texto e íconos sobre el rojo y sobre los colores llenos (cintas,
+  /// barras, puntos del seguimiento).
+  static const onPrimary = Color(0xFFFFFFFF);
+
+  /// Las rayas divisorias sobre el rojo (54 % de blanco).
+  static const onPrimaryDivider = Color(0x8AFFFFFF);
+
+  /// Hueso: el fondo de la app.
+  static const background = Color(0xFFFBF7F2);
+
+  /// Las tarjetas.
+  static const surface = Color(0xFFFFFFFF);
+
+  static const ink = Color(0xFF1F1A17);
+
+  /// La pastilla del total de una línea: [money] sobre [moneyTint] (5,5:1).
+  static const money = Color(0xFF276B43);
+  static const moneyTint = Color(0xFFE3F2E7);
 }
 
 /// Colores de los estados de pedido (seguimiento, chips). Son para gráficos:
 /// puntos y líneas. El estado también va siempre en texto, en tinta: el ámbar
-/// de pendiente sobre crema no alcanza el contraste de un texto.
+/// de pendiente sobre el fondo no alcanza el contraste de un texto.
 abstract final class OrderStatusColors {
   static const pending = Color(0xFFD98C21);
 
@@ -27,7 +47,7 @@ abstract final class OrderStatusColors {
   static const readyForPickup = Color(0xFF2A8C82);
   static const delivered = Color(0xFF3C7A5F);
 
-  /// Este sí sirve para texto sobre crema (6,8:1).
+  /// Este sí sirve para texto sobre el fondo.
   static const cancelled = Color(0xFF8C3B33);
 }
 
@@ -38,7 +58,7 @@ abstract final class StateColors {
   static const positive = Color(0xFF3C7A5F);
 
   /// Algo aceptable que podría estar mejor (p. ej. una contraseña de
-  /// seguridad media). Para barras y puntos: 3,3:1 sobre crema.
+  /// seguridad media). Para barras y puntos: 3:1 sobre el fondo.
   static const caution = Color(0xFFB7791F);
 }
 

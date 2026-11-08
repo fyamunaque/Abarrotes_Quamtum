@@ -8,23 +8,43 @@ import '../support.dart';
 void main() {
   useBundledFonts();
 
-  test('los tokens de marca son los de Neil\'s', () {
-    expect(NeilsColors.primary, const Color(0xFFE8652F));
-    expect(NeilsColors.primaryDark, const Color(0xFFB54F25));
-    expect(NeilsColors.accent, const Color(0xFFA1241B));
-    expect(NeilsColors.cream, const Color(0xFFF9F3E7));
-    expect(NeilsColors.ink, const Color(0xFF1D0605));
+  test('los tokens de marca son los de la nueva marca', () {
+    expect(NeilsColors.primary, const Color(0xFFC8281E));
+    expect(NeilsColors.primaryDark, const Color(0xFF9E1B14));
+    expect(NeilsColors.primaryTint, const Color(0xFFFBE3E0));
+    expect(NeilsColors.background, const Color(0xFFFBF7F2));
+    expect(NeilsColors.surface, const Color(0xFFFFFFFF));
+    expect(NeilsColors.ink, const Color(0xFF1F1A17));
+    expect(NeilsColors.money, const Color(0xFF276B43));
+    expect(NeilsColors.moneyTint, const Color(0xFFE3F2E7));
   });
 
-  test('el ColorScheme prioriza el contraste sobre crema', () {
+  test('el rojo sirve para botones y para texto', () {
+    final scheme = neilsTheme().colorScheme;
+    void expectContrast(Color a, Color b, double atLeast) => expect(
+      _contrast(a, b),
+      greaterThanOrEqualTo(atLeast),
+      reason: '$a sobre $b',
+    );
+
+    expectContrast(NeilsColors.onPrimary, NeilsColors.primary, 5.5);
+    expectContrast(NeilsColors.primary, NeilsColors.background, 5.0);
+    expectContrast(NeilsColors.primaryDark, NeilsColors.primaryTint, 6.5);
+    expectContrast(NeilsColors.money, NeilsColors.moneyTint, 5.5);
+    expectContrast(NeilsColors.ink, NeilsColors.background, 16);
+    expectContrast(scheme.onSurfaceVariant, Colors.white, 4.5);
+  });
+
+  test('el ColorScheme usa el rojo como primary', () {
     final scheme = neilsTheme().colorScheme;
 
-    expect(scheme.primary, NeilsColors.primaryDark);
-    expect(scheme.secondaryContainer, NeilsColors.primary);
-    expect(scheme.onSecondaryContainer, NeilsColors.ink);
-    expect(scheme.secondary, NeilsColors.accent);
-    expect(scheme.surface, NeilsColors.cream);
+    expect(scheme.primary, NeilsColors.primary);
+    expect(scheme.onPrimary, Colors.white);
+    expect(scheme.primaryContainer, NeilsColors.primaryTint);
+    expect(scheme.onPrimaryContainer, NeilsColors.primaryDark);
+    expect(scheme.surface, NeilsColors.background);
     expect(scheme.onSurface, NeilsColors.ink);
+    expect(scheme.surfaceContainerLowest, Colors.white);
   });
 
   test('el texto de error se lee sobre el fondo de los campos', () {
@@ -69,22 +89,27 @@ void main() {
     }
   });
 
-  test('Baloo 2 para títulos y precios; Inter para el resto', () {
+  test('los títulos van en Poppins y el texto en Inter', () {
     final text = neilsTheme().textTheme;
     void expectFont(TextStyle? style, String family, FontWeight weight) {
       expect(style?.fontFamily, startsWith(family));
       expect(style?.fontWeight, weight);
     }
 
-    expectFont(text.displayLarge, 'Baloo2', FontWeight.w800);
-    expectFont(text.headlineMedium, 'Baloo2', FontWeight.w700);
-    expectFont(text.titleLarge, 'Baloo2', FontWeight.w700);
-    expectFont(text.titleSmall, 'Baloo2', FontWeight.w600);
+    expectFont(text.displayLarge, 'Poppins', FontWeight.w800);
+    expectFont(text.headlineMedium, 'Poppins', FontWeight.w700);
+    expectFont(text.titleLarge, 'Poppins', FontWeight.w700);
+    expectFont(text.titleSmall, 'Poppins', FontWeight.w600);
+    expectFont(text.labelLarge, 'Poppins', FontWeight.w600);
     expectFont(text.bodyLarge, 'Inter', FontWeight.w400);
+    expectFont(text.bodyMedium, 'Inter', FontWeight.w400);
     expectFont(text.labelMedium, 'Inter', FontWeight.w500);
-    expectFont(text.labelLarge, 'Inter', FontWeight.w600);
-    expectFont(NeilsText.price(), 'Baloo2', FontWeight.w800);
-    expect(NeilsText.price().color, NeilsColors.primaryDark);
+    expectFont(NeilsText.price(), 'Poppins', FontWeight.w700);
+    expect(NeilsText.price().color, NeilsColors.ink);
+    expect(
+      NeilsText.price(color: NeilsColors.primary).color,
+      NeilsColors.primary,
+    );
     expect(text.bodyLarge?.color, NeilsColors.ink);
   });
 }

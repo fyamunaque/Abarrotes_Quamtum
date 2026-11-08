@@ -1,110 +1,85 @@
 import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
-import '../shared/press_scale.dart';
-import 'offer_badges.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
+import 'product_tile.dart';
+import 'promo_ribbon.dart';
+import 'stock_note.dart';
 
-/// Un producto en una grilla: foto, nombre, precio subrayado con el swoosh de
-/// la marca y "Agregar". Las promociones por cantidad y de regalo van en
-/// insignias sobre la foto, así todas las tarjetas tienen el mismo alto.
-/// Toma el ancho que le dé la grilla.
+/// Un producto en una cuadrícula (escritorio): la foto con la cinta de su
+/// promoción, el código y el nombre, el precio y el stock, y debajo la
+/// cantidad, lo que costaría y "Agregar" (o "Editar", si ya está en el
+/// carrito). Agrega por su cuenta. El nombre ocupa siempre dos líneas, así
+/// las tarjetas de una fila tienen el mismo alto. Toma el ancho que le dé la
+/// cuadrícula.
 class ProductCard extends StatelessWidget {
-  const ProductCard({
-    super.key,
-    required this.product,
-    required this.onAdd,
-    this.onTap,
-  });
+  const ProductCard({super.key, required this.product, this.onTap});
 
   final Product product;
 
-  /// Agrega una unidad al carrito.
-  final VoidCallback onAdd;
-
-  /// Tocar la tarjeta (fuera de "Agregar"): abre el detalle.
+  /// Tocar la tarjeta (fuera de los botones): abre el detalle.
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    // El nombre siempre ocupa dos líneas, así las tarjetas de una fila quedan
-    // parejas aunque un nombre sea corto.
-    final nameStyle = theme.textTheme.titleMedium!;
+    final nameStyle = Theme.of(context).textTheme.titleSmall!;
     final nameHeight =
         MediaQuery.textScalerOf(context).scale(nameStyle.fontSize!) *
         (nameStyle.height ?? 1.2) *
         2;
-    return Card.outlined(
+    return Card(
       margin: EdgeInsets.zero,
-      color: scheme.surfaceContainerLowest,
       clipBehavior: Clip.antiAlias,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: scheme.outlineVariant),
-      ),
-      child: InkWell(onTap: onTap, child: _content(nameStyle, nameHeight)),
-    );
-  }
-
-  Widget _content(TextStyle nameStyle, double nameHeight) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        AspectRatio(
-          aspectRatio: 4 / 3,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ProductPhoto(
-                product.imageUrl,
-                name: product.name,
-                colorKey: product.category?.id,
-              ),
-              if (product.offers.isNotEmpty)
-                PositionedDirectional(
-                  top: 8,
-                  start: 8,
-                  end: 8,
-                  child: OfferBadges(product.offers),
-                ),
-            ],
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                height: nameHeight,
-                child: Text(
-                  product.name,
-                  style: nameStyle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(height: 6),
-              PriceTag(product),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: PressScale(
-                  enabled: product.inStock,
-                  child: FilledButton.tonalIcon(
-                    onPressed: product.inStock ? onAdd : null,
-                    icon: const Icon(Icons.add_shopping_cart, size: 18),
-                    label: Text(product.inStock ? 'Agregar' : 'Agotado'),
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AspectRatio(
+              aspectRatio: 4 / 3,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ProductPhoto(
+                    product.imageUrl,
+                    name: product.name,
+                    colorKey: product.category?.id,
                   ),
-                ),
+                  PositionedDirectional(
+                    top: 0,
+                    end: 12,
+                    child: PromoRibbon(product.offers),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    height: nameHeight,
+                    child: Text(
+                      productTitle(product),
+                      style: nameStyle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  PriceTag(product),
+                  const SizedBox(height: 2),
+                  StockNote(product),
+                  const SizedBox(height: 12),
+                  ProductQuantityActions(product: product, stacked: true),
+                ],
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }

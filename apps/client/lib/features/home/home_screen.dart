@@ -3,31 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../catalog/catalog_providers.dart';
-import '../../catalog/category.dart';
 import '../../catalog/product.dart';
 import '../../offers/offer.dart';
 import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
+import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import '../../theme/brand_colors.dart';
+import '../../theme/brand_images.dart';
+import '../catalog/category_card.dart';
 import '../catalog/product_strip.dart';
+import '../catalog/product_tile.dart';
 import '../offers/exclusive_offers.dart';
+import '../shared/account.dart';
 import '../shared/brand.dart';
-import '../shared/swoosh.dart';
+import '../shared/brand_hero.dart';
+import '../shared/card_strip.dart';
+import '../shared/diagonal_band.dart';
+import '../shared/store_search_field.dart';
+import 'promotions_banner.dart';
 
-/// Inicio: presentación de la tienda, accesos al catálogo y al registro, las
-/// categorías y las promociones de hoy. Para una cuenta VIP, además sus
-/// ofertas exclusivas. Deslizar hacia abajo vuelve a pedir el perfil, las
+/// Inicio, para negocios. En escritorio: el titular con sus botones, los
+/// sellos, "Nuestras categorías", la banda de promociones y "Promociones de
+/// hoy". En el teléfono: el saludo, el buscador, "Promociones de hoy" en
+/// lista, las categorías en una fila y la banda. Para una cuenta VIP, además
+/// sus ofertas exclusivas. Deslizar hacia abajo vuelve a pedir el perfil, las
 /// categorías y las promociones.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
+    final wide = MediaQuery.sizeOf(context).width >= AccountActions.wideFrom;
     return PublicScaffold(
-      // El logo grande ya está en la portada.
-      showLogo: false,
+      maxWidth: 1120,
       onRefresh: () async {
         await ref.read(sessionProvider.notifier).refreshProfile();
         ref
@@ -37,91 +46,113 @@ class HomeScreen extends ConsumerWidget {
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // El logo ya trae su fondo naranja: hace de portada.
-          const Center(child: NeilsLogo(height: 200)),
-          const SizedBox(height: 24),
-          const _Headline(),
-          const SizedBox(height: 12),
-          Text(
-            'Arroz, aceite, lácteos y todo lo de la semana, con nuestros '
-            'precios y promociones. Te lo llevamos a casa o lo recoges en la '
-            'tienda.',
-            style: text.bodyLarge,
-          ),
-          const SizedBox(height: 24),
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
+        children: wide
+            ? [
+                BrandHero(
+                  titleStart: 'Tu negocio siempre abastecido ',
+                  titleAccent: "con Neil's.",
+                  body:
+                      'Insumos gastronómicos de calidad, con precios '
+                      'competitivos y entrega confiable.',
+                  image: BrandImages.hero,
+                  actions: [
+                    FilledButton.icon(
+                      onPressed: () => context.go(Routes.catalog),
+                      iconAlignment: IconAlignment.end,
+                      icon: const Icon(Icons.arrow_forward, size: 18),
+                      label: const Text('Ver catálogo'),
+                    ),
+                    OutlinedButton(
+                      onPressed: () => context.go(Routes.promotions),
+                      child: const Text('Ver promociones'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 28),
+                const TrustBadges(),
+                const SizedBox(height: 40),
+                const _Categories(),
+                const PromotionsBanner(),
+                const SizedBox(height: 32),
+                const _TodaysDeals(),
+                const ExclusiveOffers(),
+              ]
+            : const [
+                _Greeting(),
+                SizedBox(height: 16),
+                StoreSearchField(),
+                SizedBox(height: 24),
+                _TodaysDeals(),
+                _Categories(),
+                PromotionsBanner(),
+                SizedBox(height: 24),
+                ExclusiveOffers(),
+              ],
+      ),
+    );
+  }
+}
+
+/// El saludo del teléfono: "¡Hola, Ana!" (sin cuenta, "¡Hola!"), lo que
+/// ofrece la tienda y una franja chica de la marca.
+class _Greeting extends ConsumerWidget {
+  const _Greeting();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final text = Theme.of(context).textTheme;
+    final name = switch (ref.watch(sessionProvider)) {
+      SignedIn(:final user) => user.name.trim().split(RegExp(r'\s+')).first,
+      _ => null,
+    };
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              FilledButton(
-                onPressed: () => context.go(Routes.catalog),
-                child: const Text('Ver el catálogo'),
+              Semantics(
+                header: true,
+                child: Text(
+                  name == null ? '¡Hola!' : '¡Hola, $name!',
+                  style: text.headlineSmall,
+                ),
               ),
-              OutlinedButton(
-                onPressed: () => context.go(Routes.register),
-                child: const Text('Crear una cuenta'),
+              const SizedBox(height: 4),
+              Text(
+                'Abastece tu negocio con los mejores productos.',
+                style: text.bodyMedium?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 32),
-          const _Categories(),
-          const _TodaysDeals(),
-          const ExclusiveOffers(),
-        ],
-      ),
-    );
-  }
-}
-
-/// El titular, con el swoosh del logo dibujándose bajo la segunda línea: el
-/// único momento animado de la portada.
-class _Headline extends StatelessWidget {
-  const _Headline();
-
-  @override
-  Widget build(BuildContext context) {
-    final style = Theme.of(context).textTheme.headlineMedium;
-    // MergeSemantics por fuera: así el encabezado y las dos líneas quedan en
-    // un solo nodo.
-    return MergeSemantics(
-      child: Semantics(
-        header: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Tus abarrotes,', style: style),
-            // El swoosh mide lo mismo que la línea que subraya.
-            IntrinsicWidth(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text('a la puerta de tu casa', style: style),
-                  // Sube un poco para pegarse a las letras, como en el logo.
-                  Transform.translate(
-                    offset: const Offset(0, -8),
-                    child: const AnimatedSwoosh(),
-                  ),
-                ],
-              ),
-            ),
-          ],
         ),
-      ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 120,
+          height: 88,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: const DiagonalBand(
+              image: BrandImages.hero,
+              child: Opacity(opacity: 0.7, child: NeilsLogo.white(height: 36)),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-/// "Categorías": un acceso a cada una, que abre el catálogo filtrado. Los
-/// colores de los marcadores sin foto van en orden, así dos vecinas no se
-/// repiten (por el id, varias caían en el mismo). Mientras cargan o si
-/// fallan, no ocupan lugar.
+/// "Nuestras categorías": una tarjeta por categoría, que abre el catálogo
+/// filtrado. En escritorio en una cuadrícula de 4 columnas; en el teléfono,
+/// en una fila que se desliza. Los colores van en orden, así dos vecinas no
+/// se repiten. Mientras cargan o si fallan, no ocupan lugar.
 class _Categories extends ConsumerWidget {
   const _Categories();
 
-  /// El ancho mínimo de cada acceso: 2 columnas en un teléfono, hasta 5.
-  static const _minTileWidth = 170.0;
-  static const _gap = 12.0;
+  static const _gap = 16.0;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -129,40 +160,42 @@ class _Categories extends ConsumerWidget {
     if (categories == null || categories.isEmpty) {
       return const SizedBox.shrink();
     }
+    final cards = [
+      for (final (i, category) in categories.indexed)
+        CategoryCard(
+          key: ValueKey(category.id),
+          category: category,
+          colors: PlaceholderColors.pairs[i % PlaceholderColors.pairs.length],
+          onTap: () => context.go(Routes.catalogOf(category.id)),
+        ),
+    ];
+    const title = 'Nuestras categorías';
+    if (MediaQuery.sizeOf(context).width < AccountActions.wideFrom) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: CardStrip(title: title, cardWidth: 140, children: cards),
+      );
+    }
     return Padding(
-      padding: const EdgeInsets.only(bottom: 32),
+      padding: const EdgeInsets.only(bottom: 40),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Semantics(
             header: true,
-            child: Text(
-              'Categorías',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            child: Text(title, style: Theme.of(context).textTheme.titleLarge),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
-              final columns = (constraints.maxWidth / _minTileWidth)
-                  .floor()
-                  .clamp(2, 5);
+              const columns = 4;
               final width =
                   (constraints.maxWidth - _gap * (columns - 1)) / columns;
               return Wrap(
                 spacing: _gap,
                 runSpacing: _gap,
                 children: [
-                  for (final (i, category) in categories.indexed)
-                    SizedBox(
-                      width: width,
-                      child: _CategoryTile(
-                        category,
-                        colors: PlaceholderColors
-                            .pairs[i % PlaceholderColors.pairs.length],
-                        key: ValueKey(category.id),
-                      ),
-                    ),
+                  for (final card in cards) SizedBox(width: width, child: card),
                 ],
               );
             },
@@ -173,54 +206,14 @@ class _Categories extends ConsumerWidget {
   }
 }
 
-class _CategoryTile extends StatelessWidget {
-  const _CategoryTile(this.category, {required this.colors, super.key});
-
-  final Category category;
-  final (Color background, Color foreground) colors;
-
-  @override
-  Widget build(BuildContext context) {
-    final (background, foreground) = colors;
-    return Material(
-      color: background,
-      borderRadius: BorderRadius.circular(16),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go(Routes.catalogOf(category.id)),
-        child: ConstrainedBox(
-          // Dos líneas de nombre caben sin que unas tarjetas crezcan más que
-          // otras (salvo con el texto agrandado).
-          constraints: const BoxConstraints(minHeight: 76),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    category.name,
-                    style: Theme.of(context).textTheme.titleMedium
-                        ?.copyWith(color: foreground),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Icon(Icons.arrow_forward, size: 20, color: foreground),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
 /// "Promociones de hoy": los productos en oferta, con su precio y
-/// "Agregar". A una cuenta VIP no le repite los que ya van en "Ofertas
-/// exclusivas". Sin promociones, no ocupa lugar.
+/// "Agregar". En escritorio en tarjetas que se deslizan; en el teléfono en
+/// lista, hasta [phoneLimit], con "Ver todas". A una cuenta VIP no le repite
+/// los que ya van en "Ofertas exclusivas". Sin promociones, no ocupa lugar.
 class _TodaysDeals extends ConsumerWidget {
   const _TodaysDeals();
+
+  static const phoneLimit = 6;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -235,9 +228,45 @@ class _TodaysDeals extends ConsumerWidget {
         if (!exclusive.contains(product.id)) product,
     ];
     if (products.isEmpty) return const SizedBox.shrink();
+    if (MediaQuery.sizeOf(context).width >= AccountActions.wideFrom) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: ProductStrip(title: 'Promociones de hoy', products: products),
+      );
+    }
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
-      child: ProductStrip(title: 'Promociones de hoy', products: products),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    'Promociones de hoy',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.go(Routes.promotions),
+                child: const Text('Ver todas'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final product in products.take(phoneLimit)) ...[
+            ProductTile(
+              key: ValueKey(product.id),
+              product: product,
+              onTap: () => context.go(Routes.product(product.id)),
+            ),
+            const SizedBox(height: 12),
+          ],
+        ],
+      ),
     );
   }
 }

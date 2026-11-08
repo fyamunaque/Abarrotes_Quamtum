@@ -54,6 +54,8 @@ El ID token se verifica en `lib/src/auth/`: firma RS256 con las llaves públicas
 
 **La app:** una carpeta por sección en `apps/client/lib/features/`, los datos detrás de repositorios con Riverpod, y rutas con go_router. Detalle (tema, rutas, panel, tests): `apps/client/README.md`.
 
+**La marca:** el logo del tenedor ("NEIL'S / FOOD SERVICE'S"), el rojo `#C8281E` sobre fondo hueso, Poppins en títulos e Inter en el texto, y una tienda que le habla a negocios (restaurantes, fast foods, cocinas). Los colores y las fuentes salen solo de `lib/theme/`; el logo y los íconos de la app, de `apps/client/brand/logo.jpg` con `flutter test tool/brand_assets_test.dart`. Las piezas de la marca (la franja diagonal, el producto en lista y en tarjeta, la barra fija del carrito, el menú de la tienda) se ven juntas en `/vitrina`. Especificación: `docs/superpowers/specs/2026-11-05-nueva-marca-design.md`.
+
 ## 4. Modelo de datos
 
 Los `.spy.yaml` del servidor son la fuente de verdad: `User` (con `firebaseUid`, el celular, el DNI opcional y la versión de los términos que aceptó), `Role`, `StaffMember` y `AuditLog` (los permisos del personal, con el enum `Permission`), `Category`, `Product` (con stock actual, stock mínimo y vencimiento), `InventoryMovement` (con el pedido que lo originó, si viene de uno), `Supply` (insumos generales), `Order` con su `OrderStatus` (y su subtotal, descuento y total), `OrderItem` (con su precio normal, lo cobrado, si es un regalo y la foto de las promociones aplicadas), `Promotion` (con su `PromotionType` y los campos de cada tipo, su `PromotionAudience`, un título opcional y, si es de clientes elegidos, sus `PromotionRecipient`; si es de un código, su `PromoCode`), `AppliedPromotion` (la foto de una promoción aplicada a una línea, guardada en el ítem), `PromoCode` (el texto, la vigencia, los días de beneficio, los límites y las condiciones, con sus `PromoCodeAllowedEmail`), `PromoCodeRedemption` (un código activado por un cliente) y `OrderPromoCodeUse` (un pedido que usó un canje), `VipCustomer` (correo único normalizado, activo o dado de baja, y quién lo agregó) y `StoreSettings` (los datos de la tienda: un solo registro).
@@ -87,6 +89,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 - **Roles y permisos del personal:** en el servidor, permisos por rol, el Administrador de sistema, las plantillas Almacenero y Cajera, el personal por correo, la bitácora y las reglas para no quedarse sin administrador; en el panel, las pestañas Personas y Roles de la sección Equipo, solo con `staff.manage`.
 - **Clientes VIP:** en el servidor, la lista de VIPs, promociones para todos o solo VIP, el catálogo y los pedidos con el precio de cada cliente; en el panel, la sección `/admin/clientes-vip` y la audiencia (todos, VIP o clientes VIP elegidos, con un buscador por correo) y el título en el formulario de promociones; en la tienda, el precio VIP en el catálogo, las "Ofertas exclusivas", el carrito como estimación con el precio final al pedir, el refresco del perfil sin cerrar sesión y el aviso para verificar el correo.
 - **Promociones por tipo:** en el servidor, los cinco tipos, el motor de cobro por línea, el aviso de cruce y la cotización del carrito (`POST /orders/quote`); en el panel, el formulario con el tipo y sus campos y el aviso "Se cruza con otras promociones" ("Crear igual"); en la tienda, las insignias del catálogo ("2x1", "+ regalo") y su explicación en el detalle, el carrito con la cotización (lo que ahorra cada línea, los regalos, los avisos y "Subtotal" y "Descuentos", 400 ms después del último cambio, con la estimación si falla) y el detalle del cobro en "Mis pedidos" y en el panel.
+- **Nueva marca:** el logo, el rojo, Poppins y el mensaje para negocios en toda la tienda y el panel: portada con el titular, los sellos, las categorías y la banda de promociones; producto en lista (teléfono) y en tarjeta (escritorio) con el código, la cinta de la promoción, el stock solo como aviso, la cantidad, el total en una pastilla y "Agregar" o "Editar"; la barra fija del carrito en el teléfono; "Promociones" (el catálogo en promoción); el menú de la tienda en el teléfono; el ingreso con el panel rojo; en el panel, el menú ancho, el saludo y las tarjetas de indicador.
 - **Códigos promocionales:** en el servidor, el dominio `promo_codes` (el texto que elige el administrador, la vigencia, los días de beneficio, los límites de clientes y de usos, y las condiciones: compra mínima, solo clientes nuevos, solo VIP o una lista de correos), la activación con el mismo 404 para cualquier código que no sirve, los usos por pedido (cancelarlo los devuelve) y las promociones del código en el cobro, que se aplican solo si bajan el total; en el panel, la pestaña "Códigos" de Promociones, con sus promociones; en la tienda, "Mis códigos" en Mi cuenta y "¿Tienes un código?" en el carrito.
 - **Para la demo:**
   - datos de ejemplo (`dart run bin/seed_dev.dart`, con `--reiniciar` para fechas hasta hoy);
@@ -95,18 +98,19 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 
 **Pendiente:**
 
-1. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
-2. **Avisos push en la app** (el servidor ya los manda): `firebase_messaging`, pedir el permiso
+1. **Del cliente, para la marca:** el logo original en SVG o PNG transparente (se reemplaza `brand/logo.jpg` y se vuelve a correr el generador) y las fotos grandes con derecho de uso (portada, banda de promociones; se activan en `BrandImages`).
+2. **Probar la app en teléfonos Android reales**, de varias marcas y gamas.
+3. **Avisos push en la app** (el servidor ya los manda): `firebase_messaging`, pedir el permiso
    de notificaciones, registrar el token con `PUT /users/me/devices` (y quitarlo al salir), en la
    web la clave VAPID y el service worker, y abrir el producto al tocar el aviso. Para que salgan,
    configurar la cuenta de servicio en el servidor (`apps/server/README.md`, "Avisos push").
-3. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
-4. **Negocio real:**
+4. **Publicar:** servidor y PostgreSQL en Railway o Render, la web en Vercel y la app en Google Play.
+5. **Negocio real:**
    - pasarela de pago;
    - notificaciones (push o email) de cambio de estado.
 
    Si formalizan el negocio en Perú y superan los umbrales de SUNAT, van a necesitar emitir comprobantes electrónicos: eso se integra vía un proveedor como Nubefact, no se construye desde cero.
-5. **Más gestión en el panel:**
+6. **Más gestión en el panel:**
    - el listado de clientes (el servidor ya tiene `GET /customers`);
    - categorías;
    - insumos;

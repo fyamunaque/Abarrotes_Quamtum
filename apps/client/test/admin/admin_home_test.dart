@@ -4,7 +4,10 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/admin/stats/stats.dart';
 import 'package:neils/admin/stats/stats_providers.dart';
 import 'package:neils/common/days.dart';
+import 'package:neils/common/money.dart';
+import 'package:neils/features/admin/home/greeting.dart';
 import 'package:neils/features/admin/home/home_cards.dart';
+import 'package:neils/features/admin/home/kpi_card.dart';
 import 'package:neils/features/admin/home/sales_chart.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
@@ -105,6 +108,28 @@ void main() {
         width: width,
         overrides: [statsRepositoryProvider.overrideWithValue(stats)],
       );
+
+  testWidgets('el inicio saluda con el nombre y la fecha', (tester) async {
+    await pumpHome(tester);
+
+    expect(find.byType(PanelGreeting), findsOneWidget);
+    expect(find.textContaining(', Ana!'), findsOneWidget);
+    expect(find.byIcon(Icons.calendar_today_outlined), findsOneWidget);
+  });
+
+  testWidgets('las cifras van en KpiCard', (tester) async {
+    await pumpHome(tester);
+
+    expect(find.byType(KpiCard), findsNWidgets(4));
+    final today = find.ancestor(
+      of: find.text('Ventas de hoy'),
+      matching: find.byType(KpiCard),
+    );
+    expect(
+      find.descendant(of: today, matching: find.text(formatSoles(4550))),
+      findsOneWidget,
+    );
+  });
 
   testWidgets('las ventas de hoy, la semana y el mes, y el ticket promedio', (
     tester,

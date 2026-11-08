@@ -4,9 +4,6 @@ import 'package:flutter/widgets.dart';
 /// (Android: "Quitar animaciones"; web: prefers-reduced-motion): con eso
 /// activo, cada animación salta directo a su estado final.
 abstract final class NeilsMotion {
-  /// El swoosh de la portada: se dibuja una vez, en menos de un segundo.
-  static const swoosh = Duration(milliseconds: 700);
-
   /// La respuesta de un botón al presionarlo.
   static const press = Duration(milliseconds: 110);
 

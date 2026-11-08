@@ -148,6 +148,7 @@ class _MyAccountScreenState extends ConsumerState<MyAccountScreen> {
     return PublicScaffold(
       title: 'Mi cuenta',
       maxWidth: 520,
+      showCartBar: false,
       child: user == null
           ? const SizedBox.shrink()
           : Column(

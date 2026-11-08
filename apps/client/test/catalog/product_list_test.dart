@@ -36,11 +36,15 @@ void main() {
     );
   });
 
-  const CatalogQuery all = (categoryId: null, search: null);
+  const CatalogQuery all = (categoryId: null, search: null, onSale: false);
 
   Future<PageList<Product>> load([String? categoryId, String? search]) =>
       container.read(
-        productListProvider((categoryId: categoryId, search: search)).future,
+        productListProvider((
+          categoryId: categoryId,
+          search: search,
+          onSale: false,
+        )).future,
       );
 
   List<String> ids(PageList<Product> list) => [

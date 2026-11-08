@@ -64,10 +64,48 @@ void main() {
   Finder field(String label) => find.widgetWithText(TextFormField, label);
   Finder button(String label) => find.widgetWithText(FilledButton, label);
 
+  /// El logo en blanco, el de los fondos rojos.
+  Finder whiteLogo(WidgetTester tester) => find.byWidgetPredicate(
+    (widget) =>
+        widget is Image &&
+        widget.image is AssetImage &&
+        (widget.image as AssetImage).assetName ==
+            'assets/images/neils_logo_white.png',
+  );
+
   Future<void> fillLogin(WidgetTester tester, String email, String password) =>
       tester
           .enterText(field('Correo'), email)
           .then((_) => tester.enterText(field('Contraseña'), password));
+
+  group('el panel de la marca', () {
+    testWidgets('escritorio: el panel rojo con el lema para negocios', (
+      tester,
+    ) async {
+      await pumpApp(tester);
+
+      expect(find.text('Tu abastecimiento gastronómico, más fácil.'), findsOneWidget);
+      for (final point in [
+        'Precios y promociones exclusivas',
+        'Entrega a tu negocio',
+        'Sigue tus pedidos',
+      ]) {
+        expect(find.text(point), findsOneWidget, reason: point);
+      }
+      expect(find.text('Tus abarrotes, a la puerta de tu casa'), findsNothing);
+      expect(whiteLogo(tester), findsOneWidget);
+    });
+
+    testWidgets('teléfono: la franja con el logo blanco', (tester) async {
+      await pumpApp(tester);
+      tester.view.physicalSize = const Size(390, 844);
+      await tester.pumpAndSettle();
+
+      expect(whiteLogo(tester), findsOneWidget);
+      expect(field('Correo'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  });
 
   group('ingresar', () {
     testWidgets(

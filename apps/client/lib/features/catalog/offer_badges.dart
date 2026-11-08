@@ -20,7 +20,7 @@ class OfferBadges extends StatelessWidget {
   Widget build(BuildContext context) {
     if (offers.isEmpty) return const SizedBox.shrink();
     final style = Theme.of(context).textTheme.labelMedium
-        ?.copyWith(color: NeilsColors.cream, fontWeight: FontWeight.w700);
+        ?.copyWith(color: NeilsColors.onPrimary, fontWeight: FontWeight.w700);
     return Wrap(
       spacing: 6,
       runSpacing: 6,
@@ -29,7 +29,7 @@ class OfferBadges extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
             decoration: BoxDecoration(
-              color: NeilsColors.accent,
+              color: NeilsColors.primary,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -68,7 +68,7 @@ class OfferDescriptions extends StatelessWidget {
                 const Icon(
                   Icons.local_offer_outlined,
                   size: 20,
-                  color: NeilsColors.accent,
+                  color: NeilsColors.primary,
                 ),
                 const SizedBox(width: 8),
                 Expanded(

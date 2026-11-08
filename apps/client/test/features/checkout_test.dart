@@ -11,6 +11,7 @@ import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/orders/order_tracker.dart';
+import 'package:neils/features/shared/cart_bar.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_filter.dart';
@@ -824,7 +825,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Para pedir, confirma tu correo.'), findsOneWidget);
-      expect(tester.widget<FilledButton>(confirmButton()).onPressed, isNull);
+      // La barra entera es el botón, apagada.
+      expect(tester.widget<CartBar>(find.byType(CartBar)).onPressed, isNull);
       expect(tester.takeException(), isNull);
     });
   });
@@ -856,6 +858,17 @@ void main() {
 
     Finder inBar(WidgetTester tester, Finder finder) =>
         find.descendant(of: bar(tester), matching: finder);
+
+    testWidgets('dice que el total es estimado', (tester) async {
+      await pumpPhone(tester);
+
+      expect(inBar(tester, find.text('Total estimado')), findsOneWidget);
+      final label = tester.getSemantics(
+        inBar(tester, find.text('Confirmar pedido')),
+      );
+      expect(label.label, contains('Total estimado'));
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('muestra el total y confirma el pedido', (tester) async {
       final router = await pumpPhone(tester);

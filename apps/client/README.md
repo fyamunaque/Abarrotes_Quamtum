@@ -91,7 +91,7 @@ router/                rutas, guard y GoRouter
 theme/                 tokens de marca y de estados (brand_colors.dart), ThemeData
                        (neils_theme.dart) y movimiento (motion.dart)
 features/<sección>/    pantallas y componentes: home, auth, catalog, cart, orders, offers,
-                       admin, showcase (la vitrina) y shared (logo, barra, swoosh,
+                       admin, showcase (la vitrina) y shared (logo, barra, franja diagonal,
                        PressScale, VipTag, el aviso de verificación, RefreshOnResume)
 ```
 
@@ -103,26 +103,42 @@ insuficiente: Aceite tiene 2 unidades").
 
 ## Tema
 
-Los tokens de la marca:
+Los tokens de la marca (`NeilsColors`, en `theme/brand_colors.dart`):
 
-| Token | Color |
-|---|---|
-| primary | `#E8652F` |
-| primaryDark | `#B54F25` |
-| accent | `#A1241B` |
-| cream | `#F9F3E7` |
-| ink | `#1D0605` |
+| Token | Color | Uso |
+|---|---|---|
+| primary | `#C8281E` | El rojo del logo: botones, enlaces, lo activo, precios en oferta |
+| primaryDark | `#9E1B14` | Botón presionado y texto sobre `primaryTint` |
+| primaryTint | `#FBE3E0` | Fondo de lo seleccionado (menú, chips, pestañas) |
+| onPrimary / onPrimaryDivider | `#FFFFFF` / blanco al 54 % | Texto e íconos sobre el rojo y los colores llenos; las rayas divisorias sobre el rojo |
+| background | `#FBF7F2` | Hueso: el fondo de la app |
+| surface | `#FFFFFF` | Tarjetas, con una sombra cálida suave (`neilsCardShadow`) |
+| ink | `#1F1A17` | Texto |
+| money / moneyTint | `#276B43` / `#E3F2E7` | La pastilla del total de una línea |
 
-El naranja sobre crema da 3,0:1 de contraste. Por eso el `primary` de Material (botones, textos
-de acción) es **primaryDark**, y el naranja va en `secondaryContainer` (botones tonales).
-El botón para agregar al carrito es siempre tonal, en el catálogo, el detalle y las filas de
-productos. El `primaryDark` con texto blanco queda para la acción final: Confirmar pedido,
-Ingresar, Crear cuenta.
+El rojo alcanza el contraste de un texto sobre el fondo (5,2:1) y con texto blanco encima
+(5,6:1), así que `primary` sirve para botones y para textos. Los contrastes los vigila
+`test/theme/theme_test.dart`, y `test/theme/no_loose_colors_test.dart` falla si aparece un color
+suelto (`Colors.white`, `Color(0x…)`) fuera de `lib/theme/`.
+
+**El logo y los íconos** salen del logo original del cliente (`brand/logo.jpg`, fuera de
+`assets/`) con `flutter test tool/brand_assets_test.dart`, sin paquetes: el blanco pasa a
+transparencia según el verde de cada píxel, así los bordes quedan suaves. Escribe el logo completo
+en rojo y en blanco (`assets/images/neils_logo.png` y `neils_logo_white.png`, para
+`NeilsLogo` y `NeilsLogo.white`) y los íconos: el tenedor y NEIL'S en blanco sobre el rojo, en
+la web (favicon, normales y `maskable`) y en Android (los PNG de siempre y el ícono adaptable de
+`mipmap-anydpi-v26`). Cuando llegue el original en SVG o PNG, se reemplaza `brand/logo.jpg` y
+se vuelve a correr.
+
+**Las fotos grandes** (la portada, la banda de promociones) son del cliente, con derecho de uso.
+Mientras no lleguen, cada una es `null` en `BrandImages` (`theme/brand_images.dart`) y se ve el
+bloque rojo con la franja diagonal y el logo en blanco. Para activar una: agregar el archivo a
+`assets/images/` y poner su ruta en `BrandImages`.
 
 La tipografía usa `google_fonts` con las fuentes **empaquetadas** en `assets/google_fonts`, así
 que la app no descarga nada:
-- **Baloo 2** (600/700/800) para títulos y precios (`NeilsText.price`).
-- **Inter** (400/500/600) para el resto.
+- **Poppins** (600/700/800) para títulos, botones y precios (`NeilsText.price`).
+- **Inter** (400/500) para textos, etiquetas y tablas.
 
 **Estados de pedido** (`OrderStatusColors`):
 
@@ -136,10 +152,10 @@ que la app no descarga nada:
 | Entregado | `#3C7A5F` |
 | Cancelado | `#8C3B33` |
 
-Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre crema
-no alcanza el contraste de un texto. El rojo de cancelado sí (6,8:1). Como paleta para
+Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre el
+fondo no alcanza el contraste de un texto. El rojo de cancelado sí. Como paleta para
 distinguir categorías tampoco alcanzan: el índigo de confirmado y el azul de en camino se
-parecen, y el ámbar queda en 2,66:1 sobre crema. Por eso el panel nunca usa solo el color (ver
+parecen, y el ámbar queda por debajo de 3:1 sobre el fondo. Por eso el panel nunca usa solo el color (ver
 `StatusBadge`).
 
 Lo que está bien y no es un pedido (las insignias "Activo", "Activa" y "Registrado", y el aviso
@@ -149,7 +165,7 @@ de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado
 - **Las fotos subidas:** llegan del servidor como ruta relativa (`/images/products/…`) y se
   completan con `apiBaseUrl`. Una URL externa se pide tal cual.
 - **Mientras carga, o si no hay foto o no carga:** se ve un marcador, la inicial del producto en
-  Baloo 2 sobre un fondo suave. La foto entra con un fundido de 200 ms, que no se anima si está
+  Poppins sobre un fondo suave. La foto entra con un fundido de 200 ms, que no se anima si está
   activado "reducir animaciones".
 - **El color del marcador** sale de la categoría (`PlaceholderColors.of(id)`, 8 pares
   fondo/texto con contraste de al menos 4.5:1). Una misma categoría tiene siempre el mismo
@@ -157,10 +173,10 @@ de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado
 
 **El panel** (`neilsAdminTheme`, en `theme/neils_theme.dart`) usa una variante calmada del tema,
 solo bajo `/admin`:
-- fondo crema y texto en tinta;
-- tarjetas planas con un borde suave, sin sombra;
-- lo elegido (la sección en la navegación, los chips, el segmento) en el naranja muy claro
-  (`primaryTint`), no en naranja;
+- fondo hueso y texto en tinta;
+- tarjetas blancas con la sombra suave, sin borde;
+- lo elegido (la sección en la navegación, los chips, el segmento) en el rojo muy claro
+  (`primaryTint`), no en rojo;
 - el `primary` solo en la acción principal de cada pantalla, en la sección activa y en la línea
   del gráfico de ventas.
 
@@ -170,12 +186,7 @@ Poco, y con un motivo. Las duraciones están en `theme/motion.dart`. Todo respet
 animaciones" del sistema (Android: "Quitar animaciones"; web: `prefers-reduced-motion`): con eso
 activo, cada animación salta a su estado final.
 
-- **El swoosh de la portada** (`AnimatedSwoosh`, en `features/shared/swoosh.dart`): el trazo de
-  pincel del logo, en `accent`, se dibuja bajo "a la puerta de tu casa" al abrir la pantalla.
-  Dura 700 ms, una sola vez: no se repite aunque la pantalla se reconstruya. Es el único momento
-  animado que no responde a una acción.
 - **"Agregar"** en la tarjeta de producto (`PressScale`): se achica un poco mientras se presiona.
-  El precio va subrayado con el mismo swoosh, quieto (`Swoosh`).
 - **El carrito de la barra** (`CartButton`): cuando sube el contador, el ícono da un rebote de
   300 ms. Al quitar no se mueve.
 - **El seguimiento de pedido** (`OrderTracker`): los pasos del tipo de entrega del pedido
@@ -205,16 +216,25 @@ flutter run -d chrome   # y abrir /vitrina
 
 | Ruta | Quién | Qué |
 |---|---|---|
-| `/` | Cualquiera | Portada: el logo en grande (la barra no lo repite: `PublicScaffold(showLogo: false)`), el titular, los accesos al catálogo y al registro, "Categorías" (un acceso por categoría, con los colores de `PlaceholderColors` en orden para que dos vecinas no se repitan, que abre `/catalogo?categoria=<id>`; 2 columnas en el teléfono, hasta 5) y "Promociones de hoy" (`GET /products?onSale=true`, en un `ProductStrip` con "Agregar"). Para una cuenta VIP, debajo sus ofertas exclusivas, que no se repiten en las promociones. Deslizar hacia abajo vuelve a pedir el perfil, las categorías y las promociones |
+| `/` | Cualquiera | Portada para negocios. En escritorio: el titular "Tu negocio siempre abastecido con Neil's." (`BrandHero`, con la franja diagonal) con "Ver catálogo" y "Ver promociones", los tres sellos (`TrustBadges`), "Nuestras categorías" (`CategoryCard`, con los colores de `PlaceholderColors` en orden para que dos vecinas no se repitan, que abren `/catalogo?categoria=<id>`), la banda "Promociones para tu negocio" (`PromotionsBanner`) y "Promociones de hoy" (`GET /products?onSale=true`, en tarjetas). En el teléfono: "¡Hola, Ana!" (o "¡Hola!"), el buscador, "Promociones de hoy" en lista (`ProductTile`, hasta 6, con "Ver todas"), las categorías en una fila y la banda. Para una cuenta VIP, debajo sus ofertas exclusivas, que no se repiten en las promociones. Las fotos grandes salen de `BrandImages` (sin foto, el bloque rojo con el logo en blanco). Deslizar hacia abajo vuelve a pedir el perfil, las categorías y las promociones |
 | `/login` | Cualquiera | Ingreso |
 | `/registro` | Cualquiera | Crear una cuenta: nombre, correo, celular (9 dígitos que empiezan con 9), DNI opcional (con el mensaje de para qué sirve: confirmar quién recibe o recoge el pedido), una contraseña de al menos 8 caracteres con letras y números (con un indicador de seguridad: débil, media o fuerte) repetida, y aceptar los términos de uso y la política de privacidad (`legal/legal_texts.dart`, con su versión; se leen en un diálogo sin perder lo escrito). Crea la cuenta y después guarda celular, DNI y términos (`PATCH /users/me`). Si eso falla (p. ej. el DNI ya está en otra cuenta), la cuenta queda creada y lo escrito pasa a "Mi cuenta" con el error (`pendingProfileProvider`) |
 | `/mi-cuenta?from=...` | Cualquier cuenta | El celular, el DNI y los términos (si falta aceptar la versión vigente, la casilla; si no, cuándo se aceptaron). Se llega desde el menú de la cuenta o tocando el nombre en la barra. Un cliente que ingresa con la cuenta incompleta (sin celular o sin los términos vigentes, `profileComplete`) pasa por aquí y, al guardar, sigue a donde iba (`from`, solo rutas de la app). El personal va al panel como siempre. Debajo, "Mis códigos" (`MyCodesSection`, con `myPromoCodesProvider` sobre `/promo-codes/mine` y `/promo-codes/redeem`): "Escribe tu código" (en mayúsculas al escribir) con "Activar" y el error del servidor debajo del campo ("El código no existe o ya no está vigente"), y cada código activo con lo que da ("2x1 en Arroz extra 5 kg"), la compra mínima si tiene, "Vence el 30 nov 2026" y "Te quedan 2 usos" (o "Sin límite de usos"). Activar uno vuelve a cotizar el carrito. Con `seccion=codigos` (desde el carrito), "Mis códigos" va arriba y, al activar, vuelve a `from` |
-| `/catalogo?categoria=<id>&q=<texto>` | Cualquiera | Productos página a página ("Ver más"), con búsqueda por nombre y filtro por categoría (cambiar de categoría conserva lo buscado). Los dos van en la URL, así un enlace abre el catálogo ya filtrado. |
-| `/producto/:id` | Cualquiera | Detalle, con la cantidad a agregar (hasta el stock que queda). Debajo, "Más de <categoría>": hasta 10 productos de la misma categoría, sin el que se ve (`relatedProductsProvider`), en una fila que se desliza (`ProductStrip`). Si no hay otros, no aparece |
-| `/carrito` | Cualquiera; confirmar pide cuenta | Cantidades; cada línea con lo que ahorra ("2x1 −S/ 24.90"), los regalos en su línea ("1 × Sal 1 kg", "Regalo"), los avisos de la cotización ("Solo quedaba 1 de Sal 1 kg para regalo", "Con S/ 12.40 más se aplica tu código VERANO-10"; las promociones de un código dicen "Código VERANO-10: 2x1"), "¿Tienes un código?" (lleva a "Mis códigos" y vuelve) y el total con "Subtotal" y "Descuentos" si los hay; cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. Como el servidor, pide para pedir el correo confirmado (el aviso para confirmarlo va aquí, no arriba) y la cuenta completa ("Completar mi cuenta" lleva a "Mi cuenta" y vuelve); sin eso, "Confirmar pedido" queda desactivado y la barra del teléfono dice qué falta. En un teléfono (menos de 720 px), el total y el botón van en una barra fija abajo (`PublicScaffold.bottomBar`), con el error del pedido si lo hay; si no entran en una línea (texto agrandado), el botón baja debajo del total. Confirmar desde la barra valida el formulario y, si falta la dirección, lleva la pantalla hasta el campo. El formulario y la barra comparten el tipo de entrega, el envío y el error en `checkoutProvider` (`cart/checkout_provider.dart`). |
+| `/catalogo?categoria=<id>&q=<texto>&promos=1` | Cualquiera | Productos página a página ("Ver más"): en el teléfono en lista (`ProductTile`), en escritorio en cuadrícula (`ProductCard`), con el encabezado de la categoría elegida (`CategoryHeader`) arriba; con búsqueda por nombre o código, filtro por categoría (cambiar de categoría conserva lo buscado) y el chip "En promoción" (`promos=1`, el `onSale` del servidor; elegir una categoría lo quita). Todo va en la URL, así un enlace abre el catálogo ya filtrado. "Promociones", en la barra y en el menú, es `Routes.promotions` (`/catalogo?promos=1`). |
+| `/producto/:id` | Cualquiera | Detalle: la foto con la cinta de su promoción, el código y el nombre, el precio, el stock solo como aviso (`StockNote`: "Disponible", "Últimas N", "Agotado"), las promociones, la descripción y la fila de cantidad (`ProductQuantityActions`): "Agregar", o "Editar" con la cantidad del carrito si ya está. Debajo, "Más de <categoría>": hasta 10 productos de la misma categoría, sin el que se ve (`relatedProductsProvider`), en una fila que se desliza (`ProductStrip`). Si no hay otros, no aparece |
+| `/carrito` | Cualquiera; confirmar pide cuenta | Cada línea en su tarjeta, con el código y el nombre, la cantidad y su total en la pastilla verde (`LineTotalPill`); cada una con lo que ahorra ("2x1 −S/ 24.90"), los regalos en su tarjeta ("1 × Sal 1 kg", la cinta "Regalo" y S/ 0.00), los avisos de la cotización ("Solo quedaba 1 de Sal 1 kg para regalo", "Con S/ 12.40 más se aplica tu código VERANO-10"; las promociones de un código dicen "Código VERANO-10: 2x1"), "¿Tienes un código?" (lleva a "Mis códigos" y vuelve) y el total con "Subtotal" y "Descuentos" si los hay; cómo recibirlo ("Entrega a domicilio" o "Recoger en tienda") y "Confirmar pedido". A domicilio pide la dirección (obligatoria; propone la del perfil); con recojo la oculta y muestra la dirección, el teléfono, el horario y las instrucciones de la tienda (`GET /store`, `storeSettingsProvider`, `StoreDetails`). En un teléfono, las dos opciones van sin ícono para que cada una entre en una línea. Sin cuenta, "Ingresar para confirmar" lleva al ingreso y vuelve aquí. Como el servidor, pide para pedir el correo confirmado (el aviso para confirmarlo va aquí, no arriba) y la cuenta completa ("Completar mi cuenta" lleva a "Mi cuenta" y vuelve); sin eso, "Confirmar pedido" queda desactivado y la barra del teléfono dice qué falta. En un teléfono (menos de 720 px), "Confirmar pedido" va en la barra roja fija de abajo (`CartBar`, en `PublicScaffold.bottomBar`), con la cantidad de unidades y el total con su rótulo "Total estimado", y encima el error del pedido o lo que falta para pedir. Confirmar desde la barra valida el formulario y, si falta la dirección, lleva la pantalla hasta el campo. El formulario y la barra comparten el tipo de entrega, el envío y el error en `checkoutProvider` (`cart/checkout_provider.dart`). |
 | `/mis-pedidos` | Cualquier cuenta | Cada pedido con su número ("Pedido N.º 1024", con la fecha debajo), su seguimiento y su entrega, en el mismo lugar y con el mismo formato (`InfoLine`): "Entrega a domicilio" con la dirección y, mientras está en curso, el código de entrega en grande ("Dáselo al repartidor cuando recibas tu pedido") o, con recojo en tienda, los datos de la tienda y, desde que el pedido está confirmado, el código de recojo en grande para mostrar en caja (el lector de pantalla lo deletrea). En espera de recojo, un aviso destacado: "¡Tu pedido está listo para recoger!". Debajo, lo que se cobró (`OrderLines`): cada línea con su total y las promociones que se le aplicaron ("2x1 −S/ 24.90"), los regalos en su línea con "Regalo", y al final "Subtotal" y "Descuentos" (si hubo) y el "Total". "Buscar por N.º o producto" (con una pausa al escribir), chips por estado (Todos, En curso, Entregados, Cancelados) y por entrega, y "Fechas"; todo va al servidor (`myOrdersProvider` es una familia por filtro) y, si nada coincide, "Quitar filtros". "Actualizar" recarga sin sacar la lista de pantalla, así el seguimiento anima un estado que avanzó. Recién hecho un pedido, el aviso dice su número ("Recibimos tu pedido N.º 1024"), el total que cobró la tienda, los precios que cambiaron desde el carrito y los avisos del cobro (p. ej. un regalo que se agotó al pedir). |
 | `/admin` y sus subrutas | El personal, cada sección con su permiso | El panel: inicio, `/admin/pedidos` (y `/admin/pedidos/recoger`), `/admin/productos`, `/admin/inventario`, `/admin/promociones` (y `/admin/promociones/codigos`), `/admin/clientes-vip`, `/admin/tienda`, `/admin/equipo` y `/admin/roles` (ver "El panel") |
 | `/admin/sin-acceso?seccion=<ruta>` | El personal | "No tienes acceso a esta sección", adonde lleva el guard una sección sin su permiso |
+
+**La barra** (`PublicScaffold`, en `features/shared/brand.dart`): en escritorio (desde 840 px),
+el logo, "Inicio", "Catálogo" y "Promociones" (la sección actual en rojo y subrayada), el buscador
+(`StoreSearchField`, desde 1100 px y salvo en el catálogo, que tiene el suyo), la cuenta (hasta
+1100 px, en su menú: con las secciones no entra entera) y el carrito. En el teléfono, el menú a la izquierda (`StoreMenu`, en `features/shared/store_menu.dart`:
+el saludo, las secciones, Mis pedidos, Mi cuenta, el panel para el personal, e Ingresar o Salir),
+el logo al centro y el carrito.
+
+En el teléfono, mientras el carrito tenga algo, el resto de la tienda lleva abajo la misma barra roja con "Continuar", la cantidad y el total (`StoreCartBar`, en `features/shared/cart_bar.dart`), que lleva al carrito. No va en el ingreso, el registro ni Mi cuenta (`PublicScaffold(showCartBar: false)`).
 
 **Carrito** (`cart/cart_provider.dart`): queda guardado en el dispositivo (`cart/cart_storage.dart`:
 SharedPreferences en Android, `localStorage` en la web), así que sigue ahí al recargar o volver a
@@ -250,8 +270,10 @@ servidor devolvió su perfil.
   un correo sin cuenta, el mensaje es el mismo ("Si hay una cuenta con ese correo, te enviamos
   un enlace…"): no revela qué correos tienen cuenta.
 - En escritorio (desde 900 px), Ingresar y Crear una cuenta van a dos columnas: a la izquierda,
-  un panel de la marca (el logo, el titular y qué ofrece la tienda), y el formulario a la
-  derecha. En el teléfono, solo el formulario.
+  el panel rojo de la marca (el logo en blanco, "Tu abastecimiento gastronómico, más fácil." y
+  tres beneficios), y el formulario a la derecha. En el teléfono, una franja roja con el logo
+  en blanco y debajo el formulario. Los campos llevan su ícono (persona, correo, candado,
+  teléfono, documento).
 - Registrarse crea la cuenta en Firebase con su nombre. Después, `GET /users/me` la crea en la
   tienda, siempre como `customer`, y `PATCH /users/me` le guarda el celular, el DNI y los
   términos (`SessionNotifier.updateProfile`). El perfil trae `phone`, `dni`, `termsVersion`,
@@ -282,8 +304,7 @@ servidor devolvió su perfil.
   tarjeta (`OfferBadges`: "2x1", "2.ª al 50 %", "+ regalo", en `accent`; el lector de pantalla
   dice lo que da cada una), así las tarjetas de una fila siguen del mismo alto. El detalle explica
   cada una (`OfferDescriptions`: "2x1 en este producto", "Regalo: Sal 1 kg por cada 2").
-- Un precio VIP va con el normal tachado, el swoosh y la insignia `VipTag` (`accent` sobre
-  crema). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
+- Un precio VIP va con el normal tachado y la insignia `VipTag` (`primary` sobre blanco). Entra en 300 ms (`NeilsMotion.reveal`) una sola vez, y aparece directo con "reducir
   animaciones".
 - "Ofertas exclusivas" (`features/offers/`), en el inicio y arriba del catálogo completo: las
   promociones VIP de `/promotions/active` (también las de clientes elegidos, para ellos; un %
@@ -323,7 +344,10 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 ## El panel (`/admin`)
 
 `AdminShell` (`features/admin/admin_shell.dart`) es el layout de todas las secciones:
-- desde 840 px, la navegación es un riel a la izquierda; más angosto, una barra abajo;
+- la barra de arriba es blanca, con una sombra fina; desde 1200 px, la navegación es un menú
+  lateral ancho, con el texto al lado del ícono (`AdminShell.extendedFrom`); entre 840 y 1200 px,
+  el riel angosto con el texto abajo; más angosto, una barra abajo. La sección activa va en
+  rojo oscuro sobre el rojo claro;
 - las secciones salen del enum `AdminSection` (ruta, nombre, ícono), y el router arma una ruta
   por cada una;
 - la navegación muestra solo las que la sesión puede abrir (`AdminSection.visibleTo`). La
@@ -352,7 +376,7 @@ Sin un permiso, el botón no aparece y una nota dice qué puede hacer el rol (`P
 
 | Sección | Qué hace |
 |---|---|
-| Inicio | Ventas de hoy, la semana y el mes con el ticket promedio (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). Stock bajo y Por vencer van una sobre otra, con Más vendidos al lado y del mismo alto, así no quedan huecos; en el teléfono, las tres una debajo de otra. |
+| Inicio | Arriba, "¡Buenos días, Ana!" (o tardes, o noches, según la hora de Lima: `greetingFor`) y la fecha de hoy (`PanelGreeting`). Ventas de hoy, la semana y el mes con el ticket promedio, en tarjetas de indicador (`KpiCard`: ícono, cifra en rojo y detalle) (una venta es un pedido entregado o recogido), pedidos por estado (con Preparando y En espera de recojo), pedidos por tipo de entrega (cuántos y qué parte a domicilio y con recojo), el gráfico de ventas de los últimos 30 días (`fl_chart`, con "Ver los datos" en tabla), stock bajo, por vencer en 7 días y el top 5. Cada tarjeta carga y falla por su lado, con "Reintentar". Las tarjetas de una misma fila tienen el mismo alto (`ResponsiveGrid`). Stock bajo y Por vencer van una sobre otra, con Más vendidos al lado y del mismo alto, así no quedan huecos; en el teléfono, las tres una debajo de otra. |
 | Pedidos: Todos los pedidos | Todos los pedidos, con la columna "N.º" y "Buscar por N.º" (el número exacto, `?number=`, junto con los otros filtros), un menú "Estado" ("Todos" o uno, cada uno con su punto de color) y chips por entrega ("Entrega"; "Domicilio y recojo", "Domicilio", "Recojo"; los dos filtros van al servidor) y la columna "Entrega" con su insignia (`FulfillmentBadge`). Se actualiza solo cada 30 s, así los pedidos nuevos aparecen sin tocar nada. El detalle ("Pedido N.º 1024 de Ana Quispe") muestra el cliente, la entrega (la dirección, o "Recojo en tienda" con el código), las líneas con sus promociones, regalos, subtotal, descuentos y total (`OrderLines`, el mismo de Mis pedidos) y el stepper: el seguimiento con la acción del paso siguiente y "Cancelar pedido", que pide confirmación. Los botones salen de `allowedNextStatuses`, que calcula el servidor con el flujo del tipo de entrega (la app no escribe transiciones), y su texto, del estado al que llevan: a domicilio, "Confirmar", "Marcar en camino" y "Marcar entregado"; con recojo, "Confirmar", "Empezar a preparar", "Marcar listo para recoger" y "Marcar recogido". Marcar recogido, o entregado un pedido a domicilio con código (`hasDeliveryCode`; los de antes se entregan directo), abre `showOrderCodeDialog`: pide el código que da el cliente (el de recojo o el de entrega) y, si el servidor dice que no coincide, el motivo sale en el mismo diálogo para corregirlo. A domicilio, con `staff.manage`, "El cliente no tiene su código" pasa a "Entregar sin código", con el motivo (al menos 5 caracteres), que queda en el pedido y en la bitácora; el detalle lo muestra ("Entregado sin código: …"). Si el servidor lo rechaza porque otra persona ya lo cambió, muestra su mensaje y trae el pedido como está. |
 | Pedidos: Para recoger | Pensada para caja: los pedidos de recojo en Preparando y En espera de recojo (hasta 100 de cada estado), primero los que esperan hace más. Cada uno con el código en grande (el lector de pantalla lo deletrea), el estado, cuánto hace que está listo ("Listo hace 12 min") o que se pidió, el número del pedido, el cliente y el total. Se busca por el código (sin importar espacios ni mayúsculas), por el número o por el nombre (sin tildes; la ñ cuenta como n), y se actualiza sola cada 30 s. Con `orders.updateStatus`, el botón del paso siguiente; entregar pide el código con el mismo diálogo. |
 | Productos | Buscar por nombre o SKU, filtrar por categoría, crear, editar y dar de baja; cada fila con la foto en miniatura. El stock inicial solo se pone al crear; después se cambia en Inventario. Un SKU repetido (409) se marca en su campo. **La foto:**<br>• "Subir foto" elige un archivo o una foto de la galería, y "Tomar foto" usa la cámara (solo en el teléfono). La app la achica a 1600 px antes de subirla, y el servidor la deja en 800 px.<br>• También se puede pegar la URL de una imagen: escribirla descarta la foto elegida, y elegir una foto vacía la URL.<br>• La foto elegida se sube después de guardar el producto (`PUT /products/:id/image`). Si la subida falla, el producto ya quedó guardado: el formulario lo dice y "Reintentar la foto" sube solo la foto.<br>• `PhotoPicker` (`admin/products/photo_picker.dart`) es una interfaz con su implementación sobre `image_picker`, y los tests la reemplazan. |
@@ -449,10 +473,13 @@ de los últimos 30 días (así el inicio del panel tiene ventas) y productos en 
     ícono en un teléfono;
   - `/mis-pedidos` con la entrega de cada pedido y "Actualizar" animando el seguimiento.
 - `test/auth/auth_error_message_test.dart`: los mensajes de cada error de Firebase.
-- `test/features/account_bar_test.dart`: la barra con sesión entra en un teléfono de 320 y 375
-  px (la cuenta va en un menú).
-- `test/features/swoosh_test.dart` y `home_screen_test.dart`: la forma del trazo, que se dibuja
-  una vez y en menos de un segundo, y que con "reducir animaciones" aparece completo.
+- `test/features/account_bar_test.dart`: la barra entra sin desbordes de 320 a 1280 px: en el
+  teléfono, el menú, el logo y el carrito; en escritorio, las secciones (la actual en rojo), el
+  buscador (desde 1100 px, que lleva a `/catalogo?q=`), la cuenta y el carrito.
+- `test/features/store_menu_test.dart`: el menú del teléfono, con y sin cuenta, y el panel para
+  el personal.
+- `test/features/brand_hero_test.dart`: el titular con su parte en rojo, la franja diagonal (con
+  el logo en blanco mientras no haya foto, arriba en el teléfono) y los tres sellos.
 - `test/features/product_card_test.dart`: precio, promoción, el precio VIP (insignia, entrada
   de 300 ms una sola vez), "Agotado", tarjetas de igual alto y el achique de "Agregar" (que no
   ocurre con "reducir animaciones").
@@ -494,9 +521,7 @@ animaciones" y `tester.hasRunningAnimations` para saber si quedó algo animándo
 terminada una animación en el frame siguiente a su duración: por eso avanzan un milisegundo más.
 
 Los tests que usan el tema llaman a `useBundledFonts()` (`test/support.dart`): fuentes desde los
-assets, sin red. Ese helper también esquiva un fallo del motor de pruebas de Windows: cargar
-Baloo2-SemiBold y Baloo2-Bold en el mismo proceso lo cierra sin error. Por eso, en los tests, la
-SemiBold se reemplaza por la ExtraBold. La app no cambia.
+assets, sin red.
 
 En Windows, además, `flutter_tester` a veces se cae solo: el archivo de tests termina con "did
 not complete" y sin ningún assert fallido. En el registro de eventos de Windows figura como

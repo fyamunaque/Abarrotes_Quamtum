@@ -7,6 +7,7 @@ import '../../router/route_guard.dart';
 import '../../session/session.dart';
 import '../../theme/brand_colors.dart';
 import '../shared/brand.dart';
+import '../shared/diagonal_band.dart';
 
 /// Estructura común de ingreso y registro: título, campos, botón principal y
 /// un enlace a la otra pantalla. Valida los campos, muestra el progreso y el
@@ -136,6 +137,7 @@ class _AuthFormState extends State<AuthForm> {
     return PublicScaffold(
       title: widget.title,
       maxWidth: wide ? 960 : 420,
+      showCartBar: false,
       child: wide
           ? Row(
               children: [
@@ -144,42 +146,56 @@ class _AuthFormState extends State<AuthForm> {
                 SizedBox(width: 420, child: form),
               ],
             )
-          : form,
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // En el teléfono, la franja roja de la marca arriba.
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: const SizedBox(
+                    height: 120,
+                    child: DiagonalBand(child: NeilsLogo.white(height: 56)),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                form,
+              ],
+            ),
     );
   }
 }
 
-/// En escritorio, al lado del formulario: el logo, el titular y qué ofrece
-/// la tienda.
+/// En escritorio, al lado del formulario: el panel rojo de la marca, con el
+/// logo en blanco, el lema y qué ofrece la tienda.
 class _BrandPanel extends StatelessWidget {
   const _BrandPanel();
 
   static const _points = [
-    (Icons.sell_outlined, 'Precios y promociones de la tienda'),
-    (Icons.local_shipping_outlined, 'A domicilio o recojo en tienda'),
-    (Icons.receipt_long_outlined, 'Sigue tu pedido'),
+    (Icons.sell_outlined, 'Precios y promociones exclusivas'),
+    (Icons.local_shipping_outlined, 'Entrega a tu negocio'),
+    (Icons.inventory_2_outlined, 'Sigue tus pedidos'),
   ];
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final color = theme.colorScheme.onSecondaryContainer;
+    const color = NeilsColors.onPrimary;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: theme.colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(24),
+        color: NeilsColors.primary,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
         padding: const EdgeInsets.all(32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const NeilsLogo(height: 96),
+            const NeilsLogo.white(height: 96),
             const SizedBox(height: 24),
             Semantics(
               header: true,
               child: Text(
-                'Tus abarrotes, a la puerta de tu casa',
+                'Tu abastecimiento gastronómico, más fácil.',
                 style: theme.textTheme.headlineSmall?.copyWith(color: color),
               ),
             ),
@@ -218,7 +234,10 @@ class EmailField extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextFormField(
       controller: controller,
-      decoration: const InputDecoration(labelText: 'Correo'),
+      decoration: const InputDecoration(
+        labelText: 'Correo',
+        prefixIcon: Icon(Icons.mail_outline),
+      ),
       keyboardType: TextInputType.emailAddress,
       autocorrect: false,
       textInputAction: TextInputAction.next,
@@ -261,6 +280,7 @@ class _PasswordFieldState extends State<PasswordField> {
       controller: widget.controller,
       decoration: InputDecoration(
         labelText: widget.label,
+        prefixIcon: const Icon(Icons.lock_outline),
         helperText: widget.isNew && widget.validator == null
             ? 'Al menos 8 caracteres, con letras y números'
             : null,

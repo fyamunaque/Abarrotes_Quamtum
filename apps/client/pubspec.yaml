@@ -70,7 +70,7 @@ flutter:
 
   assets:
     - assets/images/
-    # Baloo 2 e Inter empaquetadas (licencia OFL): google_fonts las toma de
+    # Poppins e Inter empaquetadas (licencia OFL): google_fonts las toma de
     # aquí y no descarga nada. Ver lib/theme/neils_theme.dart.
     - assets/google_fonts/
 

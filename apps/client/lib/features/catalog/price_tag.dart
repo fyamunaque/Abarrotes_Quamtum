@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
 import '../../common/money.dart';
+import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
-import '../shared/swoosh.dart';
 import '../shared/vip_tag.dart';
 
-/// El precio que se paga hoy, subrayado con el swoosh de la marca. En
-/// promoción, al lado va el precio normal tachado. Con un precio de cliente
+/// El precio que se paga hoy. En promoción, al lado va el precio normal tachado. Con un precio de cliente
 /// VIP, además la insignia VIP, y el precio entra con una animación breve,
 /// una sola vez.
 class PriceTag extends StatelessWidget {
@@ -40,26 +39,19 @@ class PriceTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final scale = fontSize / 22;
     final tag = Wrap(
       spacing: 8,
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        IntrinsicWidth(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                formatSoles(promoPriceCents ?? priceCents),
-                style: NeilsText.price(fontSize: fontSize),
-              ),
-              // Sube para quedar pegado a los números, como en el logo.
-              Transform.translate(
-                offset: Offset(0, -5 * scale),
-                child: Swoosh(height: 8 * scale),
-              ),
-            ],
+        Text(
+          formatSoles(promoPriceCents ?? priceCents),
+          // En oferta, en el rojo de la marca; si no, en tinta.
+          style: NeilsText.price(
+            fontSize: fontSize,
+            color: promoPriceCents == null
+                ? NeilsColors.ink
+                : NeilsColors.primary,
           ),
         ),
         if (promoPriceCents != null)

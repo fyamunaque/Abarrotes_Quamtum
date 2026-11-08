@@ -134,6 +134,9 @@ class AdminShell extends ConsumerWidget {
 
   static const wideFrom = 840.0;
 
+  /// Desde este ancho, el menú lateral lleva los textos al lado del ícono.
+  static const extendedFrom = 1200.0;
+
   /// Cuántos destinos entran en la barra del teléfono (Material recomienda
   /// de 3 a 5).
   static const barDestinations = 5;
@@ -141,7 +144,9 @@ class AdminShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
-    final wide = MediaQuery.sizeOf(context).width >= wideFrom;
+    final width = MediaQuery.sizeOf(context).width;
+    final wide = width >= wideFrom;
+    final extended = width >= extendedFrom;
     final sections = AdminSection.visibleTo(session);
     final selected = AdminSection.of(location);
     final selectedIndex = selected == null ? -1 : sections.indexOf(selected);
@@ -194,7 +199,12 @@ class AdminShell extends ConsumerWidget {
                       NavigationRail(
                         selectedIndex: selectedIndex < 0 ? null : selectedIndex,
                         onDestinationSelected: go,
-                        labelType: NavigationRailLabelType.all,
+                        extended: extended,
+                        minExtendedWidth: 220,
+                        // Con el menú ancho, el texto va al lado del ícono.
+                        labelType: extended
+                            ? NavigationRailLabelType.none
+                            : NavigationRailLabelType.all,
                         destinations: [
                           for (final section in sections)
                             NavigationRailDestination(

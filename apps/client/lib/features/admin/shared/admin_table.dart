@@ -230,7 +230,9 @@ class _Table<T> extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ExcludeSemantics(
-            child: Padding(
+            child: Container(
+              // El encabezado sobre hueso; las filas, blancas.
+              color: theme.colorScheme.surfaceContainerLow,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
               child: withActions(
                 cells(

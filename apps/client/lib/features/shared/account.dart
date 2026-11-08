@@ -11,12 +11,21 @@ import '../../session/session_provider.dart';
 /// panel (admin y staff, fuera del panel), el primer nombre y "Salir". En un
 /// teléfono eso no entra junto al resto de la barra, así que va en un menú.
 class AccountActions extends StatelessWidget {
-  const AccountActions(this.user, {super.key, this.inPanel = false});
+  const AccountActions(
+    this.user, {
+    super.key,
+    this.inPanel = false,
+    this.inlineFrom = wideFrom,
+  });
 
   final SessionUser user;
 
   /// Dentro del panel: muestra el rol y no el enlace al panel.
   final bool inPanel;
+
+  /// Desde este ancho, la cuenta va en la barra; por debajo, en el menú. La
+  /// barra de la tienda, que además lleva sus secciones, lo sube.
+  final double inlineFrom;
 
   /// Desde este ancho, la cuenta va en la barra; por debajo, en el menú. Con
   /// el carrito y "Mis pedidos", una cuenta de staff con un nombre largo
@@ -26,7 +35,7 @@ class AccountActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final panelLink = !inPanel && user.role.isStaff;
-    if (MediaQuery.sizeOf(context).width < wideFrom) {
+    if (MediaQuery.sizeOf(context).width < inlineFrom) {
       return _AccountMenu(user, panelLink: panelLink);
     }
     return Row(
