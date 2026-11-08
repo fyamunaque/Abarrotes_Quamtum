@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../common/page_list.dart';
 import '../config/api_config.dart';
+import '../session/session.dart';
 import '../session/session_provider.dart';
 import 'catalog_repository.dart';
 import 'category.dart';
@@ -40,6 +41,30 @@ final onSaleProductsProvider = FutureProvider.autoDispose<List<Product>>((
       .products(onSale: true);
   return page.items;
 });
+
+/// Frecuentes (la pestaña de la portada): lo que más pide la cuenta abierta.
+/// Sin cuenta, ninguno y sin preguntar al servidor. Cambia con la cuenta y
+/// con su precio VIP.
+final frequentProductsProvider = FutureProvider.autoDispose<List<Product>>((
+  ref,
+) async {
+  ref.watch(isVipProvider);
+  final signedIn = ref.watch(
+    sessionProvider.select((session) => session is SignedIn),
+  );
+  if (!signedIn) return const [];
+  return ref.watch(catalogRepositoryProvider).frequent();
+}, retry: (_, _) => null);
+
+/// Sugeridos (la pestaña de la portada): lo más vendido de la tienda; con
+/// cuenta, sin sus Frecuentes. Cambia con la cuenta y con su precio VIP.
+final suggestedProductsProvider = FutureProvider.autoDispose<List<Product>>((
+  ref,
+) {
+  ref.watch(isVipProvider);
+  ref.watch(sessionProvider.select((session) => session is SignedIn));
+  return ref.watch(catalogRepositoryProvider).suggested();
+}, retry: (_, _) => null);
 
 /// Los productos de "Más de" (la categoría) en el detalle de un producto.
 typedef RelatedQuery = ({String categoryId, String productId});

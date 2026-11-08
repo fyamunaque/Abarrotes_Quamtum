@@ -1295,7 +1295,34 @@ class FakeCatalogRepository implements CatalogRepository {
     this.categoryList = const [groceries, dairy],
     this.productList = const [rice, oil, milk],
     this.pageSize = 20,
+    this.frequentList = const [],
+    this.suggestedList = const [],
   });
+
+  /// Lo que devuelven Frecuentes y Sugeridos.
+  final List<Product> frequentList;
+  final List<Product> suggestedList;
+
+  /// Si no es null, Frecuentes y Sugeridos fallan con esto.
+  Object? suggestionsFailure;
+
+  /// Cuántas veces se pidió cada una.
+  int frequentCalls = 0;
+  int suggestedCalls = 0;
+
+  @override
+  Future<List<Product>> frequent() async {
+    frequentCalls++;
+    if (suggestionsFailure case final failure?) throw failure;
+    return frequentList;
+  }
+
+  @override
+  Future<List<Product>> suggested() async {
+    suggestedCalls++;
+    if (suggestionsFailure case final failure?) throw failure;
+    return suggestedList;
+  }
 
   final List<Category> categoryList;
   final List<Product> productList;

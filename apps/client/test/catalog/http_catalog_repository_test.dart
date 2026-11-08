@@ -76,6 +76,26 @@ void main() {
     expect(categories.last.imageUrl, isNull);
   });
 
+  test('frequent y suggested piden su ruta con el token', () async {
+    final requests = <(String, String?)>[];
+    final repo = repository((request) async {
+      requests.add((request.url.path, request.headers['authorization']));
+      return json(200, {
+        'items': [product()],
+      });
+    }, token: 't-1');
+
+    final frequent = await repo.frequent();
+    final suggested = await repo.suggested();
+
+    expect(frequent.single.name, 'Aceite vegetal 1 L');
+    expect(suggested.single.name, 'Aceite vegetal 1 L');
+    expect(requests, [
+      ('/products/frequent', 'Bearer t-1'),
+      ('/products/suggested', 'Bearer t-1'),
+    ]);
+  });
+
   test('productos: página, tamaño y categoría en el query', () async {
     late Uri url;
     final page = await repository((request) async {

@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../catalog/catalog_providers.dart';
-import '../../catalog/product.dart';
-import '../../offers/offer.dart';
 import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
@@ -12,8 +10,6 @@ import '../../session/session_provider.dart';
 import '../../theme/brand_colors.dart';
 import '../../theme/brand_images.dart';
 import '../catalog/category_card.dart';
-import '../catalog/product_strip.dart';
-import '../catalog/product_tile.dart';
 import '../offers/exclusive_offers.dart';
 import '../shared/account.dart';
 import '../shared/brand.dart';
@@ -21,12 +17,13 @@ import '../shared/brand_hero.dart';
 import '../shared/card_strip.dart';
 import '../shared/diagonal_band.dart';
 import '../shared/store_search_field.dart';
+import 'product_tabs.dart';
 import 'promotions_banner.dart';
 
 /// Inicio, para negocios. En escritorio: el titular con sus botones, los
-/// sellos, "Nuestras categorías", la banda de promociones y "Promociones de
-/// hoy". En el teléfono: el saludo, el buscador, "Promociones de hoy" en
-/// lista, las categorías en una fila y la banda. Para una cuenta VIP, además
+/// sellos, "Nuestras categorías", la banda de promociones y las pestañas
+/// Frecuentes, Sugeridos y Promos ([ProductTabs]). En el teléfono: el saludo,
+/// el buscador, las pestañas, las categorías en una fila y la banda. Para una cuenta VIP, además
 /// sus ofertas exclusivas. Deslizar hacia abajo vuelve a pedir el perfil, las
 /// categorías y las promociones.
 class HomeScreen extends ConsumerWidget {
@@ -74,15 +71,17 @@ class HomeScreen extends ConsumerWidget {
                 const _Categories(),
                 const PromotionsBanner(),
                 const SizedBox(height: 32),
-                const _TodaysDeals(),
+                const ProductTabs(),
+                const SizedBox(height: 24),
                 const ExclusiveOffers(),
               ]
             : const [
                 _Greeting(),
                 SizedBox(height: 16),
                 StoreSearchField(),
-                SizedBox(height: 24),
-                _TodaysDeals(),
+                SizedBox(height: 20),
+                ProductTabs(),
+                SizedBox(height: 16),
                 _Categories(),
                 PromotionsBanner(),
                 SizedBox(height: 24),
@@ -200,71 +199,6 @@ class _Categories extends ConsumerWidget {
               );
             },
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// "Promociones de hoy": los productos en oferta, con su precio y
-/// "Agregar". En escritorio en tarjetas que se deslizan; en el teléfono en
-/// lista, hasta [phoneLimit], con "Ver todas". A una cuenta VIP no le repite
-/// los que ya van en "Ofertas exclusivas". Sin promociones, no ocupa lugar.
-class _TodaysDeals extends ConsumerWidget {
-  const _TodaysDeals();
-
-  static const phoneLimit = 6;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final exclusive = {
-      for (final offer
-          in ref.watch(exclusiveOffersProvider).value ?? const <Offer>[])
-        offer.productId,
-    };
-    final products = [
-      for (final product
-          in ref.watch(onSaleProductsProvider).value ?? const <Product>[])
-        if (!exclusive.contains(product.id)) product,
-    ];
-    if (products.isEmpty) return const SizedBox.shrink();
-    if (MediaQuery.sizeOf(context).width >= AccountActions.wideFrom) {
-      return Padding(
-        padding: const EdgeInsets.only(bottom: 24),
-        child: ProductStrip(title: 'Promociones de hoy', products: products),
-      );
-    }
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  header: true,
-                  child: Text(
-                    'Promociones de hoy',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: () => context.go(Routes.promotions),
-                child: const Text('Ver todas'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (final product in products.take(phoneLimit)) ...[
-            ProductTile(
-              key: ValueKey(product.id),
-              product: product,
-              onTap: () => context.go(Routes.product(product.id)),
-            ),
-            const SizedBox(height: 12),
-          ],
         ],
       ),
     );

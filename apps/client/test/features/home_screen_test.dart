@@ -226,12 +226,27 @@ void main() {
     expect(find.byType(StoreSearchField), findsOneWidget);
   });
 
-  testWidgets('"Promociones de hoy": tarjetas en escritorio, con Agregar', (
+  Future<void> openPromos(WidgetTester tester) async {
+    final promos = find.widgetWithText(ChoiceChip, 'Promos');
+    await tester.ensureVisible(promos);
+    await tester.tap(promos);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('la portada muestra las tres pestañas con cuenta', (
     tester,
   ) async {
-    final (_, container) = await pumpApp(tester);
+    await pumpApp(tester, signedIn: signedInAs(UserRole.customer));
 
-    expect(find.text('Promociones de hoy'), findsOneWidget);
+    for (final tab in ['Frecuentes', 'Sugeridos', 'Promos']) {
+      expect(find.widgetWithText(ChoiceChip, tab), findsOneWidget, reason: tab);
+    }
+  });
+
+  testWidgets('Promos: tarjetas en escritorio, con Agregar', (tester) async {
+    final (_, container) = await pumpApp(tester);
+    await openPromos(tester);
+
     expect(shownProducts(tester), ['aceite']);
     expect(catalog.onSaleRequests, contains(true));
 
@@ -242,18 +257,20 @@ void main() {
     expect(container.read(cartProvider).quantityOf('aceite'), 1);
   });
 
-  testWidgets('"Promociones de hoy" en lista en el teléfono', (tester) async {
+  testWidgets('Promos en lista en el teléfono', (tester) async {
     await pumpApp(tester, width: 375);
+    await openPromos(tester);
 
     expect(find.byType(ProductTile), findsOneWidget);
     expect(find.byType(ProductCard), findsNothing);
   });
 
-  testWidgets('sin promociones, no hay "Promociones de hoy"', (tester) async {
+  testWidgets('sin promociones, Promos lo dice', (tester) async {
     catalog = FakeCatalogRepository(productList: const [rice, milk]);
     await pumpApp(tester);
+    await openPromos(tester);
 
-    expect(find.text('Promociones de hoy'), findsNothing);
+    expect(find.text('Hoy no hay promociones.'), findsOneWidget);
     expect(find.byType(ProductCard), findsNothing);
   });
 
@@ -278,7 +295,8 @@ void main() {
     );
 
     expect(find.text('Ofertas exclusivas'), findsOneWidget);
-    expect(find.text('Promociones de hoy'), findsNothing);
+    await openPromos(tester);
+    expect(find.text('Hoy no hay promociones.'), findsOneWidget);
   });
 
   testWidgets('el titular se lee como un encabezado', (tester) async {

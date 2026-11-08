@@ -64,4 +64,31 @@ class HttpCatalogRepository implements CatalogRepository {
     );
     return decodeResponse(() => Product.fromJson(json));
   }
+
+  @override
+  Future<List<Product>> frequent() => _items(
+    '/products/frequent',
+    fallback: 'No se pudieron cargar tus productos frecuentes.',
+  );
+
+  @override
+  Future<List<Product>> suggested() => _items(
+    '/products/suggested',
+    fallback: 'No se pudieron cargar los sugeridos.',
+  );
+
+  /// Una lista `{items: [...]}` de productos, con el token si hay sesión.
+  Future<List<Product>> _items(String path, {required String fallback}) async {
+    final json = await _api.get(
+      path,
+      idToken: await _idToken(),
+      fallback: fallback,
+    );
+    return decodeResponse(
+      () => [
+        for (final item in (json! as Map)['items'] as List)
+          Product.fromJson(item),
+      ],
+    );
+  }
 }
