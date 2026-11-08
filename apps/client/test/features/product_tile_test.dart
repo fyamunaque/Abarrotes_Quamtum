@@ -169,6 +169,22 @@ void main() {
     expect(container.read(cartProvider).quantityOf('jamonada'), 3);
   });
 
+  testWidgets('en un teléfono de 390, la cantidad, el total y Editar van en '
+      'una línea', (tester) async {
+    const jamonada = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial Suiza paquete',
+      priceCents: 1320,
+      stock: 40,
+    );
+    await pumpTile(tester, jamonada, inCart: 2);
+
+    final stepper = tester.getRect(find.byTooltip('Agregar uno'));
+    final edit = tester.getRect(find.text('Editar'));
+    expect(edit.center.dy, closeTo(stepper.center.dy, 1));
+  });
+
   testWidgets('en el máximo el + se deshabilita', (tester) async {
     const twoLeft = Product(
       id: 'jamonada',

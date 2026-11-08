@@ -38,7 +38,7 @@ class QuantityStepper extends StatelessWidget {
           onPressed: quantity > 1 ? () => onChanged(quantity - 1) : null,
         ),
         ConstrainedBox(
-          constraints: BoxConstraints(minWidth: dense ? 32 : 40),
+          constraints: BoxConstraints(minWidth: dense ? 28 : 40),
           child: Text(
             '$quantity',
             textAlign: TextAlign.center,
