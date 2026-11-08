@@ -170,6 +170,27 @@ void main() {
     expect(repository.categories, hasLength(2));
   });
 
+  testWidgets('borrar pide confirmar como el resto del panel', (tester) async {
+    await pumpCategories(tester);
+
+    await tapAndSettle(tester, find.text('Lácteos').first);
+    await tapAndSettle(tester, find.text('Borrar categoría'));
+
+    // El diálogo común (confirmAction): "Volver" y el botón en rojo de error.
+    expect(find.text('Volver'), findsOneWidget);
+    final confirm = tester.widget<FilledButton>(
+      find.widgetWithText(FilledButton, 'Borrar'),
+    );
+    final context = tester.element(find.widgetWithText(FilledButton, 'Borrar'));
+    expect(
+      confirm.style?.backgroundColor?.resolve({}),
+      Theme.of(context).colorScheme.error,
+    );
+
+    await tapAndSettle(tester, find.text('Volver'));
+    expect(repository.categories, hasLength(2));
+  });
+
   testWidgets('sin categories.manage no aparece en el menú', (tester) async {
     await pumpCategories(tester, permissions: {StaffPermission.productsView});
 

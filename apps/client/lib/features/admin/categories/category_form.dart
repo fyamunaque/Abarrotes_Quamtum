@@ -9,6 +9,7 @@ import '../../../catalog/category.dart';
 import '../../catalog/category_photo.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_form.dart';
+import '../shared/admin_page.dart';
 
 /// Lo que pasó en el formulario: se guardó (o creó) una categoría, o se
 /// borró.
@@ -129,27 +130,15 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
 
   Future<void> _delete() async {
     final row = widget.row!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('¿Borrar la categoría?'),
-        content: Text(
+    final confirmed = await confirmAction(
+      context,
+      title: '¿Borrar la categoría?',
+      message:
           'Se borra "${row.category.name}". Solo se puede si no tiene '
           'productos.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Borrar'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Borrar',
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
     setState(() {
       _busy = true;
       _error = null;
