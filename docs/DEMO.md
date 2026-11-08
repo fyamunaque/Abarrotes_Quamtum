@@ -101,15 +101,17 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 **El recorrido:**
 
 1. **La tienda** (incógnito):
-   - la portada para negocios: el titular, los sellos, "Nuestras categorías" y la banda de
-     promociones (en el teléfono, el saludo, el buscador y las promociones en lista);
+   - la portada para negocios: el titular, los sellos, "Nuestras categorías", la banda de
+     promociones y las pestañas Sugeridos y Promos (en el teléfono, el saludo, el buscador y
+     las pestañas en lista);
    - el catálogo con el filtro por categoría (y su encabezado) y "Promociones";
    - un producto con su cinta ("3x2"), la cantidad y el total en la pastilla verde, y la barra
      roja del carrito en el teléfono;
    - un producto en promoción, con el precio anterior tachado, y uno agotado;
    - el detalle de un producto.
 2. **Comprar:** agregar al carrito, ingresar con la cuenta de prueba, confirmar el pedido. Termina
-   en **Mis pedidos**, con el seguimiento en "Pendiente".
+   en **Mis pedidos**, con el seguimiento en "Pendiente". De vuelta en la portada, con la cuenta
+   abierta aparece la pestaña **Frecuentes**, con lo que se acaba de pedir.
 3. **El panel** (ventana admin), **Inicio:**
    - ventas de hoy (ya con ese pedido), de la semana y del mes, y el ticket promedio;
    - pedidos por estado;
@@ -121,13 +123,15 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
    camino", con el código de entrega en grande. En el panel, **Marcar entregado** pide ese
    código, como lo haría el repartidor (con la cuenta admin, también se puede entregar sin
    código, con el motivo).
-6. **Productos:**
+6. **Categorías:** subir la foto de una y escribirle una descripción; en la tienda, la tarjeta de
+   "Nuestras categorías" y el encabezado del catálogo filtrado ya la muestran.
+7. **Productos:**
    - buscar por nombre o SKU;
    - el stock bajo resaltado;
    - editar un precio o crear un producto.
-7. **Inventario:** registrar una entrada para el producto agotado. El formulario muestra cómo
+8. **Inventario:** registrar una entrada para el producto agotado. El formulario muestra cómo
    queda el stock antes de guardar, y en la tienda deja de estar agotado.
-8. **Promociones:**
+9. **Promociones:**
    - crear una que empiece hoy: en la tienda aparece el precio rebajado;
    - crear un **2x1** ("Tipo de promoción": NxM, lleva 2, paga 1) en otro producto: el catálogo
      lo muestra con la insignia "2x1" y, con dos unidades en el carrito, la línea dice
@@ -139,7 +143,7 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
      lleva a "Mis códigos": escribir `demo-10` (vale en minúsculas), "Activar", y de vuelta en
      el carrito la línea dice "Código DEMO-10: …". Al hacer el pedido se gasta el uso: el código
      ya no aparece en "Mis códigos" (si se cancela el pedido, vuelve).
-9. **Clientes VIP:**
+10. **Clientes VIP:**
    - pegar varios correos de una vez y mostrar el resumen (agregados, ya estaban, no válidos);
    - en **Promociones**, crear una "Solo clientes VIP": lleva la insignia VIP en la lista.
 
@@ -147,7 +151,7 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
      "Verifica tu correo" manda el correo): al volver a la pestaña o abrir el catálogo aparecen
      el precio VIP con su insignia y las "Ofertas exclusivas", sin volver a ingresar.
    - Una cuenta que no es VIP no ve nada de eso.
-10. **En el teléfono:** `F12` → ícono de dispositivo (`Ctrl+Shift+M`). La tienda y el panel se
+11. **En el teléfono:** `F12` → ícono de dispositivo (`Ctrl+Shift+M`). La tienda y el panel se
    adaptan: en el panel, la navegación pasa abajo y las tablas, a tarjetas.
 
 **Qué hay detrás**, si pregunta:
@@ -158,7 +162,7 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 
 **Qué todavía no está**, para no prometer de más:
 - la app no está publicada: corre en esta máquina;
-- desde el panel no se gestionan categorías ni usuarios (las cuentas de staff se crean a mano);
+- desde el panel no se gestionan usuarios (las cuentas de staff se crean a mano);
 - no hay exportar a CSV, gráficos por rango de fechas ni notificaciones;
 - los productos de ejemplo no traen imágenes.
 

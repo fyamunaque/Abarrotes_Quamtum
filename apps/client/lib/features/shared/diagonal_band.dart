@@ -23,7 +23,7 @@ class DiagonalBand extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipPath(
-      clipper: const _DiagonalClipper(),
+      clipper: const DiagonalClipper(),
       child: switch (image) {
         final image? => Image.asset(
           image,
@@ -48,8 +48,10 @@ class DiagonalBand extends StatelessWidget {
   }
 }
 
-class _DiagonalClipper extends CustomClipper<Path> {
-  const _DiagonalClipper();
+/// El corte de [DiagonalBand]: el borde izquierdo va del 18 % del ancho arriba
+/// al 0 % abajo.
+class DiagonalClipper extends CustomClipper<Path> {
+  const DiagonalClipper();
 
   @override
   Path getClip(Size size) => Path()
@@ -60,5 +62,5 @@ class _DiagonalClipper extends CustomClipper<Path> {
     ..close();
 
   @override
-  bool shouldReclip(_DiagonalClipper oldClipper) => false;
+  bool shouldReclip(DiagonalClipper oldClipper) => false;
 }

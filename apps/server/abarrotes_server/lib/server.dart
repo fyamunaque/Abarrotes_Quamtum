@@ -121,7 +121,7 @@ void run(List<String> args) async {
   // Un dominio por bloque de rutas.
   addUsersRoutes(pod.webServer, guards: guards, shoppers: shoppers);
   addRoutes(pod.webServer, [
-    ...categoriesRoutes(const CategoriesService(), guards),
+    ...categoriesRoutes(CategoriesService(), guards),
     ...storeRoutes(const StoreSettingsService(), guards),
     ...productsRoutes(
       ProductsService(pricing: promotions),

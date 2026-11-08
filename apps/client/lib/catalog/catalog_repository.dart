@@ -22,4 +22,11 @@ abstract interface class CatalogRepository {
   /// Un producto activo. Si no existe o está dado de baja, `ApiFailure` con
   /// status 404 (o 400 si el id no es válido).
   Future<Product> product(String id);
+
+  /// Frecuentes: lo que más pide la cuenta abierta (hasta 20). Pide cuenta.
+  Future<List<Product>> frequent();
+
+  /// Sugeridos: lo más vendido de la tienda (hasta 20); con cuenta, sin sus
+  /// Frecuentes.
+  Future<List<Product>> suggested();
 }

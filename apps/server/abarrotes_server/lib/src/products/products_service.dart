@@ -28,6 +28,17 @@ class ProductsService {
   final ProductImages _images;
   final DateTime Function() _now;
 
+  /// Cuánto se guarda lo más vendido para Sugeridos (la ruta es pública y
+  /// el cálculo recorre los pedidos de 30 días).
+  static const suggestedTtl = Duration(minutes: 5);
+
+  /// Cuántos de lo más vendido se guardan: los que muestra Sugeridos más
+  /// los que puede sacar cada cuenta por ser sus Frecuentes.
+  static const _rankingSize = 60;
+
+  /// Lo más vendido (ids, en orden) y cuándo se calculó.
+  ({DateTime at, List<String> ids})? _bestSellers;
+
   /// Por nombre. [includeInactive] es solo para admin y staff: decide la ruta.
   /// [onSale] deja los que tienen una promoción que [shopper] puede usar.
   Future<(List<Product>, int)> list(
@@ -66,6 +77,148 @@ class ProductsService {
     );
     final total = await Product.db.count(session, where: where);
     return (products, total);
+  }
+
+  /// Lo que más pide [customerId]: los productos de sus pedidos no
+  /// cancelados de los últimos 180 días, sin los regalos ni los dados de
+  /// baja. Primero el que está en más pedidos; si empatan, el pedido más
+  /// reciente, y después el nombre. Con el precio de [shopper].
+  Future<List<Product>> frequent(
+    Session session, {
+    required UuidValue customerId,
+    Shopper shopper = Shopper.anonymous,
+    int limit = 20,
+  }) async {
+    final now = _now().toUtc();
+    final ids = await _frequentIds(session, customerId, now, limit);
+    return _inOrder(session, ids, now, shopper);
+  }
+
+  /// Lo más vendido de la tienda en unidades en los últimos 30 días, en
+  /// pedidos no cancelados: sin los regalos, los dados de baja ni los
+  /// agotados. Con [customerId], sin los que ya salen en sus Frecuentes. Si
+  /// así no queda ninguno (una tienda sin ventas recientes), lo más nuevo
+  /// con stock, para que la pestaña no quede vacía.
+  ///
+  /// Lo más vendido se recalcula cada [suggestedTtl]; el stock, si sigue
+  /// activo y los Frecuentes de la cuenta se miran en cada pedido.
+  Future<List<Product>> suggested(
+    Session session, {
+    UuidValue? customerId,
+    Shopper shopper = Shopper.anonymous,
+    int limit = 20,
+  }) async {
+    final now = _now().toUtc();
+    final exclude = customerId == null
+        ? const <String>[]
+        : await _frequentIds(session, customerId, now, limit);
+    final excludedIds = exclude.toSet();
+    final ranked = [
+      for (final id in await _bestSellerIds(session, now))
+        if (!excludedIds.contains(id)) id,
+    ];
+    final available = [
+      for (final product in await _inOrder(session, ranked, now, shopper))
+        if (product.active && product.currentStock > 0) product,
+    ];
+    if (available.isNotEmpty) return available.take(limit).toList();
+    final excluded = <UuidValue>{
+      for (final id in exclude) UuidValue.fromString(id),
+    };
+    return Product.db.find(
+      session,
+      where: (product) {
+        var filter = product.active.equals(true) & (product.currentStock > 0);
+        if (excluded.isNotEmpty) filter &= product.id.notInSet(excluded);
+        return filter;
+      },
+      orderByList: (product) => [product.createdAt.desc(), product.name.asc()],
+      limit: limit,
+      include: _include(now, shopper),
+    );
+  }
+
+  /// Lo más vendido en unidades en 30 días (sin cancelados, regalos, dados
+  /// de baja ni agotados al calcularlo), guardado por [suggestedTtl].
+  Future<List<String>> _bestSellerIds(Session session, DateTime now) async {
+    if (_bestSellers case (
+      :final at,
+      :final ids,
+    ) when now.difference(at) < suggestedTtl && !now.isBefore(at)) {
+      return ids;
+    }
+    final rows = await session.db.unsafeQuery(
+      '''
+      SELECT oi."productId"::text AS id
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      JOIN products p ON p.id = oi."productId"
+      WHERE o.status <> 'cancelled'
+        AND o."createdAt" >= @since::timestamp
+        AND NOT oi."isGift"
+        AND p.active
+        AND p."currentStock" > 0
+      GROUP BY oi."productId", p.name
+      ORDER BY SUM(oi.quantity) DESC, p.name
+      LIMIT @limit
+      ''',
+      parameters: QueryParameters.named({
+        'since': now.subtract(const Duration(days: 30)),
+        'limit': _rankingSize,
+      }),
+    );
+    final ids = [for (final row in rows) row.toColumnMap()['id'] as String];
+    _bestSellers = (at: now, ids: ids);
+    return ids;
+  }
+
+  Future<List<String>> _frequentIds(
+    Session session,
+    UuidValue customerId,
+    DateTime now,
+    int limit,
+  ) async {
+    final rows = await session.db.unsafeQuery(
+      '''
+      SELECT oi."productId"::text AS id
+      FROM order_items oi
+      JOIN orders o ON o.id = oi."orderId"
+      JOIN products p ON p.id = oi."productId"
+      WHERE o."customerId" = @customer::uuid
+        AND o.status <> 'cancelled'
+        AND o."createdAt" >= @since::timestamp
+        AND NOT oi."isGift"
+        AND p.active
+      GROUP BY oi."productId", p.name
+      ORDER BY COUNT(DISTINCT o.id) DESC, MAX(o."createdAt") DESC, p.name
+      LIMIT @limit
+      ''',
+      parameters: QueryParameters.named({
+        'customer': customerId.toString(),
+        'since': now.subtract(const Duration(days: 180)),
+        'limit': limit,
+      }),
+    );
+    return [for (final row in rows) row.toColumnMap()['id'] as String];
+  }
+
+  /// Los productos de [ids], en ese orden, con el precio de [shopper].
+  Future<List<Product>> _inOrder(
+    Session session,
+    List<String> ids,
+    DateTime now,
+    Shopper shopper,
+  ) async {
+    if (ids.isEmpty) return const [];
+    final found = await Product.db.find(
+      session,
+      where: (product) => product.id.inSet(<UuidValue>{
+        for (final id in ids) UuidValue.fromString(id),
+      }),
+      include: _include(now, shopper),
+    );
+    final byId = {for (final product in found) product.id.toString(): product};
+    return [for (final id in ids) ?byId[id]];
   }
 
   /// Un producto inactivo solo lo ven admin y staff ([includeInactive]).

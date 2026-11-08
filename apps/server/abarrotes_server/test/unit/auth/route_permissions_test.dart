@@ -59,7 +59,7 @@ void main() {
     const sales = SalesReportProvider();
     final routes = <RouteEntry>[
       ...usersRoutes(const UsersService(), guards, shoppers: testShoppers),
-      ...categoriesRoutes(const CategoriesService(), guards),
+      ...categoriesRoutes(CategoriesService(), guards),
       ...storeRoutes(const StoreSettingsService(), guards),
       ...productsRoutes(
         ProductsService(pricing: testPromotions()),
@@ -117,11 +117,17 @@ void main() {
       // Catálogo: lectura pública, escritura con su permiso.
       'GET /categories': 'pública',
       'GET /categories/:id': 'pública',
+      'GET /categories/summary': 'categories.manage',
       'POST /categories': 'categories.manage',
       'PATCH /categories/:id': 'categories.manage',
       'DELETE /categories/:id': 'categories.manage',
+      'PUT /categories/:id/image': 'categories.manage',
+      'DELETE /categories/:id/image': 'categories.manage',
+      'GET /images/categories/:categoryId/:file': 'pública',
       'GET /products': 'pública',
       'GET /products/:id': 'pública',
+      'GET /products/frequent': 'cuenta',
+      'GET /products/suggested': 'pública',
       'POST /products': 'products.manage',
       'PATCH /products/:id': 'products.manage',
       'DELETE /products/:id': 'products.manage',

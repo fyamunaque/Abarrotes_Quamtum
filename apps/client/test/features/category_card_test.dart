@@ -40,4 +40,57 @@ void main() {
     await tester.tap(find.byType(CategoryCard));
     expect(taps, 1);
   });
+
+  testWidgets('con foto usa la foto', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: neilsTheme(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 200,
+            child: CategoryCard(
+              category: const Category(
+                id: 'cat-1',
+                name: 'Embutidos',
+                imageUrl: '/images/categories/cat-1/0123456789abcdef.jpg',
+              ),
+              onTap: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final image = tester.widget<Image>(find.byType(Image));
+    expect(
+      (image.image as NetworkImage).url,
+      endsWith('/images/categories/cat-1/0123456789abcdef.jpg'),
+    );
+  });
+
+  testWidgets('si la foto falla vuelve al color y la inicial', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: neilsTheme(),
+        home: Scaffold(
+          body: SizedBox(
+            width: 200,
+            child: CategoryCard(
+              category: const Category(
+                id: 'cat-1',
+                name: 'Embutidos',
+                imageUrl: '/images/categories/cat-1/no-existe.jpg',
+              ),
+              onTap: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    // En los tests las fotos de la red fallan (400): el errorBuilder.
+    await tester.pumpAndSettle();
+
+    expect(find.text('E'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

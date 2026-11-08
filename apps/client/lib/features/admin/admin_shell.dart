@@ -31,6 +31,12 @@ enum AdminSection {
     Icons.inventory_2_outlined,
     Icons.inventory_2,
   ),
+  categories(
+    Routes.adminCategories,
+    'Categorías',
+    Icons.category_outlined,
+    Icons.category,
+  ),
   inventory(
     Routes.adminInventory,
     'Inventario',

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:neils/admin/emails.dart';
+import 'package:neils/admin/categories/admin_categories_repository.dart';
 import 'package:neils/admin/inventory/inventory_providers.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
 import 'package:neils/admin/inventory/movement.dart';
@@ -1294,7 +1295,38 @@ class FakeCatalogRepository implements CatalogRepository {
     this.categoryList = const [groceries, dairy],
     this.productList = const [rice, oil, milk],
     this.pageSize = 20,
+    this.frequentList = const [],
+    this.suggestedList = const [],
   });
+
+  /// Lo que devuelven Frecuentes y Sugeridos.
+  final List<Product> frequentList;
+  final List<Product> suggestedList;
+
+  /// Si no es null, Frecuentes y Sugeridos fallan con esto.
+  Object? suggestionsFailure;
+
+  /// Cuántas veces se pidió cada una.
+  int frequentCalls = 0;
+  int suggestedCalls = 0;
+
+  /// Si está, frequent() espera a que se complete (para ver la carga).
+  Completer<List<Product>>? frequentGate;
+
+  @override
+  Future<List<Product>> frequent() async {
+    frequentCalls++;
+    if (frequentGate case final gate?) return gate.future;
+    if (suggestionsFailure case final failure?) throw failure;
+    return frequentList;
+  }
+
+  @override
+  Future<List<Product>> suggested() async {
+    suggestedCalls++;
+    if (suggestionsFailure case final failure?) throw failure;
+    return suggestedList;
+  }
 
   final List<Category> categoryList;
   final List<Product> productList;
@@ -1905,5 +1937,115 @@ class FakeStaffRepository implements StaffRepository {
       );
     }
     roleList.remove(role);
+  }
+}
+
+/// Las categorías del panel en memoria, por nombre. Borrar una con
+/// productos ([productCounts]) responde el 409 del servidor.
+class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
+  FakeAdminCategoriesRepository(
+    List<Category> categories, {
+    this.productCounts = const {},
+  }) : categories = [...categories];
+
+  final List<Category> categories;
+  final Map<String, int> productCounts;
+
+  /// Lo creado: (nombre, descripción).
+  final created = <(String, String?)>[];
+
+  /// Las categorías a las que se les subió una foto.
+  final uploads = <String>[];
+
+  /// Si está, uploadImage() falla con esto.
+  Object? uploadFailure;
+
+  /// Las categorías a las que se les quitó la foto.
+  final removedImages = <String>[];
+
+  @override
+  Future<List<AdminCategory>> list() async => [
+    for (final category in [
+      ...categories,
+    ]..sort((a, b) => a.name.compareTo(b.name)))
+      (category: category, productCount: productCounts[category.id] ?? 0),
+  ];
+
+  @override
+  Future<Category> create(String name, {String? description}) async {
+    // Como el servidor: el nombre es único.
+    if (categories.any((category) => category.name == name)) {
+      throw const ApiFailure(
+        'Ya existe una categoría con ese nombre',
+        status: 409,
+      );
+    }
+    created.add((name, description));
+    final category = Category(
+      id: 'cat-${categories.length + 1}',
+      name: name,
+      description: description,
+    );
+    categories.add(category);
+    return category;
+  }
+
+  @override
+  Future<Category> update(
+    String id, {
+    required String name,
+    required String description,
+  }) async {
+    final i = categories.indexWhere((category) => category.id == id);
+    final current = categories[i];
+    return categories[i] = Category(
+      id: id,
+      name: name,
+      description: description.isEmpty ? null : description,
+      imageUrl: current.imageUrl,
+    );
+  }
+
+  @override
+  Future<Category> uploadImage(
+    String id,
+    List<int> bytes, {
+    required String contentType,
+  }) async {
+    if (uploadFailure case final failure?) throw failure;
+    uploads.add(id);
+    final i = categories.indexWhere((category) => category.id == id);
+    final current = categories[i];
+    return categories[i] = Category(
+      id: id,
+      name: current.name,
+      description: current.description,
+      imageUrl: '/images/categories/$id/0123456789abcdef.jpg',
+    );
+  }
+
+  @override
+  Future<Category> removeImage(String id) async {
+    removedImages.add(id);
+    final i = categories.indexWhere((category) => category.id == id);
+    final current = categories[i];
+    return categories[i] = Category(
+      id: id,
+      name: current.name,
+      description: current.description,
+    );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    final count = productCounts[id] ?? 0;
+    if (count > 0) {
+      throw ApiFailure(
+        'La categoría tiene $count productos: muévelos a otra antes de '
+        'eliminarla',
+        status: 409,
+      );
+    }
+    categories.removeWhere((category) => category.id == id);
   }
 }

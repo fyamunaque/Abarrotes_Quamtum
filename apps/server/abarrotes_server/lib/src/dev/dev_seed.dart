@@ -59,11 +59,19 @@ Future<int> seedDevData(Session session, {DateTime Function()? now}) async {
 
     var created = 0;
     for (final MapEntry(key: name, value: products) in _catalog.entries) {
-      final category = categories[name] ??= await Category.db.insertRow(
+      var category = categories[name] ??= await Category.db.insertRow(
         session,
-        Category(name: name),
+        Category(name: name, description: _categoryDescriptions[name]),
         transaction: transaction,
       );
+      // Las de un seed anterior, que todavía no tenían descripción.
+      if (category.description == null) {
+        category = categories[name] = await Category.db.updateRow(
+          session,
+          category.copyWith(description: _categoryDescriptions[name]),
+          transaction: transaction,
+        );
+      }
       for (final p in products) {
         if (skus.contains(p.sku)) continue;
         final product = await Product.db.insertRow(
@@ -395,6 +403,19 @@ _SeedProduct _product(
   stock: stock,
   promoPriceCents: promoPriceCents,
 );
+
+/// La línea de cada categoría de ejemplo, para su encabezado en la tienda.
+const _categoryDescriptions = {
+  'Abarrotes': 'Arroz, aceite, menestras y lo de todos los días',
+  'Lácteos y huevos': 'Leches, yogures, quesos y huevos',
+  'Carnes y embutidos': 'Pollo, carnes, hot dogs y jamonadas',
+  'Frutas y verduras': 'Frescas, para la cocina de tu negocio',
+  'Panadería': 'Panes para hamburguesas, hot dogs y sándwiches',
+  'Bebidas': 'Aguas, gaseosas y jugos',
+  'Limpieza': 'Para la cocina, el salón y los baños',
+  'Cuidado personal': 'Jabones, papel y lo del baño',
+  'Snacks y dulces': 'Galletas, chocolates y piqueos',
+};
 
 /// Las categorías que cambiaron de nombre: (antes, ahora).
 const _renamedCategories = [

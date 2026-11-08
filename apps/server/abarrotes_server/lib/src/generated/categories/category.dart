@@ -20,12 +20,16 @@ abstract class Category
   Category._({
     this.id,
     required this.name,
+    this.description,
+    this.imageUrl,
     this.products,
   });
 
   factory Category({
     _is.UuidValue? id,
     required String name,
+    String? description,
+    String? imageUrl,
     List<_iubf72bi.Product>? products,
   }) = _CategoryImpl;
 
@@ -35,6 +39,8 @@ abstract class Category
           ? null
           : _is.UuidValueJsonExtension.fromJson(jsonSerialization['id']),
       name: jsonSerialization['name'] as String,
+      description: jsonSerialization['description'] as String?,
+      imageUrl: jsonSerialization['imageUrl'] as String?,
       products: jsonSerialization['products'] == null
           ? null
           : _i1p9jj0z.Protocol().deserialize<List<_iubf72bi.Product>>(
@@ -52,6 +58,14 @@ abstract class Category
 
   String name;
 
+  /// Una línea para el encabezado de la categoría en la tienda ("Hot dogs,
+  /// jamonadas y más"), de hasta 80 caracteres.
+  String? description;
+
+  /// La foto, subida con `PUT /categories/:id/image`
+  /// (`/images/categories/<id>/<archivo>.jpg`).
+  String? imageUrl;
+
   List<_iubf72bi.Product>? products;
 
   @override
@@ -63,6 +77,8 @@ abstract class Category
   Category copyWith({
     _is.UuidValue? id,
     String? name,
+    String? description,
+    String? imageUrl,
     List<_iubf72bi.Product>? products,
   });
   @override
@@ -71,6 +87,8 @@ abstract class Category
       '__className__': 'Category',
       if (id != null) 'id': id?.toJson(),
       'name': name,
+      if (description != null) 'description': description,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (products != null)
         'products': products?.toJson(valueToJson: (v) => v.toJson()),
     };
@@ -82,6 +100,8 @@ abstract class Category
       '__className__': 'Category',
       if (id != null) 'id': id?.toJson(),
       'name': name,
+      if (description != null) 'description': description,
+      if (imageUrl != null) 'imageUrl': imageUrl,
       if (products != null)
         'products': products?.toJson(valueToJson: (v) => v.toJsonForProtocol()),
     };
@@ -121,10 +141,14 @@ class _CategoryImpl extends Category {
   _CategoryImpl({
     _is.UuidValue? id,
     required String name,
+    String? description,
+    String? imageUrl,
     List<_iubf72bi.Product>? products,
   }) : super._(
          id: id,
          name: name,
+         description: description,
+         imageUrl: imageUrl,
          products: products,
        );
 
@@ -135,11 +159,15 @@ class _CategoryImpl extends Category {
   Category copyWith({
     Object? id = _Undefined,
     String? name,
+    Object? description = _Undefined,
+    Object? imageUrl = _Undefined,
     Object? products = _Undefined,
   }) {
     return Category(
       id: id is _is.UuidValue? ? id : this.id,
       name: name ?? this.name,
+      description: description is String? ? description : this.description,
+      imageUrl: imageUrl is String? ? imageUrl : this.imageUrl,
       products: products is List<_iubf72bi.Product>?
           ? products
           : this.products?.map((e0) => e0.copyWith()).toList(),
@@ -154,6 +182,16 @@ class CategoryUpdateTable extends _is.UpdateTable<CategoryTable> {
     table.name,
     value,
   );
+
+  _is.ColumnValue<String, String> description(String? value) => _is.ColumnValue(
+    table.description,
+    value,
+  );
+
+  _is.ColumnValue<String, String> imageUrl(String? value) => _is.ColumnValue(
+    table.imageUrl,
+    value,
+  );
 }
 
 class CategoryTable extends _is.Table<_is.UuidValue?> {
@@ -163,11 +201,27 @@ class CategoryTable extends _is.Table<_is.UuidValue?> {
       'name',
       this,
     );
+    description = _is.ColumnString(
+      'description',
+      this,
+    );
+    imageUrl = _is.ColumnString(
+      'imageUrl',
+      this,
+    );
   }
 
   late final CategoryUpdateTable updateTable;
 
   late final _is.ColumnString name;
+
+  /// Una línea para el encabezado de la categoría en la tienda ("Hot dogs,
+  /// jamonadas y más"), de hasta 80 caracteres.
+  late final _is.ColumnString description;
+
+  /// La foto, subida con `PUT /categories/:id/image`
+  /// (`/images/categories/<id>/<archivo>.jpg`).
+  late final _is.ColumnString imageUrl;
 
   _iubf72bi.ProductTable? ___products;
 
@@ -209,6 +263,8 @@ class CategoryTable extends _is.Table<_is.UuidValue?> {
   List<_is.Column> get columns => [
     id,
     name,
+    description,
+    imageUrl,
   ];
 
   @override

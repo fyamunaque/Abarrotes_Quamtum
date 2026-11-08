@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:neils/admin/categories/admin_categories_repository.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
 import 'package:neils/admin/inventory/movement.dart';
 import 'package:neils/admin/orders/admin_orders_repository.dart';
@@ -1170,6 +1171,58 @@ void main() {
               .having((f) => f.status, 'status', 409),
         ),
       );
+    });
+  });
+
+  group('categorías', () {
+    test(
+      'la lista trae la cantidad de productos en una sola petición',
+      () async {
+        final list = await HttpAdminCategoriesRepository(
+          api(
+            (_) => [
+              {
+                'id': 'cat-1',
+                'name': 'Embutidos',
+                'description': 'Hot dogs, jamonadas y más',
+                'imageUrl': null,
+                'productCount': 3,
+              },
+              {
+                'id': 'cat-2',
+                'name': 'Lácteos',
+                'description': null,
+                'imageUrl': null,
+                'productCount': 0,
+              },
+            ],
+          ),
+        ).list();
+
+        expect(sent.single.url.path, '/categories/summary');
+        expect(
+          [for (final row in list) (row.category.name, row.productCount)],
+          [('Embutidos', 3), ('Lácteos', 0)],
+        );
+        expect(list.first.category.description, 'Hot dogs, jamonadas y más');
+      },
+    );
+
+    test('quitar la foto es DELETE a /categories/:id/image', () async {
+      final category = await HttpAdminCategoriesRepository(
+        api(
+          (_) => {
+            'id': 'cat-1',
+            'name': 'Embutidos',
+            'description': null,
+            'imageUrl': null,
+          },
+        ),
+      ).removeImage('cat-1');
+
+      expect(sent.single.method, 'DELETE');
+      expect(sent.single.url.path, '/categories/cat-1/image');
+      expect(category.imageUrl, isNull);
     });
   });
 }

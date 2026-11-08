@@ -54,6 +54,48 @@ void main() {
     );
   });
 
+  test('lee la descripción y la foto de una categoría', () async {
+    final categories = await repository(
+      (_) async => json(200, [
+        {
+          'id': 'c-1',
+          'name': 'Embutidos',
+          'description': 'Hot dogs, jamonadas y más',
+          'imageUrl': '/images/categories/c-1/0123456789abcdef.jpg',
+        },
+        {'id': 'c-2', 'name': 'Lácteos', 'description': null, 'imageUrl': null},
+      ]),
+    ).categories();
+
+    expect(categories.first.description, 'Hot dogs, jamonadas y más');
+    expect(
+      categories.first.imageUrl,
+      '/images/categories/c-1/0123456789abcdef.jpg',
+    );
+    expect(categories.last.description, isNull);
+    expect(categories.last.imageUrl, isNull);
+  });
+
+  test('frequent y suggested piden su ruta con el token', () async {
+    final requests = <(String, String?)>[];
+    final repo = repository((request) async {
+      requests.add((request.url.path, request.headers['authorization']));
+      return json(200, {
+        'items': [product()],
+      });
+    }, token: 't-1');
+
+    final frequent = await repo.frequent();
+    final suggested = await repo.suggested();
+
+    expect(frequent.single.name, 'Aceite vegetal 1 L');
+    expect(suggested.single.name, 'Aceite vegetal 1 L');
+    expect(requests, [
+      ('/products/frequent', 'Bearer t-1'),
+      ('/products/suggested', 'Bearer t-1'),
+    ]);
+  });
+
   test('productos: página, tamaño y categoría en el query', () async {
     late Uri url;
     final page = await repository((request) async {
