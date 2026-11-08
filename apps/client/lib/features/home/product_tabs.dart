@@ -31,8 +31,9 @@ enum _Tab {
 /// cuenta; sin cuenta no está), Sugeridos (lo más vendido) y Promos (lo que
 /// está en promoción hoy, sin repetir las ofertas exclusivas de un VIP).
 ///
-/// Arranca en Frecuentes si la cuenta tiene alguno; si no, en Sugeridos. Una
-/// vez que la persona elige una, no cambia sola. En el teléfono los productos
+/// Con cuenta arranca en Frecuentes, con su indicador mientras cargan, y pasa
+/// a Sugeridos si la cuenta no tiene ninguno o no se pudieron cargar. Sin
+/// cuenta, en Sugeridos. Una vez que la persona elige una, no cambia sola. En el teléfono los productos
 /// van en lista; en escritorio, en tarjetas. Se ven hasta [shown], con "Ver
 /// más" (o, en Promos, "Ver todas las promociones").
 class ProductTabs extends ConsumerStatefulWidget {
@@ -55,9 +56,16 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
     );
     final frequent = signedIn ? ref.watch(frequentProductsProvider) : null;
     final tabs = [if (signedIn) _Tab.frequent, _Tab.suggested, _Tab.promos];
+    final startOnFrequent = switch (frequent) {
+      null => false,
+      AsyncValue(value: final list?) => list.isNotEmpty,
+      AsyncValue(hasError: true) => false,
+      // Cargando: no salta a Sugeridos mientras tanto.
+      _ => true,
+    };
     final current = switch (_chosen) {
       final chosen? when tabs.contains(chosen) => chosen,
-      _ when frequent?.value?.isNotEmpty ?? false => _Tab.frequent,
+      _ when startOnFrequent => _Tab.frequent,
       _ => _Tab.suggested,
     };
 

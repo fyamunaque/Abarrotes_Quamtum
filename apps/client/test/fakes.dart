@@ -1310,9 +1310,13 @@ class FakeCatalogRepository implements CatalogRepository {
   int frequentCalls = 0;
   int suggestedCalls = 0;
 
+  /// Si está, frequent() espera a que se complete (para ver la carga).
+  Completer<List<Product>>? frequentGate;
+
   @override
   Future<List<Product>> frequent() async {
     frequentCalls++;
+    if (frequentGate case final gate?) return gate.future;
     if (suggestionsFailure case final failure?) throw failure;
     return frequentList;
   }
