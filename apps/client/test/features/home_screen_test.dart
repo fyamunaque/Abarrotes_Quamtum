@@ -69,6 +69,28 @@ void main() {
     expect(session.refreshes, 1);
   });
 
+  testWidgets('deslizar hacia abajo vuelve a pedir Frecuentes y Sugeridos', (
+    tester,
+  ) async {
+    await pumpHome(tester, signedIn: signedInAs(UserRole.customer));
+    final (frequent, suggested) = (
+      catalog.frequentCalls,
+      catalog.suggestedCalls,
+    );
+
+    await tester.fling(
+      find.byWidgetPredicate(
+        (w) => w is SingleChildScrollView && w.scrollDirection == Axis.vertical,
+      ),
+      const Offset(0, 400),
+      1000,
+    );
+    await tester.pumpAndSettle();
+
+    expect(catalog.frequentCalls, frequent + 1);
+    expect(catalog.suggestedCalls, suggested + 1);
+  });
+
   /// La app entera, con el router: para seguir los enlaces.
   Future<(GoRouter, ProviderContainer)> pumpApp(
     WidgetTester tester, {
@@ -192,9 +214,7 @@ void main() {
     expect(colorOf('Lácteos'), PlaceholderColors.pairs[1].$1);
   });
 
-  testWidgets('en el teléfono, las categorías van en una fila', (
-    tester,
-  ) async {
+  testWidgets('en el teléfono, las categorías van en una fila', (tester) async {
     await pumpApp(tester, width: 375);
 
     expect(
@@ -205,11 +225,7 @@ void main() {
   });
 
   testWidgets('teléfono: saluda con el nombre de la cuenta', (tester) async {
-    await pumpApp(
-      tester,
-      width: 375,
-      signedIn: signedInAs(UserRole.customer),
-    );
+    await pumpApp(tester, width: 375, signedIn: signedInAs(UserRole.customer));
 
     expect(find.text('¡Hola, Ana!'), findsOneWidget);
     expect(

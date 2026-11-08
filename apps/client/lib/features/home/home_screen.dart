@@ -39,7 +39,9 @@ class HomeScreen extends ConsumerWidget {
         ref
           ..invalidate(exclusiveOffersProvider)
           ..invalidate(categoriesProvider)
-          ..invalidate(onSaleProductsProvider);
+          ..invalidate(onSaleProductsProvider)
+          ..invalidate(frequentProductsProvider)
+          ..invalidate(suggestedProductsProvider);
       },
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
