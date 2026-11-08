@@ -85,7 +85,7 @@ List<RouteEntry> categoriesRoutes(
       ),
     ),
     (
-      '${CategoryImages.prefix}:categoryId/:file',
+      '${CategoryImages.urlPrefix}:categoryId/:file',
       // Pública, como el catálogo. Cada foto subida tiene un nombre nuevo:
       // el navegador la guarda en caché para siempre.
       ApiRoute(Method.get, (session, request) async {

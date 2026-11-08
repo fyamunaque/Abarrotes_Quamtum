@@ -125,7 +125,7 @@ class CategoriesService {
   ) => _images.read(session, categoryId, file);
 
   /// La foto lista para guardar: JPEG de hasta 1200 px.
-  Uint8List processImage(Uint8List bytes) => _images.process(bytes);
+  Uint8List processImage(Uint8List bytes) => CategoryImages.process(bytes);
 
   /// El índice único de la base distingue mayúsculas: "Bebidas" y "bebidas"
   /// pasarían. Para la tienda son la misma categoría, así que se compara sin
