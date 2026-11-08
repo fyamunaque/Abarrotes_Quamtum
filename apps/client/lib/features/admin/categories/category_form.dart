@@ -51,6 +51,9 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   );
   PickedPhoto? _photo;
 
+  /// Se tocó "Quitar foto": al guardar, la categoría queda sin foto.
+  bool _removePhoto = false;
+
   /// La categoría ya guardada en este formulario: si después falla la foto,
   /// reintentar guarda sobre ella en vez de crearla otra vez.
   Category? _saved;
@@ -67,7 +70,12 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   Future<void> _pick(PhotoSource source) async {
     try {
       final photo = await ref.read(photoPickerProvider).pick(source);
-      if (photo != null && mounted) setState(() => _photo = photo);
+      if (photo != null && mounted) {
+        setState(() {
+          _photo = photo;
+          _removePhoto = false;
+        });
+      }
     } catch (error) {
       if (mounted) {
         setState(
@@ -105,6 +113,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
           photo.bytes,
           contentType: photo.contentType,
         );
+      } else if (_removePhoto && category.imageUrl != null) {
+        category = await notifier.removeImage(category.id);
       }
       if (mounted) Navigator.of(context).pop(CategorySaved(category));
     } catch (error) {
@@ -163,6 +173,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   Widget build(BuildContext context) {
     final picker = ref.watch(photoPickerProvider);
     final current = widget.row?.category;
+    final hasPhoto =
+        _photo != null || (current?.imageUrl != null && !_removePhoto);
     return Form(
       key: _formKey,
       child: Column(
@@ -209,8 +221,11 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
                       semanticLabel: 'La foto elegida',
                     ),
                     null => CategoryPhoto(
-                      category:
-                          current ?? Category(id: 'nueva', name: _name.text),
+                      category: Category(
+                        id: current?.id ?? 'nueva',
+                        name: current?.name ?? _name.text,
+                        imageUrl: _removePhoto ? null : current?.imageUrl,
+                      ),
                     ),
                   },
                 ),
@@ -226,11 +241,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
                           ? null
                           : () => _pick(PhotoSource.gallery),
                       icon: const Icon(Icons.photo_library_outlined),
-                      label: Text(
-                        _photo != null || current?.imageUrl != null
-                            ? 'Cambiar foto'
-                            : 'Elegir foto',
-                      ),
+                      label: Text(hasPhoto ? 'Cambiar foto' : 'Elegir foto'),
                     ),
                     if (picker.canUseCamera)
                       OutlinedButton.icon(
@@ -239,6 +250,17 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
                             : () => _pick(PhotoSource.camera),
                         icon: const Icon(Icons.photo_camera_outlined),
                         label: const Text('Tomar foto'),
+                      ),
+                    if (hasPhoto)
+                      TextButton.icon(
+                        onPressed: _busy
+                            ? null
+                            : () => setState(() {
+                                _photo = null;
+                                _removePhoto = true;
+                              }),
+                        icon: const Icon(Icons.hide_image_outlined),
+                        label: const Text('Quitar foto'),
                       ),
                   ],
                 ),

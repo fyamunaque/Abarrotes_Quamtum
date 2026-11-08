@@ -124,6 +124,34 @@ void main() {
     expect(find.byType(CategoryForm), findsNothing);
   });
 
+  testWidgets('quitar la foto', (tester) async {
+    repository.categories[1] = const Category(
+      id: 'cat-lacteos',
+      name: 'Lácteos',
+      imageUrl: '/images/categories/cat-lacteos/0123456789abcdef.jpg',
+    );
+    await pumpCategories(tester);
+
+    await tapAndSettle(tester, find.text('Lácteos').first);
+    await tapAndSettle(tester, find.text('Quitar foto'));
+    // Ya no hay foto que quitar: se puede elegir otra.
+    expect(find.text('Quitar foto'), findsNothing);
+    expect(find.text('Elegir foto'), findsOneWidget);
+    await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
+
+    expect(repository.removedImages, ['cat-lacteos']);
+    expect(repository.categories[1].imageUrl, isNull);
+    expect(repository.uploads, isEmpty);
+  });
+
+  testWidgets('sin foto no se ofrece quitarla', (tester) async {
+    await pumpCategories(tester);
+
+    await tapAndSettle(tester, find.text('Lácteos').first);
+
+    expect(find.text('Quitar foto'), findsNothing);
+  });
+
   testWidgets('borrar una con productos muestra el aviso del servidor', (
     tester,
   ) async {

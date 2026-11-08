@@ -1960,6 +1960,9 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
   /// Si está, uploadImage() falla con esto.
   Object? uploadFailure;
 
+  /// Las categorías a las que se les quitó la foto.
+  final removedImages = <String>[];
+
   @override
   Future<List<AdminCategory>> list() async => [
     for (final category in [
@@ -2018,6 +2021,18 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
       name: current.name,
       description: current.description,
       imageUrl: '/images/categories/$id/0123456789abcdef.jpg',
+    );
+  }
+
+  @override
+  Future<Category> removeImage(String id) async {
+    removedImages.add(id);
+    final i = categories.indexWhere((category) => category.id == id);
+    final current = categories[i];
+    return categories[i] = Category(
+      id: id,
+      name: current.name,
+      description: current.description,
     );
   }
 

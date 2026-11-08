@@ -29,6 +29,9 @@ abstract interface class AdminCategoriesRepository {
     required String contentType,
   });
 
+  /// Le quita la foto: la tienda vuelve a mostrar su color con la inicial.
+  Future<Category> removeImage(String id);
+
   /// Solo si no tiene productos (si no, 409 con el aviso del servidor).
   Future<void> delete(String id);
 }
@@ -91,6 +94,15 @@ class HttpAdminCategoriesRepository implements AdminCategoriesRepository {
       bytes,
       contentType: contentType,
       fallback: 'No se pudo subir la foto.',
+    );
+    return decodeResponse(() => Category.fromJson(json));
+  }
+
+  @override
+  Future<Category> removeImage(String id) async {
+    final json = await _api.delete(
+      '/categories/${Uri.encodeComponent(id)}/image',
+      fallback: 'No se pudo quitar la foto.',
     );
     return decodeResponse(() => Category.fromJson(json));
   }

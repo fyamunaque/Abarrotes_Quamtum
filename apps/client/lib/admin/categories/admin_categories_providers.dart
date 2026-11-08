@@ -40,6 +40,9 @@ class AdminCategoriesNotifier extends AsyncNotifier<List<AdminCategory>> {
     required String contentType,
   }) => _changed(_repository.uploadImage(id, bytes, contentType: contentType));
 
+  Future<Category> removeImage(String id) =>
+      _changed(_repository.removeImage(id));
+
   Future<void> delete(String id) => _changed(_repository.delete(id));
 
   Future<T> _changed<T>(Future<T> change) async {

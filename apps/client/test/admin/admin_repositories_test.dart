@@ -1207,5 +1207,22 @@ void main() {
         expect(list.first.category.description, 'Hot dogs, jamonadas y más');
       },
     );
+
+    test('quitar la foto es DELETE a /categories/:id/image', () async {
+      final category = await HttpAdminCategoriesRepository(
+        api(
+          (_) => {
+            'id': 'cat-1',
+            'name': 'Embutidos',
+            'description': null,
+            'imageUrl': null,
+          },
+        ),
+      ).removeImage('cat-1');
+
+      expect(sent.single.method, 'DELETE');
+      expect(sent.single.url.path, '/categories/cat-1/image');
+      expect(category.imageUrl, isNull);
+    });
   });
 }
