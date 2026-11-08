@@ -14,6 +14,7 @@ import 'package:neils/orders/orders_providers.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
+import 'package:neils/theme/neils_theme.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -92,7 +93,10 @@ void main() {
         find.descendant(of: bar, matching: find.text('Continuar')),
         findsOneWidget,
       );
-      expect(find.descendant(of: bar, matching: find.text('3')), findsOneWidget);
+      expect(
+        find.descendant(of: bar, matching: find.text('3')),
+        findsOneWidget,
+      );
       expect(
         find.descendant(of: bar, matching: find.text(formatSoles(1320))),
         findsOneWidget,
@@ -103,6 +107,32 @@ void main() {
       expect(router.routerDelegate.currentConfiguration.uri.path, '/carrito');
     },
   );
+
+  testWidgets('se anuncia como un botón que se puede tocar', (tester) async {
+    final semantics = tester.ensureSemantics();
+    var taps = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: neilsTheme(),
+        home: Scaffold(
+          body: CartBar(
+            label: 'Continuar',
+            count: 3,
+            totalCents: 1320,
+            onPressed: () => taps++,
+          ),
+        ),
+      ),
+    );
+
+    // El lector de pantalla lee la barra entera como un botón, y tocarla
+    // desde ahí hace lo mismo que tocarla con el dedo.
+    final node = tester.getSemantics(find.text('Continuar'));
+    expect(node, isSemantics(isButton: true, hasTapAction: true));
+    tester.semantics.tap(find.semantics.byLabel(RegExp('Continuar')));
+    expect(taps, 1);
+    semantics.dispose();
+  });
 
   testWidgets('en escritorio no hay barra', (tester) async {
     await pumpStore(
@@ -133,6 +163,9 @@ void main() {
     final tile = tester.getRect(
       find.ancestor(of: last, matching: find.byType(Card)).first,
     );
-    expect(tile.bottom, lessThanOrEqualTo(tester.getRect(find.byType(CartBar)).top));
+    expect(
+      tile.bottom,
+      lessThanOrEqualTo(tester.getRect(find.byType(CartBar)).top),
+    );
   });
 }

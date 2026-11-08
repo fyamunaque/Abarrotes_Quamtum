@@ -34,22 +34,27 @@ class CartBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final enabled = onPressed != null && !busy;
+    // La semántica envuelve al InkWell para que el nodo del botón lleve su
+    // acción de tocar: el lector de pantalla lee la barra entera y la activa.
     return Opacity(
       opacity: enabled || busy ? 1 : 0.5,
-      child: Material(
-        color: NeilsColors.primary,
-        borderRadius: BorderRadius.circular(16),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: enabled ? onPressed : null,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 64),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: MergeSemantics(
-                child: Semantics(
-                  button: true,
-                  enabled: enabled,
+      child: MergeSemantics(
+        child: Semantics(
+          button: true,
+          enabled: enabled,
+          child: Material(
+            color: NeilsColors.primary,
+            borderRadius: BorderRadius.circular(16),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: enabled ? onPressed : null,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 64),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   child: Row(
                     children: [
                       if (count case final count?) ...[
