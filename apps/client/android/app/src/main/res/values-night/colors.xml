@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- El carbón del modo oscuro (NeilsPalette.dark.background), mientras
+         carga con el sistema en oscuro. -->
+    <color name="launch_background">#171513</color>
+</resources>

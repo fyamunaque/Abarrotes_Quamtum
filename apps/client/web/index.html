@@ -19,7 +19,16 @@
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
   <meta name="description" content="Insumos gastronómicos para tu negocio: el catálogo, las promociones y tus pedidos de Neil's Food Services.">
-  <meta name="theme-color" content="#C8281E">
+  <meta name="theme-color" content="#C8281E" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
+  <!-- El fondo mientras carga Flutter, según el modo del navegador: sin el
+       destello blanco en oscuro. Son NeilsPalette.light/dark.background. -->
+  <style>
+    html, body { background: #FBF7F2; }
+    @media (prefers-color-scheme: dark) {
+      html, body { background: #171513; }
+    }
+  </style>
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
