@@ -1,6 +1,5 @@
 import '../../catalog/category.dart';
 import '../../common/api_client.dart';
-import '../../common/page_list.dart';
 
 /// Una categoría en el panel, con cuántos productos tiene (también los dados
 /// de baja).
@@ -39,36 +38,23 @@ class HttpAdminCategoriesRepository implements AdminCategoriesRepository {
 
   final AuthedApi _api;
 
+  /// `GET /categories/summary`: cada categoría con `productCount` (también
+  /// los productos dados de baja), en una sola petición.
   @override
   Future<List<AdminCategory>> list() async {
     final json = await _api.get(
-      '/categories',
+      '/categories/summary',
       fallback: 'No se pudieron cargar las categorías.',
     );
-    final categories = decodeResponse(
-      () => [for (final item in json as List) Category.fromJson(item)],
+    return decodeResponse(
+      () => [
+        for (final item in json as List)
+          (
+            category: Category.fromJson(item),
+            productCount: (item as Map<String, Object?>)['productCount'] as int,
+          ),
+      ],
     );
-    // El servidor no manda cuántos productos tiene: la página de una sola
-    // fila trae el total.
-    return Future.wait([
-      for (final category in categories)
-        _productCount(category.id)
-            .then((count) => (category: category, productCount: count)),
-    ]);
-  }
-
-  Future<int> _productCount(String categoryId) async {
-    final json = await _api.get(
-      '/products',
-      query: {
-        'page': '1',
-        'limit': '1',
-        'includeInactive': 'true',
-        'categoryId': categoryId,
-      },
-      fallback: 'No se pudieron contar los productos.',
-    );
-    return decodeResponse(() => decodePage(json, (item) => item).total);
   }
 
   @override
