@@ -36,7 +36,7 @@ abstract final class NeilsColors {
 /// puntos y líneas. El estado también va siempre en texto, en tinta: el ámbar
 /// de pendiente sobre el fondo no alcanza el contraste de un texto.
 abstract final class OrderStatusColors {
-  static const pending = Color(0xFFD98C21);
+  static const pending = Color(0xFFC27A12);
 
   /// Índigo: distinto del verde de entregado y del azul de en camino.
   static const confirmed = Color(0xFF4F5BB5);
@@ -70,7 +70,7 @@ abstract final class PlaceholderColors {
     (Color(0xFFF8DCC8), Color(0xFF8A3A12)), // durazno
     (Color(0xFFDCE8D2), Color(0xFF3E5A2A)), // salvia
     (Color(0xFFD6E6F2), Color(0xFF24506E)), // cielo
-    (Color(0xFFE4DCF0), Color(0xFF533A7A)), // lavanda
+    (Color(0xFFF1DDCF), Color(0xFF6B3A22)), // arcilla
     (Color(0xFFF6EAC2), Color(0xFF6E5410)), // mantequilla
     (Color(0xFFF4D6DA), Color(0xFF82313F)), // rosa
     (Color(0xFFD3ECE6), Color(0xFF1F5C50)), // menta

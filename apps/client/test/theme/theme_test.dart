@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -87,6 +88,132 @@ void main() {
         reason: '$foreground sobre $background',
       );
     }
+  });
+
+  group('paletas', () {
+    const paletas = {'claro': NeilsPalette.light, 'oscuro': NeilsPalette.dark};
+
+    void expectContrast(Color a, Color b, double atLeast, String nombre) =>
+        expect(
+          _contrast(a, b),
+          greaterThanOrEqualTo(atLeast),
+          reason: '$nombre: $a sobre $b',
+        );
+
+    test('los textos del claro y del oscuro pasan 4,5:1', () {
+      for (final MapEntry(key: nombre, value: p) in paletas.entries) {
+        for (final fondo in [p.background, p.surface, p.surfaceAlt]) {
+          expectContrast(p.ink, fondo, 4.5, nombre);
+          expectContrast(p.inkMuted, fondo, 4.5, nombre);
+        }
+        for (final fondo in [p.background, p.surface]) {
+          expectContrast(p.brandText, fondo, 4.5, nombre);
+        }
+        expectContrast(p.onBrand, p.brandFill, 4.5, nombre);
+        expectContrast(p.money, p.moneyTint, 4.5, nombre);
+      }
+    });
+
+    test('cada estado pasa 3:1 sobre surface', () {
+      for (final MapEntry(key: nombre, value: p) in paletas.entries) {
+        for (final estado in [
+          p.statusPending,
+          p.statusConfirmed,
+          p.statusPreparing,
+          p.statusReady,
+          p.statusOnTheWay,
+          p.statusDelivered,
+          p.statusCancelled,
+          p.positive,
+          p.caution,
+        ]) {
+          expectContrast(estado, p.surface, 3, nombre);
+        }
+      }
+    });
+
+    test('cada par de categoría pasa 4,5:1', () {
+      for (final MapEntry(key: nombre, value: p) in paletas.entries) {
+        for (final (fondo, letra) in p.placeholderPairs) {
+          expectContrast(letra, fondo, 4.5, nombre);
+        }
+      }
+    });
+
+    test('sin lavanda', () {
+      expect([
+        for (final (fondo, _) in NeilsPalette.light.placeholderPairs) fondo,
+      ], isNot(contains(const Color(0xFFE4DCF0))));
+      expect(
+        PlaceholderColors.pairs,
+        isNot(contains((const Color(0xFFE4DCF0), const Color(0xFF533A7A)))),
+      );
+    });
+
+    test('el oscuro es el de la spec', () {
+      const p = NeilsPalette.dark;
+      expect(p.background, const Color(0xFF171513));
+      expect(p.surface, const Color(0xFF24201C));
+      expect(p.brandFill, const Color(0xFFC8281E));
+      expect(p.brandText, const Color(0xFFFF9A8F));
+    });
+
+    test('el claro es el de hoy', () {
+      const p = NeilsPalette.light;
+      expect(p.background, NeilsColors.background);
+      expect(p.surface, NeilsColors.surface);
+      expect(p.ink, NeilsColors.ink);
+      expect(p.brandFill, NeilsColors.primary);
+      expect(p.brandText, NeilsColors.primary);
+      expect(p.brandTint, NeilsColors.primaryTint);
+      expect(p.money, NeilsColors.money);
+      expect(p.moneyTint, NeilsColors.moneyTint);
+    });
+
+    test('lerp va de una paleta a la otra sin saltos', () {
+      final medio = NeilsPalette.light.lerp(NeilsPalette.dark, 0.5);
+      expect(
+        medio.background,
+        Color.lerp(
+          NeilsPalette.light.background,
+          NeilsPalette.dark.background,
+          0.5,
+        ),
+      );
+      final (fondoClaro, _) = NeilsPalette.light.placeholderPairs.first;
+      final (fondoOscuro, _) = NeilsPalette.dark.placeholderPairs.first;
+      expect(
+        medio.placeholderPairs.first.$1,
+        Color.lerp(fondoClaro, fondoOscuro, 0.5),
+      );
+      expect(NeilsPalette.light.lerp(null, 0.5), same(NeilsPalette.light));
+    });
+
+    test('copyWith cambia solo lo pedido', () {
+      final p = NeilsPalette.light.copyWith(
+        background: const Color(0xFF000000),
+      );
+      expect(p.background, const Color(0xFF000000));
+      expect(p.surface, NeilsPalette.light.surface);
+      expect(p.placeholderPairs, NeilsPalette.light.placeholderPairs);
+    });
+
+    test('las dos paletas tienen la misma cantidad de pares', () {
+      expect(
+        NeilsPalette.dark.placeholderPairs,
+        hasLength(NeilsPalette.light.placeholderPairs.length),
+      );
+    });
+
+    test('placeholderFor da el mismo par que PlaceholderColors.of', () {
+      for (final id in ['cat-embutidos', 'cat-lacteos', 'a', '']) {
+        final i = PlaceholderColors.pairs.indexOf(PlaceholderColors.of(id));
+        expect(
+          NeilsPalette.dark.placeholderFor(id),
+          NeilsPalette.dark.placeholderPairs[i],
+        );
+      }
+    });
   });
 
   test('los títulos van en Poppins y el texto en Inter', () {
