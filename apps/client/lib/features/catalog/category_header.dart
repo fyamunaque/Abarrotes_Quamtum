@@ -9,6 +9,9 @@ import 'category_photo.dart';
 /// El encabezado del catálogo filtrado por una categoría: su nombre y su
 /// descripción, y a la derecha la franja diagonal con su foto (o su color y
 /// la inicial), como "Embutidos" en las maquetas.
+///
+/// Mide al menos 120 de alto en el teléfono y 160 en escritorio, y crece si
+/// el texto (agrandado) no entra; la foto acompaña ese alto.
 class CategoryHeader extends StatelessWidget {
   const CategoryHeader({super.key, required this.category});
 
@@ -22,17 +25,37 @@ class CategoryHeader extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: ColoredBox(
         color: NeilsColors.surface,
-        child: SizedBox(
-          height: wide ? 160 : 120,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: 6,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            // La foto, el 40 % de la derecha.
+            final photoWidth = constraints.maxWidth * 0.4;
+            return ConstrainedBox(
+              constraints: BoxConstraints(minHeight: wide ? 160 : 120),
+              child: Stack(
+                alignment: AlignmentDirectional.centerStart,
+                children: [
+                  PositionedDirectional(
+                    top: 0,
+                    bottom: 0,
+                    end: 0,
+                    width: photoWidth,
+                    // La foto (o el color y la inicial), cortada en diagonal.
+                    child: ClipPath(
+                      clipper: const DiagonalClipper(),
+                      child: CategoryPhoto(
+                        category: category,
+                        initialStyle: text.displaySmall,
+                      ),
+                    ),
+                  ),
+                  // El texto decide el alto, si pasa del mínimo.
+                  Padding(
+                    padding: EdgeInsetsDirectional.only(
+                      start: 20,
+                      end: photoWidth + 20,
+                      top: 16,
+                      bottom: 16,
+                    ),
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -63,21 +86,10 @@ class CategoryHeader extends StatelessWidget {
                       ],
                     ),
                   ),
-                ),
+                ],
               ),
-              Expanded(
-                flex: 4,
-                // La foto (o el color y la inicial), cortada en diagonal.
-                child: ClipPath(
-                  clipper: const DiagonalClipper(),
-                  child: CategoryPhoto(
-                    category: category,
-                    initialStyle: text.displaySmall,
-                  ),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
