@@ -88,6 +88,10 @@
   - `'sin lavanda'`: ningún fondo de los pares claros es `#E4DCF0`.
   - `'el oscuro es el de la spec'`: background `#171513`, surface `#24201C`, brandFill `#C8281E` y
     brandText `#FF9A8F`.
+  - `'lerp va de una paleta a la otra sin saltos'`: a t = 0,5, `background` queda entre los dos y cada
+    par de categoría también se interpola; con `other` nulo devuelve la misma.
+  - `'copyWith cambia solo lo pedido'`.
+  - `'las dos paletas tienen la misma cantidad de pares'`.
 - [ ] **Step 2:** correr `theme_test.dart`. Esperado: no compila, porque falta `NeilsPalette`.
 - [ ] **Step 3:** escribir `palette.dart` con los valores de la spec.
   - El claro toma los de hoy:
@@ -160,7 +164,10 @@
   - `'set guarda la preferencia'`;
   - `'la app arranca en oscuro si estaba guardado'`: se arma `NeilsApp` con el repositorio en `dark`; en
     el primer `pump`, `Theme.of(...).brightness` es `dark`;
-  - `'en sistema sigue al brillo del dispositivo'`, con `tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark`.
+  - `'en sistema sigue al brillo del dispositivo'`, con `tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark`;
+  - `'cambiar la preferencia cambia el modo de la app'`: con la app armada, `set(dark)` y un `pump`, el
+    `Theme` es oscuro;
+  - `'la preferencia guardada sobrevive a un provider nuevo'`.
 - [ ] **Step 2:** correrlos. Esperado: no compila.
 - [ ] **Step 3:** implementar. `main.dart` reemplaza el provider con
   `PrefsAppearanceRepository(prefs)`, usando la misma instancia de SharedPreferences.
@@ -175,14 +182,16 @@
   - `lib/features/shared/store_menu.dart`: el selector debajo de las secciones;
   - `lib/features/shared/brand.dart`: el botón en las `actions` de escritorio, antes de `CartButton`;
   - `lib/features/admin/admin_shell.dart`: el botón antes de `AccountActions`.
-- Test: `test/features/appearance_controls_test.dart`
+- Test: `test/features/appearance_controls_test.dart` (nuevo)
 
 **Interfaces:**
 - Consumes: `appearanceProvider` (Task 3).
 - Produces:
-  - `AppearanceSelector`: un `SegmentedButton<ThemePreference>` con tres segmentos (íconos
-    `smartphone`, `light_mode`, `dark_mode`; etiquetas "Sistema", "Claro" y "Oscuro"); debajo, "Sistema
-    sigue al modo de tu teléfono.";
+  - `AppearanceSelector`: tres botones iguales en una fila (cada uno `Expanded`, de 56 px de alto como
+    mínimo, el ícono arriba y la etiqueta abajo en un `FittedBox` que solo achica), con la semántica de
+    un grupo de opciones. Los íconos son `smartphone`, `light_mode` y `dark_mode`, con las etiquetas
+    "Sistema", "Claro" y "Oscuro". Debajo dice "Sistema sigue al modo de tu teléfono.". Así entra en el
+    menú lateral a 320 px y con el texto al 130 %, sin el ancho fijo de `SegmentedButton`;
   - `AppearanceButton`: un `MenuAnchor` con un `IconButton` (tooltip "Apariencia"; el ícono es el del
     modo activo) y tres `MenuItemButton`, con la marca en el activo.
 
@@ -237,7 +246,9 @@
   `neilsTheme(Brightness.dark)`):
   - `'la barra del carrito en oscuro: fondo rojo y texto blanco'`;
   - `'la pastilla del total en oscuro usa money sobre moneyTint'`;
-  - `'el precio en oferta en oscuro usa brandText'`.
+  - `'el precio en oferta en oscuro usa brandText'`;
+  - `'la categoría sin foto en oscuro usa su par oscuro'`;
+  - `'la portada en oscuro entra en 320 sin desbordes'`.
 
   Correrlos. Esperado: fallan, porque los widgets usan las constantes claras.
 - [ ] **Step 4:** migrar cada archivo a `context.palette` o al `colorScheme`. Los pares de categoría
@@ -358,7 +369,7 @@
 - Delete: `lib/features/catalog/promo_ribbon.dart`
 - Modify: `product_tile.dart`, `product_card.dart`, `product_detail_screen.dart` y `cart_screen.dart`, que
   usan `PromoTag` (en el carrito, "Regalo" va con `PromoTag.gift()`).
-- Test: `test/features/promo_tag_test.dart`; en `product_tile_test`, `product_card_test` y
+- Test: `test/features/promo_tag_test.dart` (nuevo); en `product_tile_test`, `product_card_test` y
   `cart_screen_test`, `PromoRibbon` pasa a `PromoTag`.
 
 **Interfaces:**
@@ -389,7 +400,8 @@
 - [ ] **Step 1:** los tests:
   - `'la fila no es una tarjeta: sin Card ni sombra'`;
   - `'ProductRows pone una línea entre filas y no al final'`;
-  - `'la foto lleva el Hero del producto'`;
+  - `'la foto viaja al detalle'`: con el router real, tocar la fila abre el detalle y durante la
+    transición hay un solo `Hero` con el tag del producto en vuelo (también sin foto);
   - los de 320 y 390 px con el texto al 130 % siguen pasando.
 - [ ] **Step 2:** correrlos: fallan.
 - [ ] **Step 3:** implementar.
@@ -420,7 +432,7 @@
 **Files:**
 - Create: `lib/features/home/campaign_band.dart`
 - Delete: `lib/features/home/promotions_banner.dart`, después de reemplazar sus usos.
-- Test: `test/features/campaign_band_test.dart`
+- Test: `test/features/campaign_band_test.dart` (nuevo)
 
 **Interfaces:**
 - Consumes: `onSaleProductsProvider`.
@@ -512,8 +524,9 @@
 ### Task 18: El detalle del producto
 
 **Files:**
-- Modify: `lib/features/catalog/product_detail_screen.dart`:
-  - en el teléfono, la foto a todo el ancho con Volver y el carrito flotando;
+- Modify: `lib/features/shared/brand.dart` (`PublicScaffold` gana `phoneBar: false`, para que una pantalla
+  dibuje su propia barra en el teléfono) y `lib/features/catalog/product_detail_screen.dart`:
+  - en el teléfono, la foto a todo el ancho con Volver y `CartButton` flotando encima;
   - en escritorio, dos columnas y la ruta "Catálogo › <categoría>";
   - la explicación de la promoción en un recuadro `surfaceAlt`;
   - el `Hero` del producto.
@@ -523,7 +536,7 @@
   - `'en el teléfono, Volver y el carrito sobre la foto'`;
   - `'en escritorio, la ruta lleva a la categoría'`;
   - `'la promoción se explica en su recuadro'`;
-  - `'la foto es el mismo Hero que la fila'`.
+  - `'la foto es el mismo Hero que la fila'`, navegando desde el catálogo con el router real.
 - [ ] **Step 2:** correrlos: fallan.
 - [ ] **Step 3:** implementar.
 - [ ] **Step 4:** correr `test/features`: verde.
@@ -539,7 +552,7 @@
   - el tipo de entrega en un `SegmentedButton`;
   - el ticket;
   - en escritorio, dos columnas.
-- Test: `test/features/cart_ticket_test.dart`, más `cart_screen_test` y `checkout_test`.
+- Test: `test/features/cart_ticket_test.dart` (nuevo), más `cart_screen_test` y `checkout_test`.
 
 - [ ] **Step 1:** los tests:
   - `'el ticket muestra subtotal, descuentos y total estimado'`;
@@ -580,7 +593,7 @@
   - `lib/features/auth/auth_form.dart`: el panel rojo con la diagonal, como hoy, con los tokens nuevos;
   - `lib/features/admin/admin_shell.dart`: el menú lateral sobre `surfaceAlt`;
   - `lib/features/admin/home/kpi_card.dart`: la cifra en `ink`.
-- Test: `auth_screens_test`, `admin_shell_test` y `admin_home_test`.
+- Test: los tres casos se agregan a `auth_screens_test`, `admin_shell_test` y `admin_home_test`.
 
 - [ ] **Step 1:** los tests:
   - `'el menú del panel va sobre surfaceAlt'`;
