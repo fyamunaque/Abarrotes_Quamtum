@@ -320,7 +320,7 @@ class _GiftLine extends StatelessWidget {
                 child: Text(
                   'Regalo',
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: Colors.white,
+                    color: NeilsColors.onPrimary,
                     fontWeight: FontWeight.w700,
                   ),
                 ),

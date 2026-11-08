@@ -179,7 +179,7 @@ class _BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const color = Colors.white;
+    const color = NeilsColors.onPrimary;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: NeilsColors.primary,

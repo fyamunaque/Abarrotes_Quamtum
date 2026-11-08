@@ -9,7 +9,7 @@ import 'brand_colors.dart';
 const neilsColorScheme = ColorScheme(
   brightness: Brightness.light,
   primary: NeilsColors.primary,
-  onPrimary: Colors.white,
+  onPrimary: NeilsColors.onPrimary,
   primaryContainer: NeilsColors.primaryTint,
   onPrimaryContainer: NeilsColors.primaryDark,
   secondary: NeilsColors.primaryDark,

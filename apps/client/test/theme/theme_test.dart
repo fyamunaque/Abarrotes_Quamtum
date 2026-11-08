@@ -27,7 +27,7 @@ void main() {
       reason: '$a sobre $b',
     );
 
-    expectContrast(Colors.white, NeilsColors.primary, 5.5);
+    expectContrast(NeilsColors.onPrimary, NeilsColors.primary, 5.5);
     expectContrast(NeilsColors.primary, NeilsColors.background, 5.0);
     expectContrast(NeilsColors.primaryDark, NeilsColors.primaryTint, 6.5);
     expectContrast(NeilsColors.money, NeilsColors.moneyTint, 5.5);

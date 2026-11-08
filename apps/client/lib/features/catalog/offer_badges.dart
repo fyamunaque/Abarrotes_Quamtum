@@ -20,7 +20,7 @@ class OfferBadges extends StatelessWidget {
   Widget build(BuildContext context) {
     if (offers.isEmpty) return const SizedBox.shrink();
     final style = Theme.of(context).textTheme.labelMedium
-        ?.copyWith(color: Colors.white, fontWeight: FontWeight.w700);
+        ?.copyWith(color: NeilsColors.onPrimary, fontWeight: FontWeight.w700);
     return Wrap(
       spacing: 6,
       runSpacing: 6,

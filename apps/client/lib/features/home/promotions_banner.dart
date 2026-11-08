@@ -26,20 +26,20 @@ class PromotionsBanner extends StatelessWidget {
           header: true,
           child: Text(
             'Promociones para tu negocio',
-            style: text.headlineSmall?.copyWith(color: Colors.white),
+            style: text.headlineSmall?.copyWith(color: NeilsColors.onPrimary),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Soluciones prácticas para restaurantes, fast foods y dark kitchens.',
-          style: text.bodyLarge?.copyWith(color: Colors.white),
+          style: text.bodyLarge?.copyWith(color: NeilsColors.onPrimary),
         ),
         const SizedBox(height: 16),
         OutlinedButton(
           onPressed: () => context.go(Routes.promotions),
           style: OutlinedButton.styleFrom(
-            foregroundColor: Colors.white,
-            side: const BorderSide(color: Colors.white),
+            foregroundColor: NeilsColors.onPrimary,
+            side: const BorderSide(color: NeilsColors.onPrimary),
           ),
           child: const Text('Ver promociones'),
         ),

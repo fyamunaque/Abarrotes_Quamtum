@@ -69,7 +69,7 @@ class CartBar extends StatelessWidget {
                                   dimension: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5,
-                                    color: Colors.white,
+                                    color: NeilsColors.onPrimary,
                                     semanticsLabel: 'Enviando',
                                   ),
                                 ),
@@ -77,7 +77,7 @@ class CartBar extends StatelessWidget {
                             : Text(
                                 label,
                                 style: text.titleMedium?.copyWith(
-                                  color: Colors.white,
+                                  color: NeilsColors.onPrimary,
                                 ),
                               ),
                       ),
@@ -85,13 +85,13 @@ class CartBar extends StatelessWidget {
                         width: 1,
                         height: 28,
                         margin: const EdgeInsets.symmetric(horizontal: 14),
-                        color: Colors.white54,
+                        color: NeilsColors.onPrimaryDivider,
                       ),
                       Text(
                         formatSoles(totalCents),
                         style: NeilsText.price(
                           fontSize: 20,
-                          color: Colors.white,
+                          color: NeilsColors.onPrimary,
                         ),
                       ),
                     ],
@@ -117,7 +117,11 @@ class _CartCount extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 28),
+        const Icon(
+          Icons.shopping_cart_outlined,
+          color: NeilsColors.onPrimary,
+          size: 28,
+        ),
         PositionedDirectional(
           top: -6,
           end: -8,
@@ -125,7 +129,7 @@ class _CartCount extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 20),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: NeilsColors.onPrimary,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(

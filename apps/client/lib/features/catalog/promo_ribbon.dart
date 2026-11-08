@@ -17,7 +17,7 @@ class PromoRibbon extends StatelessWidget {
   Widget build(BuildContext context) {
     if (offers.isEmpty) return const SizedBox.shrink();
     final style = Theme.of(context).textTheme.labelLarge?.copyWith(
-      color: Colors.white,
+      color: NeilsColors.onPrimary,
       fontWeight: FontWeight.w700,
       height: 1.1,
     );

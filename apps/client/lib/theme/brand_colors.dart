@@ -12,6 +12,13 @@ abstract final class NeilsColors {
   /// Rojo muy claro: fondo de lo seleccionado (menú, chips, pestañas).
   static const primaryTint = Color(0xFFFBE3E0);
 
+  /// Texto e íconos sobre el rojo y sobre los colores llenos (cintas,
+  /// barras, puntos del seguimiento).
+  static const onPrimary = Color(0xFFFFFFFF);
+
+  /// Las rayas divisorias sobre el rojo (54 % de blanco).
+  static const onPrimaryDivider = Color(0x8AFFFFFF);
+
   /// Hueso: el fondo de la app.
   static const background = Color(0xFFFBF7F2);
 

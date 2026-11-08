@@ -345,14 +345,14 @@ class _Dot extends StatelessWidget {
       child: !reached
           ? null
           : done
-          ? const Icon(Icons.check, size: 14, color: Colors.white)
+          ? const Icon(Icons.check, size: 14, color: NeilsColors.onPrimary)
           : Center(
               child: Container(
                 width: 8,
                 height: 8,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  color: Colors.white,
+                  color: NeilsColors.onPrimary,
                 ),
               ),
             ),
