@@ -118,6 +118,19 @@ class CategoriesService {
     }
   }
 
+  /// Le quita la foto a la categoría [id] (vuelve a verse su color con la
+  /// inicial) y la borra si era una subida. Sin foto, no cambia nada.
+  Future<Category> removeImage(Session session, UuidValue id) async {
+    final category = await get(session, id);
+    if (category.imageUrl == null) return category;
+    final updated = await Category.db.updateRow(
+      session,
+      category.copyWith(imageUrl: null),
+    );
+    await _images.delete(session, category.imageUrl);
+    return updated;
+  }
+
   /// La foto subida [file] de la categoría [categoryId] (JPEG), o null si no
   /// existe.
   Future<Uint8List?> image(

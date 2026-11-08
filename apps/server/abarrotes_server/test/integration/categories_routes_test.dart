@@ -302,6 +302,49 @@ void main() {
         expect((await client.getRaw(url)).statusCode, 404);
       });
 
+      test('DELETE de la foto la quita y la borra', () async {
+        final category = await insertCategory('Embutidos');
+        final url = await upload(category);
+
+        final (status, body) = await client.delete(
+          '/categories/${category.id}/image',
+          as: 'uid-staff',
+        );
+
+        expect(status, 200);
+        expect(body['imageUrl'], isNull);
+        expect(
+          (await client.get('/categories/${category.id}')).$2['imageUrl'],
+          isNull,
+        );
+        expect((await client.getRaw(url)).statusCode, 404);
+      });
+
+      test('quitar la foto de una categoría sin foto no cambia nada', () async {
+        final category = await insertCategory('Embutidos');
+
+        final (status, body) = await client.delete(
+          '/categories/${category.id}/image',
+          as: 'uid-staff',
+        );
+
+        expect(status, 200);
+        expect(body['name'], 'Embutidos');
+        expect(body['imageUrl'], isNull);
+      });
+
+      test('quitar la foto sin categories.manage es 403', () async {
+        final category = await insertCategory('Embutidos');
+        await upload(category);
+
+        final (status, _) = await client.delete(
+          '/categories/${category.id}/image',
+          as: 'uid-cliente',
+        );
+
+        expect(status, 403);
+      });
+
       test('lo que no es una imagen es 400', () async {
         final category = await insertCategory('Embutidos');
 

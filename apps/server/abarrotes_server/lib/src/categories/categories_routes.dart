@@ -85,6 +85,19 @@ List<RouteEntry> categoriesRoutes(
       ),
     ),
     (
+      '/categories/:id/image',
+      // Sin foto: la tienda vuelve a mostrar su color con la inicial.
+      manage(
+        ApiRoute(Method.delete, (session, request) async {
+          final category = await categories.removeImage(
+            session,
+            idParam(request),
+          );
+          return jsonResponse(200, categoryJson(category));
+        }),
+      ),
+    ),
+    (
       '${CategoryImages.urlPrefix}:categoryId/:file',
       // Pública, como el catálogo. Cada foto subida tiene un nombre nuevo:
       // el navegador la guarda en caché para siempre.

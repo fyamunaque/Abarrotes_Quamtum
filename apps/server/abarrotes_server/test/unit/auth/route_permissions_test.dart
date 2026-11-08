@@ -121,6 +121,7 @@ void main() {
       'PATCH /categories/:id': 'categories.manage',
       'DELETE /categories/:id': 'categories.manage',
       'PUT /categories/:id/image': 'categories.manage',
+      'DELETE /categories/:id/image': 'categories.manage',
       'GET /images/categories/:categoryId/:file': 'pública',
       'GET /products': 'pública',
       'GET /products/:id': 'pública',
