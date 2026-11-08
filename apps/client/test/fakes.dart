@@ -1957,6 +1957,9 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
   /// Las categorías a las que se les subió una foto.
   final uploads = <String>[];
 
+  /// Si está, uploadImage() falla con esto.
+  Object? uploadFailure;
+
   @override
   Future<List<AdminCategory>> list() async => [
     for (final category in [
@@ -1967,6 +1970,13 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
 
   @override
   Future<Category> create(String name, {String? description}) async {
+    // Como el servidor: el nombre es único.
+    if (categories.any((category) => category.name == name)) {
+      throw const ApiFailure(
+        'Ya existe una categoría con ese nombre',
+        status: 409,
+      );
+    }
     created.add((name, description));
     final category = Category(
       id: 'cat-${categories.length + 1}',
@@ -1999,6 +2009,7 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
     List<int> bytes, {
     required String contentType,
   }) async {
+    if (uploadFailure case final failure?) throw failure;
     uploads.add(id);
     final i = categories.indexWhere((category) => category.id == id);
     final current = categories[i];

@@ -50,6 +50,10 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     text: widget.row?.category.description,
   );
   PickedPhoto? _photo;
+
+  /// La categoría ya guardada en este formulario: si después falla la foto,
+  /// reintentar guarda sobre ella en vez de crearla otra vez.
+  Category? _saved;
   bool _busy = false;
   String? _error;
 
@@ -83,17 +87,18 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     final name = _name.text.trim();
     final description = _description.text.trim();
     try {
-      var category = switch (widget.row) {
+      var category = switch (_saved ?? widget.row?.category) {
         null => await notifier.create(
           name,
           description: description.isEmpty ? null : description,
         ),
-        final row => await notifier.save(
-          row.category.id,
+        final existing => await notifier.save(
+          existing.id,
           name: name,
           description: description,
         ),
       };
+      _saved = category;
       if (_photo case final photo?) {
         category = await notifier.uploadImage(
           category.id,

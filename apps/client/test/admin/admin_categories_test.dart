@@ -3,7 +3,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/admin/categories/admin_categories_providers.dart';
 import 'package:neils/admin/products/photo_picker.dart';
 import 'package:neils/catalog/category.dart';
+import 'package:neils/common/api_client.dart';
 import 'package:neils/features/admin/categories/admin_categories_screen.dart';
+import 'package:neils/features/admin/categories/category_form.dart';
 import 'package:neils/session/staff_permission.dart';
 
 import '../fakes.dart';
@@ -99,6 +101,29 @@ void main() {
     expect(picker.sources, [PhotoSource.gallery]);
   });
 
+  testWidgets('si la foto no sube, reintentar no crea la categoría otra vez', (
+    tester,
+  ) async {
+    repository.uploadFailure = const ApiFailure('No se pudo subir la foto');
+    await pumpCategories(tester);
+
+    await tapAndSettle(tester, find.text('Nueva categoría'));
+    await tester.enterText(field('Nombre'), 'Salsas');
+    await tapAndSettle(tester, find.text('Elegir foto'));
+    await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
+
+    expect(find.text('No se pudo subir la foto'), findsOneWidget);
+    expect(find.byType(CategoryForm), findsOneWidget);
+
+    repository.uploadFailure = null;
+    await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
+
+    // Se creó una sola vez y la foto quedó en esa.
+    expect(repository.created, [('Salsas', null)]);
+    expect(repository.uploads, ['cat-3']);
+    expect(find.byType(CategoryForm), findsNothing);
+  });
+
   testWidgets('borrar una con productos muestra el aviso del servidor', (
     tester,
   ) async {
@@ -118,10 +143,7 @@ void main() {
   });
 
   testWidgets('sin categories.manage no aparece en el menú', (tester) async {
-    await pumpCategories(
-      tester,
-      permissions: {StaffPermission.productsView},
-    );
+    await pumpCategories(tester, permissions: {StaffPermission.productsView});
 
     expect(find.text('Categorías'), findsNothing);
     expect(find.byType(AdminCategoriesScreen), findsNothing);
