@@ -32,6 +32,7 @@ void main() {
       String name, {
       int stock = 20,
       bool active = true,
+      int addedDaysAgo = 60,
     }) => Product.db.insertRow(
       session,
       Product(
@@ -41,6 +42,7 @@ void main() {
         categoryId: abarrotes.id!,
         currentStock: stock,
         active: active,
+        createdAt: testNow.subtract(Duration(days: addedDaysAgo)),
       ),
     );
 
@@ -255,6 +257,34 @@ void main() {
 
         expect((body['items'] as List).single['unitPrice'], '3.5');
       });
+
+      test('sin ventas en 30 días, lo más nuevo con stock', () async {
+        await product('Viejo', addedDaysAgo: 90);
+        await product('Nuevo', addedDaysAgo: 2);
+        await product('Agotado', stock: 0, addedDaysAgo: 1);
+        await product('De baja', active: false, addedDaysAgo: 1);
+
+        final (status, body) = await client.get('/products/suggested');
+
+        expect(status, 200);
+        expect(names(body), ['Nuevo', 'Viejo']);
+      });
+
+      test(
+        'sin otras ventas, lo nuevo sin los Frecuentes de la cuenta',
+        () async {
+          final arroz = await product('Arroz', addedDaysAgo: 1);
+          await product('Leche', addedDaysAgo: 5);
+          await order(ana, [(arroz, 1, false)]);
+
+          final (_, body) = await client.get(
+            '/products/suggested',
+            as: 'uid-ana',
+          );
+
+          expect(names(body), ['Leche']);
+        },
+      );
 
       test('con cuenta, no repite sus Frecuentes', () async {
         final arroz = await product('Arroz');

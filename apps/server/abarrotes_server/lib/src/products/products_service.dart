@@ -85,7 +85,9 @@ class ProductsService {
 
   /// Lo más vendido de la tienda en unidades en los últimos 30 días, en
   /// pedidos no cancelados: sin los regalos, los dados de baja ni los
-  /// agotados. Con [customerId], sin los que ya salen en sus Frecuentes.
+  /// agotados. Con [customerId], sin los que ya salen en sus Frecuentes. Si
+  /// así no queda ninguno (una tienda sin ventas recientes), lo más nuevo
+  /// con stock, para que la pestaña no quede vacía.
   Future<List<Product>> suggested(
     Session session, {
     UuidValue? customerId,
@@ -118,13 +120,21 @@ class ProductsService {
         'limit': limit,
       }),
     );
-    return _inOrder(
+    final ids = [for (final row in rows) row.toColumnMap()['id'] as String];
+    if (ids.isNotEmpty) return _inOrder(session, ids, now, shopper);
+    final excluded = <UuidValue>{
+      for (final id in exclude) UuidValue.fromString(id),
+    };
+    return Product.db.find(
       session,
-      [
-        for (final row in rows) row.toColumnMap()['id'] as String,
-      ],
-      now,
-      shopper,
+      where: (product) {
+        var filter = product.active.equals(true) & (product.currentStock > 0);
+        if (excluded.isNotEmpty) filter &= product.id.notInSet(excluded);
+        return filter;
+      },
+      orderByList: (product) => [product.createdAt.desc(), product.name.asc()],
+      limit: limit,
+      include: _include(now, shopper),
     );
   }
 
