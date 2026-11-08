@@ -72,42 +72,52 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final tab in tabs)
-              ChoiceChip(
-                avatar: Icon(
-                  tab.icon,
-                  size: 18,
-                  color: tab == current
-                      ? NeilsColors.onPrimary
-                      : NeilsColors.primary,
+        // Para el lector de pantalla: el título del grupo, y cada pestaña sigue
+        // siendo un nodo propio que dice si está elegida.
+        Semantics(
+          container: true,
+          explicitChildNodes: true,
+          label: 'Productos',
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final tab in tabs)
+                ChoiceChip(
+                  avatar: Icon(
+                    tab.icon,
+                    size: 18,
+                    color: tab == current
+                        ? NeilsColors.onPrimary
+                        : NeilsColors.primary,
+                  ),
+                  label: Text(tab.label),
+                  // Más ajustadas que las de Material: las tres entran en una
+                  // línea en un teléfono de 390.
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 8,
+                  ),
+                  labelPadding: const EdgeInsetsDirectional.only(
+                    start: 4,
+                    end: 4,
+                  ),
+                  showCheckmark: false,
+                  selected: tab == current,
+                  selectedColor: NeilsColors.primary,
+                  labelStyle: TextStyle(
+                    color: tab == current
+                        ? NeilsColors.onPrimary
+                        : NeilsColors.ink,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  onSelected: (_) => setState(() {
+                    _chosen = tab;
+                    _expanded = false;
+                  }),
                 ),
-                label: Text(tab.label),
-                // Más ajustadas que las de Material: las tres entran en una
-                // línea en un teléfono de 390.
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-                labelPadding: const EdgeInsetsDirectional.only(
-                  start: 4,
-                  end: 4,
-                ),
-                showCheckmark: false,
-                selected: tab == current,
-                selectedColor: NeilsColors.primary,
-                labelStyle: TextStyle(
-                  color: tab == current
-                      ? NeilsColors.onPrimary
-                      : NeilsColors.ink,
-                  fontWeight: FontWeight.w600,
-                ),
-                onSelected: (_) => setState(() {
-                  _chosen = tab;
-                  _expanded = false;
-                }),
-              ),
-          ],
+            ],
+          ),
         ),
         const SizedBox(height: 16),
         switch (current) {

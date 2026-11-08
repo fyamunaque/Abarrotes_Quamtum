@@ -78,6 +78,28 @@ void main() {
   bool selected(WidgetTester tester, String label) =>
       tester.widget<ChoiceChip>(tab(label)).selected;
 
+  testWidgets('el lector de pantalla las presenta como Productos', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pumpTabs(tester, session: signedInAs(UserRole.customer));
+
+    // El grupo tiene título, y cada pestaña sigue siendo un nodo propio
+    // que dice si está elegida.
+    final group = tester.getSemantics(find.bySemanticsLabel('Productos'));
+    expect(group.label, 'Productos');
+    final suggested = tester.getSemantics(tab('Sugeridos'));
+    expect(suggested.label, contains('Sugeridos'));
+    expect(suggested.label, isNot(contains('Productos')));
+    // Con pedidos, la elegida es Frecuentes.
+    expect(suggested, isSemantics(isSelected: false, hasSelectedState: true));
+    expect(
+      tester.getSemantics(tab('Frecuentes')),
+      isSemantics(isSelected: true, hasSelectedState: true),
+    );
+    semantics.dispose();
+  });
+
   testWidgets('las tres pestañas entran en una línea en el teléfono', (
     tester,
   ) async {
