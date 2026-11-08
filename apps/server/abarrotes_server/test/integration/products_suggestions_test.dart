@@ -202,6 +202,60 @@ void main() {
         expect(names(body), ['Arroz', 'Leche']);
       });
 
+      test('no cuenta cancelados, regalos ni dados de baja', () async {
+        final arroz = await product('Arroz');
+        final cancelado = await product('Cancelado');
+        final regalo = await product('Regalo');
+        final deBaja = await product('De baja', active: false);
+        await order(luis, [(arroz, 1, false), (regalo, 50, true)]);
+        await order(luis, [
+          (cancelado, 50, false),
+        ], status: OrderStatus.cancelled);
+        await order(luis, [(deBaja, 50, false)]);
+
+        final (_, body) = await client.get('/products/suggested');
+
+        expect(names(body), ['Arroz']);
+      });
+
+      test('a igual cantidad de unidades, por nombre', () async {
+        final leche = await product('Leche');
+        final arroz = await product('Arroz');
+        await order(luis, [(leche, 2, false), (arroz, 2, false)]);
+
+        final (_, body) = await client.get('/products/suggested');
+
+        expect(names(body), ['Arroz', 'Leche']);
+      });
+
+      test('con una cuenta VIP, el precio VIP', () async {
+        final arroz = await product('Arroz');
+        await order(luis, [(arroz, 3, false)]);
+        final admin = await insertStaff(session, 'uid-admin');
+        await insertUser(session, 'uid-vip');
+        await insertVips(session, admin, ['vip@tienda.pe']);
+        final period = toStoredPeriod(today, addDays(today, 6));
+        await Promotion.db.insertRow(
+          session,
+          Promotion(
+            productId: arroz.id!,
+            promoPriceCents: 350,
+            startDate: period.startDate,
+            endDate: period.endDate,
+            audience: PromotionAudience.vip,
+            title: 'Solo VIP',
+          ),
+        );
+
+        final (_, body) = await client.get(
+          '/products/suggested',
+          as: 'uid-vip',
+          email: 'vip@tienda.pe',
+        );
+
+        expect((body['items'] as List).single['unitPrice'], '3.5');
+      });
+
       test('con cuenta, no repite sus Frecuentes', () async {
         final arroz = await product('Arroz');
         final leche = await product('Leche');
