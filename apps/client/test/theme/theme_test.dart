@@ -90,6 +90,58 @@ void main() {
     }
   });
 
+  test('el tema oscuro: fondo, texto y extensión', () {
+    final theme = neilsTheme(Brightness.dark);
+
+    expect(theme.brightness, Brightness.dark);
+    expect(theme.scaffoldBackgroundColor, const Color(0xFF171513));
+    expect(theme.extension<NeilsPalette>(), NeilsPalette.dark);
+    expect(theme.textTheme.bodyMedium?.color, const Color(0xFFF4EEE7));
+    expect(theme.colorScheme.primary, const Color(0xFFFF9A8F));
+    expect(theme.colorScheme.surface, const Color(0xFF171513));
+    // El claro lleva su paleta.
+    expect(neilsTheme().extension<NeilsPalette>(), NeilsPalette.light);
+  });
+
+  testWidgets('el botón relleno es rojo con texto blanco en los dos modos', (
+    tester,
+  ) async {
+    for (final brightness in Brightness.values) {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: neilsTheme(brightness),
+          home: Scaffold(
+            body: Center(
+              child: FilledButton(onPressed: () {}, child: const Text('Ir')),
+            ),
+          ),
+        ),
+      );
+      final material = tester.widget<Material>(
+        find.descendant(
+          of: find.byType(FilledButton),
+          matching: find.byType(Material),
+        ),
+      );
+      expect(material.color, const Color(0xFFC8281E), reason: '$brightness');
+      expect(
+        DefaultTextStyle.of(tester.element(find.text('Ir'))).style.color,
+        const Color(0xFFFFFFFF),
+        reason: '$brightness',
+      );
+    }
+  });
+
+  test('el precio sin color toma el del texto de cada modo', () {
+    expect(NeilsText.price().color, isNull);
+    expect(
+      neilsTheme(Brightness.dark).textTheme.bodyMedium!
+          .merge(NeilsText.price())
+          .color,
+      const Color(0xFFF4EEE7),
+    );
+  });
+
   group('paletas', () {
     const paletas = {'claro': NeilsPalette.light, 'oscuro': NeilsPalette.dark};
 
@@ -232,7 +284,8 @@ void main() {
     expectFont(text.bodyMedium, 'Inter', FontWeight.w400);
     expectFont(text.labelMedium, 'Inter', FontWeight.w500);
     expectFont(NeilsText.price(), 'Poppins', FontWeight.w700);
-    expect(NeilsText.price().color, NeilsColors.ink);
+    // Sin color, el precio toma el del texto (tinta en claro, crema en oscuro).
+    expect(NeilsText.price().color, isNull);
     expect(
       NeilsText.price(color: NeilsColors.primary).color,
       NeilsColors.primary,
