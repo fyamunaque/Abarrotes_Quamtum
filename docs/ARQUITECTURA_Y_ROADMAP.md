@@ -75,7 +75,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
 - **Tienda (cliente):**
   - registro e ingreso con Firebase, y "¿Olvidaste tu contraseña?" (el enlace de Firebase para crear una nueva); crear una cuenta pide una contraseña fuerte, el celular, el DNI (opcional) y aceptar los términos y la política de privacidad, y para pedir hace falta el correo confirmado ("Mi cuenta" completa lo que falte);
   - catálogo con búsqueda y categorías (con su foto y su descripción), y detalle de producto;
-  - en la portada, las pestañas Frecuentes (lo que más pide la cuenta, `GET /products/frequent`), Sugeridos (lo más vendido, `GET /products/suggested`) y Promos;
+  - en la portada, las pestañas Frecuentes (lo que más pide la cuenta, `GET /products/frequent`), Sugeridos (lo más vendido, `GET /products/suggested`; sin ventas recientes, lo más nuevo) y Promos;
   - carrito guardado en el dispositivo;
   - pedido a domicilio o para recoger en tienda (con la dirección, el horario y las instrucciones de la tienda), y "Mis pedidos" con el seguimiento de cada uno según su tipo, la búsqueda (N.º o producto) y los filtros por estado, entrega y fechas; con recojo, el código en grande para mostrar en caja y el aviso de "listo para recoger", y a domicilio, el código de entrega para dárselo al repartidor.
 - **Panel:**
@@ -83,7 +83,7 @@ Lo normal es que el modelo crezca (por ejemplo, direcciones múltiples por clien
   - pedidos con el stepper de estado, actualización automática y el filtro y la columna "Entrega" (domicilio o recojo); los botones salen de `allowedNextStatuses`, y marcar recogido o entregado pide el código del cliente (a domicilio, quien administra la tienda puede entregar sin él, con el motivo);
   - "Para recoger", pensada para caja: los pedidos de recojo en preparación o en espera, con el código en grande, cuánto hace que están listos y la búsqueda por código o nombre;
   - tienda (solo con `store.manage`): los datos que ven los clientes al elegir recojo;
-  - categorías (con `categories.manage`): crear, editar el nombre, la descripción y la foto, y borrar las que no tienen productos;
+  - categorías (con `categories.manage`): crear, editar el nombre, la descripción y la foto (o quitarla), y borrar las que no tienen productos;
   - productos (con su foto: se sube desde el panel, o se toma con la cámara del teléfono, o se pega una URL), inventario (entradas, salidas y ajustes, y el historial con búsqueda por producto, SKU o N.º de pedido y filtros por origen, categoría y fechas) y promociones;
   - clientes VIP: la lista con búsqueda; admin agrega (uno o varios pegados) y quita, staff solo la ve;
   - equipo (solo con `staff.manage`): las personas por correo con su rol y estado (agregar uno o varios con un rol, cambiar el rol, desactivar) y los roles con un checklist de permisos por área; el Administrador se ve bloqueado;

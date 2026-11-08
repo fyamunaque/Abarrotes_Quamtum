@@ -230,14 +230,16 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `GET /store` | público | Los datos de la tienda que ve el cliente (p. ej. al elegir recojo): `{name, address, reference, phone, openingHours, pickupInstructions, updatedAt}`. Mientras nadie los cargó, el nombre de la tienda y lo demás vacío (`updatedAt` en null). |
 | `PATCH /store` | `store.manage` | Campos parciales; `null` borra los opcionales. Nombre (hasta 100) y dirección (hasta 255) no pueden quedar vacíos: la primera vez, la dirección es obligatoria. Hay un solo registro (tabla `store_settings`, con un índice único que no deja crear otro). |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre: `{id, name, description, imageUrl}`. |
+| `GET /categories/summary` | `categories.manage` | Para el panel: las categorías como `GET /categories`, cada una con `productCount` (todos sus productos, también los inactivos: los que impiden borrarla). Una sola consulta para los conteos. |
 | `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name, description}`. El nombre no se repite, sin distinguir mayúsculas (409). La descripción tiene hasta 80 caracteres; vacía o `null` en un PATCH la borra. |
 | `PUT /categories/:id/image` | `categories.manage` | La foto tal cual (JPEG, PNG o WebP, hasta 8 MB): se guarda en JPEG de hasta 1200 px por lado y reemplaza a la anterior, que se borra. Devuelve la categoría. |
+| `DELETE /categories/:id/image` | `categories.manage` | Le quita la foto (la tienda vuelve a mostrar su color con la inicial) y la borra si era una subida. Sin foto, no cambia nada. Devuelve la categoría. |
 | `GET /images/categories/:categoryId/:file` | público | La foto subida, con caché para siempre (cada una tiene un nombre nuevo); 404 si no existe. |
-| `DELETE /categories/:id` | `categories.manage` | 204, o 409 si todavía tiene productos (aunque estén inactivos). |
+| `DELETE /categories/:id` | `categories.manage` | 204 (y borra su foto, si era una subida), o 409 si todavía tiene productos (aunque estén inactivos). |
 | `GET /products` | público | Paginado, por nombre. Filtros: `categoryId`, `search` (nombre o SKU), `onSale=true` (con una promoción vigente que quien pregunta puede usar) e `includeInactive=true` (solo surte efecto con `products.view`). Cada producto trae `unitPrice` (con el precio especial y los porcentajes que puede usar quien mira), `promotions` (las vigentes que puede usar, cada una con `type`, `label` y sus campos, para las insignias "2x1" o "+ regalo") y `promotion` (el precio especial más bajo, o null: lo leen las apps de antes). |
 | `GET /products/:id` | público | Un inactivo es 404, salvo con `products.view`. |
 | `GET /products/frequent` | cuenta | Frecuentes (la pestaña de la portada): `{items}` con hasta 20 productos de los pedidos no cancelados del cliente de los últimos 180 días, sin regalos ni dados de baja. Primero el que está en más pedidos; si empatan, el pedido más reciente. Con el precio de ese cliente, como `/products`. |
-| `GET /products/suggested` | público | Sugeridos: `{items}` con hasta 20 de los más vendidos en unidades de los últimos 30 días (pedidos no cancelados), sin regalos, dados de baja ni agotados. Con cuenta, sin los que ya salen en sus Frecuentes y con su precio. |
+| `GET /products/suggested` | público | Sugeridos: `{items}` con hasta 20 de los más vendidos en unidades de los últimos 30 días (pedidos no cancelados), sin regalos, dados de baja ni agotados; a igual cantidad, por nombre. Con cuenta, sin los que ya salen en sus Frecuentes y con su precio. Si así no queda ninguno (una tienda sin ventas recientes), lo más nuevo con stock. Lo más vendido se recalcula cada 5 minutos (`ProductsService.suggestedTtl`); el stock y los Frecuentes se miran en cada pedido. |
 | `POST /products` | `products.manage` | `{name, sku, price, categoryId, description?, imageUrl?, active?, currentStock?, minStock?, expirationDate?}`. SKU repetido 409, categoría inexistente 400. `currentStock` es solo el stock inicial. `imageUrl` es una URL `http(s)` externa; la foto propia se sube después. |
 | `PATCH /products/:id` | `products.manage` | Campos parciales; `null` borra `description`, `imageUrl` y `expirationDate`. El stock no se edita aquí. `imageUrl` acepta una URL externa o la foto subida que el producto ya tiene (así el formulario lo reenvía sin cambios); otra ruta `/images/...` es 400. Si deja de usar una foto subida, se borra. |
 | `DELETE /products/:id` | `products.manage` | Baja lógica (`active: false`); devuelve el producto. |
@@ -320,9 +322,9 @@ El pedido bloquea los productos comprados **y los de regalo** en orden por id an
 ### Fotos de los productos y de las categorías
 
 Las fotos se suben desde el panel (`PUT /products/:id/image`, `PUT /categories/:id/image`). Lo
-común está en `Photos` (`lib/src/common/photos.dart`): cada dominio fija su carpeta y su tamaño
-(`ProductImages`, 800 px; `CategoryImages`, 1200 px, porque se ven anchas), así ninguno importa
-la lógica del otro. `Photos` las procesa con el paquete `image`:
+común está en `Photos` (`lib/src/common/photos.dart`): cada dominio lo compone con su carpeta y
+su tamaño (`ProductImages`, 800 px; `CategoryImages`, 1200 px, porque se ven anchas), así
+ninguno importa la lógica del otro. `Photos` las procesa con el paquete `image`:
 - **Formato:** acepta JPEG, PNG y WebP, que reconoce por su contenido y no por el
   `Content-Type`.
 - **Tamaño:** antes de decodificar lee el tamaño de la cabecera y rechaza las de más de
