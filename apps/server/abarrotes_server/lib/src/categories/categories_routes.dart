@@ -28,6 +28,20 @@ List<RouteEntry> categoriesRoutes(
       }),
     ),
     (
+      '/categories/summary',
+      // Para el panel: cada categoría con cuántos productos tiene.
+      manage(
+        ApiRoute(Method.get, (session, request) async {
+          InputReader.query(request, allowed: const {}).check();
+          final rows = await categories.listWithProductCounts(session);
+          return jsonResponse(200, [
+            for (final (category, count) in rows)
+              {...categoryJson(category), 'productCount': count},
+          ]);
+        }),
+      ),
+    ),
+    (
       '/categories/:id',
       ApiRoute(Method.get, (session, request) async {
         final category = await categories.get(session, idParam(request));

@@ -17,6 +17,25 @@ class CategoriesService {
   Future<List<Category>> list(Session session) =>
       Category.db.find(session, orderBy: (category) => category.name);
 
+  /// Las categorías por nombre, cada una con cuántos productos tiene (los
+  /// inactivos también: son los que impiden borrarla). Una sola consulta
+  /// para los conteos.
+  Future<List<(Category, int)>> listWithProductCounts(Session session) async {
+    final categories = await list(session);
+    final rows = await session.db.unsafeQuery(
+      'SELECT "categoryId"::text AS id, COUNT(*)::int AS n '
+      'FROM products GROUP BY "categoryId"',
+    );
+    final counts = {
+      for (final row in rows)
+        row.toColumnMap()['id'] as String: row.toColumnMap()['n'] as int,
+    };
+    return [
+      for (final category in categories)
+        (category, counts[category.id.toString()] ?? 0),
+    ];
+  }
+
   Future<Category> get(Session session, UuidValue id) async {
     final category = await Category.db.findById(session, id);
     if (category == null) throw const ApiException(404, _notFound);

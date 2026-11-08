@@ -117,6 +117,7 @@ void main() {
       // Catálogo: lectura pública, escritura con su permiso.
       'GET /categories': 'pública',
       'GET /categories/:id': 'pública',
+      'GET /categories/summary': 'categories.manage',
       'POST /categories': 'categories.manage',
       'PATCH /categories/:id': 'categories.manage',
       'DELETE /categories/:id': 'categories.manage',

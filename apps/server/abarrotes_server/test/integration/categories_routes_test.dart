@@ -155,6 +155,43 @@ void main() {
         );
       });
 
+      test(
+        'GET /categories/summary cuenta los productos de cada una, también '
+        'los inactivos',
+        () async {
+          final embutidos = await insertCategory('Embutidos');
+          await insertCategory('Lácteos');
+          await insertProduct(embutidos);
+
+          final (status, body) = await client.get(
+            '/categories/summary',
+            as: 'uid-staff',
+          );
+
+          expect(status, 200);
+          expect(
+            [
+              for (final row in body as List)
+                (row['name'], row['productCount']),
+            ],
+            [('Embutidos', 1), ('Lácteos', 0)],
+          );
+          expect(
+            (body.first as Map).keys,
+            ['id', 'name', 'description', 'imageUrl', 'productCount'],
+          );
+        },
+      );
+
+      test('GET /categories/summary sin categories.manage es 403', () async {
+        final (status, _) = await client.get(
+          '/categories/summary',
+          as: 'uid-cliente',
+        );
+
+        expect(status, 403);
+      });
+
       test('DELETE borra una categoría vacía (204)', () async {
         final category = await insertCategory('Temporal');
 
