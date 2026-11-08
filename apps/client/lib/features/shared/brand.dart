@@ -7,6 +7,7 @@ import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import '../../theme/brand_colors.dart';
 import 'account.dart';
+import 'appearance_controls.dart';
 import 'cart_bar.dart';
 import 'cart_button.dart';
 import 'page_title.dart';
@@ -168,6 +169,7 @@ class PublicScaffold extends ConsumerWidget {
                       AccountActions(user, inlineFrom: searchFrom),
                     ],
                   },
+                  const AppearanceButton(),
                   const CartButton(),
                   const SizedBox(width: 8),
                 ],

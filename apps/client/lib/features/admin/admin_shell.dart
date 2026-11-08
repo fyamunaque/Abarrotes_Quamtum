@@ -8,6 +8,7 @@ import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/account.dart';
+import '../shared/appearance_controls.dart';
 import '../shared/brand.dart';
 import '../shared/page_title.dart';
 
@@ -193,6 +194,7 @@ class AdminShell extends ConsumerWidget {
                 onPressed: () => context.go(Routes.home),
                 child: const Text('Ir a la tienda'),
               ),
+              const AppearanceButton(),
               if (session case SignedIn(:final user))
                 AccountActions(user, inPanel: true),
               const SizedBox(width: 8),
