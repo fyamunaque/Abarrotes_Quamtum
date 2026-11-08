@@ -81,7 +81,9 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
                 avatar: Icon(
                   tab.icon,
                   size: 18,
-                  color: tab == current ? Colors.white : NeilsColors.primary,
+                  color: tab == current
+                      ? NeilsColors.onPrimary
+                      : NeilsColors.primary,
                 ),
                 label: Text(tab.label),
                 // Más ajustadas que las de Material: las tres entran en una
@@ -95,7 +97,9 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
                 selected: tab == current,
                 selectedColor: NeilsColors.primary,
                 labelStyle: TextStyle(
-                  color: tab == current ? Colors.white : NeilsColors.ink,
+                  color: tab == current
+                      ? NeilsColors.onPrimary
+                      : NeilsColors.ink,
                   fontWeight: FontWeight.w600,
                 ),
                 onSelected: (_) => setState(() {
