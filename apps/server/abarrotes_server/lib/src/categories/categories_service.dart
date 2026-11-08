@@ -69,9 +69,9 @@ class CategoriesService {
     }
   }
 
-  /// Borra la categoría solo si no tiene productos, ni siquiera inactivos:
-  /// cada producto necesita una categoría. Para eliminarla, primero hay que
-  /// mover sus productos.
+  /// Borra la categoría (y su foto, si era una subida) solo si no tiene
+  /// productos, ni siquiera inactivos: cada producto necesita una categoría.
+  /// Para eliminarla, primero hay que mover sus productos.
   Future<void> delete(Session session, UuidValue id) async {
     final category = await get(session, id);
     final products = await Product.db.count(
@@ -92,6 +92,8 @@ class CategoriesService {
         'La categoría tiene productos: muévelos a otra antes de eliminarla',
       );
     }
+    // Ya nadie la usa.
+    await _images.delete(session, category.imageUrl);
   }
 
   /// Le pone a la categoría [id] la foto [jpeg], ya procesada con

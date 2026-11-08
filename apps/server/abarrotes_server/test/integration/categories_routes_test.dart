@@ -244,8 +244,7 @@ void main() {
 
       // Una foto ancha, más grande que lo que se guarda.
       final photo = img.encodePng(
-        img.Image(width: 2000, height: 1000)
-          ..clear(img.ColorRgb8(200, 40, 30)),
+        img.Image(width: 2000, height: 1000)..clear(img.ColorRgb8(200, 40, 30)),
       );
 
       Future<String> upload(Category category) async {
@@ -288,6 +287,19 @@ void main() {
         expect(second, isNot(first));
         expect((await client.getRaw(first)).statusCode, 404);
         expect((await client.getRaw(second)).statusCode, 200);
+      });
+
+      test('borrar la categoría borra su foto', () async {
+        final category = await insertCategory('Embutidos');
+        final url = await upload(category);
+
+        final (status, _) = await client.delete(
+          '/categories/${category.id}',
+          as: 'uid-staff',
+        );
+
+        expect(status, 204);
+        expect((await client.getRaw(url)).statusCode, 404);
       });
 
       test('lo que no es una imagen es 400', () async {
