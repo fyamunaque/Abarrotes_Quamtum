@@ -84,6 +84,13 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
                   color: tab == current ? Colors.white : NeilsColors.primary,
                 ),
                 label: Text(tab.label),
+                // Más ajustadas que las de Material: las tres entran en una
+                // línea en un teléfono de 390.
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                labelPadding: const EdgeInsetsDirectional.only(
+                  start: 4,
+                  end: 4,
+                ),
                 showCheckmark: false,
                 selected: tab == current,
                 selectedColor: NeilsColors.primary,

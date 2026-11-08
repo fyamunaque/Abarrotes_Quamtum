@@ -78,6 +78,16 @@ void main() {
   bool selected(WidgetTester tester, String label) =>
       tester.widget<ChoiceChip>(tab(label)).selected;
 
+  testWidgets('las tres pestañas entran en una línea en el teléfono', (
+    tester,
+  ) async {
+    await pumpTabs(tester, session: signedInAs(UserRole.customer));
+
+    final top = tester.getTopLeft(tab('Frecuentes')).dy;
+    expect(tester.getTopLeft(tab('Sugeridos')).dy, top);
+    expect(tester.getTopLeft(tab('Promos')).dy, top);
+  });
+
   testWidgets('sin cuenta no hay Frecuentes y arranca en Sugeridos', (
     tester,
   ) async {
