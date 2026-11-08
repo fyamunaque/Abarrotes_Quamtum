@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:neils/admin/emails.dart';
+import 'package:neils/admin/categories/admin_categories_repository.dart';
 import 'package:neils/admin/inventory/inventory_providers.dart';
 import 'package:neils/admin/inventory/inventory_repository.dart';
 import 'package:neils/admin/inventory/movement.dart';
@@ -1905,5 +1906,89 @@ class FakeStaffRepository implements StaffRepository {
       );
     }
     roleList.remove(role);
+  }
+}
+
+/// Las categorías del panel en memoria, por nombre. Borrar una con
+/// productos ([productCounts]) responde el 409 del servidor.
+class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
+  FakeAdminCategoriesRepository(
+    List<Category> categories, {
+    this.productCounts = const {},
+  }) : categories = [...categories];
+
+  final List<Category> categories;
+  final Map<String, int> productCounts;
+
+  /// Lo creado: (nombre, descripción).
+  final created = <(String, String?)>[];
+
+  /// Las categorías a las que se les subió una foto.
+  final uploads = <String>[];
+
+  @override
+  Future<List<AdminCategory>> list() async => [
+    for (final category in [
+      ...categories,
+    ]..sort((a, b) => a.name.compareTo(b.name)))
+      (category: category, productCount: productCounts[category.id] ?? 0),
+  ];
+
+  @override
+  Future<Category> create(String name, {String? description}) async {
+    created.add((name, description));
+    final category = Category(
+      id: 'cat-${categories.length + 1}',
+      name: name,
+      description: description,
+    );
+    categories.add(category);
+    return category;
+  }
+
+  @override
+  Future<Category> update(
+    String id, {
+    required String name,
+    required String description,
+  }) async {
+    final i = categories.indexWhere((category) => category.id == id);
+    final current = categories[i];
+    return categories[i] = Category(
+      id: id,
+      name: name,
+      description: description.isEmpty ? null : description,
+      imageUrl: current.imageUrl,
+    );
+  }
+
+  @override
+  Future<Category> uploadImage(
+    String id,
+    List<int> bytes, {
+    required String contentType,
+  }) async {
+    uploads.add(id);
+    final i = categories.indexWhere((category) => category.id == id);
+    final current = categories[i];
+    return categories[i] = Category(
+      id: id,
+      name: current.name,
+      description: current.description,
+      imageUrl: '/images/categories/$id/0123456789abcdef.jpg',
+    );
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    final count = productCounts[id] ?? 0;
+    if (count > 0) {
+      throw ApiFailure(
+        'La categoría tiene $count productos: muévelos a otra antes de '
+        'eliminarla',
+        status: 409,
+      );
+    }
+    categories.removeWhere((category) => category.id == id);
   }
 }

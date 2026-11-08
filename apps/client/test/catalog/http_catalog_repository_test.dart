@@ -54,6 +54,28 @@ void main() {
     );
   });
 
+  test('lee la descripción y la foto de una categoría', () async {
+    final categories = await repository(
+      (_) async => json(200, [
+        {
+          'id': 'c-1',
+          'name': 'Embutidos',
+          'description': 'Hot dogs, jamonadas y más',
+          'imageUrl': '/images/categories/c-1/0123456789abcdef.jpg',
+        },
+        {'id': 'c-2', 'name': 'Lácteos', 'description': null, 'imageUrl': null},
+      ]),
+    ).categories();
+
+    expect(categories.first.description, 'Hot dogs, jamonadas y más');
+    expect(
+      categories.first.imageUrl,
+      '/images/categories/c-1/0123456789abcdef.jpg',
+    );
+    expect(categories.last.description, isNull);
+    expect(categories.last.imageUrl, isNull);
+  });
+
   test('productos: página, tamaño y categoría en el query', () async {
     late Uri url;
     final page = await repository((request) async {

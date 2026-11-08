@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../catalog/category.dart';
 import '../../theme/brand_colors.dart';
+import 'category_photo.dart';
 
-/// Una categoría en una tarjeta: arriba un bloque de su color con la
-/// inicial, abajo el nombre y una flecha. [colors] es el par fondo/letra; sin
+/// Una categoría en una tarjeta: arriba su foto (o un bloque de su color con
+/// la inicial), abajo el nombre y una flecha. [colors] es el par fondo/letra; sin
 /// él, el de la categoría ([PlaceholderColors.of]). La portada los pasa en
 /// orden, así dos vecinas no se repiten.
 class CategoryCard extends StatelessWidget {
@@ -21,12 +22,7 @@ class CategoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (background, foreground) =
-        colors ?? PlaceholderColors.of(category.id);
     final text = Theme.of(context).textTheme;
-    final initial = category.name.isEmpty
-        ? '?'
-        : category.name.characters.first.toUpperCase();
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
@@ -37,17 +33,7 @@ class CategoryCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 4 / 3,
-              child: ColoredBox(
-                color: background,
-                child: Center(
-                  child: ExcludeSemantics(
-                    child: Text(
-                      initial,
-                      style: text.headlineLarge?.copyWith(color: foreground),
-                    ),
-                  ),
-                ),
-              ),
+              child: CategoryPhoto(category: category, colors: colors),
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 10, 8, 12),

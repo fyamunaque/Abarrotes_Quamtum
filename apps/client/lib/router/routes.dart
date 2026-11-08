@@ -65,6 +65,7 @@ abstract final class Routes {
   /// Para caja: los pedidos de recojo que se preparan o esperan.
   static const adminPickup = '/admin/pedidos/recoger';
   static const adminProducts = '/admin/productos';
+  static const adminCategories = '/admin/categorias';
   static const adminInventory = '/admin/inventario';
   static const adminPromotions = '/admin/promociones';
 
@@ -92,6 +93,7 @@ abstract final class Routes {
     admin,
     adminOrders,
     adminProducts,
+    adminCategories,
     adminInventory,
     adminPromotions,
     adminVip,
@@ -107,6 +109,7 @@ abstract final class Routes {
       StaffPermission.productsView,
       StaffPermission.productsManage,
     },
+    adminCategories: {StaffPermission.categoriesManage},
     adminInventory: {StaffPermission.inventoryView},
     adminPromotions: {StaffPermission.promotionsManage},
     adminVip: {StaffPermission.vipView},
