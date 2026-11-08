@@ -158,7 +158,8 @@ class _ProductQuantityActionsState
       dense: true,
       onChanged: (value) => setState(() => _chosen = value),
     );
-    final total = LineTotalPill(product.finalPriceCents * quantity);
+    // Con las promociones por cantidad (2x1, N.ª unidad), como el servidor.
+    final total = LineTotalPill(product.totalFor(quantity));
     final button = inCart > 0
         ? OutlinedButton.icon(
             onPressed: () {

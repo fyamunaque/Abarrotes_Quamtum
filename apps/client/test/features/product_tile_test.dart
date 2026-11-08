@@ -6,6 +6,7 @@ import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
+import 'package:neils/features/catalog/line_total_pill.dart';
 import 'package:neils/features/catalog/product_tile.dart';
 import 'package:neils/features/catalog/promo_ribbon.dart';
 import 'package:neils/features/catalog/stock_note.dart';
@@ -109,6 +110,32 @@ void main() {
     await tester.pump();
 
     expect(find.text(formatSoles(1320)), findsOneWidget);
+  });
+
+  testWidgets('la pastilla cuenta el 2x1', (tester) async {
+    const twoForOne = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial',
+      priceCents: 440,
+      stock: 40,
+      quantityDeals: [
+        (type: 'buyXPayY', buyQuantity: 2, payQuantity: 1, percent: null),
+      ],
+    );
+    await pumpTile(tester, twoForOne);
+
+    await tester.tap(plus());
+    await tester.pump();
+
+    // Dos unidades con 2x1: se paga una.
+    expect(
+      find.descendant(
+        of: find.byType(LineTotalPill),
+        matching: find.text(formatSoles(440)),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Agregar suma la cantidad al carrito', (tester) async {

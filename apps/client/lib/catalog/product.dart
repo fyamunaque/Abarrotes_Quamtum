@@ -44,6 +44,35 @@ ProductOffer? productOfferFromJson(Object? json) {
   return null;
 }
 
+/// Una promoción por cantidad con los números que hacen falta para estimar
+/// lo que cuestan N unidades ([Product.totalFor]): `buyXPayY` (lleva
+/// [buyQuantity], paga [payQuantity]) o `extraUnit` (cada [buyQuantity].ª
+/// unidad con [percent] % menos).
+typedef QuantityDeal = ({
+  String type,
+  int buyQuantity,
+  int? payQuantity,
+  int? percent,
+});
+
+/// La promoción por cantidad de [json] (una de `promotions`), o null si es
+/// de otro tipo o le falta un número.
+QuantityDeal? quantityDealFromJson(Object? json) => switch (json) {
+  {
+    'type': 'buyXPayY',
+    'buyQuantity': final int buy,
+    'payQuantity': final int pay,
+  } =>
+    (type: 'buyXPayY', buyQuantity: buy, payQuantity: pay, percent: null),
+  {
+    'type': 'extraUnit',
+    'buyQuantity': final int buy,
+    'percent': final int percent,
+  } =>
+    (type: 'extraUnit', buyQuantity: buy, payQuantity: null, percent: percent),
+  _ => null,
+};
+
 /// Un producto del catálogo, como lo muestra la app. Montos en céntimos, como
 /// en el servidor (que en el JSON los manda como texto: `"4.5"`).
 class Product {
@@ -62,6 +91,7 @@ class Product {
     this.expirationDate,
     this.vipPrice = false,
     this.offers = const [],
+    this.quantityDeals = const [],
   });
 
   /// Como lo manda el servidor (`productJson` en apps/server): el precio
@@ -116,6 +146,9 @@ class Product {
         offers: [
           for (final promotion in promotions) ?productOfferFromJson(promotion),
         ],
+        quantityDeals: [
+          for (final promotion in promotions) ?quantityDealFromJson(promotion),
+        ],
         imageUrl: json['imageUrl'] as String?,
         description: json['description'] as String?,
         category: json['category'] == null
@@ -159,6 +192,9 @@ class Product {
   /// Las promociones por cantidad y de regalo que puede usar quien mira.
   final List<ProductOffer> offers;
 
+  /// Las promociones por cantidad, con sus números, para [totalFor].
+  final List<QuantityDeal> quantityDeals;
+
   final String? imageUrl;
   final int stock;
   final String? description;
@@ -186,6 +222,48 @@ class Product {
 
   /// Lo que se paga hoy.
   int get finalPriceCents => promoPriceCents ?? priceCents;
+
+  /// Lo que costarían [quantity] unidades, como las cobra el servidor: el
+  /// precio de hoy ([finalPriceCents]) y, sobre él, las promociones por
+  /// cantidad (primero las NxM y después las de la N.ª unidad, cada vez la
+  /// que más ahorra con las unidades que quedan). La cotización del carrito
+  /// tiene la última palabra.
+  int totalFor(int quantity) {
+    final unit = finalPriceCents;
+    var units = quantity;
+    var saved = 0;
+    for (final type in const ['buyXPayY', 'extraUnit']) {
+      final candidates = [
+        for (final deal in quantityDeals)
+          if (deal.type == type && deal.buyQuantity > 0) deal,
+      ];
+      while (candidates.isNotEmpty) {
+        QuantityDeal? best;
+        var bestSaved = 0;
+        var bestUsed = 0;
+        for (final deal in candidates) {
+          final groups = units ~/ deal.buyQuantity;
+          final dealSaved = switch (deal.type) {
+            'buyXPayY' =>
+              groups *
+                  (deal.buyQuantity - (deal.payQuantity ?? deal.buyQuantity)) *
+                  unit,
+            _ => groups * (unit * (deal.percent ?? 0) / 100).round(),
+          };
+          if (dealSaved > bestSaved) {
+            best = deal;
+            bestSaved = dealSaved;
+            bestUsed = groups * deal.buyQuantity;
+          }
+        }
+        if (best == null) break;
+        units -= bestUsed;
+        saved += bestSaved;
+        candidates.remove(best);
+      }
+    }
+    return unit * quantity - saved;
+  }
 
   bool get inStock => stock > 0;
 
