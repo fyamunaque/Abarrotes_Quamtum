@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/theme/brand_colors.dart';
+import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
 import 'package:neils/theme/palette.dart';
 
@@ -141,6 +142,15 @@ void main() {
           .color,
       const Color(0xFFF4EEE7),
     );
+  });
+
+  test('los tiempos del mostrador', () {
+    expect(NeilsMotion.press, const Duration(milliseconds: 90));
+    expect(NeilsMotion.fade, const Duration(milliseconds: 160));
+    expect(NeilsMotion.hover, const Duration(milliseconds: 180));
+    expect(NeilsMotion.photoZoom, const Duration(milliseconds: 600));
+    expect(NeilsMotion.entrance, const Duration(milliseconds: 600));
+    expect(NeilsMotion.ease, const Cubic(.2, .8, .2, 1));
   });
 
   group('formas', () {

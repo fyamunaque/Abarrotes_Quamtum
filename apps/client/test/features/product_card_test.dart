@@ -243,6 +243,20 @@ void main() {
       expect(box.color, NeilsColors.surface);
     });
 
+    testWidgets('la entrada VIP empieza en 0,97', (tester) async {
+      await pumpCard(tester, vipOil);
+
+      final transform = tester.widget<Transform>(
+        find
+            .descendant(
+              of: find.byType(VipReveal),
+              matching: find.byType(Transform),
+            )
+            .first,
+      );
+      expect(transform.transform.entry(0, 0), closeTo(0.97, 0.001));
+    });
+
     testWidgets('entra en unos 300 ms, una sola vez', (tester) async {
       await pumpCard(tester, vipOil);
 

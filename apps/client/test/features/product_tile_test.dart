@@ -112,6 +112,40 @@ void main() {
     expect(find.text(formatSoles(1320)), findsOneWidget);
   });
 
+  testWidgets('la pastilla cambia de total con un fundido', (tester) async {
+    await pumpTile(tester, ham);
+
+    await tester.tap(plus());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+
+    final fades = tester
+        .widgetList<FadeTransition>(
+          find.descendant(
+            of: find.byType(LineTotalPill),
+            matching: find.byType(FadeTransition),
+          ),
+        )
+        .map((t) => t.opacity.value);
+    expect(fades.where((o) => o > 0 && o < 1), isNotEmpty);
+
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(LineTotalPill),
+        matching: find.text(formatSoles(880)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(LineTotalPill),
+        matching: find.text(formatSoles(440)),
+      ),
+      findsNothing,
+    );
+  });
+
   testWidgets('la pastilla cuenta el 2x1', (tester) async {
     const twoForOne = Product(
       id: 'jamonada',

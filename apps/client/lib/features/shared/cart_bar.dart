@@ -9,6 +9,7 @@ import '../../router/routes.dart';
 import '../../session/session_provider.dart';
 import '../../theme/neils_theme.dart';
 import '../../theme/palette.dart';
+import 'value_fade.dart';
 
 /// La barra roja fija de abajo, en el teléfono: el ícono del carrito con
 /// [count] unidades, [label] ("Continuar", "Confirmar pedido") y el total,
@@ -101,11 +102,15 @@ class CartBar extends StatelessWidget {
                                 color: context.palette.onBrand,
                               ),
                             ),
-                          Text(
-                            formatSoles(totalCents),
-                            style: NeilsText.price(
-                              fontSize: 20,
-                              color: context.palette.onBrand,
+                          ValueFade(
+                            value: totalCents,
+                            alignment: AlignmentDirectional.centerEnd,
+                            child: Text(
+                              formatSoles(totalCents),
+                              style: NeilsText.price(
+                                fontSize: 20,
+                                color: context.palette.onBrand,
+                              ),
                             ),
                           ),
                         ],

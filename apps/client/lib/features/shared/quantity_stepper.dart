@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'value_fade.dart';
+
 /// Elegir una cantidad entre 1 y [max] con − y +. [dense] achica el círculo
 /// de los botones (40 px), para las filas de productos; el área que se toca
 /// sigue siendo de 48.
@@ -39,11 +41,14 @@ class QuantityStepper extends StatelessWidget {
         ),
         ConstrainedBox(
           constraints: BoxConstraints(minWidth: dense ? 28 : 40),
-          child: Text(
-            '$quantity',
-            textAlign: TextAlign.center,
-            semanticsLabel: 'Cantidad: $quantity',
-            style: Theme.of(context).textTheme.titleMedium,
+          child: ValueFade(
+            value: quantity,
+            child: Text(
+              '$quantity',
+              textAlign: TextAlign.center,
+              semanticsLabel: 'Cantidad: $quantity',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
           ),
         ),
         IconButton.outlined(

@@ -10,7 +10,7 @@ class PressScale extends StatefulWidget {
     super.key,
     required this.child,
     this.enabled = true,
-    this.pressedScale = 0.94,
+    this.pressedScale = 0.985,
   });
 
   final Widget child;
@@ -39,7 +39,7 @@ class _PressScaleState extends State<PressScale> {
       child: AnimatedScale(
         scale: shrink ? widget.pressedScale : 1,
         duration: NeilsMotion.press,
-        curve: Curves.easeOut,
+        curve: NeilsMotion.ease,
         child: widget.child,
       ),
     );

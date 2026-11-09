@@ -71,7 +71,7 @@ class PriceTag extends StatelessWidget {
   }
 }
 
-/// La entrada de un precio VIP: crece un poco y aparece, en
+/// La entrada de un precio VIP: aparece y crece apenas (de 0,97), en
 /// [NeilsMotion.reveal]. Corre una vez, al aparecer; con "reducir
 /// animaciones", el precio está desde el principio.
 class VipReveal extends StatelessWidget {
@@ -86,11 +86,11 @@ class VipReveal extends StatelessWidget {
       duration: NeilsMotion.reduced(context)
           ? Duration.zero
           : NeilsMotion.reveal,
-      curve: Curves.easeOutCubic,
+      curve: NeilsMotion.ease,
       builder: (_, t, child) => Opacity(
         opacity: t,
         child: Transform.scale(
-          scale: 0.9 + 0.1 * t,
+          scale: 0.97 + 0.03 * t,
           alignment: AlignmentDirectional.centerStart.resolve(
             Directionality.of(context),
           ),
