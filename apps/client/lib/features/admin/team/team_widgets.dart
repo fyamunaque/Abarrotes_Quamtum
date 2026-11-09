@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../admin/staff/staff.dart';
 import '../../../admin/staff/staff_providers.dart';
 import '../../../router/routes.dart';
-import '../../../theme/brand_colors.dart';
 import '../../shared/error_message.dart';
 import '../shared/panel_tabs.dart';
 import '../shared/status_badge.dart';
+import '../../../theme/palette.dart';
 
 /// Las dos pestañas de la sección Equipo: las personas y los roles.
 enum TeamTab { people, roles }
@@ -53,8 +53,8 @@ class StaffStatusBadge extends StatelessWidget {
     return StatusBadge(
       label: label(status),
       color: switch (status) {
-        StaffMemberStatus.active => StateColors.positive,
-        StaffMemberStatus.pendingSignUp => OrderStatusColors.pending,
+        StaffMemberStatus.active => context.palette.positive,
+        StaffMemberStatus.pendingSignUp => context.palette.statusPending,
         StaffMemberStatus.deactivated => Theme.of(context).colorScheme.outline,
       },
     );

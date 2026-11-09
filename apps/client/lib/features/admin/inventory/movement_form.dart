@@ -3,10 +3,10 @@ import 'package:flutter/services.dart';
 
 import '../../../admin/inventory/movement.dart';
 import '../../../catalog/product.dart';
-import '../../../theme/brand_colors.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_form.dart';
 import '../shared/product_picker.dart';
+import '../../../theme/palette.dart';
 
 /// Registrar una entrada, una salida o un ajuste de stock. Valida como el
 /// servidor (en un ajuste la cantidad lleva signo y el motivo es
@@ -199,7 +199,7 @@ class _StockPreview extends StatelessWidget {
             : 'Stock: ${product.stock} → $after',
         style: theme.textTheme.bodyMedium?.copyWith(
           color: after < 0
-              ? OrderStatusColors.cancelled
+              ? context.palette.statusCancelled
               : theme.colorScheme.onSurfaceVariant,
         ),
       ),

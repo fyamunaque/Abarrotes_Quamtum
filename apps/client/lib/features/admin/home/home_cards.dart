@@ -10,7 +10,6 @@ import '../../../orders/fulfillment.dart';
 import '../../../orders/order_status.dart';
 import '../../../router/routes.dart';
 import '../../../session/session_provider.dart';
-import '../../../theme/brand_colors.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/error_message.dart';
 import 'kpi_card.dart';
@@ -581,7 +580,7 @@ class _Meter extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: Container(
           height: 6,
-          color: NeilsColors.primaryTint,
+          color: context.palette.brandTint,
           alignment: Alignment.centerLeft,
           child: FractionallySizedBox(
             widthFactor: fraction.clamp(0, 1),

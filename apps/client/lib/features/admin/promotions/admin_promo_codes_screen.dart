@@ -7,7 +7,6 @@ import '../../../admin/promo_codes/promo_code.dart';
 import '../../../admin/promo_codes/promo_codes_providers.dart';
 import '../../../common/days.dart';
 import '../../../router/routes.dart';
-import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
 import '../../shared/filter_chips.dart';
 import '../shared/admin_page.dart';
@@ -18,6 +17,7 @@ import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'promo_code_form.dart';
 import 'promotions_tabs.dart';
+import '../../../theme/palette.dart';
 
 /// Los códigos promocionales: chips por estado, buscar por texto, crear,
 /// editar (con sus promociones) y eliminar. Con el permiso de las
@@ -197,8 +197,8 @@ class _AdminPromoCodesScreenState extends ConsumerState<AdminPromoCodesScreen> {
 /// gris. Siempre con el estado en texto al lado.
 Color promoCodeStatusColor(BuildContext context, PromoCodeStatus status) =>
     switch (status) {
-      PromoCodeStatus.active => StateColors.positive,
-      PromoCodeStatus.scheduled => OrderStatusColors.onTheWay,
+      PromoCodeStatus.active => context.palette.positive,
+      PromoCodeStatus.scheduled => context.palette.statusOnTheWay,
       PromoCodeStatus.expired ||
       PromoCodeStatus.paused => Theme.of(context).colorScheme.outline,
     };

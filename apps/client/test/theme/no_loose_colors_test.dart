@@ -38,23 +38,6 @@ void main() {
     expect(found, isEmpty, reason: found.join('\n'));
   });
 
-  /// Los que todavía leen las constantes de la marca en lugar de la paleta
-  /// del tema. Cada tanda de la migración al modo oscuro la achica hasta
-  /// dejarla vacía.
-  const pendientes = {
-    'lib/features/admin/home/home_cards.dart',
-    'lib/features/admin/home/kpi_card.dart',
-    'lib/features/admin/inventory/movement_form.dart',
-    'lib/features/admin/products/admin_products_screen.dart',
-    'lib/features/admin/promotions/admin_promo_codes_screen.dart',
-    'lib/features/admin/promotions/admin_promotions_screen.dart',
-    'lib/features/admin/shared/emails_add_form.dart',
-    'lib/features/admin/shared/vip_badge.dart',
-    'lib/features/admin/team/admin_roles_screen.dart',
-    'lib/features/admin/team/team_widgets.dart',
-    'lib/features/admin/vip/admin_vip_screen.dart',
-  };
-
   // Las constantes de la marca y de los estados son para armar las paletas
   // en lib/theme; las pantallas leen la paleta del tema (claro u oscuro).
   test('los colores de la marca solo desde la paleta del tema', () {
@@ -63,7 +46,6 @@ void main() {
         r'NeilsColors\.|OrderStatusColors\.|StateColors\.'
         r'|PlaceholderColors\.|neilsCardShadow',
       ),
-      except: pendientes,
     );
     expect(found, isEmpty, reason: found.join('\n'));
   });

@@ -8,7 +8,6 @@ import '../../../admin/vip/vip_customer.dart';
 import '../../../admin/vip/vip_providers.dart';
 import '../../../session/session_provider.dart';
 import '../../../session/staff_permission.dart';
-import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_page.dart';
@@ -18,6 +17,7 @@ import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'vip_add_form.dart';
+import '../../../theme/palette.dart';
 
 /// Los clientes VIP: buscar por correo y, con `vip.manage`, agregar y
 /// quitar. Sin ese permiso, la lista en modo lectura (el servidor tampoco lo
@@ -146,7 +146,7 @@ class _AdminVipScreenState extends ConsumerState<AdminVipScreen> {
               (vip) => StatusBadge(
                 label: status(vip),
                 color: vip.hasAccount
-                    ? StateColors.positive
+                    ? context.palette.positive
                     : Theme.of(context).colorScheme.outline,
               ),
             ),

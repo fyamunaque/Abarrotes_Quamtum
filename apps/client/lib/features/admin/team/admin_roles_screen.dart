@@ -5,7 +5,6 @@ import '../../../admin/staff/staff.dart';
 import '../../../admin/staff/staff_providers.dart';
 import '../../../common/page_list.dart';
 import '../../../session/staff_permission.dart';
-import '../../../theme/brand_colors.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
 import '../shared/panel_note.dart';
@@ -13,6 +12,7 @@ import '../shared/refresh_button.dart';
 import '../shared/status_badge.dart';
 import 'role_form.dart';
 import 'team_widgets.dart';
+import '../../../theme/palette.dart';
 
 /// Los roles del equipo (solo con `staff.manage`): la lista, crear uno nuevo
 /// y, al tocar uno, el editor con sus permisos. El rol del sistema se abre
@@ -106,7 +106,7 @@ class AdminRolesScreen extends ConsumerWidget {
               (role) => StatusBadge(
                 label: role.active ? 'Activo' : 'Inactivo',
                 color: role.active
-                    ? StateColors.positive
+                    ? context.palette.positive
                     : Theme.of(context).colorScheme.outline,
               ),
             ),

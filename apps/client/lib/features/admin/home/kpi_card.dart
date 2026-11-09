@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../theme/brand_colors.dart';
 import '../../../theme/neils_theme.dart';
+import '../../../theme/palette.dart';
 
 /// Un indicador del inicio del panel: el ícono en un cuadro rojo claro, el
 /// título, la cifra grande en rojo y un detalle ("2 pedidos").
@@ -33,10 +33,10 @@ class KpiCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: NeilsColors.primaryTint,
+                  color: context.palette.brandTint,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(icon, size: 22, color: NeilsColors.primary),
+                child: Icon(icon, size: 22, color: context.palette.brandText),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -49,7 +49,7 @@ class KpiCard extends StatelessWidget {
                       value,
                       style: NeilsText.price(
                         fontSize: 24,
-                        color: NeilsColors.primary,
+                        color: context.palette.brandText,
                       ),
                     ),
                     if (detail case final detail?)
