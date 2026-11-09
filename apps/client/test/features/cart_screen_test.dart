@@ -345,32 +345,36 @@ void main() {
     expect(find.byTooltip('Carrito: 3'), findsOneWidget);
   });
 
-  testWidgets('cada línea muestra el código, la pastilla con su total y Quitar', (
-    tester,
-  ) async {
-    const ham = Product(
-      id: 'jamonada',
-      sku: '3580',
-      name: 'Jamonada especial',
-      priceCents: 440,
-      stock: 20,
-    );
-    await pumpCart(tester, [(ham, 3)]);
+  testWidgets(
+    'cada línea muestra el código, la pastilla con su total y Quitar',
+    (tester) async {
+      const ham = Product(
+        id: 'jamonada',
+        sku: '3580',
+        name: 'Jamonada especial',
+        priceCents: 440,
+        stock: 20,
+      );
+      await pumpCart(tester, [(ham, 3)]);
 
-    final line = lineOf('3580 – Jamonada especial');
-    expect(line, findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.descendant(of: line, matching: find.byType(LineTotalPill)),
-        matching: find.text(formatSoles(1320)),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: line, matching: find.byTooltip('Quitar del carrito')),
-      findsOneWidget,
-    );
-  });
+      final line = lineOf('3580 – Jamonada especial');
+      expect(line, findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.descendant(of: line, matching: find.byType(LineTotalPill)),
+          matching: find.text(formatSoles(1320)),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: line,
+          matching: find.byTooltip('Quitar del carrito'),
+        ),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('− y + cambian la cantidad dentro de los límites', (
     tester,

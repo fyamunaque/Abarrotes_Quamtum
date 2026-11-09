@@ -186,8 +186,9 @@ void main() {
 
       expect(location(router), '/catalogo?promos=1');
       expect(catalog.onSaleRequests.last, isTrue);
-      bool selected(String chip) =>
-          tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, chip)).selected;
+      bool selected(String chip) => tester
+          .widget<ChoiceChip>(find.widgetWithText(ChoiceChip, chip))
+          .selected;
       expect(selected('En promoción'), isTrue);
       expect(selected('Todas'), isFalse);
     });
@@ -397,9 +398,11 @@ void main() {
 
       expect(container.read(cartProvider).quantityOf('aceite'), 3);
       expect(
-        tester.widget<IconButton>(
-          find.widgetWithIcon(IconButton, Icons.add).first,
-        ).onPressed,
+        tester
+            .widget<IconButton>(
+              find.widgetWithIcon(IconButton, Icons.add).first,
+            )
+            .onPressed,
         isNull,
       );
     });

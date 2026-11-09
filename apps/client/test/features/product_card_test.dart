@@ -217,31 +217,30 @@ void main() {
         )
         .opacity;
 
-    testWidgets(
-      'el precio VIP, el normal tachado y la insignia',
-      (tester) async {
-        await pumpCard(tester, vipOil);
-        await tester.pumpAndSettle();
+    testWidgets('el precio VIP, el normal tachado y la insignia', (
+      tester,
+    ) async {
+      await pumpCard(tester, vipOil);
+      await tester.pumpAndSettle();
 
-        expect(priceText(formatSoles(790)), findsOneWidget);
-        final before = tester.widget<Text>(find.text(formatSoles(1090)));
-        expect(before.style?.decoration, TextDecoration.lineThrough);
-        final tag = tester.widget<Text>(find.text('VIP'));
-        expect(tag.style?.color, NeilsColors.primary);
-        expect(tag.semanticsLabel, 'Precio VIP');
-        final box =
-            tester
-                    .widget<Container>(
-                      find.ancestor(
-                        of: find.text('VIP'),
-                        matching: find.byType(Container),
-                      ),
-                    )
-                    .decoration!
-                as BoxDecoration;
-        expect(box.color, NeilsColors.surface);
-      },
-    );
+      expect(priceText(formatSoles(790)), findsOneWidget);
+      final before = tester.widget<Text>(find.text(formatSoles(1090)));
+      expect(before.style?.decoration, TextDecoration.lineThrough);
+      final tag = tester.widget<Text>(find.text('VIP'));
+      expect(tag.style?.color, NeilsColors.primary);
+      expect(tag.semanticsLabel, 'Precio VIP');
+      final box =
+          tester
+                  .widget<Container>(
+                    find.ancestor(
+                      of: find.text('VIP'),
+                      matching: find.byType(Container),
+                    ),
+                  )
+                  .decoration!
+              as BoxDecoration;
+      expect(box.color, NeilsColors.surface);
+    });
 
     testWidgets('entra en unos 300 ms, una sola vez', (tester) async {
       await pumpCard(tester, vipOil);

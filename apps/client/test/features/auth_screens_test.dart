@@ -84,7 +84,10 @@ void main() {
     ) async {
       await pumpApp(tester);
 
-      expect(find.text('Tu abastecimiento gastronómico, más fácil.'), findsOneWidget);
+      expect(
+        find.text('Tu abastecimiento gastronómico, más fácil.'),
+        findsOneWidget,
+      );
       for (final point in [
         'Precios y promociones exclusivas',
         'Entrega a tu negocio',
