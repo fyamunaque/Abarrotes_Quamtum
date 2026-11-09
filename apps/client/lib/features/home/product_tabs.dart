@@ -15,6 +15,7 @@ import '../catalog/product_tile.dart';
 import '../shared/account.dart';
 import '../shared/error_message.dart';
 import '../../theme/palette.dart';
+import '../../router/navigation.dart';
 
 enum _Tab {
   frequent('Frecuentes', Icons.shopping_cart_outlined),
@@ -220,7 +221,8 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
   }
 
   Widget _list(List<Product> products) {
-    void open(Product product) => context.go(Routes.product(product.id));
+    void open(Product product) =>
+        context.openProduct(product.id, product: product);
     if (MediaQuery.sizeOf(context).width >= AccountActions.wideFrom) {
       return ProductGrid(
         children: [
@@ -233,18 +235,18 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
         ],
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final product in products) ...[
-          ProductTile(
-            key: ValueKey(product.id),
-            product: product,
-            onTap: () => open(product),
-          ),
-          const SizedBox(height: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ProductRows(
+        children: [
+          for (final product in products)
+            ProductTile(
+              key: ValueKey(product.id),
+              product: product,
+              onTap: () => open(product),
+            ),
         ],
-      ],
+      ),
     );
   }
 }

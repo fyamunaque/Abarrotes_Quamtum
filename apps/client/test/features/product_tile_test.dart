@@ -12,8 +12,16 @@ import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/features/catalog/stock_note.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
+import 'package:neils/app.dart';
+import 'package:neils/catalog/catalog_providers.dart';
+import 'package:neils/features/catalog/product_detail_screen.dart';
+import 'package:neils/features/catalog/product_photo.dart';
+import 'package:neils/router/router.dart';
+import 'package:neils/router/routes.dart';
+import 'package:neils/theme/palette.dart';
 import 'package:neils/theme/neils_theme.dart';
 
+import '../fakes.dart';
 import '../support.dart';
 
 void main() {
@@ -63,7 +71,9 @@ void main() {
             child: Scaffold(
               body: ListView(
                 padding: const EdgeInsets.all(16),
-                children: [ProductTile(product: product)],
+                children: [
+                  ProductRows(children: [ProductTile(product: product)]),
+                ],
               ),
             ),
           ),
@@ -320,5 +330,132 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Agregar').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('la fila no es una tarjeta: sin Card ni sombra', (tester) async {
+    await pumpTile(tester, ham);
+
+    expect(
+      find.descendant(
+        of: find.byType(ProductTile),
+        matching: find.byType(Card),
+      ),
+      findsNothing,
+    );
+    final raised = tester
+        .widgetList<Material>(
+          find.descendant(
+            of: find.byType(ProductTile),
+            matching: find.byType(Material),
+          ),
+        )
+        .where((m) => m.elevation > 0);
+    expect(raised, isEmpty);
+  });
+
+  testWidgets('ProductRows pone una línea entre filas y no al final', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: neilsTheme(),
+          home: Scaffold(
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                ProductRows(
+                  children: [
+                    for (final product in const [rice, oil, milk])
+                      ProductTile(key: ValueKey(product.id), product: product),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final rows = find.byType(ProductRows);
+    expect(
+      find.descendant(of: rows, matching: find.byType(Divider)),
+      findsNWidgets(2),
+    );
+    // La última línea queda arriba de la última fila, no debajo.
+    final lastLine = tester.getRect(
+      find.descendant(of: rows, matching: find.byType(Divider)).last,
+    );
+    final lastRow = tester.getRect(find.byKey(const ValueKey('leche')));
+    expect(lastLine.bottom, lessThanOrEqualTo(lastRow.top + 0.5));
+    // Un solo bloque blanco con borde fino.
+    final block = tester.widget<Material>(
+      find.descendant(of: rows, matching: find.byType(Material)).first,
+    );
+    expect(block.color, NeilsPalette.light.surface);
+    expect(
+      (block.shape! as RoundedRectangleBorder).side.color,
+      NeilsPalette.light.line,
+    );
+  });
+
+  testWidgets('la foto viaja al detalle (también sin foto)', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+          catalogRepositoryProvider.overrideWithValue(FakeCatalogRepository()),
+        ],
+        child: const NeilsApp(),
+      ),
+    );
+    ProviderScope.containerOf(tester.element(find.byType(NeilsApp)))
+        .read(routerProvider)
+        .go(Routes.catalog);
+    await tester.pumpAndSettle();
+    expect(rice.imageUrl, isNull);
+
+    Finder heroes() => find.byWidgetPredicate(
+      (w) => w is Hero && w.tag == 'producto-${rice.id}',
+    );
+    expect(heroes(), findsOneWidget);
+
+    await tester.tap(find.text(productTitle(rice)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // En vuelo: el Hero de la fila y el del detalle, y entre los dos la foto
+    // de un tamaño intermedio (más que los 64 px de la fila, menos que el
+    // ancho del detalle). Nada falla.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProductDetailScreen), findsOneWidget);
+    expect(heroes(), findsNWidgets(2));
+    final widths = [
+      for (final e in find.byType(ProductPhoto, skipOffstage: false).evaluate())
+        (e.renderObject! as RenderBox).size.width,
+    ];
+    expect(
+      widths.where((w) => w > 65 && w < 350),
+      isNotEmpty,
+      reason: '$widths',
+    );
+
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(heroes(), findsOneWidget);
   });
 }

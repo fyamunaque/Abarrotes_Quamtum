@@ -21,16 +21,21 @@ import 'stock_note.dart';
 /// eligiendo la cantidad. Debajo, "Más de" su categoría: otros productos de
 /// la misma categoría.
 class ProductDetailScreen extends ConsumerWidget {
-  const ProductDetailScreen({super.key, required this.productId});
+  const ProductDetailScreen({super.key, required this.productId, this.initial});
 
   final String productId;
+
+  /// El producto como lo mostraba la lista que lo abrió: se ve de entrada
+  /// (así su foto viaja desde la fila o la tarjeta) mientras llega el
+  /// actualizado.
+  final Product? initial;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final provider = productProvider(productId);
     return PublicScaffold(
       // El nombre del producto, cuando ya cargó.
-      title: ref.watch(provider).value?.name ?? 'Producto',
+      title: ref.watch(provider).value?.name ?? initial?.name ?? 'Producto',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -68,6 +73,7 @@ class ProductDetailScreen extends ConsumerWidget {
                 ),
               ],
             ),
+            _ when initial != null => _Detail(initial!),
             _ => const Padding(
               padding: EdgeInsets.all(32),
               child: Center(child: CircularProgressIndicator()),
@@ -90,11 +96,14 @@ class _Detail extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: AspectRatio(
         aspectRatio: 4 / 3,
-        child: ProductPhoto(
-          product.imageUrl,
-          name: product.name,
-          colorKey: product.category?.id,
-          initialSize: 72,
+        child: Hero(
+          tag: productHeroTag(product),
+          child: ProductPhoto(
+            product.imageUrl,
+            name: product.name,
+            colorKey: product.category?.id,
+            initialSize: 72,
+          ),
         ),
       ),
     );

@@ -20,6 +20,9 @@ abstract final class NeilsMotion {
   /// La foto de una tarjeta bajo el mouse, que se acerca un poco.
   static const photoZoom = Duration(milliseconds: 600);
 
+  /// El paso al detalle de un producto, con su foto viajando desde la lista.
+  static const page = Duration(milliseconds: 300);
+
   /// La entrada del encabezado de la portada, una vez al abrirla.
   static const entrance = Duration(milliseconds: 600);
 

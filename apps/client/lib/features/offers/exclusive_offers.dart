@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../common/days.dart';
 import '../../offers/offer.dart';
 import '../../offers/offers_providers.dart';
-import '../../router/routes.dart';
 import '../catalog/offer_badges.dart';
 import '../catalog/price_tag.dart';
 import '../catalog/product_photo.dart';
 import '../shared/card_strip.dart';
 import '../shared/date_format.dart';
 import '../shared/vip_tag.dart';
+import '../../router/navigation.dart';
 
 /// "Ofertas exclusivas": las promociones VIP de la cuenta, en una fila que se
 /// desliza de costado. Tocar una abre el producto, que ya trae el precio VIP.
@@ -64,7 +63,7 @@ class _OfferCard extends StatelessWidget {
         side: BorderSide(color: scheme.outlineVariant),
       ),
       child: InkWell(
-        onTap: () => context.go(Routes.product(offer.productId)),
+        onTap: () => context.openProduct(offer.productId),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

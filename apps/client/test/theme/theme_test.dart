@@ -150,6 +150,7 @@ void main() {
     expect(NeilsMotion.hover, const Duration(milliseconds: 180));
     expect(NeilsMotion.photoZoom, const Duration(milliseconds: 600));
     expect(NeilsMotion.entrance, const Duration(milliseconds: 600));
+    expect(NeilsMotion.page, const Duration(milliseconds: 300));
     expect(NeilsMotion.ease, const Cubic(.2, .8, .2, 1));
   });
 

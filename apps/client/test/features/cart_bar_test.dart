@@ -186,7 +186,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final tile = tester.getRect(
-      find.ancestor(of: last, matching: find.byType(Card)).first,
+      find.ancestor(of: last, matching: find.byType(ProductTile)).first,
     );
     expect(
       tile.bottom,

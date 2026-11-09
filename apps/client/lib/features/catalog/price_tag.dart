@@ -11,10 +11,14 @@ import '../../theme/palette.dart';
 /// VIP, además la insignia VIP, y el precio entra con una animación breve,
 /// una sola vez.
 class PriceTag extends StatelessWidget {
-  PriceTag(Product product, {super.key, this.fontSize = 22})
-    : priceCents = product.priceCents,
-      promoPriceCents = product.promoPriceCents,
-      vipPrice = product.vipPrice;
+  PriceTag(
+    Product product, {
+    super.key,
+    this.fontSize = 22,
+    this.alignment = WrapAlignment.start,
+  }) : priceCents = product.priceCents,
+       promoPriceCents = product.promoPriceCents,
+       vipPrice = product.vipPrice;
 
   /// Los precios sueltos, para lo que no es un producto del catálogo (p. ej.
   /// una oferta).
@@ -24,6 +28,7 @@ class PriceTag extends StatelessWidget {
     this.promoPriceCents,
     this.vipPrice = false,
     this.fontSize = 22,
+    this.alignment = WrapAlignment.start,
   });
 
   /// El precio normal.
@@ -36,10 +41,15 @@ class PriceTag extends StatelessWidget {
   final bool vipPrice;
   final double fontSize;
 
+  /// Hacia dónde se juntan el precio, el tachado y la insignia (al final en
+  /// la fila del teléfono, con el precio a la derecha).
+  final WrapAlignment alignment;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tag = Wrap(
+      alignment: alignment,
       spacing: 8,
       runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,

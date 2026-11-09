@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../catalog/product.dart';
+
 import '../features/account/my_account_screen.dart';
 import '../features/admin/admin_home_screen.dart';
 import '../features/admin/admin_shell.dart';
@@ -27,6 +29,7 @@ import '../features/orders/my_orders_screen.dart';
 import '../features/shared/not_found_screen.dart';
 import '../features/showcase/showcase_screen.dart';
 import '../session/session_provider.dart';
+import 'navigation.dart';
 import 'route_guard.dart';
 import 'routes.dart';
 
@@ -58,8 +61,23 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/producto/:id',
-        builder: (_, state) =>
-            ProductDetailScreen(productId: state.pathParameters['id']!),
+        // Entra con un fundido corto, para que la foto del producto viaje
+        // desde la fila o la tarjeta (ver productPage).
+        pageBuilder: (context, state) {
+          final id = state.pathParameters['id']!;
+          return productPage(
+            context,
+            key: state.pageKey,
+            child: ProductDetailScreen(
+              productId: id,
+              // El de la lista que lo abrió (openProduct), si es el mismo.
+              initial: switch (state.extra) {
+                final Product product when product.id == id => product,
+                _ => null,
+              },
+            ),
+          );
+        },
       ),
       GoRoute(path: Routes.cart, builder: (_, _) => const CartScreen()),
       GoRoute(
