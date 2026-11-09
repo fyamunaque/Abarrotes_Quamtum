@@ -8,7 +8,7 @@ import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/line_total_pill.dart';
 import 'package:neils/features/catalog/product_tile.dart';
-import 'package:neils/features/catalog/promo_ribbon.dart';
+import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/features/catalog/stock_note.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
@@ -251,7 +251,7 @@ void main() {
     expect(tester.widget<ButtonStyleButton>(button).onPressed, isNull);
   });
 
-  testWidgets('la cinta muestra la promoción', (tester) async {
+  testWidgets('la etiqueta muestra la promoción', (tester) async {
     const withOffer = Product(
       id: 'jamonada',
       sku: '3580',
@@ -270,12 +270,12 @@ void main() {
     await pumpTile(tester, withOffer);
 
     expect(
-      find.descendant(of: find.byType(PromoRibbon), matching: find.text('2x1')),
+      find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
       findsOneWidget,
     );
   });
 
-  testWidgets('una cinta larga no tapa el nombre, con texto al 130 %', (
+  testWidgets('una etiqueta larga no tapa el nombre, con texto al 130 %', (
     tester,
   ) async {
     const withLongOffer = Product(
@@ -296,8 +296,8 @@ void main() {
     await pumpTile(tester, withLongOffer, textScale: 1.3);
 
     final title = tester.getRect(find.text(productTitle(withLongOffer)));
-    final ribbon = tester.getRect(find.byType(PromoRibbon));
-    expect(title.overlaps(ribbon), isFalse, reason: '$title y $ribbon');
+    final tag = tester.getRect(find.byType(PromoTag));
+    expect(title.overlaps(tag), isFalse, reason: '$title y $tag');
     expect(tester.takeException(), isNull);
   });
 

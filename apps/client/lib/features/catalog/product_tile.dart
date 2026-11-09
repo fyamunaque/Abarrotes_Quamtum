@@ -9,8 +9,7 @@ import '../shared/quantity_stepper.dart';
 import 'line_total_pill.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
-import 'promo_ribbon.dart';
-import 'stock_note.dart';
+import 'promo_tag.dart';
 
 /// El nombre de un producto con su código adelante, como en las maquetas
 /// ("3580 – Jamonada especial"). Sin código, el nombre solo.
@@ -18,9 +17,9 @@ String productTitle(Product product) =>
     product.sku.isEmpty ? product.name : '${product.sku} – ${product.name}';
 
 /// Un producto en una lista (el teléfono): la foto, el código y el nombre,
-/// el precio y el stock, y debajo la cantidad, lo que costaría y "Agregar"
-/// (o "Editar", si ya está en el carrito). La cinta de su promoción cuelga
-/// del borde de arriba, al lado del nombre, sin taparlo.
+/// el precio, la etiqueta de su promoción o el stock ([TagOrStock]), y
+/// debajo la cantidad, lo que costaría y "Agregar" (o "Editar", si ya está
+/// en el carrito).
 class ProductTile extends StatelessWidget {
   const ProductTile({super.key, required this.product, this.onTap});
 
@@ -62,33 +61,16 @@ class ProductTile extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                productTitle(product),
-                                style: text.titleSmall,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (product.offers.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              // Ocupa su ancho en la fila (el nombre no
-                              // pasa por debajo) y se dibuja subida hasta
-                              // el borde de la tarjeta.
-                              Transform.translate(
-                                offset: const Offset(0, -12),
-                                child: PromoRibbon(product.offers),
-                              ),
-                            ],
-                          ],
+                        Text(
+                          productTitle(product),
+                          style: text.titleSmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 4),
                         PriceTag(product, fontSize: 18),
-                        const SizedBox(height: 2),
-                        StockNote(product),
+                        const SizedBox(height: 4),
+                        TagOrStock(product),
                       ],
                     ),
                   ),

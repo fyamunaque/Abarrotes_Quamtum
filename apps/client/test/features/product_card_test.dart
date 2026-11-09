@@ -8,7 +8,7 @@ import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
-import 'package:neils/features/catalog/promo_ribbon.dart';
+import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/brand_colors.dart';
@@ -154,7 +154,7 @@ void main() {
     );
 
     expect(
-      find.descendant(of: find.byType(PromoRibbon), matching: find.text('2x1')),
+      find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
       findsOneWidget,
     );
     // El lector de pantalla dice qué da cada una.

@@ -6,7 +6,7 @@ import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/features/catalog/product_detail_screen.dart';
-import 'package:neils/features/catalog/promo_ribbon.dart';
+import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/neils_theme.dart';
@@ -88,7 +88,7 @@ void main() {
 
     expect(find.text('3580 – Jamonada especial'), findsOneWidget);
     expect(
-      find.descendant(of: find.byType(PromoRibbon), matching: find.text('2x1')),
+      find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
       findsOneWidget,
     );
   });

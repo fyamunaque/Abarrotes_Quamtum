@@ -14,7 +14,7 @@ import 'price_tag.dart';
 import 'product_photo.dart';
 import 'product_strip.dart';
 import 'product_tile.dart';
-import 'promo_ribbon.dart';
+import 'promo_tag.dart';
 import 'stock_note.dart';
 
 /// El detalle de un producto: foto, precio, descripción y agregar al carrito
@@ -90,21 +90,11 @@ class _Detail extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: AspectRatio(
         aspectRatio: 4 / 3,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ProductPhoto(
-              product.imageUrl,
-              name: product.name,
-              colorKey: product.category?.id,
-              initialSize: 72,
-            ),
-            PositionedDirectional(
-              top: 0,
-              end: 16,
-              child: PromoRibbon(product.offers),
-            ),
-          ],
+        child: ProductPhoto(
+          product.imageUrl,
+          name: product.name,
+          colorKey: product.category?.id,
+          initialSize: 72,
         ),
       ),
     );
@@ -153,8 +143,14 @@ class _Info extends ConsumerWidget {
         Text(productTitle(product), style: theme.textTheme.headlineMedium),
         const SizedBox(height: 8),
         PriceTag(product, fontSize: 30),
-        const SizedBox(height: 4),
-        StockNote(product),
+        const SizedBox(height: 6),
+        // En el detalle hay lugar: la etiqueta y la disponibilidad.
+        Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [PromoTag(product.offers), StockNote(product)],
+        ),
         if (product.offers.isNotEmpty) ...[
           const SizedBox(height: 12),
           OfferDescriptions(product.offers),

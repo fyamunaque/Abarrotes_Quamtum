@@ -11,7 +11,7 @@ import '../catalog/line_total_pill.dart';
 import '../catalog/product_card.dart';
 import '../catalog/product_grid.dart';
 import '../catalog/product_tile.dart';
-import '../catalog/promo_ribbon.dart';
+import '../catalog/promo_tag.dart';
 import '../catalog/stock_note.dart';
 import '../home/promotions_banner.dart';
 import '../orders/order_tracker.dart';
@@ -127,13 +127,13 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
               for (final product in _products) ProductCard(product: product),
             ],
           ),
-          section('Cinta, stock y total'),
+          section('Etiqueta, stock y total'),
           Wrap(
             spacing: 16,
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const PromoRibbon([_offer]),
+              const PromoTag([_offer]),
               for (final product in _products) StockNote(product),
               const LineTotalPill(1320),
             ],

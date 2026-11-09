@@ -4,11 +4,11 @@ import '../../catalog/product.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
 import 'product_tile.dart';
-import 'promo_ribbon.dart';
-import 'stock_note.dart';
+import 'promo_tag.dart';
 
-/// Un producto en una cuadrícula (escritorio): la foto con la cinta de su
-/// promoción, el código y el nombre, el precio y el stock, y debajo la
+/// Un producto en una cuadrícula (escritorio): la foto, el código y el
+/// nombre, la etiqueta de su promoción o el stock ([TagOrStock]), el precio,
+/// y debajo la
 /// cantidad, lo que costaría y "Agregar" (o "Editar", si ya está en el
 /// carrito). Agrega por su cuenta. El nombre ocupa siempre dos líneas, así
 /// las tarjetas de una fila tienen el mismo alto. Toma el ancho que le dé la
@@ -38,20 +38,10 @@ class ProductCard extends StatelessWidget {
           children: [
             AspectRatio(
               aspectRatio: 4 / 3,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ProductPhoto(
-                    product.imageUrl,
-                    name: product.name,
-                    colorKey: product.category?.id,
-                  ),
-                  PositionedDirectional(
-                    top: 0,
-                    end: 12,
-                    child: PromoRibbon(product.offers),
-                  ),
-                ],
+              child: ProductPhoto(
+                product.imageUrl,
+                name: product.name,
+                colorKey: product.category?.id,
               ),
             ),
             Padding(
@@ -69,9 +59,12 @@ class ProductCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 6),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TagOrStock(product),
+                  ),
+                  const SizedBox(height: 6),
                   PriceTag(product),
-                  const SizedBox(height: 2),
-                  StockNote(product),
                   const SizedBox(height: 12),
                   ProductQuantityActions(product: product, stacked: true),
                 ],

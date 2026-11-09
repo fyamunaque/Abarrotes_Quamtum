@@ -152,7 +152,7 @@ void main() {
       expect(find.text('Regalo'), findsOneWidget);
     });
 
-    testWidgets('el regalo va con su cinta y S/ 0.00', (tester) async {
+    testWidgets('el regalo va con su etiqueta y S/ 0.00', (tester) async {
       orders.quoteWith = (lines) => riceTwoForOne(lines, gift: true);
       await pumpCart(tester, [(rice, 2)]);
       await waitForQuote(tester);

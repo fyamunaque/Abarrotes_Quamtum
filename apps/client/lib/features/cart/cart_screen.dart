@@ -17,6 +17,7 @@ import '../../store/store_providers.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
 import '../catalog/line_total_pill.dart';
+import '../catalog/promo_tag.dart';
 import '../catalog/product_photo.dart';
 import '../catalog/product_tile.dart';
 import '../shared/brand.dart';
@@ -307,24 +308,8 @@ class _GiftLine extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              // La cinta de los regalos, como la de las promociones.
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: context.palette.brandFill,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'Regalo',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: context.palette.onBrand,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
+              // La etiqueta de los regalos, como la de las promociones.
+              const PromoTag.gift(),
               const SizedBox(width: 8),
               const LineTotalPill(0),
             ],
