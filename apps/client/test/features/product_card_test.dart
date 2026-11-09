@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -8,6 +9,8 @@ import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
+import 'package:neils/features/catalog/product_photo.dart';
+import 'package:neils/features/catalog/product_tile.dart';
 import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
@@ -125,52 +128,53 @@ void main() {
     expect(before.semanticsLabel, 'Antes S/ 10.90');
   });
 
-  testWidgets('la cinta muestra la primera promoción y el lector dice todas', (
-    tester,
-  ) async {
-    final semantics = tester.ensureSemantics();
-    await pumpCard(
-      tester,
-      const Product(
-        id: 'aceite',
-        name: 'Aceite vegetal 1 L',
-        priceCents: 1090,
-        stock: 30,
-        offers: [
-          (
-            type: 'buyXPayY',
-            label: '2x1',
-            title: null,
-            description: '2x1 en este producto',
-          ),
-          (
-            type: 'gift',
-            label: 'Regalo: Sal 1 kg',
-            title: null,
-            description: 'Regalo: Sal 1 kg por cada 2',
-          ),
-        ],
-      ),
-    );
+  testWidgets(
+    'la etiqueta muestra la primera promoción y el lector dice todas',
+    (tester) async {
+      final semantics = tester.ensureSemantics();
+      await pumpCard(
+        tester,
+        const Product(
+          id: 'aceite',
+          name: 'Aceite vegetal 1 L',
+          priceCents: 1090,
+          stock: 30,
+          offers: [
+            (
+              type: 'buyXPayY',
+              label: '2x1',
+              title: null,
+              description: '2x1 en este producto',
+            ),
+            (
+              type: 'gift',
+              label: 'Regalo: Sal 1 kg',
+              title: null,
+              description: 'Regalo: Sal 1 kg por cada 2',
+            ),
+          ],
+        ),
+      );
 
-    expect(
-      find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
-      findsOneWidget,
-    );
-    // El lector de pantalla dice qué da cada una.
-    expect(
-      find.bySemanticsLabel(RegExp('2x1 en este producto')),
-      findsOneWidget,
-    );
-    expect(
-      find.bySemanticsLabel(RegExp('Regalo: Sal 1 kg por cada 2')),
-      findsOneWidget,
-    );
-    // Sin precio tachado: el 2x1 no cambia el precio por unidad.
-    expect(priceText(formatSoles(1090)), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    semantics.dispose();
-  });
+      expect(
+        find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
+        findsOneWidget,
+      );
+      // El lector de pantalla dice qué da cada una.
+      expect(
+        find.bySemanticsLabel(RegExp('2x1 en este producto')),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp('Regalo: Sal 1 kg por cada 2')),
+        findsOneWidget,
+      );
+      // Sin precio tachado: el 2x1 no cambia el precio por unidad.
+      expect(priceText(formatSoles(1090)), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      semantics.dispose();
+    },
+  );
 
   testWidgets('con 20 % menos: el precio tachado y S/ 3.60', (tester) async {
     await pumpCard(
@@ -372,5 +376,88 @@ void main() {
     expect(addScale(tester), 1);
     await gesture.up();
     expect(container.read(cartProvider).quantityOf('azucar'), 0);
+  });
+
+  group('con el mouse', () {
+    Rect cardRect(WidgetTester tester) => tester.getRect(
+      find.descendant(
+        of: find.byType(ProductCard),
+        matching: find.byType(Card),
+      ),
+    );
+
+    double photoScale(WidgetTester tester) => tester
+        .widget<AnimatedScale>(
+          find.ancestor(
+            of: find.byType(ProductPhoto),
+            matching: find.byType(AnimatedScale),
+          ),
+        )
+        .scale;
+
+    Future<void> hover(WidgetTester tester) async {
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: Offset.zero);
+      addTearDown(mouse.removePointer);
+      await mouse.moveTo(tester.getCenter(find.byType(ProductCard)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('al pasar el mouse sube 2 px y la foto se acerca', (
+      tester,
+    ) async {
+      await pumpCard(tester, rice);
+      await tester.pumpAndSettle();
+      final before = cardRect(tester);
+      expect(photoScale(tester), 1);
+
+      await hover(tester);
+
+      expect(cardRect(tester).top, closeTo(before.top - 2, 0.01));
+      expect(photoScale(tester), 1.03);
+      // La foto se acerca dentro de su marco: no se sale de la tarjeta.
+      expect(
+        find.ancestor(
+          of: find.byType(AnimatedScale).first,
+          matching: find.byType(ClipRect),
+        ),
+        findsWidgets,
+      );
+    });
+
+    testWidgets('con reducir animaciones no se mueve', (tester) async {
+      await pumpCard(tester, rice, reduceMotion: true);
+      await tester.pumpAndSettle();
+      final before = cardRect(tester);
+
+      await hover(tester);
+
+      expect(cardRect(tester), before);
+      expect(photoScale(tester), 1);
+    });
+  });
+
+  testWidgets('sin sombra y con borde', (tester) async {
+    await pumpCard(tester, rice);
+
+    final material = tester.widget<Material>(
+      find
+          .descendant(of: find.byType(Card), matching: find.byType(Material))
+          .first,
+    );
+    expect(material.elevation, 0);
+    expect(
+      (material.shape! as RoundedRectangleBorder).side.color,
+      NeilsPalette.light.line,
+    );
+  });
+
+  testWidgets('la foto es el Hero del producto', (tester) async {
+    await pumpCard(tester, rice);
+
+    final hero = tester.widget<Hero>(
+      find.ancestor(of: find.byType(ProductPhoto), matching: find.byType(Hero)),
+    );
+    expect(hero.tag, productHeroTag(rice));
   });
 }

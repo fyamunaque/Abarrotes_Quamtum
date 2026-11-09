@@ -122,10 +122,15 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
             const SizedBox(height: 12),
           ],
           section('Tarjetas de producto (escritorio)'),
-          ProductGrid(
-            children: [
-              for (final product in _products) ProductCard(product: product),
-            ],
+          // Los mismos productos que las filas de arriba: sin un segundo
+          // Hero con la misma foto.
+          HeroMode(
+            enabled: false,
+            child: ProductGrid(
+              children: [
+                for (final product in _products) ProductCard(product: product),
+              ],
+            ),
           ),
           section('Etiqueta, stock y total'),
           Wrap(
