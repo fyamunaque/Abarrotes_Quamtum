@@ -7,31 +7,56 @@ import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
+import '../../store/store_providers.dart';
 import '../../theme/brand_images.dart';
+import '../admin/home/greeting.dart';
 import '../catalog/category_card.dart';
 import '../offers/exclusive_offers.dart';
 import '../shared/account.dart';
 import '../shared/brand.dart';
 import '../shared/brand_hero.dart';
 import '../shared/card_strip.dart';
-import '../shared/diagonal_band.dart';
 import '../shared/store_search_field.dart';
 import 'product_tabs.dart';
 import 'campaign_band.dart';
+import 'home_entrance.dart';
+import 'store_footer.dart';
 import '../../theme/palette.dart';
 
-/// Inicio, para negocios. En escritorio: el titular con sus botones, los
-/// sellos, "Nuestras categorías", la banda de promociones y las pestañas
-/// Frecuentes, Sugeridos y Promos ([ProductTabs]). En el teléfono: el saludo,
-/// el buscador, las pestañas, las categorías en una fila y la banda. Para una cuenta VIP, además
-/// sus ofertas exclusivas. Deslizar hacia abajo vuelve a pedir el perfil, las
+/// Inicio, para negocios. En escritorio: el titular con lo que se vende, el
+/// horario de la tienda y sus botones, las pestañas Frecuentes, Sugeridos y
+/// Promos ([ProductTabs]), la franja de la campaña, las categorías y el pie.
+/// En el teléfono: el saludo, el buscador, las pestañas en filas, la franja y
+/// las categorías en una fila. Para una cuenta VIP, además sus ofertas
+/// exclusivas. Deslizar hacia abajo vuelve a pedir el perfil, las
 /// categorías y las promociones.
-class HomeScreen extends ConsumerWidget {
+///
+/// El titular entra una vez por sesión ([homeEntranceProvider]).
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  /// Si el titular entra esta vez: solo la primera de la sesión.
+  late final bool _entrance = !ref.read(homeEntranceProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    if (_entrance) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(homeEntranceProvider.notifier).seen();
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= AccountActions.wideFrom;
+    final hours = ref.watch(storeSettingsProvider).value?.openingHours?.trim();
     return PublicScaffold(
       maxWidth: 1120,
       onRefresh: () async {
@@ -48,12 +73,16 @@ class HomeScreen extends ConsumerWidget {
         children: wide
             ? [
                 BrandHero(
-                  titleStart: 'Tu negocio siempre abastecido ',
-                  titleAccent: "con Neil's.",
+                  titleStart: 'Insumos para restaurantes ',
+                  titleAccent: 'y cafeterías',
                   body:
-                      'Insumos gastronómicos de calidad, con precios '
-                      'competitivos y entrega confiable.',
+                      'Embutidos, lácteos, panes y abarrotes, con entrega a '
+                      'tu negocio o recojo en tienda.',
+                  note: hours == null || hours.isEmpty
+                      ? null
+                      : 'Atendemos $hours',
                   image: BrandImages.hero,
+                  entrance: _entrance,
                   actions: [
                     FilledButton.icon(
                       onPressed: () => context.go(Routes.catalog),
@@ -67,15 +96,15 @@ class HomeScreen extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 28),
-                const TrustBadges(),
                 const SizedBox(height: 40),
-                const _Categories(),
-                const CampaignBand(),
-                const SizedBox(height: 32),
                 const ProductTabs(),
                 const SizedBox(height: 24),
+                const CampaignBand(),
+                const SizedBox(height: 40),
+                const _Categories(),
                 const ExclusiveOffers(),
+                const SizedBox(height: 16),
+                const StoreFooter(),
               ]
             : const [
                 _Greeting(),
@@ -83,10 +112,10 @@ class HomeScreen extends ConsumerWidget {
                 StoreSearchField(),
                 SizedBox(height: 20),
                 ProductTabs(),
-                SizedBox(height: 16),
-                _Categories(),
+                SizedBox(height: 8),
                 CampaignBand(),
                 SizedBox(height: 24),
+                _Categories(),
                 ExclusiveOffers(),
               ],
       ),
@@ -94,54 +123,24 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// El saludo del teléfono: "¡Hola, Ana!" (sin cuenta, "¡Hola!"), lo que
-/// ofrece la tienda y una franja chica de la marca.
+/// El saludo corto del teléfono, según la hora de Lima: "Buenos días, Ana"
+/// (sin cuenta, "Buenos días").
 class _Greeting extends ConsumerWidget {
   const _Greeting();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final text = Theme.of(context).textTheme;
     final name = switch (ref.watch(sessionProvider)) {
       SignedIn(:final user) => user.name.trim().split(RegExp(r'\s+')).first,
       _ => null,
     };
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Semantics(
-                header: true,
-                child: Text(
-                  name == null ? '¡Hola!' : '¡Hola, $name!',
-                  style: text.headlineSmall,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Abastece tu negocio con los mejores productos.',
-                style: text.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        SizedBox(
-          width: 120,
-          height: 88,
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: const DiagonalBand(
-              image: BrandImages.hero,
-              child: Opacity(opacity: 0.7, child: NeilsLogo.white(height: 36)),
-            ),
-          ),
-        ),
-      ],
+    final greeting = greetingFor(DateTime.now().toUtc());
+    return Semantics(
+      header: true,
+      child: Text(
+        name == null || name.isEmpty ? greeting : '$greeting, $name',
+        style: Theme.of(context).textTheme.headlineSmall,
+      ),
     );
   }
 }

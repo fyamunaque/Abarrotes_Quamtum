@@ -6,6 +6,7 @@ import 'package:neils/features/shared/diagonal_band.dart';
 import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
 import 'package:neils/theme/palette.dart';
+import 'package:neils/theme/motion.dart';
 
 import '../support.dart';
 
@@ -89,23 +90,65 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('TrustBadges muestra los tres sellos', (tester) async {
-    await pump(tester, const TrustBadges(), size: const Size(1280, 900));
+  testWidgets('con la nota, la línea del horario', (tester) async {
+    await pump(
+      tester,
+      const BrandHero(
+        titleStart: 'Insumos para restaurantes ',
+        titleAccent: 'y cafeterías',
+        body: 'Embutidos y lácteos.',
+        note: 'Atendemos de 8 a 20 h',
+        actions: [],
+      ),
+      size: const Size(1280, 900),
+    );
 
-    expect(find.text('Entrega confiable'), findsOneWidget);
-    expect(find.text('Calidad garantizada'), findsOneWidget);
-    expect(find.text('Atención personalizada'), findsOneWidget);
-    expect(find.byIcon(Icons.local_shipping_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.verified_outlined), findsOneWidget);
-    expect(find.byIcon(Icons.support_agent), findsOneWidget);
+    expect(find.text('Atendemos de 8 a 20 h'), findsOneWidget);
   });
 
-  testWidgets('en el teléfono los sellos entran sin desbordarse', (
-    tester,
-  ) async {
-    await pump(tester, const TrustBadges(), size: const Size(320, 700));
+  testWidgets('la entrada: el titular sube desde transparente y la foto se '
+      'asienta', (tester) async {
+    await pump(
+      tester,
+      const BrandHero(
+        titleStart: 'Insumos ',
+        titleAccent: 'y más',
+        body: 'Texto.',
+        actions: [],
+        entrance: true,
+      ),
+      size: const Size(1280, 900),
+    );
 
-    expect(tester.takeException(), isNull);
-    expect(find.text('Atención personalizada'), findsOneWidget);
+    Opacity copy() => tester.widget<Opacity>(
+      find
+          .ancestor(of: find.text('Texto.'), matching: find.byType(Opacity))
+          .first,
+    );
+    double photoScale() => tester
+        .widget<Transform>(
+          find
+              .ancestor(
+                of: find.byType(DiagonalBand),
+                matching: find.byType(Transform),
+              )
+              .first,
+        )
+        .transform
+        .entry(0, 0);
+
+    expect(copy().opacity, 0);
+    expect(photoScale(), closeTo(1.03, 0.001));
+    await tester.pump(NeilsMotion.entrance ~/ 2);
+    expect(copy().opacity, allOf(greaterThan(0), lessThan(1)));
+    await tester.pumpAndSettle();
+    expect(copy().opacity, 1);
+    expect(photoScale(), 1);
+  });
+
+  testWidgets('sin entrada, todo está desde el principio', (tester) async {
+    await pump(tester, hero, size: const Size(1280, 900));
+
+    expect(tester.hasRunningAnimations, isFalse);
   });
 }

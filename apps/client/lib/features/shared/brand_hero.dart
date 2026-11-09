@@ -1,36 +1,84 @@
 import 'package:flutter/material.dart';
 
+import '../../theme/motion.dart';
+import '../../theme/palette.dart';
 import 'account.dart';
 import 'brand.dart';
 import 'diagonal_band.dart';
-import '../../theme/palette.dart';
 
 /// El encabezado de la portada: el titular (con [titleAccent] en el rojo de
-/// la marca), el texto, las acciones y la franja diagonal con la foto
-/// [image] (o, sin ella, el bloque rojo con el logo en blanco).
+/// la marca), el texto, una nota opcional ([note], p. ej. el horario), las
+/// acciones y la franja diagonal con la foto [image] (o, sin ella, el bloque
+/// rojo con el logo en blanco).
 ///
 /// Desde [AccountActions.wideFrom], el texto a la izquierda y la franja a la
 /// derecha; más angosto, la franja arriba y el texto debajo.
-class BrandHero extends StatelessWidget {
+///
+/// Con [entrance], entra una vez al aparecer: el texto sube 12 px desde
+/// transparente y la foto se asienta de 1,03 a 1, en [NeilsMotion.entrance].
+/// Con "reducir animaciones", está desde el primer cuadro. La entrada no
+/// bloquea nada: se puede tocar y escribir mientras tanto.
+class BrandHero extends StatefulWidget {
   const BrandHero({
     super.key,
     required this.titleStart,
     required this.titleAccent,
     required this.body,
     required this.actions,
+    this.note,
     this.image,
+    this.entrance = false,
   });
 
   final String titleStart;
   final String titleAccent;
   final String body;
+  final String? note;
   final List<Widget> actions;
   final String? image;
+  final bool entrance;
+
+  @override
+  State<BrandHero> createState() => _BrandHeroState();
+}
+
+class _BrandHeroState extends State<BrandHero>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    vsync: this,
+    duration: NeilsMotion.entrance,
+    value: widget.entrance ? 0 : 1,
+  );
+  late final _curve = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOutCubic,
+  );
+  bool _started = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_started) return;
+    _started = true;
+    if (NeilsMotion.reduced(context)) {
+      _controller.value = 1;
+    } else if (widget.entrance) {
+      _controller.forward();
+    }
+  }
+
+  @override
+  void dispose() {
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= AccountActions.wideFrom;
     final text = Theme.of(context).textTheme;
+    final muted = context.palette.inkMuted;
     final copy = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -42,9 +90,9 @@ class BrandHero extends StatelessWidget {
             child: Text.rich(
               TextSpan(
                 children: [
-                  TextSpan(text: titleStart),
+                  TextSpan(text: widget.titleStart),
                   TextSpan(
-                    text: titleAccent,
+                    text: widget.titleAccent,
                     style: TextStyle(color: context.palette.brandText),
                   ),
                 ],
@@ -56,21 +104,44 @@ class BrandHero extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        Text(
-          body,
-          style: text.bodyLarge?.copyWith(
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
+        Text(widget.body, style: text.bodyLarge?.copyWith(color: muted)),
+        if (widget.note case final note?) ...[
+          const SizedBox(height: 8),
+          Text(
+            note,
+            style: text.labelLarge?.copyWith(color: context.palette.ink),
           ),
-        ),
+        ],
         const SizedBox(height: 24),
-        Wrap(spacing: 12, runSpacing: 12, children: actions),
+        Wrap(spacing: 12, runSpacing: 12, children: widget.actions),
       ],
     );
     final band = DiagonalBand(
-      image: image,
+      image: widget.image,
       child: Opacity(
         opacity: 0.7,
         child: NeilsLogo.white(height: wide ? 140 : 80),
+      ),
+    );
+
+    // La entrada: el texto sube desde transparente; la foto se asienta.
+    final enteringCopy = AnimatedBuilder(
+      animation: _curve,
+      builder: (_, child) => Opacity(
+        opacity: _curve.value,
+        child: Transform.translate(
+          offset: Offset(0, 12 * (1 - _curve.value)),
+          child: child,
+        ),
+      ),
+      child: copy,
+    );
+    final settlingBand = ClipRect(
+      child: AnimatedBuilder(
+        animation: _curve,
+        builder: (_, child) =>
+            Transform.scale(scale: 1.03 - 0.03 * _curve.value, child: child),
+        child: band,
       ),
     );
 
@@ -78,64 +149,19 @@ class BrandHero extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SizedBox(height: 160, child: band),
+          SizedBox(height: 160, child: settlingBand),
           const SizedBox(height: 20),
-          copy,
+          enteringCopy,
         ],
       );
     }
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        Expanded(flex: 55, child: copy),
-        const SizedBox(width: 24),
-        Expanded(flex: 45, child: SizedBox(height: 320, child: band)),
+        Expanded(flex: 55, child: enteringCopy),
+        const SizedBox(width: 32),
+        Expanded(flex: 45, child: SizedBox(height: 320, child: settlingBand)),
       ],
-    );
-  }
-}
-
-/// Los tres sellos de la portada, con su ícono: en fila desde
-/// [AccountActions.wideFrom] (y en dos líneas si no entran), y en columna en
-/// el teléfono.
-class TrustBadges extends StatelessWidget {
-  const TrustBadges({super.key});
-
-  static const _badges = [
-    (Icons.local_shipping_outlined, 'Entrega confiable'),
-    (Icons.verified_outlined, 'Calidad garantizada'),
-    (Icons.support_agent, 'Atención personalizada'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final wide = MediaQuery.sizeOf(context).width >= AccountActions.wideFrom;
-    final style = Theme.of(context).textTheme.labelLarge;
-    Widget badge((IconData, String) item) => Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(item.$1, color: context.palette.brandText, size: 28),
-        const SizedBox(width: 10),
-        Flexible(child: Text(item.$2, style: style)),
-      ],
-    );
-
-    if (!wide) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (final (i, item) in _badges.indexed) ...[
-            if (i > 0) const SizedBox(height: 12),
-            badge(item),
-          ],
-        ],
-      );
-    }
-    // Si no entran en una línea, siguen en la de abajo.
-    return Wrap(
-      spacing: 40,
-      runSpacing: 12,
-      children: [for (final item in _badges) badge(item)],
     );
   }
 }
