@@ -14,7 +14,6 @@ import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import '../../store/store_providers.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
 import '../catalog/line_total_pill.dart';
@@ -29,6 +28,7 @@ import '../shared/quantity_stepper.dart';
 import '../shared/store_details.dart';
 import '../shared/verify_email_notice.dart';
 import '../shared/vip_tag.dart';
+import '../../theme/palette.dart';
 
 /// El carrito: cambiar cantidades, quitar productos, ver el total y hacer el
 /// pedido. El total sale de la cotización del servidor ([cartQuoteProvider],
@@ -262,7 +262,7 @@ class _CartLineTile extends ConsumerWidget {
                   child: Text(
                     '${promotion.label} −${formatSoles(promotion.savedCents)}',
                     style: theme.textTheme.bodySmall?.copyWith(
-                      color: StateColors.positive,
+                      color: context.palette.positive,
                     ),
                   ),
                 ),
@@ -291,12 +291,12 @@ class _GiftLine extends StatelessWidget {
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const SizedBox.square(
+              SizedBox.square(
                 dimension: 72,
                 child: Icon(
                   Icons.card_giftcard_outlined,
                   size: 32,
-                  color: NeilsColors.primary,
+                  color: context.palette.brandText,
                 ),
               ),
               const SizedBox(width: 12),
@@ -314,13 +314,13 @@ class _GiftLine extends StatelessWidget {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: NeilsColors.primary,
+                  color: context.palette.brandFill,
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(
                   'Regalo',
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: NeilsColors.onPrimary,
+                    color: context.palette.onBrand,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -375,7 +375,9 @@ class _Total extends StatelessWidget {
               Expanded(child: Text('Descuentos', style: text.bodyLarge)),
               Text(
                 '−${formatSoles(quote.discountCents)}',
-                style: text.bodyLarge?.copyWith(color: StateColors.positive),
+                style: text.bodyLarge?.copyWith(
+                  color: context.palette.positive,
+                ),
               ),
             ],
           ),

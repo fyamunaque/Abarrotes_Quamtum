@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../common/money.dart';
 import '../../orders/order.dart';
-import '../../theme/brand_colors.dart';
+import '../../theme/palette.dart';
 
 /// Las líneas de [order] con lo que se cobró: "2 × Arroz extra 5 kg" con el
 /// total de la línea y, debajo, cada promoción con lo que ahorró ("2x1
@@ -18,7 +18,7 @@ class OrderLines extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final saving = theme.textTheme.bodySmall?.copyWith(
-      color: StateColors.positive,
+      color: context.palette.positive,
     );
     final discounted = order.discountCents > 0;
     return Column(
@@ -53,7 +53,7 @@ class OrderLines extends StatelessWidget {
             'Descuentos',
             '−${formatSoles(order.discountCents)}',
             valueStyle: theme.textTheme.bodyMedium?.copyWith(
-              color: StateColors.positive,
+              color: context.palette.positive,
             ),
           ),
           const SizedBox(height: 4),

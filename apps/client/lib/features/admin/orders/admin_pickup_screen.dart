@@ -22,6 +22,7 @@ import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'admin_orders_screen.dart';
 import 'order_code_dialog.dart';
+import '../../../theme/palette.dart';
 
 /// Para caja (con `orders.view`): los pedidos de recojo que se preparan o
 /// esperan a su cliente, con el código en grande y cuánto hace que están
@@ -291,7 +292,7 @@ class _TicketState extends ConsumerState<_Ticket> {
               ),
               StatusBadge(
                 label: order.statusLabel,
-                color: orderStatusColor(order.status),
+                color: orderStatusColor(context.palette, order.status),
               ),
             ],
           ),

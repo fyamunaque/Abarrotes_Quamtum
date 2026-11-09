@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:neils/theme/palette.dart';
 import 'package:neils/admin/orders/admin_order.dart';
 import 'package:neils/admin/orders/admin_orders_providers.dart';
 import 'package:neils/admin/stats/stats_providers.dart';
@@ -168,7 +169,7 @@ void main() {
         (w) =>
             w is StatusBadge &&
             w.label == status.label &&
-            w.color == orderStatusColor(status),
+            w.color == orderStatusColor(NeilsPalette.light, status),
       );
       expect(item, findsWidgets, reason: status.label);
     }

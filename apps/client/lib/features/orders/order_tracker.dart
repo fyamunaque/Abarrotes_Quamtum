@@ -4,19 +4,20 @@ import 'package:flutter/material.dart';
 
 import '../../orders/fulfillment.dart';
 import '../../orders/order_status.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
+import '../../theme/palette.dart';
 
-/// El color de cada estado (ver [OrderStatusColors]).
-Color orderStatusColor(OrderStatus status) => switch (status) {
-  OrderStatus.pendingConfirmation => OrderStatusColors.pending,
-  OrderStatus.confirmed => OrderStatusColors.confirmed,
-  OrderStatus.preparing => OrderStatusColors.preparing,
-  OrderStatus.readyForPickup => OrderStatusColors.readyForPickup,
-  OrderStatus.outForDelivery => OrderStatusColors.onTheWay,
-  OrderStatus.delivered => OrderStatusColors.delivered,
-  OrderStatus.cancelled => OrderStatusColors.cancelled,
-};
+/// El color de cada estado en [palette] (la del tema: `context.palette`).
+Color orderStatusColor(NeilsPalette palette, OrderStatus status) =>
+    switch (status) {
+      OrderStatus.pendingConfirmation => palette.statusPending,
+      OrderStatus.confirmed => palette.statusConfirmed,
+      OrderStatus.preparing => palette.statusPreparing,
+      OrderStatus.readyForPickup => palette.statusReady,
+      OrderStatus.outForDelivery => palette.statusOnTheWay,
+      OrderStatus.delivered => palette.statusDelivered,
+      OrderStatus.cancelled => palette.statusCancelled,
+    };
 
 /// Seguimiento de un pedido: los pasos de su tipo de entrega, de pendiente a
 /// entregado (o recogido), unidos por una línea que se llena hasta el estado
@@ -57,10 +58,17 @@ class _OrderTrackerState extends State<OrderTracker>
   );
 
   List<OrderStatus> get _steps => widget.fulfillmentType.steps;
-  late var _color = ColorTween(
-    begin: orderStatusColor(widget.status),
-    end: orderStatusColor(widget.status),
-  );
+
+  /// El color del que parte la animación del color; sin él, el del estado.
+  /// El de llegada se lee del tema en cada cuadro, así cambiar a oscuro con
+  /// el seguimiento abierto lo cambia también.
+  Color? _fromColor;
+
+  Color _colorOf(NeilsPalette palette, OrderStatus status) {
+    final end = orderStatusColor(palette, status);
+    final from = _fromColor;
+    return from == null ? end : Color.lerp(from, end, _curve.value)!;
+  }
 
   /// Hasta qué paso llega la línea (0 = el primero). Cancelado no avanza.
   double _reachOf(OrderStatus status) =>
@@ -78,10 +86,7 @@ class _OrderTrackerState extends State<OrderTracker>
       begin: _reach.evaluate(_curve),
       end: _reachOf(widget.status),
     );
-    _color = ColorTween(
-      begin: _color.evaluate(_curve),
-      end: orderStatusColor(widget.status),
-    );
+    _fromColor = _colorOf(context.palette, oldWidget.status);
     if (NeilsMotion.reduced(context)) {
       _controller.value = 1;
     } else {
@@ -121,7 +126,7 @@ class _OrderTrackerState extends State<OrderTracker>
           animation: _curve,
           builder: (context, _) {
             final reach = _reach.evaluate(_curve);
-            final color = _color.evaluate(_curve)!;
+            final color = _colorOf(context.palette, status);
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -345,14 +350,14 @@ class _Dot extends StatelessWidget {
       child: !reached
           ? null
           : done
-          ? const Icon(Icons.check, size: 14, color: NeilsColors.onPrimary)
+          ? Icon(Icons.check, size: 14, color: context.palette.surface)
           : Center(
               child: Container(
                 width: 8,
                 height: 8,
-                decoration: const BoxDecoration(
+                decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: NeilsColors.onPrimary,
+                  color: context.palette.surface,
                 ),
               ),
             ),
@@ -367,12 +372,12 @@ class _CancelledNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        const Icon(Icons.cancel, size: 18, color: OrderStatusColors.cancelled),
+        Icon(Icons.cancel, size: 18, color: context.palette.statusCancelled),
         const SizedBox(width: 6),
         Text(
           'Pedido cancelado',
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: OrderStatusColors.cancelled,
+            color: context.palette.statusCancelled,
             fontWeight: FontWeight.w600,
           ),
         ),

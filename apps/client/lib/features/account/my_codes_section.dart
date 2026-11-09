@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../common/money.dart';
 import '../../promo_codes/my_promo_code.dart';
 import '../../promo_codes/my_promo_codes_providers.dart';
-import '../../theme/brand_colors.dart';
 import '../shared/date_format.dart';
 import '../shared/error_message.dart';
+import '../../theme/palette.dart';
 
 /// "Mis códigos" en Mi cuenta: "Escribe tu código" con "Activar" (el error
 /// del servidor debajo del campo) y los códigos que la cuenta tiene activos
@@ -172,9 +172,9 @@ class _CodeCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.confirmation_number_outlined,
-                  color: NeilsColors.primary,
+                  color: context.palette.brandText,
                   size: 20,
                 ),
                 const SizedBox(width: 8),

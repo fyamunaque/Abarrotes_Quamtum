@@ -15,6 +15,7 @@ import '../../orders/order_tracker.dart';
 import '../../shared/error_message.dart';
 import 'kpi_card.dart';
 import 'sales_chart.dart';
+import '../../../theme/palette.dart';
 
 /// Una tarjeta del inicio con su propio reporte: si ese reporte falla, solo
 /// ella muestra el error y "Reintentar"; el resto del inicio se ve igual.
@@ -298,7 +299,7 @@ class _OrdersByStatus extends ConsumerWidget {
                           width: 10,
                           height: 10,
                           decoration: BoxDecoration(
-                            color: orderStatusColor(status),
+                            color: orderStatusColor(context.palette, status),
                             shape: BoxShape.circle,
                           ),
                         ),

@@ -42,7 +42,6 @@ void main() {
   /// del tema. Cada tanda de la migración al modo oscuro la achica hasta
   /// dejarla vacía.
   const pendientes = {
-    'lib/features/account/my_codes_section.dart',
     'lib/features/admin/home/home_cards.dart',
     'lib/features/admin/home/kpi_card.dart',
     'lib/features/admin/inventory/movement_form.dart',
@@ -54,11 +53,6 @@ void main() {
     'lib/features/admin/team/admin_roles_screen.dart',
     'lib/features/admin/team/team_widgets.dart',
     'lib/features/admin/vip/admin_vip_screen.dart',
-    'lib/features/auth/auth_form.dart',
-    'lib/features/cart/cart_screen.dart',
-    'lib/features/orders/my_orders_screen.dart',
-    'lib/features/orders/order_lines.dart',
-    'lib/features/orders/order_tracker.dart',
   };
 
   // Las constantes de la marca y de los estados son para armar las paletas
