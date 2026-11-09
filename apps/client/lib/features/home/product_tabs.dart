@@ -135,7 +135,7 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
           ),
           _Tab.promos => _products(
             _promos(),
-            onRetry: () => ref.invalidate(onSaleProductsProvider),
+            onRetry: () => ref.invalidate(onSalePageProvider),
             empty: 'Hoy no hay promociones.',
             footer: Align(
               alignment: AlignmentDirectional.centerStart,

@@ -13,7 +13,7 @@ import '../catalog/product_grid.dart';
 import '../catalog/product_tile.dart';
 import '../catalog/promo_tag.dart';
 import '../catalog/stock_note.dart';
-import '../home/promotions_banner.dart';
+import '../home/campaign_band.dart';
 import '../orders/order_tracker.dart';
 import '../shared/brand.dart';
 import '../shared/brand_hero.dart';
@@ -104,7 +104,7 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
           const SizedBox(height: 20),
           const TrustBadges(),
           section('Banda de promociones'),
-          const PromotionsBanner(),
+          const CampaignBand(),
           section('Categorías'),
           Row(
             children: [

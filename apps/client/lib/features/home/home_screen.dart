@@ -17,7 +17,7 @@ import '../shared/card_strip.dart';
 import '../shared/diagonal_band.dart';
 import '../shared/store_search_field.dart';
 import 'product_tabs.dart';
-import 'promotions_banner.dart';
+import 'campaign_band.dart';
 import '../../theme/palette.dart';
 
 /// Inicio, para negocios. En escritorio: el titular con sus botones, los
@@ -39,7 +39,7 @@ class HomeScreen extends ConsumerWidget {
         ref
           ..invalidate(exclusiveOffersProvider)
           ..invalidate(categoriesProvider)
-          ..invalidate(onSaleProductsProvider)
+          ..invalidate(onSalePageProvider)
           ..invalidate(frequentProductsProvider)
           ..invalidate(suggestedProductsProvider);
       },
@@ -71,7 +71,7 @@ class HomeScreen extends ConsumerWidget {
                 const TrustBadges(),
                 const SizedBox(height: 40),
                 const _Categories(),
-                const PromotionsBanner(),
+                const CampaignBand(),
                 const SizedBox(height: 32),
                 const ProductTabs(),
                 const SizedBox(height: 24),
@@ -85,7 +85,7 @@ class HomeScreen extends ConsumerWidget {
                 ProductTabs(),
                 SizedBox(height: 16),
                 _Categories(),
-                PromotionsBanner(),
+                CampaignBand(),
                 SizedBox(height: 24),
                 ExclusiveOffers(),
               ],

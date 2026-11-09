@@ -8,6 +8,7 @@ import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/features/catalog/category_card.dart';
 import 'package:neils/features/catalog/product_card.dart';
 import 'package:neils/features/catalog/product_tile.dart';
+import 'package:neils/features/home/campaign_band.dart';
 import 'package:neils/features/home/home_screen.dart';
 import 'package:neils/features/shared/brand.dart';
 import 'package:neils/features/shared/brand_hero.dart';
@@ -167,17 +168,12 @@ void main() {
     expect(location(router), '/catalogo?promos=1');
   });
 
-  testWidgets('los tres sellos y la banda de promociones', (tester) async {
+  testWidgets('los tres sellos y la franja de la campaña', (tester) async {
     await pumpApp(tester);
 
     expect(find.byType(TrustBadges), findsOneWidget);
-    expect(find.text('Promociones para tu negocio'), findsOneWidget);
-    expect(
-      find.text(
-        'Soluciones prácticas para restaurantes, fast foods y dark kitchens.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.byType(CampaignBand), findsOneWidget);
+    expect(find.text('Ver promociones'), findsWidgets);
   });
 
   testWidgets('Nuestras categorías lleva al catálogo de la categoría', (
