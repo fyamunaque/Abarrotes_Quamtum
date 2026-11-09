@@ -8,7 +8,7 @@ import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/brand_colors.dart';
-import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -124,10 +124,13 @@ void main() {
     final theme = Theme.of(tester.element(find.byType(NavigationRail)));
     expect(theme.navigationRailTheme.indicatorColor, NeilsColors.primaryTint);
     expect(theme.chipTheme.selectedColor, NeilsColors.primaryTint);
-    // Tarjetas blancas con una sombra cálida y suave, sin borde.
+    // Tarjetas blancas con un borde fino, sin sombra.
     expect(theme.cardTheme.color, Colors.white);
-    expect(theme.cardTheme.elevation, 1);
-    expect(theme.cardTheme.shadowColor, neilsCardShadow);
+    expect(theme.cardTheme.elevation, 0);
+    expect(
+      (theme.cardTheme.shape as RoundedRectangleBorder).side.color,
+      NeilsPalette.light.line,
+    );
   });
 
   testWidgets('desde 1200 px el menú lleva los textos al lado', (tester) async {

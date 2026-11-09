@@ -7,8 +7,8 @@ import 'package:neils/features/shared/brand.dart';
 import 'package:neils/features/shared/store_search_field.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
-import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -146,8 +146,8 @@ void main() {
 
     Color? colorOf(String section) =>
         tester.widget<Text>(find.text(section)).style?.color;
-    expect(colorOf('Inicio'), NeilsColors.primary);
-    expect(colorOf('Catálogo'), isNot(NeilsColors.primary));
+    expect(colorOf('Inicio'), NeilsPalette.light.brandText);
+    expect(colorOf('Catálogo'), isNot(NeilsPalette.light.brandText));
   });
 
   testWidgets('el buscador de la barra lleva al catálogo con lo buscado', (

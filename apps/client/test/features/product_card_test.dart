@@ -14,6 +14,7 @@ import 'package:neils/session/session_provider.dart';
 import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -227,7 +228,7 @@ void main() {
       final before = tester.widget<Text>(find.text(formatSoles(1090)));
       expect(before.style?.decoration, TextDecoration.lineThrough);
       final tag = tester.widget<Text>(find.text('VIP'));
-      expect(tag.style?.color, NeilsColors.primary);
+      expect(tag.style?.color, NeilsPalette.light.brandText);
       expect(tag.semanticsLabel, 'Precio VIP');
       final box =
           tester

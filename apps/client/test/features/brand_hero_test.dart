@@ -5,6 +5,7 @@ import 'package:neils/features/shared/brand_hero.dart';
 import 'package:neils/features/shared/diagonal_band.dart';
 import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -51,7 +52,7 @@ void main() {
       return true;
     });
     final accent = spans.singleWhere((span) => span.text == "con Neil's.");
-    expect(accent.style?.color, NeilsColors.primary);
+    expect(accent.style?.color, NeilsPalette.light.brandText);
     expect(find.text('Insumos gastronómicos de calidad.'), findsOneWidget);
     expect(find.text('Ver catálogo'), findsOneWidget);
   });

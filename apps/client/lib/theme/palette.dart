@@ -110,18 +110,19 @@ class NeilsPalette extends ThemeExtension<NeilsPalette> {
     return placeholderPairs[hash % placeholderPairs.length];
   }
 
-  /// Los colores de hoy: el fondo hueso y el rojo del logo.
+  /// El claro del mostrador: hueso casi blanco, tarjetas blancas con borde
+  /// fino y el rojo del logo.
   static const light = NeilsPalette(
     background: NeilsColors.background,
     surface: NeilsColors.surface,
-    surfaceAlt: Color(0xFFF3ECE4),
-    line: Color(0xFFE5DCD3),
+    surfaceAlt: Color(0xFFF0ECE6),
+    line: Color(0xFFE3DCD4),
     ink: NeilsColors.ink,
-    inkMuted: Color(0xFF5E534D),
+    inkMuted: Color(0xFF655A52),
     brandFill: NeilsColors.primary,
     brandFillDeep: NeilsColors.primaryDark,
     onBrand: NeilsColors.onPrimary,
-    brandText: NeilsColors.primary,
+    brandText: NeilsColors.primaryText,
     brandTint: NeilsColors.primaryTint,
     onBrandDivider: NeilsColors.onPrimaryDivider,
     money: NeilsColors.money,

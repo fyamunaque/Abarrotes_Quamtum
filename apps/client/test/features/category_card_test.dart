@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/catalog/category.dart';
 import 'package:neils/features/catalog/category_card.dart';
-import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -34,7 +34,7 @@ void main() {
     expect(find.text('Embutidos'), findsOneWidget);
     expect(find.text('E'), findsOneWidget);
     final arrow = tester.widget<Icon>(find.byIcon(Icons.arrow_forward));
-    expect(arrow.color, NeilsColors.primary);
+    expect(arrow.color, NeilsPalette.light.brandText);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byType(CategoryCard));
