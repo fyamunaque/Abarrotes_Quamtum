@@ -192,9 +192,10 @@ class _SearchFieldState extends State<_SearchField> {
   }
 }
 
-/// "Todas", "En promoción" y una opción por categoría. Cambiar de categoría
-/// mantiene lo buscado y quita "En promoción". Si las categorías no cargan,
-/// no se muestra: los productos se pueden ver igual.
+/// "Todas", "En promoción" y una opción por categoría: en el teléfono, en
+/// una sola fila que se desliza; en escritorio, en varias líneas. Cambiar de
+/// categoría mantiene lo buscado y quita "En promoción". Si las categorías no
+/// cargan, no se muestra: los productos se pueden ver igual.
 class _CategoryFilter extends ConsumerWidget {
   const _CategoryFilter(this.query);
 
@@ -204,31 +205,41 @@ class _CategoryFilter extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider).value;
     if (categories == null) return const SizedBox.shrink();
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
+    final chips = [
+      ChoiceChip(
+        label: const Text('Todas'),
+        selected: query.categoryId == null && !query.onSale,
+        onSelected: (_) =>
+            context.go(Routes.catalogOf(null, search: query.search)),
+      ),
+      ChoiceChip(
+        label: const Text('En promoción'),
+        selected: query.onSale,
+        onSelected: (_) => context.go(
+          Routes.catalogOf(null, search: query.search, onSale: true),
+        ),
+      ),
+      for (final category in categories)
         ChoiceChip(
-          label: const Text('Todas'),
-          selected: query.categoryId == null && !query.onSale,
+          label: Text(category.name),
+          selected: category.id == query.categoryId,
           onSelected: (_) =>
-              context.go(Routes.catalogOf(null, search: query.search)),
+              context.go(Routes.catalogOf(category.id, search: query.search)),
         ),
-        ChoiceChip(
-          label: const Text('En promoción'),
-          selected: query.onSale,
-          onSelected: (_) => context.go(
-            Routes.catalogOf(null, search: query.search, onSale: true),
-          ),
-        ),
-        for (final category in categories)
-          ChoiceChip(
-            label: Text(category.name),
-            selected: category.id == query.categoryId,
-            onSelected: (_) =>
-                context.go(Routes.catalogOf(category.id, search: query.search)),
-          ),
-      ],
+    ];
+    if (MediaQuery.sizeOf(context).width >= AccountActions.wideFrom) {
+      return Wrap(spacing: 8, runSpacing: 8, children: chips);
+    }
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final (i, chip) in chips.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            chip,
+          ],
+        ],
+      ),
     );
   }
 }

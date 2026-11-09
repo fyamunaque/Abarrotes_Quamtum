@@ -113,6 +113,7 @@ class _NameCell extends StatelessWidget {
             dimension: 48,
             child: CategoryPhoto(
               category: category,
+              showInitial: true,
               initialStyle: Theme.of(context).textTheme.titleMedium,
             ),
           ),

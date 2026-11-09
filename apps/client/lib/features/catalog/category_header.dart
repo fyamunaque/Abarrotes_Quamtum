@@ -6,9 +6,9 @@ import '../shared/diagonal_band.dart';
 import 'category_photo.dart';
 import '../../theme/palette.dart';
 
-/// El encabezado del catálogo filtrado por una categoría: su nombre y su
-/// descripción, y a la derecha la franja diagonal con su foto (o su color y
-/// la inicial), como "Embutidos" en las maquetas.
+/// El encabezado del catálogo filtrado por una categoría, sobre
+/// [NeilsPalette.surfaceAlt]: su nombre y su descripción, y a la derecha la
+/// franja diagonal con su foto (o el bloque de su color).
 ///
 /// Mide al menos 120 de alto en el teléfono y 160 en escritorio, y crece si
 /// el texto (agrandado) no entra; la foto acompaña ese alto.
@@ -24,7 +24,7 @@ class CategoryHeader extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: ColoredBox(
-        color: context.palette.surface,
+        color: context.palette.surfaceAlt,
         child: LayoutBuilder(
           builder: (context, constraints) {
             // La foto, el 40 % de la derecha.
@@ -39,13 +39,10 @@ class CategoryHeader extends StatelessWidget {
                     bottom: 0,
                     end: 0,
                     width: photoWidth,
-                    // La foto (o el color y la inicial), cortada en diagonal.
+                    // La foto (o el color), cortada en diagonal.
                     child: ClipPath(
                       clipper: const DiagonalClipper(),
-                      child: CategoryPhoto(
-                        category: category,
-                        initialStyle: text.displaySmall,
-                      ),
+                      child: CategoryPhoto(category: category),
                     ),
                   ),
                   // El texto decide el alto, si pasa del mínimo.

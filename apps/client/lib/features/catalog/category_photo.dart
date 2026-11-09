@@ -5,18 +5,23 @@ import 'product_photo.dart';
 import '../../theme/palette.dart';
 
 /// La foto de una categoría, cubriendo su lugar. Sin foto, o si no carga, el
-/// color de la categoría con su inicial ([colors], o el de
-/// [NeilsPalette.placeholderFor]).
+/// bloque del color de la categoría ([colors], o el de
+/// [NeilsPalette.placeholderFor]): en la tienda, sin letra (el nombre va al
+/// lado); en el panel, con su inicial ([showInitial]).
 class CategoryPhoto extends StatelessWidget {
   const CategoryPhoto({
     super.key,
     required this.category,
     this.colors,
+    this.showInitial = false,
     this.initialStyle,
   });
 
   final Category category;
   final (Color background, Color foreground)? colors;
+
+  /// Si el bloque de color lleva la inicial (las miniaturas del panel).
+  final bool showInitial;
 
   /// El estilo de la inicial; sin él, `headlineLarge`.
   final TextStyle? initialStyle;
@@ -27,17 +32,21 @@ class CategoryPhoto extends StatelessWidget {
         colors ?? context.palette.placeholderFor(category.id);
     final placeholder = ColoredBox(
       color: background,
-      child: Center(
-        child: ExcludeSemantics(
-          child: Text(
-            category.name.isEmpty
-                ? '?'
-                : category.name.characters.first.toUpperCase(),
-            style: (initialStyle ?? Theme.of(context).textTheme.headlineLarge)
-                ?.copyWith(color: foreground),
-          ),
-        ),
-      ),
+      child: !showInitial
+          ? const SizedBox.expand()
+          : Center(
+              child: ExcludeSemantics(
+                child: Text(
+                  category.name.isEmpty
+                      ? '?'
+                      : category.name.characters.first.toUpperCase(),
+                  style:
+                      (initialStyle ??
+                              Theme.of(context).textTheme.headlineLarge)
+                          ?.copyWith(color: foreground),
+                ),
+              ),
+            ),
     );
     final url = ProductPhoto.resolve(category.imageUrl);
     if (url == null) return placeholder;

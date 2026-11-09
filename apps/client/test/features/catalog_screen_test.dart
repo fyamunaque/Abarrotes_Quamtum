@@ -176,6 +176,49 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets(
+      'en el teléfono las categorías van en una fila que se desliza',
+      (tester) async {
+        await pumpApp(tester);
+        tester.view.physicalSize = const Size(390, 844);
+        await tester.pumpAndSettle();
+
+        final chip = find.widgetWithText(ChoiceChip, 'Lácteos');
+        final row = find.ancestor(
+          of: chip,
+          matching: find.byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+          ),
+        );
+        expect(row, findsOneWidget);
+        // Todas en la misma línea.
+        expect(
+          tester.getCenter(find.widgetWithText(ChoiceChip, 'Todas')).dy,
+          tester.getCenter(chip).dy,
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets('en escritorio van en varias líneas', (tester) async {
+      await pumpApp(tester);
+
+      final chip = find.widgetWithText(ChoiceChip, 'Lácteos');
+      expect(
+        find.ancestor(of: chip, matching: find.byType(Wrap)),
+        findsWidgets,
+      );
+      expect(
+        find.ancestor(
+          of: chip,
+          matching: find.byWidgetPredicate(
+            (w) => w is Scrollable && w.axisDirection == AxisDirection.right,
+          ),
+        ),
+        findsNothing,
+      );
+    });
+
     testWidgets('el chip En promoción pide solo los productos en promoción', (
       tester,
     ) async {
