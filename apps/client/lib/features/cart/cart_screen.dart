@@ -46,8 +46,8 @@ class CartScreen extends ConsumerStatefulWidget {
   static const checkoutBarBelow = 720.0;
 
   /// Desde este ancho, las líneas a la izquierda y, al lado, la entrega, el
-  /// ticket y "Confirmar pedido".
-  static const twoColumnsFrom = 1000.0;
+  /// ticket y "Confirmar pedido" (el mismo de Mis pedidos lado a lado).
+  static const twoColumnsFrom = 1100.0;
 
   @override
   ConsumerState<CartScreen> createState() => _CartScreenState();

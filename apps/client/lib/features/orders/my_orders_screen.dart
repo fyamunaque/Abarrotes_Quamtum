@@ -26,10 +26,16 @@ import '../../theme/palette.dart';
 /// Los pedidos de la cuenta, cada uno con su seguimiento, con la búsqueda
 /// (N.º o producto) y los filtros por estado, entrega y fechas. Con
 /// [newOrderId] (al venir de confirmar), un aviso de que el pedido llegó.
+///
+/// Desde [sideBySideFrom], la lista a la izquierda y el pedido elegido (al
+/// principio, el primero) a la derecha; más angosto, los pedidos uno debajo
+/// del otro.
 class MyOrdersScreen extends ConsumerStatefulWidget {
   const MyOrdersScreen({super.key, this.newOrderId});
 
   final String? newOrderId;
+
+  static const sideBySideFrom = 1100.0;
 
   @override
   ConsumerState<MyOrdersScreen> createState() => _MyOrdersScreenState();
@@ -39,6 +45,9 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
   final _search = TextEditingController();
   Timer? _debounce;
   MyOrdersFilter _filter = allMyOrders;
+
+  /// El pedido elegido en la lista (lado a lado); sin elegir, el primero.
+  String? _chosenId;
 
   @override
   void dispose() {
@@ -89,9 +98,11 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
     final provider = myOrdersProvider(_filter);
     final orders = ref.watch(provider);
     final newOrderId = widget.newOrderId;
+    final sideBySide =
+        MediaQuery.sizeOf(context).width >= MyOrdersScreen.sideBySideFrom;
     return PublicScaffold(
       title: 'Mis pedidos',
-      maxWidth: 720,
+      maxWidth: sideBySide ? 1120 : 720,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -141,26 +152,62 @@ class _MyOrdersScreenState extends ConsumerState<MyOrdersScreen> {
               _NoMatches(onClear: _clearFilters),
             AsyncValue(value: final list?) when list.items.isEmpty =>
               const _NoOrders(),
-            AsyncValue(value: final list?) => Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final order in list.items) ...[
-                  _OrderCard(order, key: ValueKey(order.id)),
-                  const SizedBox(height: 16),
-                ],
-                if (list.hasMore)
-                  Center(
-                    child: list.loadingMore
-                        ? const CircularProgressIndicator()
-                        : OutlinedButton(
-                            onPressed: () => _showErrors(
-                              ref.read(provider.notifier).loadMore(),
+            AsyncValue(value: final list?) => () {
+              final more = list.hasMore
+                  ? Center(
+                      child: list.loadingMore
+                          ? const CircularProgressIndicator()
+                          : OutlinedButton(
+                              onPressed: () => _showErrors(
+                                ref.read(provider.notifier).loadMore(),
+                              ),
+                              child: const Text('Ver más pedidos'),
                             ),
-                            child: const Text('Ver más pedidos'),
-                          ),
+                    )
+                  : null;
+              if (!sideBySide) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final order in list.items) ...[
+                      _OrderCard(order, key: ValueKey(order.id)),
+                      const SizedBox(height: 16),
+                    ],
+                    ?more,
+                  ],
+                );
+              }
+              final chosen = list.items.firstWhere(
+                (order) => order.id == _chosenId,
+                orElse: () => list.items.first,
+              );
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 380,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _OrderList(
+                          list.items,
+                          chosenId: chosen.id,
+                          onChoose: (id) => setState(() => _chosenId = id),
+                        ),
+                        if (more != null) ...[const SizedBox(height: 16), more],
+                      ],
+                    ),
                   ),
-              ],
-            ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    child: KeyedSubtree(
+                      key: const ValueKey('pedido-elegido'),
+                      child: _OrderCard(chosen, key: ValueKey(chosen.id)),
+                    ),
+                  ),
+                ],
+              );
+            }(),
             AsyncError(:final error) => Column(
               children: [
                 Text(
@@ -392,6 +439,57 @@ class _ReceivedNotice extends StatelessWidget {
   }
 }
 
+/// La lista de lado a lado: un bloque con una fila por pedido (el número,
+/// la fecha y el estado, y el total); la elegida, en el tono de lo
+/// seleccionado.
+class _OrderList extends StatelessWidget {
+  const _OrderList(
+    this.orders, {
+    required this.chosenId,
+    required this.onChoose,
+  });
+
+  final List<Order> orders;
+  final String chosenId;
+  final ValueChanged<String> onChoose;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = context.palette;
+    final text = Theme.of(context).textTheme;
+    return Material(
+      key: const ValueKey('lista-de-pedidos'),
+      color: palette.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
+        side: BorderSide(color: palette.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          for (final (i, order) in orders.indexed) ...[
+            if (i > 0) Divider(height: 1, thickness: 1, color: palette.line),
+            ListTile(
+              selected: order.id == chosenId,
+              selectedTileColor: palette.brandTint,
+              onTap: () => onChoose(order.id),
+              title: Text(order.title, style: text.titleSmall),
+              subtitle: Text(
+                '${formatDateTime(context, order.createdAt)} · '
+                '${order.fulfillmentType.labelOf(order.status)}',
+              ),
+              trailing: Text(
+                formatSoles(order.totalCents),
+                style: NeilsText.price(fontSize: 16),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _OrderCard extends StatelessWidget {
   const _OrderCard(this.order, {super.key});
 
@@ -564,13 +662,14 @@ class _OrderCode extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final palette = context.palette;
     return Semantics(
       container: true,
       label: '$title: ${code.split('').join(' ')}',
       child: ExcludeSemantics(
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: theme.colorScheme.primaryContainer,
+            color: palette.surfaceAlt,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Padding(
@@ -580,7 +679,7 @@ class _OrderCode extends StatelessWidget {
                 Text(
                   title,
                   style: theme.textTheme.labelLarge?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
+                    color: palette.inkMuted,
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -589,7 +688,7 @@ class _OrderCode extends StatelessWidget {
                   child: Text(
                     code,
                     style: theme.textTheme.displaySmall?.copyWith(
-                      color: theme.colorScheme.onPrimaryContainer,
+                      color: palette.ink,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 6,
                     ),
@@ -598,7 +697,7 @@ class _OrderCode extends StatelessWidget {
                 Text(
                   hint,
                   style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onPrimaryContainer,
+                    color: palette.inkMuted,
                   ),
                   textAlign: TextAlign.center,
                 ),
