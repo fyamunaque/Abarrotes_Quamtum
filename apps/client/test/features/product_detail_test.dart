@@ -5,7 +5,15 @@ import 'package:neils/cart/cart.dart';
 import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
+import 'package:neils/app.dart';
+import 'package:neils/features/catalog/offer_badges.dart';
 import 'package:neils/features/catalog/product_detail_screen.dart';
+import 'package:neils/features/catalog/product_photo.dart';
+import 'package:neils/features/catalog/product_tile.dart';
+import 'package:neils/features/shared/cart_button.dart';
+import 'package:neils/router/router.dart';
+import 'package:neils/router/routes.dart';
+import 'package:neils/theme/palette.dart';
 import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
@@ -39,8 +47,11 @@ void main() {
     WidgetTester tester,
     Product product, {
     int inCart = 0,
+    Size size = const Size(1280, 900),
   }) async {
-    useWideScreen(tester);
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -91,5 +102,110 @@ void main() {
       find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
       findsOneWidget,
     );
+  });
+
+  /// La app entera en [at], con el catálogo de [products].
+  Future<String Function()> pumpApp(
+    WidgetTester tester, {
+    required String at,
+    required List<Product> products,
+    Size size = const Size(1280, 900),
+    bool settle = true,
+  }) async {
+    tester.view.physicalSize = size;
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+          catalogRepositoryProvider.overrideWithValue(
+            FakeCatalogRepository(productList: products),
+          ),
+        ],
+        child: const NeilsApp(),
+      ),
+    );
+    final router = ProviderScope.containerOf(
+      tester.element(find.byType(NeilsApp)),
+    ).read(routerProvider)..go(at);
+    await tester.pumpAndSettle();
+    return () => router.routerDelegate.currentConfiguration.uri.toString();
+  }
+
+  testWidgets('en el teléfono, Volver y el carrito sobre la foto', (
+    tester,
+  ) async {
+    await pumpDetail(tester, ham(), size: const Size(390, 844));
+
+    // Sin la barra de arriba: la foto llega al borde.
+    expect(find.byType(AppBar), findsNothing);
+    final photo = tester.getRect(find.byType(ProductPhoto).first);
+    expect(photo.width, 390);
+    for (final button in [find.byTooltip('Volver'), find.byType(CartButton)]) {
+      final rect = tester.getRect(button);
+      expect(photo.contains(rect.center), isTrue, reason: '$button');
+    }
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('en escritorio, la ruta lleva a la categoría', (tester) async {
+    final location = await pumpApp(
+      tester,
+      at: Routes.product('jamonada'),
+      products: [ham()],
+    );
+
+    final crumbs = find.byKey(const ValueKey('ruta'));
+    expect(
+      find.descendant(of: crumbs, matching: find.text('Catálogo')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.descendant(of: crumbs, matching: find.text(groceries.name)),
+    );
+    await tester.pumpAndSettle();
+
+    expect(location(), Routes.catalogOf(groceries.id));
+  });
+
+  testWidgets('la promoción se explica en su recuadro', (tester) async {
+    await pumpDetail(tester, ham());
+
+    final box = tester.widget<DecoratedBox>(
+      find
+          .ancestor(
+            of: find.byType(OfferDescriptions),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    expect(
+      (box.decoration as BoxDecoration).color,
+      NeilsPalette.light.surfaceAlt,
+    );
+  });
+
+  testWidgets('la foto es el mismo Hero que la fila', (tester) async {
+    await pumpApp(
+      tester,
+      at: Routes.catalog,
+      products: [ham()],
+      size: const Size(390, 844),
+    );
+
+    Finder heroes() => find.byWidgetPredicate(
+      (w) => w is Hero && w.tag == productHeroTag(ham()),
+    );
+    await tester.tap(find.text(productTitle(ham())));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    // En vuelo: el de la fila y el del detalle.
+    expect(heroes(), findsNWidgets(2));
+
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProductDetailScreen), findsOneWidget);
+    expect(heroes(), findsOneWidget);
   });
 }
