@@ -49,7 +49,7 @@ class KpiCard extends StatelessWidget {
                       value,
                       style: NeilsText.price(
                         fontSize: 24,
-                        color: context.palette.brandText,
+                        color: context.palette.ink,
                       ),
                     ),
                     if (detail case final detail?)

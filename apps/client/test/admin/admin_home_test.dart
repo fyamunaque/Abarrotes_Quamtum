@@ -11,6 +11,7 @@ import 'package:neils/features/admin/home/kpi_card.dart';
 import 'package:neils/features/admin/home/sales_chart.dart';
 import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -345,5 +346,37 @@ void main() {
       expect(expiresIn(-1), 'venció ayer');
       expect(expiresIn(-4), 'venció hace 4 días');
     });
+  });
+
+  testWidgets('las tarjetas del panel tienen borde y no sombra', (
+    tester,
+  ) async {
+    await pumpHome(tester);
+
+    final card = find.ancestor(
+      of: find.text('Ventas de hoy'),
+      matching: find.byType(Card),
+    );
+    final material = tester.widget<Material>(
+      find.descendant(of: card, matching: find.byType(Material)).first,
+    );
+    expect(material.elevation, 0);
+    expect(
+      (material.shape! as RoundedRectangleBorder).side.color,
+      NeilsPalette.light.line,
+    );
+  });
+
+  testWidgets('la cifra de cada tarjeta va en tinta', (tester) async {
+    await pumpHome(tester);
+
+    final today = find.ancestor(
+      of: find.text('Ventas de hoy'),
+      matching: find.byType(KpiCard),
+    );
+    final value = tester.widget<Text>(
+      find.descendant(of: today, matching: find.text(formatSoles(4550))),
+    );
+    expect(value.style?.color, NeilsPalette.light.ink);
   });
 }

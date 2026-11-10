@@ -158,4 +158,14 @@ void main() {
       }
     });
   }
+
+  testWidgets('el menú del panel va sobre surfaceAlt', (tester) async {
+    await pumpPanel(tester, width: 1280);
+
+    final theme = Theme.of(tester.element(find.byType(NavigationRail)));
+    expect(
+      theme.navigationRailTheme.backgroundColor,
+      NeilsPalette.light.surfaceAlt,
+    );
+  });
 }

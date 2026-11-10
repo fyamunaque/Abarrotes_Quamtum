@@ -12,6 +12,10 @@ import 'package:neils/features/auth/login_screen.dart';
 import 'package:neils/features/catalog/catalog_screen.dart';
 import 'package:neils/router/router.dart';
 import 'package:neils/session/session.dart';
+import 'package:neils/appearance/appearance.dart';
+import 'package:neils/appearance/appearance_providers.dart';
+import 'package:neils/appearance/appearance_repository.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../fakes.dart';
 import '../support.dart';
@@ -35,6 +39,7 @@ void main() {
     WidgetTester tester, {
     String at = '/login',
     bool settle = true,
+    ThemePreference appearance = ThemePreference.light,
   }) async {
     useWideScreen(tester);
     await tester.pumpWidget(
@@ -42,6 +47,9 @@ void main() {
         overrides: [
           authRepositoryProvider.overrideWithValue(auth),
           userRepositoryProvider.overrideWithValue(users),
+          appearanceRepositoryProvider.overrideWithValue(
+            MemoryAppearanceRepository(appearance),
+          ),
         ],
         child: const NeilsApp(),
       ),
@@ -314,5 +322,30 @@ void main() {
 
       expect(currentPath(router), '/admin');
     });
+  });
+
+  testWidgets('el ingreso mantiene el panel rojo en los dos modos', (
+    tester,
+  ) async {
+    for (final (mode, palette) in [
+      (ThemePreference.light, NeilsPalette.light),
+      (ThemePreference.dark, NeilsPalette.dark),
+    ]) {
+      await pumpApp(tester, appearance: mode);
+
+      final panel = tester.widget<DecoratedBox>(
+        find
+            .ancestor(
+              of: whiteLogo(tester),
+              matching: find.byType(DecoratedBox),
+            )
+            .last,
+      );
+      expect(
+        (panel.decoration as BoxDecoration).color,
+        palette.brandFill,
+        reason: '$mode',
+      );
+    }
   });
 }

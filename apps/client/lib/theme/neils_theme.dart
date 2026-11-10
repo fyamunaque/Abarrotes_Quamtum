@@ -177,8 +177,9 @@ ThemeData neilsAdminTheme(ThemeData base) {
       shape: _cardShape(palette),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
+    // El menú lateral, sobre el panel cálido.
     navigationRailTheme: NavigationRailThemeData(
-      backgroundColor: palette.background,
+      backgroundColor: palette.surfaceAlt,
       indicatorColor: palette.brandTint,
       selectedIconTheme: IconThemeData(color: selected),
       unselectedIconTheme: IconThemeData(color: muted),
