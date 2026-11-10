@@ -8,6 +8,7 @@ import 'package:neils/cart/cart_quote_provider.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
+import 'package:neils/features/cart/cart_ticket.dart';
 import 'package:neils/features/catalog/line_total_pill.dart';
 import 'package:neils/orders/order.dart';
 import 'package:neils/orders/order_repository.dart';
@@ -157,10 +158,10 @@ void main() {
       await pumpCart(tester, [(rice, 2)]);
       await waitForQuote(tester);
 
-      final gift = find.ancestor(
-        of: find.text('1 × Sal 1 kg'),
-        matching: find.byType(Card),
-      );
+      // La fila del regalo.
+      final gift = find
+          .ancestor(of: find.text('1 × Sal 1 kg'), matching: find.byType(Row))
+          .first;
       expect(
         find.descendant(of: gift, matching: find.text('Regalo')),
         findsOneWidget,
@@ -415,5 +416,29 @@ void main() {
     await tapIn(tester, 'Aceite vegetal 1 L', 'Quitar del carrito');
     expect(find.text('Tu carrito está vacío.'), findsOneWidget);
     expect(find.byTooltip('Carrito'), findsOneWidget);
+  });
+
+  testWidgets('en escritorio, las líneas y el resumen van lado a lado', (
+    tester,
+  ) async {
+    await pumpCart(tester, [(rice, 1)]);
+
+    final line = tester.getRect(lineOf('Arroz extra 5 kg'));
+    final ticket = tester.getRect(find.byType(CartTicket));
+    expect(ticket.left, greaterThan(line.right));
+    expect(ticket.top, lessThan(line.bottom));
+  });
+
+  testWidgets('en el teléfono, el resumen va debajo de las líneas', (
+    tester,
+  ) async {
+    await pumpCart(tester, [(rice, 1)]);
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+
+    final line = tester.getRect(lineOf('Arroz extra 5 kg'));
+    final ticket = tester.getRect(find.byType(CartTicket, skipOffstage: false));
+    expect(ticket.top, greaterThan(line.bottom));
+    expect(tester.takeException(), isNull);
   });
 }
