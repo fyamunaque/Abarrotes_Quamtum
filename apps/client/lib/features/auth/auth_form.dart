@@ -5,9 +5,9 @@ import '../../auth/auth_repository.dart';
 import '../../config/app_version.dart';
 import '../../router/route_guard.dart';
 import '../../session/session.dart';
-import '../../theme/brand_colors.dart';
 import '../shared/brand.dart';
 import '../shared/diagonal_band.dart';
+import '../../theme/palette.dart';
 
 /// Estructura común de ingreso y registro: título, campos, botón principal y
 /// un enlace a la otra pantalla. Valida los campos, muestra el progreso y el
@@ -179,10 +179,10 @@ class _BrandPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const color = NeilsColors.onPrimary;
+    final color = context.palette.onBrand;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: NeilsColors.primary,
+        color: context.palette.brandFill,
         borderRadius: BorderRadius.circular(20),
       ),
       child: Padding(
@@ -376,8 +376,8 @@ class PasswordStrengthMeter extends StatelessWidget {
         final strength = PasswordStrength.of(controller.text);
         final color = switch (strength) {
           PasswordStrength.weak => theme.colorScheme.error,
-          PasswordStrength.medium => StateColors.caution,
-          PasswordStrength.strong => StateColors.positive,
+          PasswordStrength.medium => context.palette.caution,
+          PasswordStrength.strong => context.palette.positive,
         };
         return Semantics(
           liveRegion: true,

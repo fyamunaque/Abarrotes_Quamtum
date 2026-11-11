@@ -6,6 +6,7 @@ import '../../config/app_version.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
+import 'appearance_controls.dart';
 import 'brand.dart';
 
 /// Qué sección de la tienda es [location]: la de la barra y el menú.
@@ -114,6 +115,18 @@ class StoreMenu extends ConsumerWidget {
                   Routes.admin,
                 ),
             ],
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text('Apariencia', style: text.titleSmall),
+                  const SizedBox(height: 8),
+                  const AppearanceSelector(),
+                ],
+              ),
+            ),
             const Divider(),
             if (user != null)
               ListTile(

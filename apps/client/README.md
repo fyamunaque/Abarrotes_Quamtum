@@ -88,8 +88,11 @@ admin/                 los datos del panel, un dominio por carpeta (stats, order
 common/                ApiClient y AuthedApi (las rutas REST y sus errores), PageList,
                        formatSoles, los días de la tienda (days.dart)
 router/                rutas, guard y GoRouter
-theme/                 tokens de marca y de estados (brand_colors.dart), ThemeData
-                       (neils_theme.dart) y movimiento (motion.dart)
+theme/                 tokens de marca y de estados (brand_colors.dart), la paleta clara y
+                       la oscura (palette.dart), ThemeData (neils_theme.dart) y movimiento
+                       (motion.dart)
+appearance/            la preferencia de apariencia (Sistema, Claro u Oscuro), guardada en
+                       el dispositivo
 features/<sección>/    pantallas y componentes: home, auth, catalog, cart, orders, offers,
                        admin, showcase (la vitrina) y shared (logo, barra, franja diagonal,
                        PressScale, VipTag, el aviso de verificación, RefreshOnResume)
@@ -103,7 +106,39 @@ insuficiente: Aceite tiene 2 unidades").
 
 ## Tema
 
-Los tokens de la marca (`NeilsColors`, en `theme/brand_colors.dart`):
+**Claro u oscuro.** La app tiene un tema claro y uno oscuro, y cada persona elige "Sistema",
+"Claro" u "Oscuro":
+- en el teléfono, en la sección "Apariencia" del menú de la tienda (`AppearanceSelector`);
+- en escritorio, con el botón "Apariencia" de la barra de la tienda y de la del panel
+  (`AppearanceButton`).
+
+"Sistema" (lo de fábrica) sigue al modo del teléfono o del navegador. La elección se guarda en el
+dispositivo (`shared_preferences`, clave `neils.appearance`) y se lee antes del primer cuadro,
+así la app arranca en su modo. En la web, `web/index.html` pinta el fondo del modo del sistema
+antes de que cargue Flutter; en Android, `values-night/colors.xml` hace lo mismo con la pantalla
+de arranque. Así no hay destello blanco al abrir en oscuro.
+
+**La paleta** (`NeilsPalette`, en `theme/palette.dart`) son los colores por su rol, en una
+versión clara y otra oscura. Va en el tema como `ThemeExtension`, y las pantallas la leen con
+`context.palette`. Al cambiar de modo, toda la app cambia de una vez:
+
+| Rol | Claro | Oscuro | Uso |
+|---|---|---|---|
+| background / surface / surfaceAlt / line | `#FBF7F2` / `#FFFFFF` / `#F3ECE4` / `#E5DCD3` | `#171513` / `#24201C` / `#302A25` / `#3A322C` | Fondo, tarjetas, paneles informativos y bordes. En oscuro, carbón cálido, no negro |
+| ink / inkMuted | `#1F1A17` / `#5E534D` | `#F4EEE7` / `#B9ADA3` | Texto y texto secundario |
+| brandFill / brandFillDeep / onBrand | `#C8281E` / `#9E1B14` / `#FFFFFF` | los mismos | El rojo de botones, barras y cintas (y uno más hondo para la franja de promociones), con blanco encima |
+| brandText | `#C8281E` | `#FF9A8F` | El rojo de textos, íconos, enlaces y precios en oferta: en oscuro, más claro, porque el rojo de relleno sobre el carbón no llega al contraste de un texto |
+| brandTint | `#FBE3E0` | `#4A1E1A` | El fondo de lo seleccionado |
+| money / moneyTint | `#276B43` / `#E3F2E7` | `#A9E2B8` / `#183B28` | La pastilla del total de una línea |
+| positive / caution | `#3C7A5F` / `#B7791F` | `#8FD1AE` / `#E3B261` | Lo que está bien ("Activo", el aviso de pedido recibido) y lo que podría estar mejor |
+
+Las constantes de `brand_colors.dart` (`NeilsColors`, `OrderStatusColors`, `StateColors`,
+`PlaceholderColors`) solo arman las paletas dentro de `lib/theme/`. Fuera de ahí, una pantalla
+que las use hace fallar `test/theme/no_loose_colors_test.dart`, que también falla con un color
+suelto (`Colors.white`, `Color(0x…)`).
+
+Los tokens de la marca (`NeilsColors`, en `theme/brand_colors.dart`), de donde sale la paleta
+clara:
 
 | Token | Color | Uso |
 |---|---|---|
@@ -117,9 +152,8 @@ Los tokens de la marca (`NeilsColors`, en `theme/brand_colors.dart`):
 | money / moneyTint | `#276B43` / `#E3F2E7` | La pastilla del total de una línea |
 
 El rojo alcanza el contraste de un texto sobre el fondo (5,2:1) y con texto blanco encima
-(5,6:1), así que `primary` sirve para botones y para textos. Los contrastes los vigila
-`test/theme/theme_test.dart`, y `test/theme/no_loose_colors_test.dart` falla si aparece un color
-suelto (`Colors.white`, `Color(0x…)`) fuera de `lib/theme/`.
+(5,6:1), así que `primary` sirve para botones y para textos. Los contrastes de las dos paletas
+los vigila `test/theme/theme_test.dart`.
 
 **El logo y los íconos** salen del logo original del cliente (`brand/logo.jpg`, fuera de
 `assets/`) con `flutter test tool/brand_assets_test.dart`, sin paquetes: el blanco pasa a
@@ -140,26 +174,26 @@ que la app no descarga nada:
 - **Poppins** (600/700/800) para títulos, botones y precios (`NeilsText.price`).
 - **Inter** (400/500) para textos, etiquetas y tablas.
 
-**Estados de pedido** (`OrderStatusColors`):
+**Estados de pedido** (`orderStatusColor(context.palette, status)`, en
+`features/orders/order_tracker.dart`):
 
-| Estado | Color |
-|---|---|
-| Pendiente de confirmación | `#D98C21` |
-| Confirmado | `#4F5BB5` (índigo) |
-| En camino | `#2E6F9E` |
-| Preparando | `#7A5A9E` |
-| En espera de recojo | `#2A8C82` |
-| Entregado | `#3C7A5F` |
-| Cancelado | `#8C3B33` |
+| Estado | Claro | Oscuro |
+|---|---|---|
+| Pendiente de confirmación | `#C27A12` | `#E3B261` |
+| Confirmado | `#4F5BB5` (índigo) | `#A9B1F0` |
+| En camino | `#2E6F9E` | `#8CBDE6` |
+| Preparando | `#7A5A9E` | `#C6A8E8` |
+| En espera de recojo | `#2A8C82` | `#7FD3C8` |
+| Entregado | `#3C7A5F` | `#8FD1AE` |
+| Cancelado | `#8C3B33` | `#F0A49B` |
 
-Son para puntos y líneas. El estado va siempre también en texto, en tinta: el ámbar sobre el
-fondo no alcanza el contraste de un texto. El rojo de cancelado sí. Como paleta para
-distinguir categorías tampoco alcanzan: el índigo de confirmado y el azul de en camino se
-parecen, y el ámbar queda por debajo de 3:1 sobre el fondo. Por eso el panel nunca usa solo el color (ver
-`StatusBadge`).
+Son para puntos y líneas, con al menos 3:1 sobre las tarjetas en los dos modos. El estado va
+siempre también en texto, en tinta. Como paleta para distinguir categorías no alcanzan: el índigo
+de confirmado y el azul de en camino se parecen. Por eso el panel nunca usa solo el color (ver
+`StatusBadge`). El violeta de "preparando" se queda: codifica un estado, no decora.
 
 Lo que está bien y no es un pedido (las insignias "Activo", "Activa" y "Registrado", y el aviso
-de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado).
+de pedido recibido) usa `palette.positive`.
 
 **Fotos de los productos** (`ProductPhoto`, en `features/catalog/product_photo.dart`):
 - **Las fotos subidas:** llegan del servidor como ruta relativa (`/images/products/…`) y se
@@ -167,16 +201,17 @@ de pedido recibido) usa `StateColors.positive` (`#3C7A5F`, el verde de entregado
 - **Mientras carga, o si no hay foto o no carga:** se ve un marcador, la inicial del producto en
   Poppins sobre un fondo suave. La foto entra con un fundido de 200 ms, que no se anima si está
   activado "reducir animaciones".
-- **El color del marcador** sale de la categoría (`PlaceholderColors.of(id)`, 8 pares
-  fondo/texto con contraste de al menos 4.5:1). Una misma categoría tiene siempre el mismo
-  color, en la web y en Android, así el catálogo no se ve repetido aunque falten fotos.
+- **El color del marcador** sale de la categoría (`context.palette.placeholderFor(id)`, 8
+  pares fondo/texto con contraste de al menos 4.5:1, claros u oscuros según el modo). Una misma
+  categoría tiene siempre el mismo par, en la web y en Android y en los dos modos, así el
+  catálogo no se ve repetido aunque falten fotos.
 
 **El panel** (`neilsAdminTheme`, en `theme/neils_theme.dart`) usa una variante calmada del tema,
 solo bajo `/admin`:
 - fondo hueso y texto en tinta;
 - tarjetas blancas con la sombra suave, sin borde;
-- lo elegido (la sección en la navegación, los chips, el segmento) en el rojo muy claro
-  (`primaryTint`), no en rojo;
+- lo elegido (la sección en la navegación, los chips, el segmento) en el tono de lo
+  seleccionado (`brandTint`: rojo muy claro, o rojo hondo en oscuro), no en rojo;
 - el `primary` solo en la acción principal de cada pantalla, en la sección activa y en la línea
   del gráfico de ventas.
 
@@ -194,8 +229,9 @@ activo, cada animación salta a su estado final.
   Entregado; con recojo, Por confirmar → Confirmado → Preparando → En espera de recojo →
   Recogido. Dibuja los pasos y el estado actual que manda el servidor: no sabe de
   transiciones. Cuando el estado avanza, la línea se llena hasta el paso nuevo en 500 ms, y el
-  color pasa al del estado nuevo (preparando `#7A5A9E`, en espera de recojo `#2A8C82`, en
-  `OrderStatusColors`). Al mostrarse no se anima. En un ancho angosto los nombres se achican
+  color pasa al del estado nuevo (preparando `#7A5A9E`, en espera de recojo `#2A8C82`; en
+  oscuro, los de la paleta oscura). El color se lee del tema en cada cuadro: al cambiar de modo
+  con el pedido abierto, cambia también. Al mostrarse no se anima. En un ancho angosto los nombres se achican
   todos por igual y cortan solo en los espacios, en dos líneas como máximo.
   Un pedido cancelado muestra los pasos apagados y el aviso: el servidor no guarda en qué paso
   se canceló.
@@ -216,7 +252,7 @@ flutter run -d chrome   # y abrir /vitrina
 
 | Ruta | Quién | Qué |
 |---|---|---|
-| `/` | Cualquiera | Portada para negocios. En escritorio: el titular "Tu negocio siempre abastecido con Neil's." (`BrandHero`, con la franja diagonal) con "Ver catálogo" y "Ver promociones", los tres sellos (`TrustBadges`), "Nuestras categorías" (`CategoryCard`, con los colores de `PlaceholderColors` en orden para que dos vecinas no se repitan, que abren `/catalogo?categoria=<id>`), la banda "Promociones para tu negocio" (`PromotionsBanner`) y las pestañas (`ProductTabs`) **Frecuentes** (`GET /products/frequent`, solo con cuenta), **Sugeridos** (`GET /products/suggested`) y **Promos** (`GET /products?onSale=true`), en tarjetas. Arranca en Frecuentes si la cuenta tiene alguno (con su indicador mientras carga); si no, en Sugeridos; para el lector de pantalla, el grupo se llama "Productos"; Frecuentes vacía dice "Cuando hagas tu primer pedido, aquí verás lo que más pides.". Se ven hasta 8, con "Ver más" (en Promos, "Ver todas las promociones"). En el teléfono: "¡Hola, Ana!" (o "¡Hola!"), el buscador, las mismas pestañas en lista (`ProductTile`), las categorías en una fila y la banda. Para una cuenta VIP, debajo sus ofertas exclusivas, que no se repiten en las promociones. Las fotos grandes salen de `BrandImages` (sin foto, el bloque rojo con el logo en blanco). Deslizar hacia abajo vuelve a pedir el perfil, las categorías, las promociones, Frecuentes y Sugeridos |
+| `/` | Cualquiera | Portada para negocios. En escritorio: el titular "Tu negocio siempre abastecido con Neil's." (`BrandHero`, con la franja diagonal) con "Ver catálogo" y "Ver promociones", los tres sellos (`TrustBadges`), "Nuestras categorías" (`CategoryCard`, con los pares de `context.palette.placeholderPairs` en orden para que dos vecinas no se repitan, que abren `/catalogo?categoria=<id>`), la banda "Promociones para tu negocio" (`PromotionsBanner`) y las pestañas (`ProductTabs`) **Frecuentes** (`GET /products/frequent`, solo con cuenta), **Sugeridos** (`GET /products/suggested`) y **Promos** (`GET /products?onSale=true`), en tarjetas. Arranca en Frecuentes si la cuenta tiene alguno (con su indicador mientras carga); si no, en Sugeridos; para el lector de pantalla, el grupo se llama "Productos"; Frecuentes vacía dice "Cuando hagas tu primer pedido, aquí verás lo que más pides.". Se ven hasta 8, con "Ver más" (en Promos, "Ver todas las promociones"). En el teléfono: "¡Hola, Ana!" (o "¡Hola!"), el buscador, las mismas pestañas en lista (`ProductTile`), las categorías en una fila y la banda. Para una cuenta VIP, debajo sus ofertas exclusivas, que no se repiten en las promociones. Las fotos grandes salen de `BrandImages` (sin foto, el bloque rojo con el logo en blanco). Deslizar hacia abajo vuelve a pedir el perfil, las categorías, las promociones, Frecuentes y Sugeridos |
 | `/login` | Cualquiera | Ingreso |
 | `/registro` | Cualquiera | Crear una cuenta: nombre, correo, celular (9 dígitos que empiezan con 9), DNI opcional (con el mensaje de para qué sirve: confirmar quién recibe o recoge el pedido), una contraseña de al menos 8 caracteres con letras y números (con un indicador de seguridad: débil, media o fuerte) repetida, y aceptar los términos de uso y la política de privacidad (`legal/legal_texts.dart`, con su versión; se leen en un diálogo sin perder lo escrito). Crea la cuenta y después guarda celular, DNI y términos (`PATCH /users/me`). Si eso falla (p. ej. el DNI ya está en otra cuenta), la cuenta queda creada y lo escrito pasa a "Mi cuenta" con el error (`pendingProfileProvider`) |
 | `/mi-cuenta?from=...` | Cualquier cuenta | El celular, el DNI y los términos (si falta aceptar la versión vigente, la casilla; si no, cuándo se aceptaron). Se llega desde el menú de la cuenta o tocando el nombre en la barra. Un cliente que ingresa con la cuenta incompleta (sin celular o sin los términos vigentes, `profileComplete`) pasa por aquí y, al guardar, sigue a donde iba (`from`, solo rutas de la app). El personal va al panel como siempre. Debajo, "Mis códigos" (`MyCodesSection`, con `myPromoCodesProvider` sobre `/promo-codes/mine` y `/promo-codes/redeem`): "Escribe tu código" (en mayúsculas al escribir) con "Activar" y el error del servidor debajo del campo ("El código no existe o ya no está vigente"), y cada código activo con lo que da ("2x1 en Arroz extra 5 kg"), la compra mínima si tiene, "Vence el 30 nov 2026" y "Te quedan 2 usos" (o "Sin límite de usos"). Activar uno vuelve a cotizar el carrito. Con `seccion=codigos` (desde el carrito), "Mis códigos" va arriba y, al activar, vuelve a `from` |
@@ -347,7 +383,7 @@ panel. En Android es el nombre en el selector de apps. `PublicScaffold` lo recib
 - la barra de arriba es blanca, con una sombra fina; desde 1200 px, la navegación es un menú
   lateral ancho, con el texto al lado del ícono (`AdminShell.extendedFrom`); entre 840 y 1200 px,
   el riel angosto con el texto abajo; más angosto, una barra abajo. La sección activa va en
-  rojo oscuro sobre el rojo claro;
+  rojo oscuro sobre el rojo claro (en oscuro, rosado claro sobre rojo hondo);
 - las secciones salen del enum `AdminSection` (ruta, nombre, ícono), y el router arma una ruta
   por cada una;
 - la navegación muestra solo las que la sesión puede abrir (`AdminSection.visibleTo`). La

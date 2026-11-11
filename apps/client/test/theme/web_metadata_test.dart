@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/theme/brand_colors.dart';
+import 'package:neils/theme/palette.dart';
 
 /// Lo que muestran el navegador y la app instalada desde la web
 /// (web/manifest.json y web/index.html): el mensaje para negocios y los
@@ -27,6 +28,43 @@ void main() {
     expect(
       manifest['background_color'],
       hex(NeilsColors.background.toARGB32()),
+    );
+  });
+
+  test('la web pinta el fondo oscuro antes de cargar', () {
+    final dark = hex(NeilsPalette.dark.background.toARGB32());
+    final light = hex(NeilsPalette.light.background.toARGB32());
+    // El fondo de la página mientras carga Flutter, según el modo del
+    // navegador: sin el destello blanco en oscuro.
+    expect(index, contains('@media (prefers-color-scheme: dark)'));
+    expect(index, contains('background: $dark'));
+    expect(index, contains('background: $light'));
+    // La barra del navegador, una por modo.
+    expect(
+      index,
+      contains(
+        '<meta name="theme-color" content="#C8281E" '
+        'media="(prefers-color-scheme: light)">',
+      ),
+    );
+    expect(
+      index,
+      contains(
+        '<meta name="theme-color" content="$dark" '
+        'media="(prefers-color-scheme: dark)">',
+      ),
+    );
+  });
+
+  test('Android arranca en oscuro', () {
+    final night = File('android/app/src/main/res/values-night/colors.xml')
+        .readAsStringSync();
+    expect(
+      night,
+      contains(
+        '<color name="launch_background">'
+        '${hex(NeilsPalette.dark.background.toARGB32())}</color>',
+      ),
     );
   });
 }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../admin/emails.dart';
-import '../../../theme/brand_colors.dart';
 import '../../shared/error_message.dart';
 import 'admin_form.dart';
+import '../../../theme/palette.dart';
 
 /// Los textos de [EmailsAddForm] que cambian según la lista (clientes VIP,
 /// equipo).
@@ -254,7 +254,7 @@ class _SummaryView extends StatelessWidget {
         if (summary.added.isNotEmpty)
           _SummaryGroup(
             icon: Icons.check_circle_outline,
-            color: StateColors.positive,
+            color: context.palette.positive,
             title: 'Agregados (${summary.added.length})',
             emails: summary.added,
           ),

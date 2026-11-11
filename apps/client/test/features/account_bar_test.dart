@@ -144,10 +144,8 @@ void main() {
   testWidgets('en la portada, Inicio va en rojo', (tester) async {
     await pumpStore(tester);
 
-    Color? colorOf(String section) => tester
-        .widget<Text>(find.text(section))
-        .style
-        ?.color;
+    Color? colorOf(String section) =>
+        tester.widget<Text>(find.text(section)).style?.color;
     expect(colorOf('Inicio'), NeilsColors.primary);
     expect(colorOf('Catálogo'), isNot(NeilsColors.primary));
   });

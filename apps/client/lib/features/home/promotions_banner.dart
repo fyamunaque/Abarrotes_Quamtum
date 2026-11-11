@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../router/routes.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/brand_images.dart';
 import '../shared/account.dart';
 import '../shared/brand.dart';
 import '../shared/diagonal_band.dart';
+import '../../theme/palette.dart';
 
 /// La banda roja de la portada: "Promociones para tu negocio", con su texto,
 /// "Ver promociones" y la franja diagonal ([BrandImages.promotionsBanner], o
@@ -26,20 +26,20 @@ class PromotionsBanner extends StatelessWidget {
           header: true,
           child: Text(
             'Promociones para tu negocio',
-            style: text.headlineSmall?.copyWith(color: NeilsColors.onPrimary),
+            style: text.headlineSmall?.copyWith(color: context.palette.onBrand),
           ),
         ),
         const SizedBox(height: 8),
         Text(
           'Soluciones prácticas para restaurantes, fast foods y dark kitchens.',
-          style: text.bodyLarge?.copyWith(color: NeilsColors.onPrimary),
+          style: text.bodyLarge?.copyWith(color: context.palette.onBrand),
         ),
         const SizedBox(height: 16),
         OutlinedButton(
           onPressed: () => context.go(Routes.promotions),
           style: OutlinedButton.styleFrom(
-            foregroundColor: NeilsColors.onPrimary,
-            side: const BorderSide(color: NeilsColors.onPrimary),
+            foregroundColor: context.palette.onBrand,
+            side: BorderSide(color: context.palette.onBrand),
           ),
           child: const Text('Ver promociones'),
         ),
@@ -47,7 +47,7 @@ class PromotionsBanner extends StatelessWidget {
     );
     final band = DiagonalBand(
       image: BrandImages.promotionsBanner,
-      color: NeilsColors.primaryDark,
+      color: context.palette.brandFillDeep,
       child: Opacity(
         opacity: 0.6,
         child: NeilsLogo.white(height: wide ? 90 : 56),
@@ -56,7 +56,7 @@ class PromotionsBanner extends StatelessWidget {
     return ClipRRect(
       borderRadius: BorderRadius.circular(20),
       child: ColoredBox(
-        color: NeilsColors.primary,
+        color: context.palette.brandFill,
         child: wide
             ? Row(
                 crossAxisAlignment: CrossAxisAlignment.center,

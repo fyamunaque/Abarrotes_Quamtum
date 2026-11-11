@@ -5,6 +5,7 @@ import 'package:neils/orders/fulfillment.dart';
 import 'package:neils/orders/order_status.dart';
 import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -16,9 +17,10 @@ void main() {
     OrderStatus status, {
     bool reduceMotion = false,
     FulfillmentType fulfillmentType = FulfillmentType.delivery,
+    Brightness brightness = Brightness.light,
   }) => tester.pumpWidget(
     MaterialApp(
-      theme: neilsTheme(),
+      theme: neilsTheme(brightness),
       home: MediaQuery(
         data: MediaQueryData(disableAnimations: reduceMotion),
         child: Scaffold(
@@ -58,10 +60,10 @@ void main() {
     expect(
       {
         for (final status in OrderStatus.values)
-          status: orderStatusColor(status),
+          status: orderStatusColor(NeilsPalette.light, status),
       },
       {
-        OrderStatus.pendingConfirmation: const Color(0xFFD98C21),
+        OrderStatus.pendingConfirmation: const Color(0xFFC27A12),
         OrderStatus.confirmed: const Color(0xFF4F5BB5),
         OrderStatus.preparing: const Color(0xFF7A5A9E),
         OrderStatus.readyForPickup: const Color(0xFF2A8C82),
@@ -71,6 +73,47 @@ void main() {
       },
     );
   });
+
+  test('en oscuro, cada estado tiene su color oscuro', () {
+    const dark = NeilsPalette.dark;
+    expect(
+      orderStatusColor(dark, OrderStatus.outForDelivery),
+      dark.statusOnTheWay,
+    );
+    expect(orderStatusColor(dark, OrderStatus.preparing), dark.statusPreparing);
+    expect(orderStatusColor(dark, OrderStatus.cancelled), dark.statusCancelled);
+  });
+
+  testWidgets('el seguimiento en oscuro usa los estados oscuros', (
+    tester,
+  ) async {
+    await pumpTracker(
+      tester,
+      OrderStatus.outForDelivery,
+      brightness: Brightness.dark,
+    );
+    await tester.pumpAndSettle();
+
+    expect(fillColor(tester), const Color(0xFF8CBDE6));
+  });
+
+  testWidgets(
+    'al cambiar a oscuro con el seguimiento abierto, cambia el color',
+    (tester) async {
+      await pumpTracker(tester, OrderStatus.outForDelivery);
+      await tester.pumpAndSettle();
+      expect(fillColor(tester), const Color(0xFF2E6F9E));
+
+      await pumpTracker(
+        tester,
+        OrderStatus.outForDelivery,
+        brightness: Brightness.dark,
+      );
+      await tester.pumpAndSettle();
+
+      expect(fillColor(tester), const Color(0xFF8CBDE6));
+    },
+  );
 
   testWidgets('la línea llega hasta el estado actual, en su color', (
     tester,

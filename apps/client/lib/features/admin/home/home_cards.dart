@@ -10,11 +10,11 @@ import '../../../orders/fulfillment.dart';
 import '../../../orders/order_status.dart';
 import '../../../router/routes.dart';
 import '../../../session/session_provider.dart';
-import '../../../theme/brand_colors.dart';
 import '../../orders/order_tracker.dart';
 import '../../shared/error_message.dart';
 import 'kpi_card.dart';
 import 'sales_chart.dart';
+import '../../../theme/palette.dart';
 
 /// Una tarjeta del inicio con su propio reporte: si ese reporte falla, solo
 /// ella muestra el error y "Reintentar"; el resto del inicio se ve igual.
@@ -298,7 +298,7 @@ class _OrdersByStatus extends ConsumerWidget {
                           width: 10,
                           height: 10,
                           decoration: BoxDecoration(
-                            color: orderStatusColor(status),
+                            color: orderStatusColor(context.palette, status),
                             shape: BoxShape.circle,
                           ),
                         ),
@@ -580,7 +580,7 @@ class _Meter extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: Container(
           height: 6,
-          color: NeilsColors.primaryTint,
+          color: context.palette.brandTint,
           alignment: Alignment.centerLeft,
           child: FractionallySizedBox(
             widthFactor: fraction.clamp(0, 1),

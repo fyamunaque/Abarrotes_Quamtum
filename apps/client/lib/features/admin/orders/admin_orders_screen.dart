@@ -27,6 +27,7 @@ import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'order_code_dialog.dart';
+import '../../../theme/palette.dart';
 
 /// Las dos vistas de Pedidos: todos, y los de recojo para caja.
 const ordersTabs = <PanelTab>[
@@ -217,7 +218,7 @@ class _AdminOrdersScreenState extends ConsumerState<AdminOrdersScreen> {
               'Estado',
               (o) => StatusBadge(
                 label: o.order.statusLabel,
-                color: orderStatusColor(o.order.status),
+                color: orderStatusColor(context.palette, o.order.status),
               ),
               flex: 3,
             ),
@@ -275,7 +276,7 @@ class _StatusFilter extends StatelessWidget {
             value: status,
             child: StatusBadge(
               label: status.label,
-              color: orderStatusColor(status),
+              color: orderStatusColor(context.palette, status),
             ),
           ),
       ],

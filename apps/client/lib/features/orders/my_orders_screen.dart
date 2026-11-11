@@ -11,7 +11,6 @@ import '../../orders/order_filter.dart';
 import '../../orders/order_status.dart';
 import '../../orders/orders_providers.dart';
 import '../../router/routes.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/brand.dart';
 import '../shared/date_format.dart';
@@ -22,6 +21,7 @@ import '../shared/info_line.dart';
 import '../shared/store_details.dart';
 import 'order_lines.dart';
 import 'order_tracker.dart';
+import '../../theme/palette.dart';
 
 /// Los pedidos de la cuenta, cada uno con su seguimiento, con la búsqueda
 /// (N.º o producto) y los filtros por estado, entrega y fechas. Con
@@ -329,14 +329,14 @@ class _ReceivedNotice extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLowest,
-          border: Border.all(color: StateColors.positive),
+          border: Border.all(color: context.palette.positive),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Icon(Icons.check_circle, color: StateColors.positive),
+              Icon(Icons.check_circle, color: context.palette.positive),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -624,16 +624,16 @@ class _ReadyForPickupNotice extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: theme.colorScheme.surfaceContainerLow,
-          border: Border.all(color: OrderStatusColors.readyForPickup, width: 2),
+          border: Border.all(color: context.palette.statusReady, width: 2),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.shopping_bag_outlined,
-                color: OrderStatusColors.readyForPickup,
+                color: context.palette.statusReady,
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -8,6 +8,8 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app.dart';
+import 'appearance/appearance_providers.dart';
+import 'appearance/appearance_repository.dart';
 import 'cart/cart_storage.dart';
 import 'firebase_options.dart';
 
@@ -32,6 +34,10 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         cartStorageProvider.overrideWithValue(PrefsCartStorage(prefs)),
+        // La apariencia guardada, leída antes del primer cuadro.
+        appearanceRepositoryProvider.overrideWithValue(
+          PrefsAppearanceRepository(prefs),
+        ),
       ],
       child: const NeilsApp(),
     ),

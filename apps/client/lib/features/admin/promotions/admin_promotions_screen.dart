@@ -7,7 +7,6 @@ import '../../../admin/vip/vip_providers.dart';
 import '../../../common/days.dart';
 import '../../../common/money.dart';
 import '../../../router/routes.dart';
-import '../../../theme/brand_colors.dart';
 import '../../shared/date_format.dart';
 import '../../shared/filter_chips.dart';
 import '../shared/admin_page.dart';
@@ -18,6 +17,7 @@ import '../shared/status_badge.dart';
 import '../shared/vip_badge.dart';
 import 'promotion_form.dart';
 import 'promotions_tabs.dart';
+import '../../../theme/palette.dart';
 
 /// Las promociones, filtradas por estado: crear, editar (precio, fechas,
 /// encendida, título y audiencia) y eliminar. Las exclusivas de los clientes
@@ -144,8 +144,8 @@ class _AdminPromotionsScreenState extends ConsumerState<AdminPromotionsScreen> {
 /// Siempre con el estado en texto al lado.
 Color promotionStatusColor(BuildContext context, PromotionStatus status) =>
     switch (status) {
-      PromotionStatus.active => StateColors.positive,
-      PromotionStatus.scheduled => OrderStatusColors.onTheWay,
+      PromotionStatus.active => context.palette.positive,
+      PromotionStatus.scheduled => context.palette.statusOnTheWay,
       PromotionStatus.expired ||
       PromotionStatus.disabled => Theme.of(context).colorScheme.outline,
     };

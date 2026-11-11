@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../theme/brand_colors.dart';
 import 'account.dart';
 import 'brand.dart';
 import 'diagonal_band.dart';
+import '../../theme/palette.dart';
 
 /// El encabezado de la portada: el titular (con [titleAccent] en el rojo de
 /// la marca), el texto, las acciones y la franja diagonal con la foto
@@ -45,7 +45,7 @@ class BrandHero extends StatelessWidget {
                   TextSpan(text: titleStart),
                   TextSpan(
                     text: titleAccent,
-                    style: const TextStyle(color: NeilsColors.primary),
+                    style: TextStyle(color: context.palette.brandText),
                   ),
                 ],
               ),
@@ -114,7 +114,7 @@ class TrustBadges extends StatelessWidget {
     Widget badge((IconData, String) item) => Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(item.$1, color: NeilsColors.primary, size: 28),
+        Icon(item.$1, color: context.palette.brandText, size: 28),
         const SizedBox(width: 10),
         Flexible(child: Text(item.$2, style: style)),
       ],

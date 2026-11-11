@@ -7,7 +7,6 @@ import '../../offers/offers_providers.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/brand_images.dart';
 import '../catalog/category_card.dart';
 import '../offers/exclusive_offers.dart';
@@ -19,6 +18,7 @@ import '../shared/diagonal_band.dart';
 import '../shared/store_search_field.dart';
 import 'product_tabs.dart';
 import 'promotions_banner.dart';
+import '../../theme/palette.dart';
 
 /// Inicio, para negocios. En escritorio: el titular con sus botones, los
 /// sellos, "Nuestras categorías", la banda de promociones y las pestañas
@@ -166,7 +166,9 @@ class _Categories extends ConsumerWidget {
         CategoryCard(
           key: ValueKey(category.id),
           category: category,
-          colors: PlaceholderColors.pairs[i % PlaceholderColors.pairs.length],
+          colors: context
+              .palette
+              .placeholderPairs[i % context.palette.placeholderPairs.length],
           onTap: () => context.go(Routes.catalogOf(category.id)),
         ),
     ];

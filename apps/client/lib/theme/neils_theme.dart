@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'brand_colors.dart';
+import 'palette.dart';
 
 /// El rojo de la marca alcanza el contraste de un texto sobre el fondo
 /// (5,2:1) y con texto blanco encima (5,6:1): `primary` sirve para botones y
@@ -37,38 +38,80 @@ const neilsColorScheme = ColorScheme(
   onInverseSurface: NeilsColors.background,
 );
 
+/// El esquema oscuro: carbón cálido. El `primary` es el rojo claro de los
+/// textos ([NeilsPalette.brandText]); los botones rellenos fijan su fondo en
+/// el rojo del logo (ver [neilsTheme]).
+const neilsDarkColorScheme = ColorScheme(
+  brightness: Brightness.dark,
+  primary: Color(0xFFFF9A8F),
+  onPrimary: Color(0xFF3B0B07),
+  primaryContainer: Color(0xFF4A1E1A),
+  onPrimaryContainer: Color(0xFFFFD9D4),
+  secondary: Color(0xFFFF9A8F),
+  onSecondary: Color(0xFF3B0B07),
+  secondaryContainer: Color(0xFF4A1E1A),
+  onSecondaryContainer: Color(0xFFFFD9D4),
+  error: Color(0xFFFFB4AB),
+  onError: Color(0xFF690005),
+  errorContainer: Color(0xFF93000A),
+  onErrorContainer: Color(0xFFFFDAD6),
+  surface: Color(0xFF171513),
+  onSurface: Color(0xFFF4EEE7),
+  onSurfaceVariant: Color(0xFFB9ADA3),
+  outline: Color(0xFF8E8177),
+  outlineVariant: Color(0xFF3A322C),
+  surfaceContainerLowest: Color(0xFF24201C),
+  surfaceContainerLow: Color(0xFF2A2420),
+  surfaceContainer: Color(0xFF302A25),
+  surfaceContainerHigh: Color(0xFF362F29),
+  surfaceContainerHighest: Color(0xFF3D352F),
+  inverseSurface: Color(0xFFF4EEE7),
+  onInverseSurface: Color(0xFF171513),
+);
+
 /// La sombra cálida y suave de las tarjetas, en lugar del borde.
 const neilsCardShadow = Color(0x331F1A17);
 
-/// Tema de la app. Como la web y Android, siempre la paleta clara de la marca
-/// (fondo hueso), sin modo oscuro: la tienda se ve igual en todas partes.
-ThemeData neilsTheme() {
-  final textTheme = neilsTextTheme();
+/// La sombra de las tarjetas en oscuro: negra, porque sobre el carbón la
+/// cálida no se ve.
+const _darkCardShadow = Color(0x66000000);
+
+/// Tema de la app, claro u oscuro según [brightness]. Lleva la paleta de ese
+/// modo como extensión ([NeilsPalette]): las pantallas toman de ahí sus
+/// colores. En los dos, los botones rellenos van en el rojo del logo con
+/// texto blanco.
+ThemeData neilsTheme([Brightness brightness = Brightness.light]) {
+  final dark = brightness == Brightness.dark;
+  final palette = dark ? NeilsPalette.dark : NeilsPalette.light;
+  final textTheme = neilsTextTheme(palette.ink);
   const buttonShape = RoundedRectangleBorder(
     borderRadius: BorderRadius.all(Radius.circular(10)),
   );
   const buttonSize = Size(64, 44);
   return ThemeData(
-    colorScheme: neilsColorScheme,
-    scaffoldBackgroundColor: NeilsColors.background,
+    colorScheme: dark ? neilsDarkColorScheme : neilsColorScheme,
+    extensions: [palette],
+    scaffoldBackgroundColor: palette.background,
     textTheme: textTheme,
     appBarTheme: AppBarTheme(
-      backgroundColor: NeilsColors.background,
-      foregroundColor: NeilsColors.ink,
+      backgroundColor: palette.background,
+      foregroundColor: palette.ink,
       scrolledUnderElevation: 0,
       titleTextStyle: textTheme.titleLarge,
     ),
-    cardTheme: const CardThemeData(
-      color: NeilsColors.surface,
+    cardTheme: CardThemeData(
+      color: palette.surface,
       elevation: 1,
-      shadowColor: neilsCardShadow,
+      shadowColor: dark ? _darkCardShadow : neilsCardShadow,
       surfaceTintColor: Colors.transparent,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.all(Radius.circular(16)),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
+        backgroundColor: palette.brandFill,
+        foregroundColor: palette.onBrand,
         shape: buttonShape,
         minimumSize: buttonSize,
       ),
@@ -82,16 +125,16 @@ ThemeData neilsTheme() {
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(shape: buttonShape, minimumSize: buttonSize),
     ),
-    inputDecorationTheme: const InputDecorationTheme(
-      border: OutlineInputBorder(
+    inputDecorationTheme: InputDecorationTheme(
+      border: const OutlineInputBorder(
         borderRadius: BorderRadius.all(Radius.circular(12)),
       ),
       filled: true,
-      fillColor: NeilsColors.surface,
+      fillColor: palette.surface,
     ),
-    chipTheme: const ChipThemeData(
-      shape: StadiumBorder(),
-      selectedColor: NeilsColors.primaryTint,
+    chipTheme: ChipThemeData(
+      shape: const StadiumBorder(),
+      selectedColor: palette.brandTint,
     ),
   );
 }
@@ -104,32 +147,37 @@ ThemeData neilsAdminTheme(ThemeData base) {
   final scheme = base.colorScheme;
   final text = base.textTheme;
   final muted = scheme.onSurfaceVariant;
+  final palette = base.extension<NeilsPalette>() ?? NeilsPalette.light;
+  final shadow = base.brightness == Brightness.dark
+      ? _darkCardShadow
+      : neilsCardShadow;
+  // Lo elegido (navegación): el texto sobre el tono claro, que en oscuro es
+  // el rosado claro del esquema.
+  final selected = scheme.onPrimaryContainer;
   return base.copyWith(
     // La barra, blanca y con una sombra fina abajo.
     appBarTheme: base.appBarTheme.copyWith(
       backgroundColor: scheme.surfaceContainerLowest,
       elevation: 1,
       scrolledUnderElevation: 1,
-      shadowColor: neilsCardShadow,
+      shadowColor: shadow,
       surfaceTintColor: Colors.transparent,
     ),
     cardTheme: CardThemeData(
       color: scheme.surfaceContainerLowest,
       elevation: 1,
-      shadowColor: neilsCardShadow,
+      shadowColor: shadow,
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
     navigationRailTheme: NavigationRailThemeData(
-      backgroundColor: NeilsColors.background,
-      indicatorColor: NeilsColors.primaryTint,
-      selectedIconTheme: const IconThemeData(color: NeilsColors.primaryDark),
+      backgroundColor: palette.background,
+      indicatorColor: palette.brandTint,
+      selectedIconTheme: IconThemeData(color: selected),
       unselectedIconTheme: IconThemeData(color: muted),
-      selectedLabelTextStyle: text.labelLarge?.copyWith(
-        color: NeilsColors.primaryDark,
-      ),
+      selectedLabelTextStyle: text.labelLarge?.copyWith(color: selected),
       unselectedLabelTextStyle: text.labelLarge?.copyWith(
         color: muted,
         fontWeight: FontWeight.w500,
@@ -137,7 +185,7 @@ ThemeData neilsAdminTheme(ThemeData base) {
     ),
     navigationBarTheme: NavigationBarThemeData(
       backgroundColor: scheme.surfaceContainerLow,
-      indicatorColor: NeilsColors.primaryTint,
+      indicatorColor: palette.brandTint,
       iconTheme: WidgetStateProperty.resolveWith(
         (states) => IconThemeData(
           color: states.contains(WidgetState.selected) ? scheme.primary : muted,
@@ -151,28 +199,28 @@ ThemeData neilsAdminTheme(ThemeData base) {
     ),
     chipTheme: base.chipTheme.copyWith(
       backgroundColor: scheme.surfaceContainerLowest,
-      selectedColor: NeilsColors.primaryTint,
-      checkmarkColor: NeilsColors.ink,
+      selectedColor: palette.brandTint,
+      checkmarkColor: palette.ink,
       side: BorderSide(color: scheme.outlineVariant),
-      labelStyle: text.labelLarge?.copyWith(color: NeilsColors.ink),
+      labelStyle: text.labelLarge?.copyWith(color: palette.ink),
     ),
     // Como los chips: el segmento elegido en el tono claro, no en rojo.
     segmentedButtonTheme: SegmentedButtonThemeData(
       style: SegmentedButton.styleFrom(
         backgroundColor: scheme.surfaceContainerLowest,
-        foregroundColor: NeilsColors.ink,
-        selectedBackgroundColor: NeilsColors.primaryTint,
-        selectedForegroundColor: NeilsColors.ink,
+        foregroundColor: palette.ink,
+        selectedBackgroundColor: palette.brandTint,
+        selectedForegroundColor: palette.ink,
         side: BorderSide(color: scheme.outlineVariant),
       ),
     ),
-    dialogTheme: DialogThemeData(backgroundColor: NeilsColors.background),
+    dialogTheme: DialogThemeData(backgroundColor: palette.background),
   );
 }
 
 /// Poppins (600/700/800) para títulos y botones; Inter (400/500) para el
 /// resto, que en textos largos y tablas se lee mejor.
-TextTheme neilsTextTheme() {
+TextTheme neilsTextTheme([Color ink = NeilsColors.ink]) {
   final base = Typography.material2021().black;
   TextStyle poppins(TextStyle? style, FontWeight weight) =>
       GoogleFonts.poppins(textStyle: style, fontWeight: weight);
@@ -195,19 +243,18 @@ TextTheme neilsTextTheme() {
     labelLarge: poppins(base.labelLarge, FontWeight.w600),
     labelMedium: inter(base.labelMedium, FontWeight.w500),
     labelSmall: inter(base.labelSmall, FontWeight.w500),
-  ).apply(bodyColor: NeilsColors.ink, displayColor: NeilsColors.ink);
+  ).apply(bodyColor: ink, displayColor: ink);
 }
 
 /// Estilos de la marca que no son parte del TextTheme de Material.
 abstract final class NeilsText {
-  /// Precios: Poppins Bold, en tinta. Un precio en oferta va en [color]
-  /// `NeilsColors.primary`, que sobre el fondo también se lee (5,2:1).
-  static TextStyle price({
-    double fontSize = 22,
-    Color color = NeilsColors.ink,
-  }) => GoogleFonts.poppins(
-    fontSize: fontSize,
-    fontWeight: FontWeight.w700,
-    color: color,
-  );
+  /// Precios: Poppins Bold. Sin [color], el del texto del tema (tinta en
+  /// claro, crema en oscuro). Un precio en oferta va en el rojo de los textos
+  /// de la paleta.
+  static TextStyle price({double fontSize = 22, Color? color}) =>
+      GoogleFonts.poppins(
+        fontSize: fontSize,
+        fontWeight: FontWeight.w700,
+        color: color,
+      );
 }

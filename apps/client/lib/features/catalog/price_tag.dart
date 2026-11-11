@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../catalog/product.dart';
 import '../../common/money.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/motion.dart';
 import '../../theme/neils_theme.dart';
 import '../shared/vip_tag.dart';
+import '../../theme/palette.dart';
 
 /// El precio que se paga hoy. En promoción, al lado va el precio normal tachado. Con un precio de cliente
 /// VIP, además la insignia VIP, y el precio entra con una animación breve,
@@ -50,8 +50,8 @@ class PriceTag extends StatelessWidget {
           style: NeilsText.price(
             fontSize: fontSize,
             color: promoPriceCents == null
-                ? NeilsColors.ink
-                : NeilsColors.primary,
+                ? context.palette.ink
+                : context.palette.brandText,
           ),
         ),
         if (promoPriceCents != null)

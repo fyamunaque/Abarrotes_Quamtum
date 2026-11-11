@@ -8,7 +8,6 @@ import '../../../catalog/product.dart';
 import '../../../common/money.dart';
 import '../../../session/session_provider.dart';
 import '../../../session/staff_permission.dart';
-import '../../../theme/brand_colors.dart';
 import '../../catalog/product_photo.dart';
 import '../shared/admin_page.dart';
 import '../shared/admin_table.dart';
@@ -18,6 +17,7 @@ import '../shared/refresh_button.dart';
 import '../shared/search_field.dart';
 import '../shared/status_badge.dart';
 import 'product_form.dart';
+import '../../../theme/palette.dart';
 
 /// Los productos, también los dados de baja (con `products.view`): buscar y
 /// filtrar por categoría. Con `products.manage`, crear, editar y dar de
@@ -175,7 +175,7 @@ class _AdminProductsScreenState extends ConsumerState<AdminProductsScreen> {
               (p) => StatusBadge(
                 label: p.active ? 'Activo' : 'De baja',
                 color: p.active
-                    ? StateColors.positive
+                    ? context.palette.positive
                     : Theme.of(context).colorScheme.outline,
               ),
             ),
@@ -295,7 +295,7 @@ class _StockCell extends StatelessWidget {
               : '${product.stock} · bajo',
           style: low
               ? TextStyle(
-                  color: OrderStatusColors.cancelled,
+                  color: context.palette.statusCancelled,
                   fontWeight: FontWeight.w600,
                 )
               : null,

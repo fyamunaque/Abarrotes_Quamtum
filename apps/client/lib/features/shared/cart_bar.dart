@@ -7,8 +7,8 @@ import '../../cart/cart_quote_provider.dart';
 import '../../common/money.dart';
 import '../../router/routes.dart';
 import '../../session/session_provider.dart';
-import '../../theme/brand_colors.dart';
 import '../../theme/neils_theme.dart';
+import '../../theme/palette.dart';
 
 /// La barra roja fija de abajo, en el teléfono: el ícono del carrito con
 /// [count] unidades, [label] ("Continuar", "Confirmar pedido") y el total,
@@ -46,7 +46,7 @@ class CartBar extends StatelessWidget {
           button: true,
           enabled: enabled,
           child: Material(
-            color: NeilsColors.primary,
+            color: context.palette.brandFill,
             borderRadius: BorderRadius.circular(16),
             clipBehavior: Clip.antiAlias,
             child: InkWell(
@@ -66,13 +66,13 @@ class CartBar extends StatelessWidget {
                       ],
                       Expanded(
                         child: busy
-                            ? const Align(
+                            ? Align(
                                 alignment: AlignmentDirectional.centerStart,
                                 child: SizedBox.square(
                                   dimension: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5,
-                                    color: NeilsColors.onPrimary,
+                                    color: context.palette.onBrand,
                                     semanticsLabel: 'Enviando',
                                   ),
                                 ),
@@ -80,7 +80,7 @@ class CartBar extends StatelessWidget {
                             : Text(
                                 label,
                                 style: text.titleMedium?.copyWith(
-                                  color: NeilsColors.onPrimary,
+                                  color: context.palette.onBrand,
                                 ),
                               ),
                       ),
@@ -88,7 +88,7 @@ class CartBar extends StatelessWidget {
                         width: 1,
                         height: 28,
                         margin: const EdgeInsets.symmetric(horizontal: 14),
-                        color: NeilsColors.onPrimaryDivider,
+                        color: context.palette.onBrandDivider,
                       ),
                       Column(
                         mainAxisSize: MainAxisSize.min,
@@ -98,14 +98,14 @@ class CartBar extends StatelessWidget {
                             Text(
                               totalLabel,
                               style: text.labelSmall?.copyWith(
-                                color: NeilsColors.onPrimary,
+                                color: context.palette.onBrand,
                               ),
                             ),
                           Text(
                             formatSoles(totalCents),
                             style: NeilsText.price(
                               fontSize: 20,
-                              color: NeilsColors.onPrimary,
+                              color: context.palette.onBrand,
                             ),
                           ),
                         ],
@@ -133,9 +133,9 @@ class _CartCount extends StatelessWidget {
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        const Icon(
+        Icon(
           Icons.shopping_cart_outlined,
-          color: NeilsColors.onPrimary,
+          color: context.palette.onBrand,
           size: 28,
         ),
         PositionedDirectional(
@@ -145,7 +145,7 @@ class _CartCount extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 20),
             padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
             decoration: BoxDecoration(
-              color: NeilsColors.onPrimary,
+              color: context.palette.onBrand,
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
@@ -153,7 +153,7 @@ class _CartCount extends StatelessWidget {
               textAlign: TextAlign.center,
               semanticsLabel: count == 1 ? '1 unidad' : '$count unidades',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: NeilsColors.primary,
+                color: context.palette.brandFill,
                 fontWeight: FontWeight.w700,
               ),
             ),
