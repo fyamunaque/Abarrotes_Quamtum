@@ -121,4 +121,34 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('en oscuro, el ticket va sobre el panel cálido oscuro', (
+    tester,
+  ) async {
+    await pumpTicket(
+      tester,
+      const CartTicket(
+        subtotalCents: 4980,
+        discountCents: 2490,
+        totalCents: 2490,
+      ),
+      brightness: Brightness.dark,
+    );
+
+    const dark = NeilsPalette.dark;
+    final paper = tester.widget<ColoredBox>(
+      find
+          .descendant(
+            of: find.byType(CartTicket),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(paper.color, dark.surfaceAlt);
+    expect(
+      tester.widget<Text>(find.text('−${formatSoles(2490)}')).style?.color,
+      dark.positive,
+    );
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -7,6 +7,7 @@ import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/line_total_pill.dart';
+import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_tile.dart';
 import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/features/catalog/stock_note.dart';
@@ -43,6 +44,7 @@ void main() {
     int inCart = 0,
     Size size = const Size(390, 844),
     double textScale = 1,
+    Brightness brightness = Brightness.light,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -62,7 +64,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: neilsTheme(),
+          theme: neilsTheme(brightness),
           home: MediaQuery(
             data: MediaQueryData(
               size: size,
@@ -457,5 +459,74 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(heroes(), findsOneWidget);
+  });
+
+  testWidgets('en oscuro, la fila va sobre el bloque oscuro con su precio', (
+    tester,
+  ) async {
+    const onSale = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial',
+      priceCents: 440,
+      promoPriceCents: 390,
+      stock: 40,
+    );
+    await pumpTile(tester, onSale, brightness: Brightness.dark);
+
+    const dark = NeilsPalette.dark;
+    final block = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byType(ProductRows),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(block.color, dark.surface);
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byType(PriceTag),
+              matching: find.text(formatSoles(390)),
+            ),
+          )
+          .style
+          ?.color,
+      dark.brandText,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('en 320 px con el texto al 130 % la fila entra entera', (
+    tester,
+  ) async {
+    const withOffer = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial de pavo ahumado en paquete familiar',
+      priceCents: 1990,
+      promoPriceCents: 1590,
+      stock: 4,
+      offers: [
+        (
+          type: 'extraUnit',
+          label: '2.ª al 50 %',
+          title: null,
+          description: 'La 2.ª unidad al 50 %',
+        ),
+      ],
+    );
+    await pumpTile(
+      tester,
+      withOffer,
+      size: const Size(320, 800),
+      textScale: 1.3,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Agregar').hitTestable(), findsOneWidget);
+    expect(find.text('2.ª al 50 %'), findsOneWidget);
   });
 }
