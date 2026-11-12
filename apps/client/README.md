@@ -216,6 +216,11 @@ de pedido recibido) usa `palette.positive`.
 - `CampaignBand` (`features/home/campaign_band.dart`): la franja roja de la campaña; sale de
   `onSalePageProvider`, el mismo pedido que la pestaña Promos.
 - `CartTicket` (`features/cart/cart_ticket.dart`): el resumen del carrito.
+- `CartNotice` (`features/cart/cart_notice.dart`): el aviso al agregar al carrito o editar la
+  cantidad. Una tarjeta flotante con borde fino: la foto, "Agregado al carrito" (o "Ahora llevas 3",
+  o "Ya tienes todo el stock" con un ícono de aviso), el nombre y "Ver carrito". En el teléfono
+  flota sobre la barra roja; se va sola a los 3 s (`cartNoticeDuration`) o al deslizarla hacia
+  abajo. La muestran `addToCart` y `updateCartQuantity` (`features/cart/add_to_cart.dart`).
 
 **El panel** (`neilsAdminTheme`, en `theme/neils_theme.dart`) usa una variante calmada del tema,
 solo bajo `/admin`:
