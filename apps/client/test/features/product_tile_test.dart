@@ -7,13 +7,22 @@ import 'package:neils/cart/cart_storage.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/money.dart';
 import 'package:neils/features/catalog/line_total_pill.dart';
+import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_tile.dart';
-import 'package:neils/features/catalog/promo_ribbon.dart';
+import 'package:neils/features/catalog/promo_tag.dart';
 import 'package:neils/features/catalog/stock_note.dart';
 import 'package:neils/session/session.dart';
 import 'package:neils/session/session_provider.dart';
+import 'package:neils/app.dart';
+import 'package:neils/catalog/catalog_providers.dart';
+import 'package:neils/features/catalog/product_detail_screen.dart';
+import 'package:neils/features/catalog/product_photo.dart';
+import 'package:neils/router/router.dart';
+import 'package:neils/router/routes.dart';
+import 'package:neils/theme/palette.dart';
 import 'package:neils/theme/neils_theme.dart';
 
+import '../fakes.dart';
 import '../support.dart';
 
 void main() {
@@ -35,6 +44,7 @@ void main() {
     int inCart = 0,
     Size size = const Size(390, 844),
     double textScale = 1,
+    Brightness brightness = Brightness.light,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -54,7 +64,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: neilsTheme(),
+          theme: neilsTheme(brightness),
           home: MediaQuery(
             data: MediaQueryData(
               size: size,
@@ -63,7 +73,9 @@ void main() {
             child: Scaffold(
               body: ListView(
                 padding: const EdgeInsets.all(16),
-                children: [ProductTile(product: product)],
+                children: [
+                  ProductRows(children: [ProductTile(product: product)]),
+                ],
               ),
             ),
           ),
@@ -110,6 +122,40 @@ void main() {
     await tester.pump();
 
     expect(find.text(formatSoles(1320)), findsOneWidget);
+  });
+
+  testWidgets('la pastilla cambia de total con un fundido', (tester) async {
+    await pumpTile(tester, ham);
+
+    await tester.tap(plus());
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 80));
+
+    final fades = tester
+        .widgetList<FadeTransition>(
+          find.descendant(
+            of: find.byType(LineTotalPill),
+            matching: find.byType(FadeTransition),
+          ),
+        )
+        .map((t) => t.opacity.value);
+    expect(fades.where((o) => o > 0 && o < 1), isNotEmpty);
+
+    await tester.pumpAndSettle();
+    expect(
+      find.descendant(
+        of: find.byType(LineTotalPill),
+        matching: find.text(formatSoles(880)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(LineTotalPill),
+        matching: find.text(formatSoles(440)),
+      ),
+      findsNothing,
+    );
   });
 
   testWidgets('la pastilla cuenta el 2x1', (tester) async {
@@ -217,7 +263,7 @@ void main() {
     expect(tester.widget<ButtonStyleButton>(button).onPressed, isNull);
   });
 
-  testWidgets('la cinta muestra la promoción', (tester) async {
+  testWidgets('la etiqueta muestra la promoción', (tester) async {
     const withOffer = Product(
       id: 'jamonada',
       sku: '3580',
@@ -236,12 +282,12 @@ void main() {
     await pumpTile(tester, withOffer);
 
     expect(
-      find.descendant(of: find.byType(PromoRibbon), matching: find.text('2x1')),
+      find.descendant(of: find.byType(PromoTag), matching: find.text('2x1')),
       findsOneWidget,
     );
   });
 
-  testWidgets('una cinta larga no tapa el nombre, con texto al 130 %', (
+  testWidgets('una etiqueta larga no tapa el nombre, con texto al 130 %', (
     tester,
   ) async {
     const withLongOffer = Product(
@@ -262,8 +308,8 @@ void main() {
     await pumpTile(tester, withLongOffer, textScale: 1.3);
 
     final title = tester.getRect(find.text(productTitle(withLongOffer)));
-    final ribbon = tester.getRect(find.byType(PromoRibbon));
-    expect(title.overlaps(ribbon), isFalse, reason: '$title y $ribbon');
+    final tag = tester.getRect(find.byType(PromoTag));
+    expect(title.overlaps(tag), isFalse, reason: '$title y $tag');
     expect(tester.takeException(), isNull);
   });
 
@@ -286,5 +332,201 @@ void main() {
 
     expect(tester.takeException(), isNull);
     expect(find.text('Agregar').hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('la fila no es una tarjeta: sin Card ni sombra', (tester) async {
+    await pumpTile(tester, ham);
+
+    expect(
+      find.descendant(
+        of: find.byType(ProductTile),
+        matching: find.byType(Card),
+      ),
+      findsNothing,
+    );
+    final raised = tester
+        .widgetList<Material>(
+          find.descendant(
+            of: find.byType(ProductTile),
+            matching: find.byType(Material),
+          ),
+        )
+        .where((m) => m.elevation > 0);
+    expect(raised, isEmpty);
+  });
+
+  testWidgets('ProductRows pone una línea entre filas y no al final', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    container = ProviderContainer(
+      overrides: [
+        sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+      ],
+    );
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: neilsTheme(),
+          home: Scaffold(
+            body: ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                ProductRows(
+                  children: [
+                    for (final product in const [rice, oil, milk])
+                      ProductTile(key: ValueKey(product.id), product: product),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final rows = find.byType(ProductRows);
+    expect(
+      find.descendant(of: rows, matching: find.byType(Divider)),
+      findsNWidgets(2),
+    );
+    // La última línea queda arriba de la última fila, no debajo.
+    final lastLine = tester.getRect(
+      find.descendant(of: rows, matching: find.byType(Divider)).last,
+    );
+    final lastRow = tester.getRect(find.byKey(const ValueKey('leche')));
+    expect(lastLine.bottom, lessThanOrEqualTo(lastRow.top + 0.5));
+    // Un solo bloque blanco con borde fino.
+    final block = tester.widget<Material>(
+      find.descendant(of: rows, matching: find.byType(Material)).first,
+    );
+    expect(block.color, NeilsPalette.light.surface);
+    expect(
+      (block.shape! as RoundedRectangleBorder).side.color,
+      NeilsPalette.light.line,
+    );
+  });
+
+  testWidgets('la foto viaja al detalle (también sin foto)', (tester) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionProvider.overrideWith(() => TestSession(const SignedOut())),
+          catalogRepositoryProvider.overrideWithValue(FakeCatalogRepository()),
+        ],
+        child: const NeilsApp(),
+      ),
+    );
+    ProviderScope.containerOf(tester.element(find.byType(NeilsApp)))
+        .read(routerProvider)
+        .go(Routes.catalog);
+    await tester.pumpAndSettle();
+    expect(rice.imageUrl, isNull);
+
+    Finder heroes() => find.byWidgetPredicate(
+      (w) => w is Hero && w.tag == 'producto-${rice.id}',
+    );
+    expect(heroes(), findsOneWidget);
+
+    await tester.tap(find.text(productTitle(rice)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // En vuelo: el Hero de la fila y el del detalle, y entre los dos la foto
+    // de un tamaño intermedio (más que los 64 px de la fila, menos que el
+    // ancho del detalle). Nada falla.
+    expect(tester.takeException(), isNull);
+    expect(find.byType(ProductDetailScreen), findsOneWidget);
+    expect(heroes(), findsNWidgets(2));
+    final widths = [
+      for (final e in find.byType(ProductPhoto, skipOffstage: false).evaluate())
+        (e.renderObject! as RenderBox).size.width,
+    ];
+    expect(
+      widths.where((w) => w > 65 && w < 350),
+      isNotEmpty,
+      reason: '$widths',
+    );
+
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    expect(heroes(), findsOneWidget);
+  });
+
+  testWidgets('en oscuro, la fila va sobre el bloque oscuro con su precio', (
+    tester,
+  ) async {
+    const onSale = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial',
+      priceCents: 440,
+      promoPriceCents: 390,
+      stock: 40,
+    );
+    await pumpTile(tester, onSale, brightness: Brightness.dark);
+
+    const dark = NeilsPalette.dark;
+    final block = tester.widget<Material>(
+      find
+          .descendant(
+            of: find.byType(ProductRows),
+            matching: find.byType(Material),
+          )
+          .first,
+    );
+    expect(block.color, dark.surface);
+    expect(
+      tester
+          .widget<Text>(
+            find.descendant(
+              of: find.byType(PriceTag),
+              matching: find.text(formatSoles(390)),
+            ),
+          )
+          .style
+          ?.color,
+      dark.brandText,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('en 320 px con el texto al 130 % la fila entra entera', (
+    tester,
+  ) async {
+    const withOffer = Product(
+      id: 'jamonada',
+      sku: '3580',
+      name: 'Jamonada especial de pavo ahumado en paquete familiar',
+      priceCents: 1990,
+      promoPriceCents: 1590,
+      stock: 4,
+      offers: [
+        (
+          type: 'extraUnit',
+          label: '2.ª al 50 %',
+          title: null,
+          description: 'La 2.ª unidad al 50 %',
+        ),
+      ],
+    );
+    await pumpTile(
+      tester,
+      withOffer,
+      size: const Size(320, 800),
+      textScale: 1.3,
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Agregar').hitTestable(), findsOneWidget);
+    expect(find.text('2.ª al 50 %'), findsOneWidget);
   });
 }

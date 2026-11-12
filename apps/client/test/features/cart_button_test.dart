@@ -35,31 +35,45 @@ void main() {
     );
   }
 
-  double scale(WidgetTester tester) => tester
-      .widget<ScaleTransition>(
+  /// Las escalas que hay dentro del botón (ninguna, si no rebota).
+  Iterable<double> scales(WidgetTester tester) => tester
+      .widgetList<ScaleTransition>(
         find.descendant(
           of: find.byType(CartButton),
           matching: find.byType(ScaleTransition),
         ),
       )
-      .scale
-      .value;
+      .map((t) => t.scale.value);
 
-  testWidgets('al agregar, el contador sube y el carrito rebota', (
+  Iterable<double> fades(WidgetTester tester) => tester
+      .widgetList<FadeTransition>(
+        find.descendant(
+          of: find.byType(CartButton),
+          matching: find.byType(FadeTransition),
+        ),
+      )
+      .map((t) => t.opacity.value);
+
+  testWidgets('el número del carrito cambia con un fundido, sin rebote', (
     tester,
   ) async {
     await pumpButton(tester);
-    expect(find.byTooltip('Carrito'), findsOneWidget);
+    container.read(cartProvider.notifier).add(rice);
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Carrito: 1'), findsOneWidget);
 
     container.read(cartProvider.notifier).add(rice, 2);
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 80));
 
-    expect(find.byTooltip('Carrito: 2'), findsOneWidget);
-    expect(scale(tester), greaterThan(1));
+    expect(find.byTooltip('Carrito: 3'), findsOneWidget);
+    expect(scales(tester).where((s) => s > 1), isEmpty);
+    // A mitad del fundido: el número nuevo entra y el de antes sale.
+    expect(fades(tester).where((o) => o > 0 && o < 1), isNotEmpty);
 
     await tester.pumpAndSettle();
-    expect(scale(tester), 1);
+    expect(find.text('3'), findsOneWidget);
+    expect(find.text('1'), findsNothing);
   });
 
   testWidgets('al quitar no rebota', (tester) async {
@@ -74,14 +88,19 @@ void main() {
     expect(find.byTooltip('Carrito'), findsOneWidget);
   });
 
-  testWidgets('con "reducir animaciones" no rebota', (tester) async {
+  testWidgets('con reducir animaciones, el número cambia en el acto', (
+    tester,
+  ) async {
     await pumpButton(tester, reduceMotion: true);
+    container.read(cartProvider.notifier).add(rice);
+    await tester.pumpAndSettle();
 
     container.read(cartProvider.notifier).add(rice);
     await tester.pump();
 
     expect(tester.hasRunningAnimations, isFalse);
-    expect(scale(tester), 1);
-    expect(find.byTooltip('Carrito: 1'), findsOneWidget);
+    expect(find.text('2'), findsOneWidget);
+    expect(find.text('1'), findsNothing);
+    expect(find.byTooltip('Carrito: 2'), findsOneWidget);
   });
 }

@@ -29,18 +29,20 @@ final productProvider = FutureProvider.family<Product, String>((ref, id) {
   return ref.watch(catalogRepositoryProvider).product(id);
 });
 
-/// "Promociones de hoy" en el inicio: la primera página de los productos con
-/// una promoción vigente que la cuenta puede usar, con su precio. Si la cuenta
-/// pasa a ser VIP (o deja de serlo), se vuelven a pedir.
-final onSaleProductsProvider = FutureProvider.autoDispose<List<Product>>((
-  ref,
-) async {
+/// La primera página de los productos con una promoción vigente que la
+/// cuenta puede usar, con su precio y cuántos son en total (la franja de la
+/// campaña). Si la cuenta pasa a ser VIP (o deja de serlo), se vuelven a
+/// pedir.
+final onSalePageProvider = FutureProvider.autoDispose<PageList<Product>>((ref) {
   ref.watch(isVipProvider);
-  final page = await ref
-      .watch(catalogRepositoryProvider)
-      .products(onSale: true);
-  return page.items;
+  return ref.watch(catalogRepositoryProvider).products(onSale: true);
 });
+
+/// "Promociones de hoy" en el inicio: los productos de [onSalePageProvider]
+/// (el mismo pedido).
+final onSaleProductsProvider = FutureProvider.autoDispose<List<Product>>(
+  (ref) async => (await ref.watch(onSalePageProvider.future)).items,
+);
 
 /// Frecuentes (la pestaña de la portada): lo que más pide la cuenta abierta.
 /// Sin cuenta, ninguno y sin preguntar al servidor. Cambia con la cuenta y

@@ -29,7 +29,8 @@ abstract final class Routes {
   /// "Promociones": el catálogo con los productos en promoción.
   static const promotions = '/catalogo?promos=1';
 
-  /// El detalle de un producto.
+  /// El detalle de un producto. Desde una lista se abre con openProduct
+  /// (router/navigation.dart).
   static String product(String id) => '/producto/${Uri.encodeComponent(id)}';
 
   /// Los pedidos de la cuenta: pide haber ingresado (ver route_guard.dart).

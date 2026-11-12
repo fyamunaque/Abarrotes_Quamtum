@@ -9,14 +9,13 @@ import '../../cart/checkout_provider.dart';
 import '../../common/money.dart';
 import '../../orders/fulfillment.dart';
 import '../../orders/order.dart';
-import '../../orders/quote.dart';
 import '../../router/routes.dart';
 import '../../session/session.dart';
 import '../../session/session_provider.dart';
 import '../../store/store_providers.dart';
 import '../../theme/motion.dart';
-import '../../theme/neils_theme.dart';
 import '../catalog/line_total_pill.dart';
+import '../catalog/promo_tag.dart';
 import '../catalog/product_photo.dart';
 import '../catalog/product_tile.dart';
 import '../shared/brand.dart';
@@ -29,6 +28,7 @@ import '../shared/store_details.dart';
 import '../shared/verify_email_notice.dart';
 import '../shared/vip_tag.dart';
 import '../../theme/palette.dart';
+import 'cart_ticket.dart';
 
 /// El carrito: cambiar cantidades, quitar productos, ver el total y hacer el
 /// pedido. El total sale de la cotización del servidor ([cartQuoteProvider],
@@ -44,6 +44,10 @@ class CartScreen extends ConsumerStatefulWidget {
 
   /// Por debajo de este ancho, la barra fija.
   static const checkoutBarBelow = 720.0;
+
+  /// Desde este ancho, las líneas a la izquierda y, al lado, la entrega, el
+  /// ticket y "Confirmar pedido" (el mismo de Mis pedidos lado a lado).
+  static const twoColumnsFrom = 1100.0;
 
   @override
   ConsumerState<CartScreen> createState() => _CartScreenState();
@@ -107,12 +111,64 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     final quote = shownQuote(cart, quoted, ref.watch(sessionProvider));
     final quoteFailed = quoted.hasError && !quoted.isLoading;
     final totalCents = quote?.totalCents ?? cart.totalCents;
-    final withBar =
-        !cart.isEmpty &&
-        MediaQuery.sizeOf(context).width < CartScreen.checkoutBarBelow;
+    final width = MediaQuery.sizeOf(context).width;
+    final withBar = !cart.isEmpty && width < CartScreen.checkoutBarBelow;
+    final twoColumns = width >= CartScreen.twoColumnsFrom;
+    final lines = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        ProductRows(
+          children: [
+            for (final line in cart.lines)
+              _CartLineTile(
+                line,
+                quoted: quote?.lineOf(line.product.id),
+                key: ValueKey(line.product.id),
+              ),
+            for (final gift in quote?.gifts ?? const <OrderLine>[])
+              _GiftLine(gift),
+          ],
+        ),
+        const SizedBox(height: 8),
+        if (quoteFailed)
+          const _QuoteNotice(
+            'No pudimos calcular las promociones. El total final se '
+            'confirma al pedir.',
+          )
+        else
+          for (final notice in quote?.notices ?? const <String>[])
+            _QuoteNotice(notice),
+        Align(
+          alignment: AlignmentDirectional.centerStart,
+          child: TextButton.icon(
+            onPressed: () => context.go(Routes.myCodesFrom(Routes.cart)),
+            icon: const Icon(Icons.confirmation_number_outlined),
+            label: const Text('¿Tienes un código?'),
+          ),
+        ),
+      ],
+    );
+    final summary = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        CartTicket(
+          subtotalCents: quote?.subtotalCents ?? cart.totalCents,
+          discountCents: quote?.discountCents ?? 0,
+          totalCents: totalCents,
+        ),
+        const SizedBox(height: 24),
+        _Checkout(
+          formKey: _formKey,
+          address: _address,
+          addressField: _addressField,
+          // Con la barra, el botón y el error van en ella.
+          onConfirm: withBar ? null : _confirm,
+        ),
+      ],
+    );
     return PublicScaffold(
       title: 'Carrito',
-      maxWidth: 720,
+      maxWidth: twoColumns ? 1120 : 720,
       // El aviso del correo va en el checkout, donde hace falta.
       showVerifyEmail: false,
       showCartBar: false,
@@ -126,41 +182,19 @@ class _CartScreenState extends ConsumerState<CartScreen> {
           const SizedBox(height: 8),
           if (cart.isEmpty)
             const _EmptyCart()
+          else if (twoColumns)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(flex: 5, child: lines),
+                const SizedBox(width: 28),
+                Expanded(flex: 4, child: summary),
+              ],
+            )
           else ...[
-            for (final line in cart.lines)
-              _CartLineTile(
-                line,
-                quoted: quote?.lineOf(line.product.id),
-                key: ValueKey(line.product.id),
-              ),
-            for (final gift in quote?.gifts ?? const <OrderLine>[])
-              _GiftLine(gift),
-            if (quoteFailed)
-              const _QuoteNotice(
-                'No pudimos calcular las promociones. El total final se '
-                'confirma al pedir.',
-              )
-            else
-              for (final notice in quote?.notices ?? const <String>[])
-                _QuoteNotice(notice),
-            Align(
-              alignment: AlignmentDirectional.centerStart,
-              child: TextButton.icon(
-                onPressed: () => context.go(Routes.myCodesFrom(Routes.cart)),
-                icon: const Icon(Icons.confirmation_number_outlined),
-                label: const Text('¿Tienes un código?'),
-              ),
-            ),
-            const Divider(height: 32),
-            _Total(cart, quote: quote),
-            const SizedBox(height: 24),
-            _Checkout(
-              formKey: _formKey,
-              address: _address,
-              addressField: _addressField,
-              // Con la barra, el botón y el error van en ella.
-              onConfirm: withBar ? null : _confirm,
-            ),
+            lines,
+            const SizedBox(height: 16),
+            summary,
           ],
         ],
       ),
@@ -187,88 +221,81 @@ class _CartLineTile extends ConsumerWidget {
     final product = line.product;
     final cart = ref.read(cartProvider.notifier);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
-                    child: SizedBox.square(
-                      dimension: 72,
-                      child: ProductPhoto(
-                        product.imageUrl,
-                        name: product.name,
-                        colorKey: product.category?.id,
-                        initialSize: 28,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          productTitle(product),
-                          style: theme.textTheme.titleSmall,
-                        ),
-                        Wrap(
-                          spacing: 6,
-                          crossAxisAlignment: WrapCrossAlignment.center,
-                          children: [
-                            Text(
-                              '${formatSoles(quoted?.unitPriceCents ?? product.finalPriceCents)} c/u',
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                            if (product.vipPrice && ref.watch(isVipProvider))
-                              const VipTag(),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    tooltip: 'Quitar del carrito',
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => cart.remove(product.id),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Row(
-                children: [
-                  QuantityStepper(
-                    quantity: line.quantity,
-                    max: product.maxQuantity,
-                    dense: true,
-                    onChanged: (quantity) =>
-                        cart.setQuantity(product.id, quantity),
-                  ),
-                  const Spacer(),
-                  LineTotalPill(quoted?.lineTotalCents ?? line.totalCents),
-                ],
-              ),
-              for (final promotion in quoted?.promotions ?? const [])
-                Align(
-                  alignment: AlignmentDirectional.centerEnd,
-                  child: Text(
-                    '${promotion.label} −${formatSoles(promotion.savedCents)}',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: context.palette.positive,
-                    ),
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: SizedBox.square(
+                  dimension: 72,
+                  child: ProductPhoto(
+                    product.imageUrl,
+                    name: product.name,
+                    colorKey: product.category?.id,
+                    initialSize: 28,
                   ),
                 ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      productTitle(product),
+                      style: theme.textTheme.titleSmall,
+                    ),
+                    Wrap(
+                      spacing: 6,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text(
+                          '${formatSoles(quoted?.unitPriceCents ?? product.finalPriceCents)} c/u',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        if (product.vipPrice && ref.watch(isVipProvider))
+                          const VipTag(),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Quitar del carrito',
+                icon: const Icon(Icons.delete_outline),
+                onPressed: () => cart.remove(product.id),
+              ),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              QuantityStepper(
+                quantity: line.quantity,
+                max: product.maxQuantity,
+                dense: true,
+                onChanged: (quantity) => cart.setQuantity(product.id, quantity),
+              ),
+              const Spacer(),
+              LineTotalPill(quoted?.lineTotalCents ?? line.totalCents),
+            ],
+          ),
+          for (final promotion in quoted?.promotions ?? const [])
+            Align(
+              alignment: AlignmentDirectional.centerEnd,
+              child: Text(
+                '${promotion.label} −${formatSoles(promotion.savedCents)}',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: context.palette.positive,
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -284,52 +311,30 @@ class _GiftLine extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            children: [
-              SizedBox.square(
-                dimension: 72,
-                child: Icon(
-                  Icons.card_giftcard_outlined,
-                  size: 32,
-                  color: context.palette.brandText,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  '${gift.quantity} × ${gift.name}',
-                  style: theme.textTheme.titleSmall,
-                ),
-              ),
-              const SizedBox(width: 8),
-              // La cinta de los regalos, como la de las promociones.
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: context.palette.brandFill,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'Regalo',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: context.palette.onBrand,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              const LineTotalPill(0),
-            ],
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          SizedBox.square(
+            dimension: 72,
+            child: Icon(
+              Icons.card_giftcard_outlined,
+              size: 32,
+              color: context.palette.brandText,
+            ),
           ),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '${gift.quantity} × ${gift.name}',
+              style: theme.textTheme.titleSmall,
+            ),
+          ),
+          const SizedBox(width: 8),
+          // La etiqueta de los regalos, como la de las promociones.
+          const PromoTag.gift(),
+          const SizedBox(width: 8),
+          const LineTotalPill(0),
+        ],
       ),
     );
   }
@@ -345,64 +350,6 @@ class _QuoteNotice extends StatelessWidget {
   @override
   Widget build(BuildContext context) =>
       InfoLine(icon: Icons.info_outline, text: text);
-}
-
-/// El total: el de la cotización ([quote]), con el subtotal y los
-/// descuentos si los hay, o la estimación del carrito.
-class _Total extends StatelessWidget {
-  const _Total(this.cart, {this.quote});
-
-  final Cart cart;
-  final Quote? quote;
-
-  @override
-  Widget build(BuildContext context) {
-    final text = Theme.of(context).textTheme;
-    final quote = this.quote;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (quote != null && quote.discountCents > 0) ...[
-          Row(
-            children: [
-              Expanded(child: Text('Subtotal', style: text.bodyLarge)),
-              Text(formatSoles(quote.subtotalCents), style: text.bodyLarge),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Expanded(child: Text('Descuentos', style: text.bodyLarge)),
-              Text(
-                '−${formatSoles(quote.discountCents)}',
-                style: text.bodyLarge?.copyWith(
-                  color: context.palette.positive,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-        ],
-        Row(
-          children: [
-            // Con el texto agrandado, "Total estimado" baja de línea antes
-            // que el monto se salga de la pantalla.
-            Expanded(child: Text('Total estimado', style: text.titleLarge)),
-            const SizedBox(width: 12),
-            Text(
-              formatSoles(quote?.totalCents ?? cart.totalCents),
-              style: NeilsText.price(fontSize: 26),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          'El precio final lo confirma la tienda al hacer el pedido.',
-          style: text.bodySmall,
-        ),
-      ],
-    );
-  }
 }
 
 /// Desde este ancho, las opciones de entrega llevan su ícono.

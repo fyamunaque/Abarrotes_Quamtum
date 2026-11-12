@@ -210,6 +210,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
                       semanticLabel: 'La foto elegida',
                     ),
                     null => CategoryPhoto(
+                      showInitial: true,
                       category: Category(
                         id: current?.id ?? 'nueva',
                         name: current?.name ?? _name.text,

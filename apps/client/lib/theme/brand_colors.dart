@@ -6,6 +6,10 @@ abstract final class NeilsColors {
   /// 5,2:1: sirve para botones y para textos.
   static const primary = Color(0xFFC8281E);
 
+  /// El rojo de los textos, enlaces y precios en oferta: más hondo que
+  /// [primary], 7:1 sobre el fondo.
+  static const primaryText = Color(0xFFA61F18);
+
   /// Botón presionado y texto sobre [primaryTint] (6,5:1).
   static const primaryDark = Color(0xFF9E1B14);
 
@@ -19,17 +23,17 @@ abstract final class NeilsColors {
   /// Las rayas divisorias sobre el rojo (54 % de blanco).
   static const onPrimaryDivider = Color(0x8AFFFFFF);
 
-  /// Hueso: el fondo de la app.
-  static const background = Color(0xFFFBF7F2);
+  /// Hueso, casi blanco: el fondo de la app.
+  static const background = Color(0xFFFAF8F5);
 
   /// Las tarjetas.
   static const surface = Color(0xFFFFFFFF);
 
-  static const ink = Color(0xFF1F1A17);
+  static const ink = Color(0xFF211B17);
 
-  /// La pastilla del total de una línea: [money] sobre [moneyTint] (5,5:1).
-  static const money = Color(0xFF276B43);
-  static const moneyTint = Color(0xFFE3F2E7);
+  /// La pastilla del total de una línea: [money] sobre [moneyTint] (6,9:1).
+  static const money = Color(0xFF205B38);
+  static const moneyTint = Color(0xFFE1F2E7);
 }
 
 /// Colores de los estados de pedido (seguimiento, chips). Son para gráficos:

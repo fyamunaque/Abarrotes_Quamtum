@@ -9,18 +9,55 @@ import '../shared/quantity_stepper.dart';
 import 'line_total_pill.dart';
 import 'price_tag.dart';
 import 'product_photo.dart';
-import 'promo_ribbon.dart';
-import 'stock_note.dart';
+import 'promo_tag.dart';
+import '../../theme/palette.dart';
 
 /// El nombre de un producto con su código adelante, como en las maquetas
 /// ("3580 – Jamonada especial"). Sin código, el nombre solo.
 String productTitle(Product product) =>
     product.sku.isEmpty ? product.name : '${product.sku} – ${product.name}';
 
-/// Un producto en una lista (el teléfono): la foto, el código y el nombre,
-/// el precio y el stock, y debajo la cantidad, lo que costaría y "Agregar"
-/// (o "Editar", si ya está en el carrito). La cinta de su promoción cuelga
-/// del borde de arriba, al lado del nombre, sin taparlo.
+/// El tag del [Hero] de la foto de un producto: la misma en la fila, la
+/// tarjeta y el detalle, así la foto viaja al abrirlo.
+String productHeroTag(Product product) => 'producto-${product.id}';
+
+/// Los productos del teléfono en un solo bloque [NeilsPalette.surface] con
+/// un borde fino, y una línea entre fila y fila (no al final). Sin
+/// productos no ocupa lugar.
+class ProductRows extends StatelessWidget {
+  const ProductRows({super.key, required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    if (children.isEmpty) return const SizedBox.shrink();
+    final palette = context.palette;
+    return Material(
+      color: palette.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: const BorderRadius.all(Radius.circular(12)),
+        side: BorderSide(color: palette.line),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final (i, child) in children.indexed) ...[
+            if (i > 0) Divider(height: 1, thickness: 1, color: palette.line),
+            child,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Un producto en una fila (el teléfono, dentro de [ProductRows]): la foto
+/// de 64 px, el código y el nombre, y debajo la etiqueta de su promoción o
+/// el stock ([TagOrStock]); el precio a la derecha. En la segunda línea, la
+/// cantidad, lo que costaría y "Agregar" (o "Editar", si ya está en el
+/// carrito). No es una tarjeta: sin fondo ni sombra propios.
 class ProductTile extends StatelessWidget {
   const ProductTile({super.key, required this.product, this.onTap});
 
@@ -32,28 +69,29 @@ class ProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 14, 12, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            LayoutBuilder(
+              builder: (context, constraints) => Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: SizedBox.square(
-                      dimension: 88,
-                      child: ProductPhoto(
-                        product.imageUrl,
-                        name: product.name,
-                        colorKey: product.category?.id,
-                        initialSize: 32,
+                  Hero(
+                    tag: productHeroTag(product),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: SizedBox.square(
+                        dimension: 64,
+                        child: ProductPhoto(
+                          product.imageUrl,
+                          name: product.name,
+                          colorKey: product.category?.id,
+                          initialSize: 26,
+                        ),
                       ),
                     ),
                   ),
@@ -62,42 +100,36 @@ class ProductTile extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                productTitle(product),
-                                style: text.titleSmall,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            if (product.offers.isNotEmpty) ...[
-                              const SizedBox(width: 8),
-                              // Ocupa su ancho en la fila (el nombre no
-                              // pasa por debajo) y se dibuja subida hasta
-                              // el borde de la tarjeta.
-                              Transform.translate(
-                                offset: const Offset(0, -12),
-                                child: PromoRibbon(product.offers),
-                              ),
-                            ],
-                          ],
+                        Text(
+                          productTitle(product),
+                          style: text.titleSmall,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        PriceTag(product, fontSize: 18),
-                        const SizedBox(height: 2),
-                        StockNote(product),
+                        const SizedBox(height: 6),
+                        TagOrStock(product),
                       ],
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  // El precio a la derecha, sin quitarle al nombre más de
+                  // un tercio de la fila.
+                  ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * 0.34,
+                    ),
+                    child: PriceTag(
+                      product,
+                      fontSize: 17,
+                      alignment: WrapAlignment.end,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
-              ProductQuantityActions(product: product),
-            ],
-          ),
+            ),
+            const SizedBox(height: 10),
+            ProductQuantityActions(product: product),
+          ],
         ),
       ),
     );

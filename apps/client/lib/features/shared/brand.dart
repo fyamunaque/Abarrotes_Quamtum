@@ -66,6 +66,7 @@ class PublicScaffold extends ConsumerWidget {
     this.bottomBar,
     this.showVerifyEmail = true,
     this.showCartBar = true,
+    this.phoneBar = true,
   });
 
   /// Desde este ancho, el buscador va en la barra.
@@ -99,6 +100,12 @@ class PublicScaffold extends ConsumerWidget {
 
   final bool showCartBar;
 
+  /// Sin esto, en el teléfono no va la barra de arriba y el contenido llega
+  /// a los bordes (sin el margen de 16): la pantalla dibuja la suya (el
+  /// detalle de un producto, con "Volver" y el carrito sobre la foto). El
+  /// menú sigue abriéndose deslizando desde el borde.
+  final bool phoneBar;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
@@ -106,7 +113,9 @@ class PublicScaffold extends ConsumerWidget {
     return PageTitle(
       title: title,
       child: Scaffold(
-        appBar: compact
+        appBar: compact && !phoneBar
+            ? null
+            : compact
             ? AppBar(
                 toolbarHeight: 64,
                 centerTitle: true,
@@ -184,7 +193,9 @@ class PublicScaffold extends ConsumerWidget {
               physics: onRefresh == null
                   ? null
                   : const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.all(16),
+              padding: compact && !phoneBar
+                  ? EdgeInsets.zero
+                  : const EdgeInsets.all(16),
               child: Center(
                 child: ConstrainedBox(
                   constraints: BoxConstraints(maxWidth: maxWidth),

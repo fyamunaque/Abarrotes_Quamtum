@@ -102,7 +102,7 @@ void main() {
       ),
     );
 
-    final (fondo, letra) = dark.placeholderFor(category.id);
+    final (fondo, _) = dark.placeholderFor(category.id);
     final box = tester.widget<ColoredBox>(
       find
           .descendant(
@@ -112,7 +112,8 @@ void main() {
           .first,
     );
     expect(box.color, fondo);
-    expect(textColor(tester, 'E'), letra);
+    // Sin la inicial: solo el color.
+    expect(find.text('E'), findsNothing);
   });
 
   testWidgets('la portada en oscuro entra en 320 sin desbordes', (

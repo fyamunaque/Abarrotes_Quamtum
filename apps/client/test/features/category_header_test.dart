@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/catalog/category.dart';
 import 'package:neils/features/catalog/category_header.dart';
+import 'package:neils/features/shared/diagonal_band.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
@@ -68,7 +70,7 @@ void main() {
     );
   });
 
-  testWidgets('si la foto no carga, se ven el color y la inicial', (
+  testWidgets('si la foto no carga, se ve el color sin la inicial', (
     tester,
   ) async {
     await tester.pumpWidget(
@@ -92,6 +94,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('E'), findsOneWidget);
+    expect(find.text('E'), findsNothing);
+  });
+
+  testWidgets('el encabezado de la categoría sobre surfaceAlt', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: neilsTheme(),
+        home: const Scaffold(
+          body: SingleChildScrollView(
+            child: CategoryHeader(
+              category: Category(id: 'cat-embutidos', name: 'Embutidos'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final ground = tester.widget<ColoredBox>(
+      find
+          .descendant(
+            of: find.byType(CategoryHeader),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(ground.color, NeilsPalette.light.surfaceAlt);
+    // El color de la categoría va a la derecha, cortado en diagonal.
+    expect(
+      find.descendant(
+        of: find.byType(CategoryHeader),
+        matching: find.byWidgetPredicate(
+          (w) => w is ClipPath && w.clipper is DiagonalClipper,
+        ),
+      ),
+      findsOneWidget,
+    );
   });
 }

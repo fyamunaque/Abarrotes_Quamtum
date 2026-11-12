@@ -8,9 +8,14 @@ import 'package:neils/cart/cart_provider.dart';
 import 'package:neils/features/catalog/category_card.dart';
 import 'package:neils/features/catalog/product_card.dart';
 import 'package:neils/features/catalog/product_tile.dart';
+import 'package:neils/features/home/campaign_band.dart';
 import 'package:neils/features/home/home_screen.dart';
+import 'package:neils/features/shared/diagonal_band.dart';
+import 'package:neils/features/home/store_footer.dart';
+import 'package:neils/features/admin/home/greeting.dart';
+import 'package:neils/store/store_providers.dart';
+import 'package:neils/store/store_settings.dart';
 import 'package:neils/features/shared/brand.dart';
-import 'package:neils/features/shared/brand_hero.dart';
 import 'package:neils/features/shared/store_search_field.dart';
 import 'package:neils/offers/offer.dart';
 import 'package:neils/offers/offers_providers.dart';
@@ -96,6 +101,8 @@ void main() {
     WidgetTester tester, {
     Session signedIn = const SignedOut(),
     double width = 1280,
+    StoreSettings store = sampleStore,
+    bool settle = true,
   }) async {
     tester.view.physicalSize = Size(width, 1600);
     tester.view.devicePixelRatio = 1;
@@ -107,6 +114,7 @@ void main() {
           sessionProvider.overrideWith(() => session),
           catalogRepositoryProvider.overrideWithValue(catalog),
           offersRepositoryProvider.overrideWithValue(offers),
+          storeRepositoryProvider.overrideWithValue(FakeStoreRepository(store)),
         ],
         child: const NeilsApp(),
       ),
@@ -115,9 +123,25 @@ void main() {
       tester.element(find.byType(NeilsApp)),
     );
     final router = container.read(routerProvider)..go('/');
-    await tester.pumpAndSettle();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
     return (router, container);
   }
+
+  /// La opacidad del titular de escritorio (la de su entrada).
+  double titleOpacity(WidgetTester tester) => tester
+      .widget<Opacity>(
+        find
+            .ancestor(
+              of: find.textContaining('Insumos para restaurantes'),
+              matching: find.byType(Opacity),
+            )
+            .first,
+      )
+      .opacity;
 
   String location(GoRouter router) =>
       router.routerDelegate.currentConfiguration.uri.toString();
@@ -145,19 +169,18 @@ void main() {
     final (router, _) = await pumpApp(tester);
 
     expect(
-      find.textContaining('Tu negocio siempre abastecido'),
+      find.textContaining('Insumos para restaurantes y cafeterías'),
       findsOneWidget,
     );
     expect(
       find.text(
-        'Insumos gastronómicos de calidad, con precios competitivos y '
-        'entrega confiable.',
+        'Embutidos, lácteos, panes y abarrotes, con entrega a tu negocio o '
+        'recojo en tienda.',
       ),
       findsOneWidget,
     );
     expect(find.widgetWithText(FilledButton, 'Ver catálogo'), findsOneWidget);
-    // El mensaje ya no es para hogares.
-    expect(find.textContaining('abarrotes'), findsNothing);
+    // El mensaje es para negocios, no para hogares.
     expect(find.textContaining('tu casa'), findsNothing);
 
     await tester.tap(
@@ -167,17 +190,11 @@ void main() {
     expect(location(router), '/catalogo?promos=1');
   });
 
-  testWidgets('los tres sellos y la banda de promociones', (tester) async {
+  testWidgets('la franja de la campaña, sin los sellos', (tester) async {
     await pumpApp(tester);
 
-    expect(find.byType(TrustBadges), findsOneWidget);
-    expect(find.text('Promociones para tu negocio'), findsOneWidget);
-    expect(
-      find.text(
-        'Soluciones prácticas para restaurantes, fast foods y dark kitchens.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.byType(CampaignBand), findsOneWidget);
+    expect(find.text('Entrega confiable'), findsNothing);
   });
 
   testWidgets('Nuestras categorías lleva al catálogo de la categoría', (
@@ -227,18 +244,17 @@ void main() {
   testWidgets('teléfono: saluda con el nombre de la cuenta', (tester) async {
     await pumpApp(tester, width: 375, signedIn: signedInAs(UserRole.customer));
 
-    expect(find.text('¡Hola, Ana!'), findsOneWidget);
     expect(
-      find.text('Abastece tu negocio con los mejores productos.'),
+      find.text('${greetingFor(DateTime.now().toUtc())}, Ana'),
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('teléfono, sin cuenta: ¡Hola! y el buscador', (tester) async {
+  testWidgets('teléfono, sin cuenta: el saludo y el buscador', (tester) async {
     await pumpApp(tester, width: 375);
 
-    expect(find.text('¡Hola!'), findsOneWidget);
+    expect(find.text(greetingFor(DateTime.now().toUtc())), findsOneWidget);
     expect(find.byType(StoreSearchField), findsOneWidget);
   });
 
@@ -320,12 +336,133 @@ void main() {
     await pumpApp(tester);
 
     expect(
-      tester.getSemantics(find.textContaining('Tu negocio siempre abastecido')),
+      tester.getSemantics(find.textContaining('Insumos para restaurantes')),
       matchesSemantics(
-        label: "Tu negocio siempre abastecido con Neil's.",
+        label: 'Insumos para restaurantes y cafeterías',
         isHeader: true,
       ),
     );
     semantics.dispose();
+  });
+
+  testWidgets('cada pestaña tiene su título', (tester) async {
+    catalog = FakeCatalogRepository(frequentList: const [rice]);
+    await pumpApp(tester, signedIn: signedInAs(UserRole.customer));
+
+    expect(find.text('Reposición habitual'), findsOneWidget);
+    for (final (tab, title) in [
+      ('Sugeridos', 'Lo más pedido'),
+      ('Promos', 'Promociones de hoy'),
+      ('Frecuentes', 'Reposición habitual'),
+    ]) {
+      final chip = find.widgetWithText(ChoiceChip, tab);
+      await tester.ensureVisible(chip);
+      await tester.tap(chip);
+      await tester.pumpAndSettle();
+      expect(find.text(title), findsOneWidget, reason: tab);
+    }
+  });
+
+  testWidgets('el horario de la tienda aparece si está cargado', (
+    tester,
+  ) async {
+    await pumpApp(tester);
+
+    expect(find.text('Atendemos Lun a sáb de 8 a 20 h'), findsOneWidget);
+  });
+
+  testWidgets('sin horario no hay línea', (tester) async {
+    await pumpApp(
+      tester,
+      store: const StoreSettings(
+        name: "Neil's Food Services",
+        address: 'Av. Arequipa 1234, Lince',
+      ),
+    );
+
+    expect(find.textContaining('Atendemos'), findsNothing);
+  });
+
+  testWidgets('el pie muestra la dirección de la tienda', (tester) async {
+    await pumpApp(tester);
+
+    final footer = find.byType(StoreFooter);
+    expect(
+      find.descendant(
+        of: footer,
+        matching: find.text('Av. Arequipa 1234, Lince'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: footer, matching: find.text("Neil's Food Services")),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('la entrada se ve una vez por sesión', (tester) async {
+    final (router, _) = await pumpApp(tester, settle: false);
+
+    // La primera vez entra: al principio, transparente.
+    expect(titleOpacity(tester), lessThan(1));
+    await tester.pumpAndSettle();
+    expect(titleOpacity(tester), 1);
+
+    router.go('/catalogo');
+    await tester.pumpAndSettle();
+    router.go('/');
+    await tester.pump();
+
+    // La segunda vez ya está: el titular y la foto, asentada.
+    expect(titleOpacity(tester), 1);
+    final photo = tester.widget<Transform>(
+      find
+          .ancestor(
+            of: find.byType(DiagonalBand),
+            matching: find.byType(Transform),
+          )
+          .first,
+    );
+    expect(photo.transform.entry(0, 0), 1);
+  });
+
+  testWidgets(
+    'con reducir animaciones, el titular está desde el primer cuadro',
+    (tester) async {
+      tester.platformDispatcher.accessibilityFeaturesTestValue =
+          FakeAccessibilityFeatures(disableAnimations: true);
+      addTearDown(
+        tester.platformDispatcher.clearAccessibilityFeaturesTestValue,
+      );
+      await pumpApp(tester, settle: false);
+
+      expect(titleOpacity(tester), 1);
+    },
+  );
+
+  testWidgets('el buscador responde durante la entrada', (tester) async {
+    await pumpApp(tester, settle: false);
+    expect(titleOpacity(tester), lessThan(1));
+
+    final search = find.byType(TextField).first;
+    await tester.tap(search);
+    await tester.enterText(search, 'arroz');
+    await tester.pump();
+
+    expect(find.text('arroz'), findsOneWidget);
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets('la portada entra en 320 y en 1280 sin desbordes', (
+    tester,
+  ) async {
+    for (final width in [320.0, 1280.0]) {
+      await pumpApp(
+        tester,
+        width: width,
+        signedIn: signedInAs(UserRole.customer),
+      );
+      expect(tester.takeException(), isNull, reason: '$width');
+    }
   });
 }

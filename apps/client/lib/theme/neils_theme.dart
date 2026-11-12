@@ -4,12 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'brand_colors.dart';
 import 'palette.dart';
 
-/// El rojo de la marca alcanza el contraste de un texto sobre el fondo
-/// (5,2:1) y con texto blanco encima (5,6:1): `primary` sirve para botones y
-/// para enlaces. Lo seleccionado va en rojo muy claro con texto rojo oscuro.
+/// El esquema claro. Como en el oscuro, el `primary` es el rojo de los
+/// textos ([NeilsColors.primaryText], 7:1 sobre el fondo) y los botones
+/// rellenos fijan su fondo en el rojo del logo (ver [neilsTheme]). Lo
+/// seleccionado va en rojo muy claro con texto rojo oscuro.
 const neilsColorScheme = ColorScheme(
   brightness: Brightness.light,
-  primary: NeilsColors.primary,
+  primary: NeilsColors.primaryText,
   onPrimary: NeilsColors.onPrimary,
   primaryContainer: NeilsColors.primaryTint,
   onPrimaryContainer: NeilsColors.primaryDark,
@@ -26,14 +27,14 @@ const neilsColorScheme = ColorScheme(
   surface: NeilsColors.background,
   onSurface: NeilsColors.ink,
   // Neutros cálidos, entre la tinta y el hueso.
-  onSurfaceVariant: Color(0xFF5E534D),
+  onSurfaceVariant: Color(0xFF655A52),
   outline: Color(0xFF8C7F77),
-  outlineVariant: Color(0xFFE5DCD3),
+  outlineVariant: Color(0xFFE3DCD4),
   surfaceContainerLowest: NeilsColors.surface,
-  surfaceContainerLow: Color(0xFFF7F1EA),
-  surfaceContainer: Color(0xFFF3ECE4),
-  surfaceContainerHigh: Color(0xFFEEE6DD),
-  surfaceContainerHighest: Color(0xFFE8DFD5),
+  surfaceContainerLow: Color(0xFFF5F2ED),
+  surfaceContainer: Color(0xFFF0ECE6),
+  surfaceContainerHigh: Color(0xFFEBE6DF),
+  surfaceContainerHighest: Color(0xFFE5DFD7),
   inverseSurface: NeilsColors.ink,
   onInverseSurface: NeilsColors.background,
 );
@@ -69,12 +70,20 @@ const neilsDarkColorScheme = ColorScheme(
   onInverseSurface: Color(0xFF171513),
 );
 
-/// La sombra cálida y suave de las tarjetas, en lugar del borde.
+/// La sombra cálida y fina de la barra del panel.
 const neilsCardShadow = Color(0x331F1A17);
 
-/// La sombra de las tarjetas en oscuro: negra, porque sobre el carbón la
-/// cálida no se ve.
+/// La sombra de la barra del panel en oscuro: negra, porque sobre el carbón
+/// la cálida no se ve.
 const _darkCardShadow = Color(0x66000000);
+
+/// Las tarjetas: sin sombra, con un borde fino [NeilsPalette.line] y radio
+/// 12, en la tienda y en el panel.
+RoundedRectangleBorder _cardShape(NeilsPalette palette) =>
+    RoundedRectangleBorder(
+      borderRadius: const BorderRadius.all(Radius.circular(12)),
+      side: BorderSide(color: palette.line),
+    );
 
 /// Tema de la app, claro u oscuro según [brightness]. Lleva la paleta de ese
 /// modo como extensión ([NeilsPalette]): las pantallas toman de ahí sus
@@ -101,12 +110,9 @@ ThemeData neilsTheme([Brightness brightness = Brightness.light]) {
     ),
     cardTheme: CardThemeData(
       color: palette.surface,
-      elevation: 1,
-      shadowColor: dark ? _darkCardShadow : neilsCardShadow,
+      elevation: 0,
       surfaceTintColor: Colors.transparent,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(Radius.circular(16)),
-      ),
+      shape: _cardShape(palette),
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
@@ -127,7 +133,7 @@ ThemeData neilsTheme([Brightness brightness = Brightness.light]) {
     ),
     inputDecorationTheme: InputDecorationTheme(
       border: const OutlineInputBorder(
-        borderRadius: BorderRadius.all(Radius.circular(12)),
+        borderRadius: BorderRadius.all(Radius.circular(10)),
       ),
       filled: true,
       fillColor: palette.surface,
@@ -140,7 +146,7 @@ ThemeData neilsTheme([Brightness brightness = Brightness.light]) {
 }
 
 /// El tema del panel (/admin): la misma marca, más calmada. Fondo hueso,
-/// texto en tinta, tarjetas blancas con sombra suave. Lo seleccionado
+/// texto en tinta, tarjetas blancas con un borde fino. Lo seleccionado
 /// (navegación, filtros) va en rojo muy claro; el `primary` queda para lo
 /// importante: la acción principal de cada pantalla y la línea del gráfico.
 ThemeData neilsAdminTheme(ThemeData base) {
@@ -165,15 +171,15 @@ ThemeData neilsAdminTheme(ThemeData base) {
     ),
     cardTheme: CardThemeData(
       color: scheme.surfaceContainerLowest,
-      elevation: 1,
-      shadowColor: shadow,
+      elevation: 0,
       surfaceTintColor: Colors.transparent,
       margin: EdgeInsets.zero,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: _cardShape(palette),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
+    // El menú lateral, sobre el panel cálido.
     navigationRailTheme: NavigationRailThemeData(
-      backgroundColor: palette.background,
+      backgroundColor: palette.surfaceAlt,
       indicatorColor: palette.brandTint,
       selectedIconTheme: IconThemeData(color: selected),
       unselectedIconTheme: IconThemeData(color: muted),

@@ -53,7 +53,11 @@ void main() {
     Map<String, String> addresses = const {},
     Map<String, FakeProfile> profiles = const {},
   }) async {
-    useWideScreen(tester);
+    // Escritorio angosto: el carrito en una columna y Mis pedidos uno
+    // debajo del otro (lado a lado, desde 1100 px, va en my_orders_test).
+    tester.view.physicalSize = const Size(1000, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(
       ProviderScope(
         overrides: [

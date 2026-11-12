@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../catalog/product.dart';
-import '../../router/routes.dart';
 import '../shared/card_strip.dart';
 import 'product_card.dart';
+import '../../router/navigation.dart';
 
 /// Una fila de productos con su [title] ("Más de Lácteos", "Promociones de
 /// hoy"), que se desliza de costado. Cada tarjeta, como en el catálogo:
@@ -28,7 +27,7 @@ class ProductStrip extends ConsumerWidget {
           ProductCard(
             key: ValueKey(product.id),
             product: product,
-            onTap: () => context.go(Routes.product(product.id)),
+            onTap: () => context.openProduct(product.id, product: product),
           ),
       ],
     );

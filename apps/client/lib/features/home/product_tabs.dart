@@ -15,21 +15,26 @@ import '../catalog/product_tile.dart';
 import '../shared/account.dart';
 import '../shared/error_message.dart';
 import '../../theme/palette.dart';
+import '../../router/navigation.dart';
 
 enum _Tab {
-  frequent('Frecuentes', Icons.shopping_cart_outlined),
-  suggested('Sugeridos', Icons.star_outline),
-  promos('Promos', Icons.local_offer_outlined);
+  frequent('Frecuentes', 'Reposición habitual', Icons.shopping_cart_outlined),
+  suggested('Sugeridos', 'Lo más pedido', Icons.star_outline),
+  promos('Promos', 'Promociones de hoy', Icons.local_offer_outlined);
 
-  const _Tab(this.label, this.icon);
+  const _Tab(this.label, this.title, this.icon);
 
   final String label;
+
+  /// El título de la lista de la pestaña.
+  final String title;
   final IconData icon;
 }
 
-/// Las pestañas de productos de la portada: Frecuentes (lo que más pide la
-/// cuenta; sin cuenta no está), Sugeridos (lo más vendido) y Promos (lo que
-/// está en promoción hoy, sin repetir las ofertas exclusivas de un VIP).
+/// Las pestañas de productos de la portada, cada una con el título de su
+/// lista: Frecuentes ("Reposición habitual": lo que más pide la cuenta; sin
+/// cuenta no está), Sugeridos ("Lo más pedido": lo más vendido) y Promos
+/// ("Promociones de hoy", sin repetir las ofertas exclusivas de un VIP).
 ///
 /// Con cuenta arranca en Frecuentes, con su indicador mientras cargan, y pasa
 /// a Sugeridos si la cuenta no tiene ninguno o no se pudieron cargar. Sin
@@ -120,6 +125,14 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
           ),
         ),
         const SizedBox(height: 16),
+        Semantics(
+          header: true,
+          child: Text(
+            current.title,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        const SizedBox(height: 12),
         switch (current) {
           _Tab.frequent => _products(
             frequent ?? const AsyncData([]),
@@ -134,7 +147,7 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
           ),
           _Tab.promos => _products(
             _promos(),
-            onRetry: () => ref.invalidate(onSaleProductsProvider),
+            onRetry: () => ref.invalidate(onSalePageProvider),
             empty: 'Hoy no hay promociones.',
             footer: Align(
               alignment: AlignmentDirectional.centerStart,
@@ -220,7 +233,8 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
   }
 
   Widget _list(List<Product> products) {
-    void open(Product product) => context.go(Routes.product(product.id));
+    void open(Product product) =>
+        context.openProduct(product.id, product: product);
     if (MediaQuery.sizeOf(context).width >= AccountActions.wideFrom) {
       return ProductGrid(
         children: [
@@ -233,18 +247,18 @@ class _ProductTabsState extends ConsumerState<ProductTabs> {
         ],
       );
     }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final product in products) ...[
-          ProductTile(
-            key: ValueKey(product.id),
-            product: product,
-            onTap: () => open(product),
-          ),
-          const SizedBox(height: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: ProductRows(
+        children: [
+          for (final product in products)
+            ProductTile(
+              key: ValueKey(product.id),
+              product: product,
+              onTap: () => open(product),
+            ),
         ],
-      ],
+      ),
     );
   }
 }

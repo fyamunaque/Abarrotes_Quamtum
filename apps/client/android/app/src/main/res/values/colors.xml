@@ -3,5 +3,5 @@
     <!-- El rojo de la marca (NeilsColors.primary), de fondo del ícono. -->
     <color name="ic_launcher_background">#C8281E</color>
     <!-- El hueso de la app (NeilsColors.background), mientras carga. -->
-    <color name="launch_background">#FBF7F2</color>
+    <color name="launch_background">#FAF8F5</color>
 </resources>

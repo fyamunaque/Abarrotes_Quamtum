@@ -101,16 +101,20 @@ La primera compilación tarda uno o dos minutos. Está lista cuando dice
 **El recorrido:**
 
 1. **La tienda** (incógnito):
-   - la portada para negocios: el titular, los sellos, "Nuestras categorías", la banda de
-     promociones y las pestañas Sugeridos y Promos (en el teléfono, el saludo, el buscador y
-     las pestañas en lista);
-   - el catálogo con el filtro por categoría (y su encabezado) y "Promociones";
-   - un producto con su cinta ("3x2"), la cantidad y el total en la pastilla verde, y la barra
-     roja del carrito en el teléfono;
+   - la portada para negocios: el titular que entra al abrirla, el horario de la tienda, las
+     pestañas Sugeridos y Promos con su título, la franja roja de la campaña del día, las
+     categorías y el pie (en el teléfono, el saludo según la hora, el buscador y las pestañas en
+     filas);
+   - el catálogo con el filtro por categoría (y su encabezado) y "Promociones"; en escritorio,
+     pasar el mouse por una tarjeta: sube apenas y la foto se acerca;
+   - un producto con su etiqueta de mercado ("3x2"), la cantidad y el total en la pastilla verde,
+     y la barra roja del carrito en el teléfono;
    - un producto en promoción, con el precio anterior tachado, y uno agotado;
-   - el detalle de un producto.
-2. **Comprar:** agregar al carrito, ingresar con la cuenta de prueba, confirmar el pedido. Termina
-   en **Mis pedidos**, con el seguimiento en "Pendiente". De vuelta en la portada, con la cuenta
+   - el detalle de un producto: al tocarlo, la foto viaja desde la lista;
+   - el modo oscuro: "Apariencia" en el menú (teléfono) o el botón de la barra (escritorio).
+2. **Comprar:** agregar al carrito (el ticket con el total estimado), ingresar con la cuenta de
+   prueba, confirmar el pedido. Termina en **Mis pedidos**, con el seguimiento en "Pendiente" (en
+   escritorio, la lista y el pedido lado a lado). De vuelta en la portada, con la cuenta
    abierta aparece la pestaña **Frecuentes**, con lo que se acaba de pedir.
 3. **El panel** (ventana admin), **Inicio:**
    - ventas de hoy (ya con ese pedido), de la semana y del mes, y el ticket promedio;

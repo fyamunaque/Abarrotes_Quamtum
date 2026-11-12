@@ -11,9 +11,9 @@ import '../catalog/line_total_pill.dart';
 import '../catalog/product_card.dart';
 import '../catalog/product_grid.dart';
 import '../catalog/product_tile.dart';
-import '../catalog/promo_ribbon.dart';
+import '../catalog/promo_tag.dart';
 import '../catalog/stock_note.dart';
-import '../home/promotions_banner.dart';
+import '../home/campaign_band.dart';
 import '../orders/order_tracker.dart';
 import '../shared/brand.dart';
 import '../shared/brand_hero.dart';
@@ -94,17 +94,16 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
             'los builds de debug. Agregar suma al carrito de verdad.',
             style: text.bodyMedium,
           ),
-          section('Encabezado de la portada y sellos'),
+          section('Encabezado de la portada'),
           const BrandHero(
-            titleStart: 'Tu negocio siempre abastecido ',
-            titleAccent: "con Neil's.",
-            body: 'Insumos gastronómicos de calidad.',
+            titleStart: 'Insumos para restaurantes ',
+            titleAccent: 'y cafeterías',
+            body: 'Embutidos, lácteos, panes y abarrotes.',
+            note: 'Atendemos de lunes a sábado de 8 a 20 h',
             actions: [],
           ),
-          const SizedBox(height: 20),
-          const TrustBadges(),
-          section('Banda de promociones'),
-          const PromotionsBanner(),
+          section('Franja de la campaña'),
+          const CampaignBand(),
           section('Categorías'),
           Row(
             children: [
@@ -122,18 +121,23 @@ class _ShowcaseScreenState extends State<ShowcaseScreen> {
             const SizedBox(height: 12),
           ],
           section('Tarjetas de producto (escritorio)'),
-          ProductGrid(
-            children: [
-              for (final product in _products) ProductCard(product: product),
-            ],
+          // Los mismos productos que las filas de arriba: sin un segundo
+          // Hero con la misma foto.
+          HeroMode(
+            enabled: false,
+            child: ProductGrid(
+              children: [
+                for (final product in _products) ProductCard(product: product),
+              ],
+            ),
           ),
-          section('Cinta, stock y total'),
+          section('Etiqueta, stock y total'),
           Wrap(
             spacing: 16,
             runSpacing: 12,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              const PromoRibbon([_offer]),
+              const PromoTag([_offer]),
               for (final product in _products) StockNote(product),
               const LineTotalPill(1320),
             ],

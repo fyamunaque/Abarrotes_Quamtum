@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/catalog/category.dart';
 import 'package:neils/features/catalog/category_card.dart';
-import 'package:neils/theme/brand_colors.dart';
 import 'package:neils/theme/neils_theme.dart';
+import 'package:neils/theme/palette.dart';
 
 import '../support.dart';
 
 void main() {
   useBundledFonts();
 
-  testWidgets('muestra el nombre, la inicial y la flecha, y se toca', (
+  testWidgets('sin foto, el color de la categoría sin la inicial', (
     tester,
   ) async {
     var taps = 0;
@@ -32,9 +32,18 @@ void main() {
     );
 
     expect(find.text('Embutidos'), findsOneWidget);
-    expect(find.text('E'), findsOneWidget);
+    expect(find.text('E'), findsNothing);
+    final block = tester.widget<ColoredBox>(
+      find
+          .descendant(
+            of: find.byType(CategoryCard),
+            matching: find.byType(ColoredBox),
+          )
+          .first,
+    );
+    expect(block.color, NeilsPalette.light.placeholderFor('cat-1').$1);
     final arrow = tester.widget<Icon>(find.byIcon(Icons.arrow_forward));
-    expect(arrow.color, NeilsColors.primary);
+    expect(arrow.color, NeilsPalette.light.brandText);
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byType(CategoryCard));
@@ -68,7 +77,9 @@ void main() {
     );
   });
 
-  testWidgets('si la foto falla vuelve al color y la inicial', (tester) async {
+  testWidgets('si la foto falla vuelve al color, sin la inicial', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       MaterialApp(
         theme: neilsTheme(),
@@ -90,7 +101,15 @@ void main() {
     // En los tests las fotos de la red fallan (400): el errorBuilder.
     await tester.pumpAndSettle();
 
-    expect(find.text('E'), findsOneWidget);
+    expect(find.text('E'), findsNothing);
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is ColoredBox &&
+            w.color == NeilsPalette.light.placeholderFor('cat-1').$1,
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 }

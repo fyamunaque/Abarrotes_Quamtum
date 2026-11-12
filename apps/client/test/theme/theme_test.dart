@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:neils/theme/brand_colors.dart';
+import 'package:neils/theme/motion.dart';
 import 'package:neils/theme/neils_theme.dart';
 import 'package:neils/theme/palette.dart';
 
@@ -9,15 +10,16 @@ import '../support.dart';
 void main() {
   useBundledFonts();
 
-  test('los tokens de marca son los de la nueva marca', () {
+  test('los tokens de marca son los del mostrador', () {
     expect(NeilsColors.primary, const Color(0xFFC8281E));
+    expect(NeilsColors.primaryText, const Color(0xFFA61F18));
     expect(NeilsColors.primaryDark, const Color(0xFF9E1B14));
     expect(NeilsColors.primaryTint, const Color(0xFFFBE3E0));
-    expect(NeilsColors.background, const Color(0xFFFBF7F2));
+    expect(NeilsColors.background, const Color(0xFFFAF8F5));
     expect(NeilsColors.surface, const Color(0xFFFFFFFF));
-    expect(NeilsColors.ink, const Color(0xFF1F1A17));
-    expect(NeilsColors.money, const Color(0xFF276B43));
-    expect(NeilsColors.moneyTint, const Color(0xFFE3F2E7));
+    expect(NeilsColors.ink, const Color(0xFF211B17));
+    expect(NeilsColors.money, const Color(0xFF205B38));
+    expect(NeilsColors.moneyTint, const Color(0xFFE1F2E7));
   });
 
   test('el rojo sirve para botones y para texto', () {
@@ -36,10 +38,10 @@ void main() {
     expectContrast(scheme.onSurfaceVariant, Colors.white, 4.5);
   });
 
-  test('el ColorScheme usa el rojo como primary', () {
+  test('el primary del claro es el rojo de los textos, como en oscuro', () {
     final scheme = neilsTheme().colorScheme;
 
-    expect(scheme.primary, NeilsColors.primary);
+    expect(scheme.primary, NeilsColors.primaryText);
     expect(scheme.onPrimary, Colors.white);
     expect(scheme.primaryContainer, NeilsColors.primaryTint);
     expect(scheme.onPrimaryContainer, NeilsColors.primaryDark);
@@ -142,6 +144,58 @@ void main() {
     );
   });
 
+  test('los tiempos del mostrador', () {
+    expect(NeilsMotion.press, const Duration(milliseconds: 90));
+    expect(NeilsMotion.fade, const Duration(milliseconds: 160));
+    expect(NeilsMotion.hover, const Duration(milliseconds: 180));
+    expect(NeilsMotion.photoZoom, const Duration(milliseconds: 600));
+    expect(NeilsMotion.entrance, const Duration(milliseconds: 600));
+    expect(NeilsMotion.page, const Duration(milliseconds: 300));
+    expect(NeilsMotion.ease, const Cubic(.2, .8, .2, 1));
+  });
+
+  group('formas', () {
+    final temas = {
+      for (final brightness in Brightness.values) ...{
+        'tienda $brightness': neilsTheme(brightness),
+        'panel $brightness': neilsAdminTheme(neilsTheme(brightness)),
+      },
+    };
+
+    test('tarjetas con borde y sin sombra', () {
+      for (final MapEntry(key: nombre, value: theme) in temas.entries) {
+        final line = theme.extension<NeilsPalette>()!.line;
+        expect(theme.cardTheme.elevation, 0, reason: nombre);
+        final shape = theme.cardTheme.shape as RoundedRectangleBorder;
+        expect(shape.side.color, line, reason: nombre);
+        expect(shape.side.width, 1, reason: nombre);
+      }
+    });
+
+    test('los radios: 12 en tarjetas, 10 en botones y campos', () {
+      BorderRadius radiusOf(OutlinedBorder? shape) =>
+          (shape as RoundedRectangleBorder).borderRadius as BorderRadius;
+      const twelve = BorderRadius.all(Radius.circular(12));
+      const ten = BorderRadius.all(Radius.circular(10));
+      for (final MapEntry(key: nombre, value: theme) in temas.entries) {
+        expect(
+          radiusOf(theme.cardTheme.shape as OutlinedBorder),
+          twelve,
+          reason: nombre,
+        );
+        for (final style in [
+          theme.filledButtonTheme.style,
+          theme.outlinedButtonTheme.style,
+          theme.textButtonTheme.style,
+        ]) {
+          expect(radiusOf(style!.shape!.resolve({})), ten, reason: nombre);
+        }
+        final border = theme.inputDecorationTheme.border! as OutlineInputBorder;
+        expect(border.borderRadius, ten, reason: nombre);
+      }
+    });
+  });
+
   group('paletas', () {
     const paletas = {'claro': NeilsPalette.light, 'oscuro': NeilsPalette.dark};
 
@@ -210,17 +264,32 @@ void main() {
       expect(p.brandText, const Color(0xFFFF9A8F));
     });
 
-    test('el claro es el de hoy', () {
+    test('el claro del mostrador', () {
       const p = NeilsPalette.light;
-      expect(p.background, NeilsColors.background);
-      expect(p.surface, NeilsColors.surface);
-      expect(p.ink, NeilsColors.ink);
+      expect(p.background, const Color(0xFFFAF8F5));
+      expect(p.surface, const Color(0xFFFFFFFF));
+      expect(p.surfaceAlt, const Color(0xFFF0ECE6));
+      expect(p.line, const Color(0xFFE3DCD4));
+      expect(p.ink, const Color(0xFF211B17));
+      expect(p.inkMuted, const Color(0xFF655A52));
+      expect(p.brandText, const Color(0xFFA61F18));
+      expect(p.money, const Color(0xFF205B38));
+      expect(p.moneyTint, const Color(0xFFE1F2E7));
+      // El rojo de relleno sigue siendo el del logo.
       expect(p.brandFill, NeilsColors.primary);
       expect(p.brandFillDeep, NeilsColors.primaryDark);
-      expect(p.brandText, NeilsColors.primary);
       expect(p.brandTint, NeilsColors.primaryTint);
-      expect(p.money, NeilsColors.money);
-      expect(p.moneyTint, NeilsColors.moneyTint);
+    });
+
+    test('el esquema del claro sigue a la paleta', () {
+      const p = NeilsPalette.light;
+      final scheme = neilsTheme().colorScheme;
+      expect(scheme.surface, p.background);
+      expect(scheme.onSurface, p.ink);
+      expect(scheme.onSurfaceVariant, p.inkMuted);
+      expect(scheme.outlineVariant, p.line);
+      expect(scheme.surfaceContainer, p.surfaceAlt);
+      expect(scheme.primary, p.brandText);
     });
 
     test('lerp va de una paleta a la otra sin saltos', () {
