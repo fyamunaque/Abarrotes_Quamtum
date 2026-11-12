@@ -14,6 +14,7 @@ import '../../shared/date_format.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
+import '../shared/image_url.dart';
 
 /// Crear ([product] null) o editar un producto. Valida lo mismo que el
 /// servidor; lo que el servidor rechaza igual (un SKU que ya existe) se
@@ -590,20 +591,6 @@ String? validatePrice(String? value) {
   final cents = parseSolesInput(value);
   if (cents == null) return 'Escribe un monto como 24.90.';
   if (cents > 9999999999) return 'El precio es demasiado alto.';
-  return null;
-}
-
-/// Opcional; si está, una URL http(s) completa.
-String? validateImageUrl(String? value) {
-  final text = value?.trim() ?? '';
-  if (text.isEmpty) return null;
-  final uri = Uri.tryParse(text);
-  final valid =
-      uri != null &&
-      (uri.scheme == 'http' || uri.scheme == 'https') &&
-      uri.host.isNotEmpty;
-  if (!valid) return 'Escribe una dirección que empiece con https://';
-  if (text.length > 2000) return 'Máximo 2000 caracteres.';
   return null;
 }
 

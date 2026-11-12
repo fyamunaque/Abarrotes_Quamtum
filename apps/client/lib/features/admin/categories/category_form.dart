@@ -10,6 +10,7 @@ import '../../catalog/category_photo.dart';
 import '../../shared/error_message.dart';
 import '../shared/admin_form.dart';
 import '../shared/admin_page.dart';
+import '../shared/image_url.dart';
 
 /// Lo que pasó en el formulario: se guardó (o creó) una categoría, o se
 /// borró.
@@ -30,8 +31,10 @@ class CategoryDeleted extends CategoryFormResult {
 }
 
 /// Crear o editar una categoría: el nombre, la descripción (hasta 80
-/// caracteres) y la foto. Editando, también borrarla: si tiene productos, el
-/// servidor lo impide y el aviso se muestra aquí.
+/// caracteres) y la foto, como en los productos: se sube, se toma con la
+/// cámara (en la app de Android) o se pega la URL de una imagen. Editando,
+/// también borrarla: si tiene productos, el servidor lo impide y el aviso se
+/// muestra aquí.
 class CategoryForm extends ConsumerStatefulWidget {
   const CategoryForm({super.key, this.row});
 
@@ -50,10 +53,20 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   late final _description = TextEditingController(
     text: widget.row?.category.description,
   );
-  PickedPhoto? _photo;
 
-  /// Se tocó "Quitar foto": al guardar, la categoría queda sin foto.
-  bool _removePhoto = false;
+  /// La URL pegada. Una foto subida no se muestra aquí: se ve en la vista
+  /// previa y queda mientras no se cambie ([_keepStoredPhoto]).
+  late final _imageUrl = TextEditingController(
+    text: _isStoredPhoto(widget.row?.category.imageUrl)
+        ? null
+        : widget.row?.category.imageUrl,
+  );
+
+  /// La foto subida que tenía sigue en pie (no se eligió otra, no se pegó una
+  /// URL ni se tocó "Quitar foto").
+  late bool _keepStoredPhoto = _isStoredPhoto(widget.row?.category.imageUrl);
+
+  PickedPhoto? _photo;
 
   /// La categoría ya guardada en este formulario: si después falla la foto,
   /// reintentar guarda sobre ella en vez de crearla otra vez.
@@ -65,7 +78,21 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   void dispose() {
     _name.dispose();
     _description.dispose();
+    _imageUrl.dispose();
     super.dispose();
+  }
+
+  String? get _typedUrl =>
+      _imageUrl.text.trim().isEmpty ? null : _imageUrl.text.trim();
+
+  /// Lo que va en `imageUrl` al guardar sobre [existing]: la URL pegada; con
+  /// una foto elegida, la que tenía (la nueva la reemplaza al subirse; si la
+  /// subida falla, no pierde la anterior); si no, la subida que sigue en pie,
+  /// o null.
+  String? _imageUrlToSave(Category existing) {
+    if (_typedUrl case final typed?) return typed;
+    if (_photo != null || _keepStoredPhoto) return existing.imageUrl;
+    return null;
   }
 
   Future<void> _pick(PhotoSource source) async {
@@ -74,7 +101,8 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       if (photo != null && mounted) {
         setState(() {
           _photo = photo;
-          _removePhoto = false;
+          _imageUrl.clear();
+          _keepStoredPhoto = false;
         });
       }
     } catch (error) {
@@ -85,6 +113,12 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
       }
     }
   }
+
+  void _removePhoto() => setState(() {
+    _photo = null;
+    _imageUrl.clear();
+    _keepStoredPhoto = false;
+  });
 
   Future<void> _submit() async {
     if (_busy || !_formKey.currentState!.validate()) return;
@@ -100,11 +134,13 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
         null => await notifier.create(
           name,
           description: description.isEmpty ? null : description,
+          imageUrl: _typedUrl,
         ),
         final existing => await notifier.save(
           existing.id,
           name: name,
           description: description,
+          imageUrl: _imageUrlToSave(existing),
         ),
       };
       _saved = category;
@@ -114,8 +150,6 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
           photo.bytes,
           contentType: photo.contentType,
         );
-      } else if (_removePhoto && category.imageUrl != null) {
-        category = await notifier.removeImage(category.id);
       }
       if (mounted) Navigator.of(context).pop(CategorySaved(category));
     } catch (error) {
@@ -162,8 +196,14 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
   Widget build(BuildContext context) {
     final picker = ref.watch(photoPickerProvider);
     final current = widget.row?.category;
-    final hasPhoto =
-        _photo != null || (current?.imageUrl != null && !_removePhoto);
+    // Una URL escrita se ve recién cuando es válida: a medio escribir,
+    // pediría imágenes que no existen.
+    final previewUrl = switch (_typedUrl) {
+      null => _keepStoredPhoto ? current?.imageUrl : null,
+      final typed => validateImageUrl(typed) == null ? typed : null,
+    };
+    final hasPhoto = _photo != null || previewUrl != null;
+    final theme = Theme.of(context);
     return Form(
       key: _formKey,
       child: Column(
@@ -197,6 +237,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
           ),
           const SizedBox(height: 16),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -214,7 +255,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
                       category: Category(
                         id: current?.id ?? 'nueva',
                         name: current?.name ?? _name.text,
-                        imageUrl: _removePhoto ? null : current?.imageUrl,
+                        imageUrl: previewUrl,
                       ),
                     ),
                   },
@@ -222,40 +263,70 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: _busy
-                          ? null
-                          : () => _pick(PhotoSource.gallery),
-                      icon: const Icon(Icons.photo_library_outlined),
-                      label: Text(hasPhoto ? 'Cambiar foto' : 'Elegir foto'),
+                    Text('Foto', style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      _photo != null
+                          ? 'Se sube al guardar.'
+                          : 'JPEG, PNG o WebP. Se achica sola.',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
                     ),
-                    if (picker.canUseCamera)
-                      OutlinedButton.icon(
-                        onPressed: _busy
-                            ? null
-                            : () => _pick(PhotoSource.camera),
-                        icon: const Icon(Icons.photo_camera_outlined),
-                        label: const Text('Tomar foto'),
-                      ),
-                    if (hasPhoto)
-                      TextButton.icon(
-                        onPressed: _busy
-                            ? null
-                            : () => setState(() {
-                                _photo = null;
-                                _removePhoto = true;
-                              }),
-                        icon: const Icon(Icons.hide_image_outlined),
-                        label: const Text('Quitar foto'),
-                      ),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: _busy
+                              ? null
+                              : () => _pick(PhotoSource.gallery),
+                          icon: const Icon(Icons.upload_outlined),
+                          label: Text(hasPhoto ? 'Cambiar foto' : 'Subir foto'),
+                        ),
+                        if (picker.canUseCamera)
+                          OutlinedButton.icon(
+                            onPressed: _busy
+                                ? null
+                                : () => _pick(PhotoSource.camera),
+                            icon: const Icon(Icons.photo_camera_outlined),
+                            label: const Text('Tomar foto'),
+                          ),
+                        if (hasPhoto)
+                          TextButton.icon(
+                            onPressed: _busy ? null : _removePhoto,
+                            icon: const Icon(Icons.hide_image_outlined),
+                            label: const Text('Quitar foto'),
+                          ),
+                      ],
+                    ),
                   ],
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _imageUrl,
+            enabled: !_busy,
+            decoration: const InputDecoration(
+              labelText: 'O pega la URL de una imagen (opcional)',
+              hintText: 'https://…',
+            ),
+            keyboardType: TextInputType.url,
+            autocorrect: false,
+            validator: validateImageUrl,
+            // Una URL escrita reemplaza a la foto elegida y a la subida.
+            onChanged: (text) => setState(() {
+              if (text.trim().isNotEmpty) {
+                _photo = null;
+                _keepStoredPhoto = false;
+              }
+            }),
           ),
           if (_error case final error?) ...[
             const SizedBox(height: 16),
@@ -278,3 +349,7 @@ class _CategoryFormState extends ConsumerState<CategoryForm> {
     );
   }
 }
+
+/// Si [url] es de una foto subida al servidor (y no una URL externa).
+bool _isStoredPhoto(String? url) =>
+    url != null && url.startsWith('/images/categories/');

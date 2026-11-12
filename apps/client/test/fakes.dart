@@ -1951,17 +1951,14 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
   final List<Category> categories;
   final Map<String, int> productCounts;
 
-  /// Lo creado: (nombre, descripción).
-  final created = <(String, String?)>[];
+  /// Lo creado: (nombre, descripción, URL de la foto).
+  final created = <(String, String?, String?)>[];
 
   /// Las categorías a las que se les subió una foto.
   final uploads = <String>[];
 
   /// Si está, uploadImage() falla con esto.
   Object? uploadFailure;
-
-  /// Las categorías a las que se les quitó la foto.
-  final removedImages = <String>[];
 
   @override
   Future<List<AdminCategory>> list() async => [
@@ -1972,7 +1969,11 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
   ];
 
   @override
-  Future<Category> create(String name, {String? description}) async {
+  Future<Category> create(
+    String name, {
+    String? description,
+    String? imageUrl,
+  }) async {
     // Como el servidor: el nombre es único.
     if (categories.any((category) => category.name == name)) {
       throw const ApiFailure(
@@ -1980,11 +1981,12 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
         status: 409,
       );
     }
-    created.add((name, description));
+    created.add((name, description, imageUrl));
     final category = Category(
       id: 'cat-${categories.length + 1}',
       name: name,
       description: description,
+      imageUrl: imageUrl,
     );
     categories.add(category);
     return category;
@@ -1995,14 +1997,14 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
     String id, {
     required String name,
     required String description,
+    required String? imageUrl,
   }) async {
     final i = categories.indexWhere((category) => category.id == id);
-    final current = categories[i];
     return categories[i] = Category(
       id: id,
       name: name,
       description: description.isEmpty ? null : description,
-      imageUrl: current.imageUrl,
+      imageUrl: imageUrl,
     );
   }
 
@@ -2021,18 +2023,6 @@ class FakeAdminCategoriesRepository implements AdminCategoriesRepository {
       name: current.name,
       description: current.description,
       imageUrl: '/images/categories/$id/0123456789abcdef.jpg',
-    );
-  }
-
-  @override
-  Future<Category> removeImage(String id) async {
-    removedImages.add(id);
-    final i = categories.indexWhere((category) => category.id == id);
-    final current = categories[i];
-    return categories[i] = Category(
-      id: id,
-      name: current.name,
-      description: current.description,
     );
   }
 

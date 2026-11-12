@@ -12,13 +12,18 @@ abstract interface class AdminCategoriesRepository {
   /// Todas, por nombre, con su cantidad de productos.
   Future<List<AdminCategory>> list();
 
-  Future<Category> create(String name, {String? description});
+  /// Crea la categoría; [imageUrl], si está, es la URL de una imagen externa
+  /// (una foto se sube después, con [uploadImage]).
+  Future<Category> create(String name, {String? description, String? imageUrl});
 
-  /// Cambia el nombre y la descripción. Una descripción vacía la borra.
+  /// Cambia el nombre, la descripción y la foto. Una descripción vacía la
+  /// borra. [imageUrl] es la foto que queda: una URL externa, la foto subida
+  /// que ya tiene, o null (sin foto); el servidor borra la subida que sobra.
   Future<Category> update(
     String id, {
     required String name,
     required String description,
+    required String? imageUrl,
   });
 
   /// Le pone la foto [bytes]; el servidor la achica y reemplaza a la que
@@ -28,9 +33,6 @@ abstract interface class AdminCategoriesRepository {
     List<int> bytes, {
     required String contentType,
   });
-
-  /// Le quita la foto: la tienda vuelve a mostrar su color con la inicial.
-  Future<Category> removeImage(String id);
 
   /// Solo si no tiene productos (si no, 409 con el aviso del servidor).
   Future<void> delete(String id);
@@ -61,11 +63,16 @@ class HttpAdminCategoriesRepository implements AdminCategoriesRepository {
   }
 
   @override
-  Future<Category> create(String name, {String? description}) async {
+  Future<Category> create(
+    String name, {
+    String? description,
+    String? imageUrl,
+  }) async {
     final json = await _api.post('/categories', {
       'name': name,
       if (description != null && description.isNotEmpty)
         'description': description,
+      'imageUrl': ?imageUrl,
     }, fallback: 'No se pudo crear la categoría.');
     return decodeResponse(() => Category.fromJson(json));
   }
@@ -75,10 +82,12 @@ class HttpAdminCategoriesRepository implements AdminCategoriesRepository {
     String id, {
     required String name,
     required String description,
+    required String? imageUrl,
   }) async {
     final json = await _api.patch('/categories/${Uri.encodeComponent(id)}', {
       'name': name,
       'description': description,
+      'imageUrl': imageUrl,
     }, fallback: 'No se pudo guardar la categoría.');
     return decodeResponse(() => Category.fromJson(json));
   }
@@ -94,15 +103,6 @@ class HttpAdminCategoriesRepository implements AdminCategoriesRepository {
       bytes,
       contentType: contentType,
       fallback: 'No se pudo subir la foto.',
-    );
-    return decodeResponse(() => Category.fromJson(json));
-  }
-
-  @override
-  Future<Category> removeImage(String id) async {
-    final json = await _api.delete(
-      '/categories/${Uri.encodeComponent(id)}/image',
-      fallback: 'No se pudo quitar la foto.',
     );
     return decodeResponse(() => Category.fromJson(json));
   }

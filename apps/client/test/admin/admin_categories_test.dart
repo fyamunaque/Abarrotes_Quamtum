@@ -74,7 +74,7 @@ void main() {
     await tester.enterText(field('Descripción'), 'Mayonesa, kétchup y más');
     await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
 
-    expect(repository.created, [('Salsas', 'Mayonesa, kétchup y más')]);
+    expect(repository.created, [('Salsas', 'Mayonesa, kétchup y más', null)]);
     expect(find.text('Mayonesa, kétchup y más'), findsOneWidget);
   });
 
@@ -94,7 +94,7 @@ void main() {
     await pumpCategories(tester);
 
     await tapAndSettle(tester, find.text('Lácteos').first);
-    await tapAndSettle(tester, find.text('Elegir foto'));
+    await tapAndSettle(tester, find.text('Subir foto'));
     await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
 
     expect(repository.uploads, ['cat-lacteos']);
@@ -109,7 +109,7 @@ void main() {
 
     await tapAndSettle(tester, find.text('Nueva categoría'));
     await tester.enterText(field('Nombre'), 'Salsas');
-    await tapAndSettle(tester, find.text('Elegir foto'));
+    await tapAndSettle(tester, find.text('Subir foto'));
     await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
 
     expect(find.text('No se pudo subir la foto'), findsOneWidget);
@@ -119,7 +119,7 @@ void main() {
     await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
 
     // Se creó una sola vez y la foto quedó en esa.
-    expect(repository.created, [('Salsas', null)]);
+    expect(repository.created, [('Salsas', null, null)]);
     expect(repository.uploads, ['cat-3']);
     expect(find.byType(CategoryForm), findsNothing);
   });
@@ -136,10 +136,9 @@ void main() {
     await tapAndSettle(tester, find.text('Quitar foto'));
     // Ya no hay foto que quitar: se puede elegir otra.
     expect(find.text('Quitar foto'), findsNothing);
-    expect(find.text('Elegir foto'), findsOneWidget);
+    expect(find.text('Subir foto'), findsOneWidget);
     await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
 
-    expect(repository.removedImages, ['cat-lacteos']);
     expect(repository.categories[1].imageUrl, isNull);
     expect(repository.uploads, isEmpty);
   });
@@ -196,5 +195,139 @@ void main() {
 
     expect(find.text('Categorías'), findsNothing);
     expect(find.byType(AdminCategoriesScreen), findsNothing);
+  });
+
+  group('la foto desde una URL', () {
+    const url = 'https://cdn.tienda.pe/salsas.jpg';
+    Finder urlField() => field('O pega la URL de una imagen (opcional)');
+    // La foto elegida se muestra desde sus bytes.
+    Finder chosenPhoto() =>
+        find.byWidgetPredicate((w) => w is Image && w.image is MemoryImage);
+
+    testWidgets('crea una categoría con la URL de una imagen', (tester) async {
+      await pumpCategories(tester);
+
+      await tapAndSettle(tester, find.text('Nueva categoría'));
+      await tester.enterText(field('Nombre'), 'Salsas');
+      await tester.enterText(urlField(), url);
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
+
+      expect(repository.created, [('Salsas', null, url)]);
+      expect(repository.uploads, isEmpty);
+      expect(find.byType(CategoryForm), findsNothing);
+    });
+
+    testWidgets('la URL tiene que empezar con https://', (tester) async {
+      await pumpCategories(tester);
+
+      await tapAndSettle(tester, find.text('Nueva categoría'));
+      await tester.enterText(field('Nombre'), 'Salsas');
+      await tester.enterText(urlField(), 'salsas.jpg');
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Crear'));
+
+      expect(
+        find.text('Escribe una dirección que empiece con https://'),
+        findsOneWidget,
+      );
+      expect(repository.created, isEmpty);
+    });
+
+    testWidgets(
+      'pegar una URL reemplaza la foto elegida, y elegir una foto borra la URL',
+      (tester) async {
+        await pumpCategories(tester);
+        await tapAndSettle(tester, find.text('Lácteos').first);
+
+        await tapAndSettle(tester, find.text('Subir foto'));
+        expect(chosenPhoto(), findsOneWidget);
+
+        await tester.enterText(urlField(), url);
+        await tester.pumpAndSettle();
+        expect(chosenPhoto(), findsNothing);
+
+        await tapAndSettle(tester, find.text('Cambiar foto'));
+        expect(chosenPhoto(), findsOneWidget);
+        expect(
+          tester.widget<TextFormField>(urlField()).controller!.text,
+          isEmpty,
+        );
+      },
+    );
+
+    testWidgets('cambia la foto subida por una URL', (tester) async {
+      repository.categories[1] = const Category(
+        id: 'cat-lacteos',
+        name: 'Lácteos',
+        imageUrl: '/images/categories/cat-lacteos/0123456789abcdef.jpg',
+      );
+      await pumpCategories(tester);
+      await tapAndSettle(tester, find.text('Lácteos').first);
+
+      // La foto subida no se muestra como texto en el campo.
+      expect(
+        tester.widget<TextFormField>(urlField()).controller!.text,
+        isEmpty,
+      );
+      await tester.enterText(urlField(), url);
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
+
+      expect(repository.categories[1].imageUrl, url);
+      expect(repository.uploads, isEmpty);
+    });
+
+    testWidgets('guardar sin tocar la foto la deja como estaba', (
+      tester,
+    ) async {
+      const stored = '/images/categories/cat-lacteos/0123456789abcdef.jpg';
+      repository.categories[1] = const Category(
+        id: 'cat-lacteos',
+        name: 'Lácteos',
+        imageUrl: stored,
+      );
+      await pumpCategories(tester);
+      await tapAndSettle(tester, find.text('Lácteos').first);
+
+      await tester.enterText(field('Descripción'), 'Leches y yogures');
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
+
+      expect(repository.categories[1].imageUrl, stored);
+      expect(repository.categories[1].description, 'Leches y yogures');
+    });
+
+    testWidgets('una URL externa se ve en el campo; vaciarlo quita la foto', (
+      tester,
+    ) async {
+      const external = 'https://cdn.tienda.pe/lacteos.jpg';
+      repository.categories[1] = const Category(
+        id: 'cat-lacteos',
+        name: 'Lácteos',
+        imageUrl: external,
+      );
+      await pumpCategories(tester);
+      await tapAndSettle(tester, find.text('Lácteos').first);
+
+      expect(
+        tester.widget<TextFormField>(urlField()).controller!.text,
+        external,
+      );
+      await tester.enterText(urlField(), '');
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
+
+      expect(repository.categories[1].imageUrl, isNull);
+    });
+
+    testWidgets('en la app de Android también se puede tomar la foto', (
+      tester,
+    ) async {
+      picker = FakePhotoPicker(canUseCamera: true);
+      await pumpCategories(tester);
+      await tapAndSettle(tester, find.text('Lácteos').first);
+
+      await tapAndSettle(tester, find.text('Tomar foto'));
+      await tapAndSettle(tester, find.widgetWithText(FilledButton, 'Guardar'));
+
+      expect(picker.sources, [PhotoSource.camera]);
+      expect(repository.uploads, ['cat-lacteos']);
+    });
   });
 }
