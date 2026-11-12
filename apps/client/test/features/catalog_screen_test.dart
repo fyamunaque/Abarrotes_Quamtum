@@ -8,6 +8,7 @@ import 'package:neils/catalog/catalog_providers.dart';
 import 'package:neils/catalog/product.dart';
 import 'package:neils/common/api_client.dart';
 import 'package:neils/common/money.dart';
+import 'package:neils/features/cart/cart_notice.dart';
 import 'package:neils/features/catalog/category_header.dart';
 import 'package:neils/features/catalog/price_tag.dart';
 import 'package:neils/features/catalog/product_card.dart';
@@ -309,7 +310,15 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(container.read(cartProvider).quantityOf('arroz'), 1);
-      expect(find.text('Agregaste Arroz extra 5 kg'), findsOneWidget);
+      final notice = find.byType(CartNotice);
+      expect(
+        find.descendant(of: notice, matching: find.text('Agregado al carrito')),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(of: notice, matching: find.text('Arroz extra 5 kg')),
+        findsOneWidget,
+      );
       expect(find.byTooltip('Carrito: 1'), findsOneWidget);
 
       await tester.tap(find.text('Ver carrito'));
@@ -466,7 +475,13 @@ void main() {
         expect(container.read(cartProvider).quantityOf('aceite'), 1);
         expect(container.read(cartProvider).quantityOf('arroz'), 0);
 
-        await tester.tap(find.text('Aceite vegetal 1 L'));
+        // La tarjeta: el aviso del carrito también dice el nombre.
+        await tester.tap(
+          find.descendant(
+            of: find.byType(ProductCard),
+            matching: find.text('Aceite vegetal 1 L'),
+          ),
+        );
         await tester.pumpAndSettle();
         expect(location(router), '/producto/aceite');
         expect(shownProducts(tester), ['arroz']);

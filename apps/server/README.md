@@ -231,7 +231,7 @@ promoción como días de Lima. Lo único distinto: los enums van como en los mod
 | `PATCH /store` | `store.manage` | Campos parciales; `null` borra los opcionales. Nombre (hasta 100) y dirección (hasta 255) no pueden quedar vacíos: la primera vez, la dirección es obligatoria. Hay un solo registro (tabla `store_settings`, con un índice único que no deja crear otro). |
 | `GET /categories`, `GET /categories/:id` | público | Categorías por nombre: `{id, name, description, imageUrl}`. |
 | `GET /categories/summary` | `categories.manage` | Para el panel: las categorías como `GET /categories`, cada una con `productCount` (todos sus productos, también los inactivos: los que impiden borrarla). Una sola consulta para los conteos. |
-| `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name, description}`. El nombre no se repite, sin distinguir mayúsculas (409). La descripción tiene hasta 80 caracteres; vacía o `null` en un PATCH la borra. |
+| `POST /categories`, `PATCH /categories/:id` | `categories.manage` | `{name, description, imageUrl}`. El nombre no se repite, sin distinguir mayúsculas (409). La descripción tiene hasta 80 caracteres; vacía o `null` en un PATCH la borra. `imageUrl`, como en los productos: una URL http(s) externa de hasta 2000 caracteres, o en un PATCH la foto subida que ya tiene (para reenviarla); `null` quita la foto, y una foto subida que se reemplaza o se quita se borra. Una ruta de foto subida al crear, u otra que no es la suya, es 400: las fotos se suben con `PUT /categories/:id/image`. |
 | `PUT /categories/:id/image` | `categories.manage` | La foto tal cual (JPEG, PNG o WebP, hasta 8 MB): se guarda en JPEG de hasta 1200 px por lado y reemplaza a la anterior, que se borra. Devuelve la categoría. |
 | `DELETE /categories/:id/image` | `categories.manage` | Le quita la foto (la tienda vuelve a mostrar su color con la inicial) y la borra si era una subida. Sin foto, no cambia nada. Devuelve la categoría. |
 | `GET /images/categories/:categoryId/:file` | público | La foto subida, con caché para siempre (cada una tiene un nombre nuevo); 404 si no existe. |
@@ -321,7 +321,8 @@ El pedido bloquea los productos comprados **y los de regalo** en orden por id an
 
 ### Fotos de los productos y de las categorías
 
-Las fotos se suben desde el panel (`PUT /products/:id/image`, `PUT /categories/:id/image`). Lo
+Las fotos se suben desde el panel (`PUT /products/:id/image`, `PUT /categories/:id/image`), o se
+pega la URL de una imagen externa en `imageUrl` (`POST` y `PATCH`, en los dos dominios). Lo
 común está en `Photos` (`lib/src/common/photos.dart`): cada dominio lo compone con su carpeta y
 su tamaño (`ProductImages`, 800 px; `CategoryImages`, 1200 px, porque se ven anchas), así
 ninguno importa la lógica del otro. `Photos` las procesa con el paquete `image`:

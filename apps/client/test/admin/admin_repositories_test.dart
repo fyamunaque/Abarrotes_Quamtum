@@ -1208,21 +1208,43 @@ void main() {
       },
     );
 
-    test('quitar la foto es DELETE a /categories/:id/image', () async {
-      final category = await HttpAdminCategoriesRepository(
+    test('crear y guardar mandan la URL de la foto, o null', () async {
+      final repository = HttpAdminCategoriesRepository(
         api(
           (_) => {
             'id': 'cat-1',
             'name': 'Embutidos',
             'description': null,
-            'imageUrl': null,
+            'imageUrl': 'https://cdn.tienda.pe/embutidos.jpg',
           },
         ),
-      ).removeImage('cat-1');
+      );
 
-      expect(sent.single.method, 'DELETE');
-      expect(sent.single.url.path, '/categories/cat-1/image');
-      expect(category.imageUrl, isNull);
+      final created = await repository.create(
+        'Embutidos',
+        imageUrl: 'https://cdn.tienda.pe/embutidos.jpg',
+      );
+      await repository.update(
+        'cat-1',
+        name: 'Embutidos',
+        description: '',
+        imageUrl: null,
+      );
+
+      expect(created.imageUrl, 'https://cdn.tienda.pe/embutidos.jpg');
+      expect(
+        [for (final request in sent) (request.method, request.url.path)],
+        [('POST', '/categories'), ('PATCH', '/categories/cat-1')],
+      );
+      expect(jsonDecode(sent[0].body), {
+        'name': 'Embutidos',
+        'imageUrl': 'https://cdn.tienda.pe/embutidos.jpg',
+      });
+      expect(jsonDecode(sent[1].body), {
+        'name': 'Embutidos',
+        'description': '',
+        'imageUrl': null,
+      });
     });
   });
 }

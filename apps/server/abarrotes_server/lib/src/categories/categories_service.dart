@@ -42,16 +42,19 @@ class CategoriesService {
     return category;
   }
 
+  /// Crea la categoría; [imageUrl], si viene, es una URL externa (las fotos
+  /// se suben después, con [setImage]).
   Future<Category> create(
     Session session,
     String name, {
     String? description,
+    String? imageUrl,
   }) async {
     await _assertNameIsFree(session, name);
     try {
       return await Category.db.insertRow(
         session,
-        Category(name: name, description: description),
+        Category(name: name, description: description, imageUrl: imageUrl),
       );
     } on DatabaseUniqueViolationException {
       throw ApiException.conflict('Ya existe la categoría "$name"');
@@ -61,31 +64,53 @@ class CategoriesService {
   /// Renombra la categoría y cambia su descripción: sin [name] el nombre
   /// queda como está; sin [description], la descripción también, salvo con
   /// [clearDescription], que la borra.
+  ///
+  /// Con [setImageUrl], la foto pasa a ser [imageUrl]: una URL externa, null
+  /// (sin foto) o la foto subida que ya tiene; otra foto subida es 400 (se
+  /// sube con [setImage]). Si deja una foto subida, se borra.
   Future<Category> update(
     Session session,
     UuidValue id,
     String? name, {
     String? description,
     bool clearDescription = false,
+    String? imageUrl,
+    bool setImageUrl = false,
   }) async {
     final category = await get(session, id);
-    if (name == null && description == null && !clearDescription) {
+    if (name == null &&
+        description == null &&
+        !clearDescription &&
+        !setImageUrl) {
       return category;
     }
+    if (setImageUrl &&
+        CategoryImages.isStored(imageUrl) &&
+        imageUrl != category.imageUrl) {
+      throw const ApiException.badRequest(
+        'Para cambiar la foto, súbela con PUT /categories/:id/image',
+      );
+    }
     if (name != null) await _assertNameIsFree(session, name, exceptId: id);
+    final Category updated;
     try {
-      return await Category.db.updateRow(
+      updated = await Category.db.updateRow(
         session,
         category.copyWith(
           name: name ?? category.name,
           description: clearDescription
               ? null
               : description ?? category.description,
+          imageUrl: setImageUrl ? imageUrl : category.imageUrl,
         ),
       );
     } on DatabaseUniqueViolationException {
       throw ApiException.conflict('Ya existe la categoría "$name"');
     }
+    if (updated.imageUrl != category.imageUrl) {
+      await _images.delete(session, category.imageUrl);
+    }
+    return updated;
   }
 
   /// Borra la categoría (y su foto, si era una subida) solo si no tiene

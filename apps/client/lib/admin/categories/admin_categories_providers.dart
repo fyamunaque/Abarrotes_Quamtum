@@ -25,23 +25,33 @@ class AdminCategoriesNotifier extends AsyncNotifier<List<AdminCategory>> {
   Future<List<AdminCategory>> build() =>
       ref.watch(adminCategoriesRepositoryProvider).list();
 
-  Future<Category> create(String name, {String? description}) =>
-      _changed(_repository.create(name, description: description));
+  Future<Category> create(
+    String name, {
+    String? description,
+    String? imageUrl,
+  }) => _changed(
+    _repository.create(name, description: description, imageUrl: imageUrl),
+  );
 
   Future<Category> save(
     String id, {
     required String name,
     required String description,
-  }) => _changed(_repository.update(id, name: name, description: description));
+    required String? imageUrl,
+  }) => _changed(
+    _repository.update(
+      id,
+      name: name,
+      description: description,
+      imageUrl: imageUrl,
+    ),
+  );
 
   Future<Category> uploadImage(
     String id,
     List<int> bytes, {
     required String contentType,
   }) => _changed(_repository.uploadImage(id, bytes, contentType: contentType));
-
-  Future<Category> removeImage(String id) =>
-      _changed(_repository.removeImage(id));
 
   Future<void> delete(String id) => _changed(_repository.delete(id));
 

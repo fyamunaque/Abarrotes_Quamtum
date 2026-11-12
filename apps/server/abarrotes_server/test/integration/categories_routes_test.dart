@@ -419,6 +419,117 @@ void main() {
 
         expect(response.statusCode, 404);
       });
+
+      group('la foto desde una URL', () {
+        const external = 'https://cdn.tienda.pe/embutidos.jpg';
+
+        test('POST crea con la URL de una imagen', () async {
+          final (status, body) = await client.post('/categories', {
+            'name': 'Embutidos',
+            'imageUrl': external,
+          }, as: 'uid-staff');
+
+          expect(status, 201);
+          expect(body['imageUrl'], external);
+          final saved = await Category.db.findFirstRow(session);
+          expect(saved!.imageUrl, external);
+        });
+
+        test(
+          'tiene que ser una URL http(s), de hasta 2000 caracteres',
+          () async {
+            for (final (url, message) in [
+              ('embutidos.jpg', 'imageUrl debe ser una URL http(s)'),
+              (
+                'ftp://cdn.tienda.pe/a.jpg',
+                'imageUrl debe ser una URL http(s)',
+              ),
+              (
+                'https://cdn.tienda.pe/${'a' * 2000}.jpg',
+                'imageUrl admite como máximo 2000 caracteres',
+              ),
+            ]) {
+              final (status, body) = await client.post('/categories', {
+                'name': 'Embutidos',
+                'imageUrl': url,
+              }, as: 'uid-staff');
+
+              expect(status, 400, reason: url);
+              expect(body['message'], [message], reason: url);
+            }
+            expect(await Category.db.count(session), 0);
+          },
+        );
+
+        test('POST no acepta la ruta de una foto subida', () async {
+          final (status, body) = await client.post('/categories', {
+            'name': 'Embutidos',
+            'imageUrl': '/images/categories/otra/0123456789abcdef.jpg',
+          }, as: 'uid-staff');
+
+          expect(status, 400);
+          expect('$body', contains('se sube después'));
+          expect(await Category.db.count(session), 0);
+        });
+
+        test('PATCH a una URL externa o a null borra la subida', () async {
+          final category = await insertCategory('Embutidos');
+          final path = '/categories/${category.id}';
+          final uploaded = await upload(category);
+
+          final (status, body) = await client.patch(path, {
+            'imageUrl': external,
+          }, as: 'uid-staff');
+          expect((status, body['imageUrl']), (200, external));
+          expect((await client.getRaw(uploaded)).statusCode, 404);
+
+          final again = await upload(category);
+          final (cleared, clearedBody) = await client.patch(path, {
+            'imageUrl': null,
+          }, as: 'uid-staff');
+          expect((cleared, clearedBody['imageUrl']), (200, null));
+          expect((await client.getRaw(again)).statusCode, 404);
+        });
+
+        test('PATCH puede reenviar la foto que tiene, pero no otra', () async {
+          final category = await insertCategory('Embutidos');
+          final path = '/categories/${category.id}';
+          final url = await upload(category);
+
+          final (same, sameBody) = await client.patch(path, {
+            'name': 'Embutidos y fiambres',
+            'imageUrl': url,
+          }, as: 'uid-staff');
+          expect((same, sameBody['imageUrl']), (200, url));
+          expect(sameBody['name'], 'Embutidos y fiambres');
+          expect((await client.getRaw(url)).statusCode, 200);
+
+          final (other, otherBody) = await client.patch(path, {
+            'imageUrl':
+                '/images/categories/${category.id}/0123456789abcdef.jpg',
+          }, as: 'uid-staff');
+          expect(other, 400);
+          expect('$otherBody', contains('súbela'));
+          expect(
+            (await Category.db.findById(session, category.id!))!.imageUrl,
+            url,
+          );
+        });
+
+        test('PATCH sin imageUrl no toca la foto', () async {
+          final category = await insertCategory('Embutidos');
+          final url = await upload(category);
+
+          final (status, body) = await client.patch(
+            '/categories/${category.id}',
+            {'description': 'Hot dogs y jamonadas'},
+            as: 'uid-staff',
+          );
+
+          expect((status, body['imageUrl']), (200, url));
+          expect((await client.getRaw(url)).statusCode, 200);
+        });
+      });
     });
   });
 }
