@@ -203,8 +203,8 @@ void main() {
         ),
         findsOneWidget,
       );
-      // La línea y el total, con los precios de hoy.
-      expect(find.text(formatSoles(4980)), findsNWidgets(2));
+      // La línea, el subtotal y el total, con los precios de hoy.
+      expect(find.text(formatSoles(4980)), findsNWidgets(3));
       expect(find.text('Descuentos'), findsNothing);
     });
 
@@ -298,7 +298,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('Descuentos'), findsNothing);
-      expect(find.text(formatSoles(4980)), findsNWidgets(2));
+      // La línea, el subtotal y el total.
+      expect(find.text(formatSoles(4980)), findsNWidgets(3));
     });
 
     testWidgets('cambiar la cantidad vuelve a cotizar', (tester) async {
@@ -342,7 +343,7 @@ void main() {
     expect(find.text('S/ 24.90 c/u'), findsOneWidget);
     expect(find.text('S/ 8.90 c/u'), findsOneWidget);
     expect(find.text('S/ 49.80'), findsOneWidget);
-    expect(find.text('S/ 58.70'), findsOneWidget);
+    expect(find.text('S/ 58.70'), findsNWidgets(2)); // subtotal y total
     expect(find.byTooltip('Carrito: 3'), findsOneWidget);
   });
 
@@ -398,7 +399,7 @@ void main() {
     // El aceite tiene 3 en stock: no se puede pedir más.
     expect(container.read(cartProvider).quantityOf('aceite'), 3);
     expect(button('Agregar uno').onPressed, isNull);
-    expect(find.text('S/ 26.70'), findsNWidgets(2)); // línea y total
+    expect(find.text('S/ 26.70'), findsNWidgets(3)); // línea, subtotal y total
 
     await tapIn(tester, 'Aceite vegetal 1 L', 'Quitar uno');
     expect(container.read(cartProvider).quantityOf('aceite'), 2);
@@ -411,7 +412,7 @@ void main() {
 
     await tapIn(tester, 'Arroz extra 5 kg', 'Quitar del carrito');
     expect(find.text('Arroz extra 5 kg'), findsNothing);
-    expect(find.text('S/ 8.90'), findsNWidgets(2));
+    expect(find.text('S/ 8.90'), findsNWidgets(3)); // línea, subtotal y total
 
     await tapIn(tester, 'Aceite vegetal 1 L', 'Quitar del carrito');
     expect(find.text('Tu carrito está vacío.'), findsOneWidget);

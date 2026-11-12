@@ -64,15 +64,19 @@ void main() {
     );
   });
 
-  testWidgets('sin descuentos no hay línea de descuentos', (tester) async {
+  testWidgets('sin descuentos muestra el subtotal, sin línea de descuentos', (
+    tester,
+  ) async {
     await pumpTicket(
       tester,
       const CartTicket(subtotalCents: 2490, discountCents: 0, totalCents: 2490),
     );
 
+    expect(find.text('Subtotal'), findsOneWidget);
     expect(find.text('Descuentos'), findsNothing);
-    expect(find.text('Subtotal'), findsNothing);
     expect(find.text('Total estimado'), findsOneWidget);
+    // El subtotal y el total estimado: el mismo monto, dos veces.
+    expect(find.text(formatSoles(2490)), findsNWidgets(2));
   });
 
   testWidgets('el borde de arriba es perforado, sobre el panel cálido', (

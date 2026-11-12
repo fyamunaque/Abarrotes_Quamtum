@@ -5,9 +5,9 @@ import '../../theme/neils_theme.dart';
 import '../../theme/palette.dart';
 
 /// El resumen del carrito, como un ticket: sobre el panel cálido
-/// ([NeilsPalette.surfaceAlt]) y con el borde de arriba perforado. Con
-/// descuentos, "Subtotal" y "Descuentos"; siempre "Total estimado" y la nota
-/// de que el precio final lo confirma la tienda.
+/// ([NeilsPalette.surfaceAlt]) y con el borde de arriba perforado. Siempre
+/// "Subtotal", "Total estimado" y la nota de que el precio final lo confirma
+/// la tienda; "Descuentos", solo si hay.
 class CartTicket extends StatelessWidget {
   const CartTicket({
     super.key,
@@ -42,18 +42,18 @@ class CartTicket extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              row('Subtotal', formatSoles(subtotalCents)),
               if (discountCents > 0) ...[
-                row('Subtotal', formatSoles(subtotalCents)),
                 const SizedBox(height: 4),
                 row(
                   'Descuentos',
                   '−${formatSoles(discountCents)}',
                   color: palette.positive,
                 ),
-                const SizedBox(height: 10),
-                Divider(height: 1, color: palette.line),
-                const SizedBox(height: 10),
               ],
+              const SizedBox(height: 10),
+              Divider(height: 1, color: palette.line),
+              const SizedBox(height: 10),
               Row(
                 children: [
                   // Con el texto agrandado, "Total estimado" baja de línea
