@@ -21,6 +21,9 @@ class CategoryImages {
   /// El lado más largo de la foto guardada.
   static const maxSide = 1200;
 
+  /// Si [url] es de una foto subida aquí (y no una URL externa).
+  static bool isStored(String? url) => url != null && url.startsWith(urlPrefix);
+
   /// La foto lista para guardar ([Photos.processPhoto]), de hasta [maxSide].
   static Uint8List process(Uint8List bytes) =>
       Photos.processPhoto(bytes, maxSide: maxSide);

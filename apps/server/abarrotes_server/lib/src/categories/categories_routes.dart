@@ -52,14 +52,13 @@ List<RouteEntry> categoriesRoutes(
       '/categories',
       manage(
         ApiRoute(Method.post, (session, request) async {
-          final (:name, :description, clear: _) = _readBody(
-            await readJsonBody(request),
-            nameRequired: true,
-          );
+          final (:name, :description, :imageUrl, clear: _, setsImage: _) =
+              _readBody(await readJsonBody(request), creating: true);
           final category = await categories.create(
             session,
             name!,
             description: description,
+            imageUrl: imageUrl,
           );
           return jsonResponse(201, categoryJson(category));
         }),
@@ -70,16 +69,16 @@ List<RouteEntry> categoriesRoutes(
       manage(
         ApiRoute(Method.patch, (session, request) async {
           final id = idParam(request);
-          final (:name, :description, :clear) = _readBody(
-            await readJsonBody(request),
-            nameRequired: false,
-          );
+          final (:name, :description, :clear, :imageUrl, :setsImage) =
+              _readBody(await readJsonBody(request), creating: false);
           final category = await categories.update(
             session,
             id,
             name,
             description: description,
             clearDescription: clear,
+            imageUrl: imageUrl,
+            setImageUrl: setsImage,
           );
           return jsonResponse(200, categoryJson(category));
         }),
@@ -144,15 +143,27 @@ List<RouteEntry> categoriesRoutes(
   ];
 }
 
-/// Body de POST y PATCH: `{name, description}`, sin espacios alrededor. La
-/// descripción tiene hasta 80 caracteres; vacía o `null` en un PATCH
-/// ([clear]) la borra.
-({String? name, String? description, bool clear}) _readBody(
-  Object? json, {
-  required bool nameRequired,
-}) {
-  final body = InputReader.body(json, allowed: const {'name', 'description'});
-  final name = body.text('name', maxLength: 60, required: nameRequired);
+/// Body de POST y PATCH: `{name, description, imageUrl}`, sin espacios
+/// alrededor. La descripción tiene hasta 80 caracteres; vacía o `null` en un
+/// PATCH ([clear]) la borra.
+///
+/// `imageUrl`, como en los productos: una URL http(s) externa de hasta 2000
+/// caracteres, o la ruta de la foto subida que la categoría ya tiene (así el
+/// formulario la puede reenviar); `null` quita la foto. [setsImage]: vino en
+/// el body. Al crear no vale una ruta de foto subida: la foto se sube después.
+({
+  String? name,
+  String? description,
+  bool clear,
+  String? imageUrl,
+  bool setsImage,
+})
+_readBody(Object? json, {required bool creating}) {
+  final body = InputReader.body(
+    json,
+    allowed: const {'name', 'description', 'imageUrl'},
+  );
+  final name = body.text('name', maxLength: 60, required: creating);
   final hasDescription =
       json is Map<String, Object?> && json.containsKey('description');
   final raw = hasDescription ? json['description'] : null;
@@ -161,8 +172,26 @@ List<RouteEntry> categoriesRoutes(
   final description = blank
       ? null
       : body.text('description', maxLength: 80, required: false);
+  final imageUrl = body.url(
+    'imageUrl',
+    maxLength: 2000,
+    nullable: true,
+    orPathUnder: CategoryImages.urlPrefix,
+  );
+  if (creating && CategoryImages.isStored(imageUrl)) {
+    body.reject(
+      'imageUrl tiene que ser una URL http(s): la foto se sube después de '
+      'crear la categoría',
+    );
+  }
   body.check();
-  return (name: name, description: description, clear: blank);
+  return (
+    name: name,
+    description: description,
+    clear: blank,
+    imageUrl: imageUrl,
+    setsImage: body.has('imageUrl'),
+  );
 }
 
 Map<String, Object?> categoryJson(Category category) => {
